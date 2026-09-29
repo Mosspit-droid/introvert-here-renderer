@@ -1,0 +1,42 @@
+name: Render Video
+
+# This lets Make (or anyone with access) start this job on demand by
+# calling GitHub's API, instead of it running on a schedule or on every
+# code change. Make will pass in "render_spec" (what to put in the
+# video) and "callback_url" (where to send the finished video once it's
+# ready).
+on:
+  workflow_dispatch:
+    inputs:
+      render_spec:
+        description: 'JSON describing the video to render (textLines, backgroundImageUrl, productImages, etc.)'
+        required: true
+      callback_url:
+        description: 'URL to POST the finished mp4 file to when the render is done'
+        required: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    # Same exact Playwright image/version used on Render, so the
+    # installed browser always matches the "playwright" npm package
+    # version - this is what avoids the version-mismatch crash we hit
+    # before.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-jammy
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: apt-get update && apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install dependencies
+        run: npm install --omit=dev
+
+      - name: Render video and send it to the callback URL
+        env:
+          RENDER_SPEC_JSON: ${{ github.event.inputs.render_spec }}
+          CALLBACK_URL: ${{ github.event.inputs.callback_url }}
+        run: node render-once.js
