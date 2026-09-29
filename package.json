@@ -1,0 +1,16 @@
+{
+  "name": "introvert-here-renderer",
+  "version": "1.0.0",
+  "description": "Self-hosted replacement for the Shotstack render step: renders the gag-text card and product-image slideshow as a video using a real browser (Playwright) instead of a third-party black-box renderer.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.47.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
