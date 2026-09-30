@@ -166,12 +166,35 @@ async function main() {
     const rawVideoPath = await video.path();
 
     const finalMp4Path = path.join(workDir, 'output.mp4');
+    const gop = fps * 2;
     await execFileAsync('ffmpeg', [
       '-y',
       '-i', rawVideoPath,
+      // Playwright's raw recording has no audio track at all. Some
+      // platforms' upload validators (Etsy included, per observed
+      // behaviour) reject an audio-less container even though playback
+      // guides say audio isn't required - so we mux in a silent track.
+      '-f', 'lavfi',
+      '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
+      '-map', '0:v:0',
+      '-map', '1:a:0',
       '-r', String(fps),
+      // Force constant frame rate output. Playwright's webm recording
+      // has variable frame timing; -r alone (as an output option) is
+      // supposed to resample to CFR, but -vsync cfr makes that explicit
+      // and is the safer, well-documented way to guarantee it.
+      '-vsync', 'cfr',
       '-vcodec', 'libx264',
+      '-profile:v', 'high',
+      '-level', '4.0',
+      // Explicit keyframe interval (~every 2s) - some ingest validators
+      // expect regular keyframes rather than an arbitrary/long GOP.
+      '-g', String(gop),
+      '-keyint_min', String(gop),
       '-pix_fmt', 'yuv420p',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-shortest',
       '-movflags', '+faststart',
       finalMp4Path,
     ]);
