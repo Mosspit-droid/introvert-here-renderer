@@ -184,10 +184,18 @@ function buildPage(spec) {
   }
 
   async function waitForImageLoad(img) {
-    if (img.complete) return;
+    if (img.complete) {
+      if (img.naturalWidth === 0) {
+        console.error('[image] FAILED TO LOAD (already complete, naturalWidth=0): ' + img.src);
+      }
+      return;
+    }
     await new Promise((resolve) => {
-      img.addEventListener('load', resolve, { once: true });
-      img.addEventListener('error', resolve, { once: true });
+      img.addEventListener('load', () => resolve(), { once: true });
+      img.addEventListener('error', () => {
+        console.error('[image] FAILED TO LOAD: ' + img.src);
+        resolve();
+      }, { once: true });
     });
   }
 
