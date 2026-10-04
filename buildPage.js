@@ -14,8 +14,9 @@
  *   1. A background image (e.g. the Canva-exported artwork) is shown full
  *      frame. On top of it, the gag text types itself on, one character
  *      at a time, matching the box position/typography from the original
- *      design (511x648 box, right-aligned, Montserrat Bold 700 50px,
- *      120% line height, -0.04em letter spacing).
+ *      design (511x648 box, left-aligned so the first letter's position
+ *      is fixed and each line grows rightward as it's typed, Montserrat
+ *      Regular 400 50px, 120% line height, -0.04em letter spacing).
  *   2. Once the text has finished typing and held briefly, the view cuts
  *      to a sequence of product photos, each shown for its own duration
  *      with a slow zoom-out effect, one after another.
@@ -131,14 +132,14 @@ function buildPage(spec) {
     left: 285px;
     top: 404px;
     width: 511px;
-    text-align: right;
+    text-align: left;
   }
   .textbox div {
     display: block;
     width: 100%;
     white-space: nowrap;
     font-family: 'Montserrat', sans-serif;
-    font-weight: 700;
+    font-weight: 400;
     font-size: 50px;
     line-height: 120%;
     letter-spacing: -0.04em;
@@ -146,7 +147,7 @@ function buildPage(spec) {
   }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="stage" id="stage">
@@ -201,7 +202,7 @@ function buildPage(spec) {
 
   async function run() {
     // Wait for the web font to actually be ready before we start typing,
-    // so the very first frame is already using Montserrat Bold, not a
+    // so the very first frame is already using Montserrat Regular, not a
     // fallback font that then swaps mid-recording.
     if (document.fonts && document.fonts.ready) {
       try { await document.fonts.ready; } catch (e) {}
