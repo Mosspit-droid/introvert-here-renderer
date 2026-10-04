@@ -86,6 +86,89 @@ async function uploadFile(callbackUrl, filePath) {
   });
 }
 
+// Fetches a remote image over plain HTTP(S) and returns it as a data: URI.
+//
+// This exists because some image hosts (SharePoint/OneDrive "download"
+// links in particular) serve their bytes with a
+// `Content-Disposition: attachment` header. That header tells a real
+// browser "this is a download, not something to display" - and Chromium
+// honours it even for an <img> tag, firing the image's 'error' event
+// instead of 'load' even though the bytes it got back are a perfectly
+// valid image. A plain server-side fetch (this function) doesn't care
+// about that header at all, so downloading the bytes ourselves and
+// embedding them as a data: URI sidesteps the problem entirely - the
+// browser never makes an HTTP request for the image, so there's no
+// response header for it to react to. This also means the render no
+// longer depends on any temporary/signed image URL staying valid for
+// the few seconds between the page being built and the browser painting
+// it.
+function fetchAsDataUri(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(imageUrl);
+    const isHttps = url.protocol === 'https:';
+    const lib = isHttps ? https : http;
+
+    // Some hosts (SharePoint/OneDrive download links among them) sit
+    // behind bot-mitigation that 403s a request with no (or an empty)
+    // User-Agent header - Node's http(s) client sends none by default,
+    // where curl and every real browser send one automatically. A
+    // generic desktop-browser string is enough to get past that check.
+    const requestOptions = {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    };
+
+    const req = lib.get(url, requestOptions, (res) => {
+      // Follow a small number of redirects manually, since some image
+      // hosts (this SharePoint link included) can issue a 301/302
+      // before the final bytes.
+      if (
+        res.statusCode >= 300 &&
+        res.statusCode < 400 &&
+        res.headers.location
+      ) {
+        res.resume(); // discard body
+        resolve(fetchAsDataUri(new URL(res.headers.location, url).toString()));
+        return;
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        reject(new Error(`Failed to fetch image (status ${res.statusCode}): ${imageUrl}`));
+        return;
+      }
+
+      const contentType = res.headers['content-type'] || 'application/octet-stream';
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        const base64 = buffer.toString('base64');
+        resolve(`data:${contentType};base64,${base64}`);
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+  });
+}
+
+// Downloads backgroundImageUrl and every productImages[].url up front and
+// replaces them with data: URIs, so the browser never fetches an external
+// image URL directly (see fetchAsDataUri above for why).
+async function inlineImages(spec) {
+  const backgroundImageUrl = await fetchAsDataUri(spec.backgroundImageUrl);
+
+  const productImages = await Promise.all(
+    (spec.productImages || []).map(async (img) => ({
+      ...img,
+      url: await fetchAsDataUri(img.url),
+    }))
+  );
+
+  return { ...spec, backgroundImageUrl, productImages };
+}
+
 async function main() {
   const specJson = process.env.RENDER_SPEC_JSON;
   const callbackUrl = process.env.CALLBACK_URL;
@@ -97,7 +180,11 @@ async function main() {
     throw new Error('CALLBACK_URL environment variable is required');
   }
 
-  const spec = JSON.parse(specJson);
+  const rawSpec = JSON.parse(specJson);
+
+  console.log('[render-once] downloading background/product images...');
+  const spec = await inlineImages(rawSpec);
+  console.log('[render-once] images downloaded and inlined');
 
   const jobId = crypto.randomUUID();
   const workDir = path.join(os.tmpdir(), `render-${jobId}`);
