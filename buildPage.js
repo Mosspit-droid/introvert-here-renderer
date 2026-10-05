@@ -14,10 +14,10 @@
  *   1. A background image (e.g. the Canva-exported artwork) is shown full
  *      frame. On top of it, the gag text types itself on, one character
  *      at a time, matching the box position/typography from the original
- *      design (511x648 box, left-aligned so the first letter's position
- *      is fixed and each line grows rightward as it's typed, Montserrat
+ *      design (511x648 box, right-aligned so each line's right edge is
+ *      fixed and the line fills in leftward as it's typed, Montserrat
  *      Regular 400 50px, 120% line height, -0.04em letter spacing).
- *   2. Once the text has finished typing and held briefly, the view cuts
+   2. Once the text has finished typing and held briefly, the view cuts
  *      to a sequence of product photos, each shown for its own duration
  *      with a slow zoom-out effect, one after another.
  *
@@ -96,8 +96,8 @@ function buildPage(spec) {
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
-    width: ${outputWidth}px;
-    height: ${outputHeight}px;
+    width: ${* ~px;
+    height: ${  }px;
     background: #000000;
     overflow: hidden;
   }
@@ -132,7 +132,7 @@ function buildPage(spec) {
     left: 285px;
     top: 404px;
     width: 511px;
-    text-align: left;
+    text-align: right;
   }
   .textbox div {
     display: block;
