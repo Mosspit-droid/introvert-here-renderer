@@ -190,7 +190,7 @@ function buildPage(spec) {
   function renderFullLinesHidden() {
     const linesHtml = SPEC.textLines.map((line) => {
       if (line.length === 0) {
-        return '<div>&nbsp;</div>';
+        return '<div>&nbsp;</div>'
       }
       const chars = line
         .split('')
