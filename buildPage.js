@@ -15,17 +15,22 @@
  *      frame. On top of it, the gag text types itself on, one character
  *      at a time, matching the box position/typography from the original
  *      design (511x648 box, right-aligned so each line's right edge is
- *      fixed and the line fills in leftward as it's typed, Montserrat
- *      Regular 400 50px, 120% line height, -0.04em letter spacing).
+ *      fixed; the full line is laid out from the start and characters are
+ *      revealed left-to-right in place, so nothing ever shifts position
+ *      as it types; Montserrat Regular 400 50px, 120% line height,
+ *      -0.04em letter spacing).
  *   2. Once the text has finished typing and held briefly, the view cuts
  *      to a sequence of product photos, each shown for its own duration
  *      with a slow zoom-out effect, one after another.
  *
  * @param {Object} spec
  * @param {string[]} spec.textLines - The gag text, one entry per line, in
- *   the order they should appear (top to bottom). Blank lines should be
- *   passed as empty strings "" (rendered as a non-breaking space so the
- *   line still takes up vertical space, matching the original behaviour).
+ *   the order they should appear (top to bottom). A blank line should be
+ *   an empty string "" — a line that's only whitespace (e.g. a single
+ *   space, used upstream to stop a blank line being swallowed by a naive
+ *   split) is also treated as blank. Either way it renders as a
+ *   non-breaking space so the line still takes up vertical space,
+ *   matching the original behaviour.
  * @param {string} spec.backgroundImageUrl - Full-frame image shown behind
  *   the animated text.
  * @param {{url: string, durationMs: number}[]} spec.productImages - The
@@ -42,7 +47,7 @@
  */
 function buildPage(spec) {
   const {
-    textLines,
+    textLines: rawTextLines,
     backgroundImageUrl,
     productImages,
     charIntervalMs = 85.5,
@@ -51,7 +56,7 @@ function buildPage(spec) {
     outputHeight = 1080,
   } = spec;
 
-  if (!Array.isArray(textLines) || textLines.length === 0) {
+  if (!Array.isArray(rawTextLines) || rawTextLines.length === 0) {
     throw new Error('textLines must be a non-empty array of strings');
   }
   if (!backgroundImageUrl) {
@@ -60,6 +65,13 @@ function buildPage(spec) {
   if (!Array.isArray(productImages) || productImages.length === 0) {
     throw new Error('productImages must be a non-empty array of {url, durationMs}');
   }
+
+  // A line that's empty, or only whitespace (e.g. a single space used
+  // upstream as a stand-in for a blank line so it survives a naive
+  // split), is normalised to a true blank line here.
+  const textLines = rawTextLines.map((line) =>
+    typeof line === 'string' && line.trim().length === 0 ? '' : line
+  );
 
   // Total characters across all lines decides how long the typing phase
   // takes. Blank lines contribute 0 characters (they're already visible
@@ -145,6 +157,9 @@ function buildPage(spec) {
     letter-spacing: -0.04em;
     color: rgba(255, 255, 255, 1);
   }
+  .textbox .ch {
+    visibility: hidden;
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
@@ -167,21 +182,30 @@ function buildPage(spec) {
     return img;
   }
 
-  function renderTextAtCharCount(revealed) {
-    let remaining = revealed;
-    const divs = SPEC.textLines.map((line) => {
+  // Build every line's FULL final text up front, one <span class="ch">
+  // per character, all hidden. Because the complete line is laid out
+  // from frame one, the right-aligned box's width and position never
+  // change as typing proceeds — only each character's visibility toggles
+  // on, left to right, already sitting exactly where it will stay.
+  function renderFullLinesHidden() {
+    const linesHtml = SPEC.textLines.map((line) => {
       if (line.length === 0) {
-        return '&nbsp;';
+        return '<div>&nbsp;</div>';
       }
-      if (remaining <= 0) {
-        return '&nbsp;';
-      }
-      const take = Math.min(remaining, line.length);
-      remaining -= take;
-      const shown = line.slice(0, take);
-      return take > 0 ? shown : '&nbsp;';
+      const chars = line
+        .split('')
+        .map((ch) => '<span class="ch">' + (ch === ' ' ? '&nbsp;' : ch) + '</span>')
+        .join('');
+      return '<div>' + chars + '</div>';
     });
-    textbox.innerHTML = divs.map((d) => '<div>' + d + '</div>').join('');
+    textbox.innerHTML = linesHtml.join('');
+  }
+
+  function revealCharsUpTo(revealed) {
+    const spans = textbox.querySelectorAll('.ch');
+    for (let i = 0; i < spans.length; i++) {
+      spans[i].style.visibility = i < revealed ? 'visible' : 'hidden';
+    }
   }
 
   async function waitForImageLoad(img) {
@@ -212,15 +236,16 @@ function buildPage(spec) {
     await waitForImageLoad(bg);
     bg.classList.add('active');
 
+    renderFullLinesHidden();
     const totalChars = SPEC.textLines.reduce((s, l) => s + l.length, 0);
     let revealed = 0;
-    renderTextAtCharCount(0);
+    revealCharsUpTo(0);
 
     await new Promise((resolve) => {
       if (totalChars === 0) { resolve(); return; }
       const interval = setInterval(() => {
         revealed += 1;
-        renderTextAtCharCount(revealed);
+        revealCharsUpTo(revealed);
         if (revealed >= totalChars) {
           clearInterval(interval);
           resolve();
