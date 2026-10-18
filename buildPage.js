@@ -190,7 +190,11 @@ function buildPage(spec) {
   function renderFullLinesHidden() {
     const linesHtml = SPEC.textLines.map((line) => {
       if (line.length === 0) {
-        return '<div>&nbsp;</div>'
+        // Explicit height here, rather than relying on &nbsp; plus the
+        // div's own line-height to create the gap - belt-and-braces
+        // against a blank-only div collapsing its box in some rendering
+        // conditions. 50px font-size * 120% line-height = 60px.
+        return '<div style="height:60px;">&nbsp;</div>'
       }
       const chars = line
         .split('')
