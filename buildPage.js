@@ -70,7 +70,7 @@ function buildPage(spec) {
   // upstream as a stand-in for a blank line so it survives a naive
   // split), is normalised to a true blank line here.
   const textLines = rawTextLines.map((line) =>
-    typeof line === 'string' && line.trim().length === 0 ? '' : line
+    typeof line === 'string' && (line.trim().length === 0 || line.trim() === '[BLANKLINE]') ? '' : line
   );
 
   // Total characters across all lines decides how long the typing phase
