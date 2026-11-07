@@ -36,13 +36,15 @@ if (!category) return fail("No category chosen.");
 if (!stem) return fail("No title stem.");
 if (dates.some((d) => !d)) return fail("Every product needs a valid release date.");
 const fields = [text, collection, category, str(req.tag12), str(req.tag13), stem];
+// ELLIPSIS_CHECK (column M): every gag should start with "..." or "…"
+const ellipsis = /^\s*(\.\.\.|…)/.test(text) ? "OK" : "MISSING";
 if (action === "append") {
   const pmap = prefixMap(gags); const p = pmap[collection];
   if (!p) return fail(`Can't work out the ID prefix for "${collection}" - no existing gags in that collection.`);
   if (gags.some((g) => prefixOf(g.id) === p && !g.text)) return fail(`There's now an empty prepared ${p} row in Core - refresh and it will be filled instead.`);
   const max = gags.reduce((m, g) => (prefixOf(g.id) === p ? Math.max(m, numOf(g.id)) : m), 0);
   const id = `${p}-${String(max + 1).padStart(5, "0")}`;
-  return out({ op: "add", gagId: id, values: [id, ...fields, "READY_FOR_RELEASE", ...dates, null], message: `Added to Core as a new row: ${id}` });
+  return out({ op: "add", gagId: id, values: [id, ...fields, "READY_FOR_RELEASE", ...dates, ellipsis], message: `Added to Core as a new row: ${id}` });
 }
 const g = gags.find((x) => x.id === str(req.gagId));
 if (!g) return fail(`${str(req.gagId)} isn't in GAGS any more - refresh.`);
@@ -51,5 +53,5 @@ if (action === "edit") {
   if (!g.text) return fail(`${g.id} is empty - nothing to edit.`);
   if (g.status === "LIVE_EXISTING" || TYPES.some((t) => built.has(`${g.id}-${t}`))) return fail(`${g.id} already has listings built, so it can't be edited here (it needs an amendment).`);
 }
-return out({ op: "patch", rowNum: g.index + 2, gagId: g.id, values: [null, ...fields, action === "fill" ? "READY_FOR_RELEASE" : null, ...dates, null],
+return out({ op: "patch", rowNum: g.index + 2, gagId: g.id, values: [null, ...fields, action === "fill" ? "READY_FOR_RELEASE" : null, ...dates, ellipsis],
   message: action === "fill" ? `Added to Core in prepared row ${g.id}` : `${g.id} updated in Core` });

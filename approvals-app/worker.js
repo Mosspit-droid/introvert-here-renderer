@@ -860,6 +860,7 @@ function preview() {
   const warn = [];
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
+  if (lines.join("").trim() && !/^\s*(\.\.\.|\u2026)/.test($("text").value)) warn.push("It doesn't start with an ellipsis (... or \u2026).");
   $("pwarn").innerHTML = warn.length ? '<div class="status bad">' + warn.join("<br>") + '</div>' : (lines.join("").trim() ? '<div class="status ok">Fits the grid.</div>' : "");
 }
 $("text").addEventListener("input", preview);
@@ -887,8 +888,9 @@ document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () 
 }));
 function search() {
   const q = $("search").value.toLowerCase().trim();
-  const list = ((G && G.editable) || []).filter((e) => !q || (e.id + " " + e.text + " " + e.stem).toLowerCase().includes(q)).slice(0, 40);
-  $("results").innerHTML = list.map((e) => '<div class="result" data-id="' + e.id + '"><b>' + e.id + '</b> ' + (e.stem || '').replace(/</g,'&lt;') + '<div class="small">' + e.text.replace(/</g,'&lt;').replace(/\n/g, ' / ') + '</div></div>').join('') || '<div class="small" style="padding:10px">No matches.</div>';
+  const all = ((G && G.editable) || []).filter((e) => !q || (e.id + " " + e.text + " " + e.stem + " " + e.category).toLowerCase().includes(q));
+  const list = all.slice(0, 150);
+  $("results").innerHTML = '<div class="small" style="padding:6px 10px">' + (all.length > list.length ? "Showing " + list.length + " of " + all.length + " - type in the search box to narrow it down." : all.length + " match" + (all.length === 1 ? "" : "es")) + '</div>' + list.map((e) => '<div class="result" data-id="' + e.id + '"><b>' + e.id + '</b> ' + (e.stem || '').replace(/</g,'&lt;') + '<div class="small">' + e.text.replace(/</g,'&lt;').replace(/\n/g, ' / ') + '</div></div>').join('') || '<div class="small" style="padding:10px">No matches.</div>';
   document.querySelectorAll('.result').forEach((r) => r.addEventListener('click', () => {
     editing = G.editable.find((e) => e.id === r.dataset.id);
     $("collection").value = editing.collection; $("category").value = editing.category; $("text").value = editing.text;
