@@ -39,6 +39,8 @@ export default {
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
+      if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
+      if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
 
       if (pathname === "/login" && method === "POST") return await login(request, env);
       if (pathname === "/logout") return logout();
@@ -46,6 +48,9 @@ export default {
       const authed = await isAuthed(request, env);
       if (pathname === "/" && method === "GET") {
         return authed ? await page(env) : loginPage(url.searchParams.has("wrong"));
+      }
+      if (pathname === "/gags" && method === "GET") {
+        return authed ? await gagsPage(env) : redirect("/");
       }
       if (!authed) return json({ error: "not signed in" }, 401);
 
@@ -55,6 +60,9 @@ export default {
       if (pathname === "/api/reject" && method === "POST") return await makeAction(request, env, "reject");
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
+      if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
+      if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
+      if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       return new Response("Not found", { status: 404 });
     } catch (err) {
       console.error(err);
@@ -525,7 +533,7 @@ async function page(env) {
 
   return shell(`
 <header><h1>Waiting for review${pending.length ? ` (${pending.length})` : ""}</h1>
-<a class="btn" href="/">Refresh</a></header>
+<div style="display:flex;gap:8px"><a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/">Refresh</a></div></header>
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -675,3 +683,250 @@ function alertCard(a) {
   <button class="link-btn" data-dismiss="${esc(a.id)}" type="button">Dismiss</button>
 </div>`;
 }
+
+
+// ---------- Gag writing ----------
+// Make "Approvals App: Gags Sync" posts a summary of GAGS to /api/gags-sync.
+// Saving calls the Make "Approvals App: Save Gag" webhook (MAKE_GAG_HOOK), which
+// re-checks the sheet, writes the row, and reports back to /api/gag-result.
+
+const SAVES_KEY = "gag-saves";
+
+async function gagsSync(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = await request.json();
+  data.receivedAt = Date.now();
+  await env.PENDING.put("gags", JSON.stringify(data));
+  return json({ ok: true });
+}
+
+async function loadSaves(env) {
+  const cutoff = Date.now() - KEEP_HANDLED_DAYS * 864e5;
+  return ((await env.PENDING.get(SAVES_KEY, "json")) || []).filter((x) => x.at > cutoff);
+}
+
+async function gagResult(request, env, ctx, url) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = await readBody(request);
+  const saves = await loadSaves(env);
+  const sv = saves.find((x) => x.ref === str(data.ref));
+  const ok = str(data.ok) === "true";
+  if (sv) {
+    sv.status = ok ? "ok" : "failed";
+    sv.message = str(data.message);
+    if (str(data.gagId)) sv.gagId = str(data.gagId);
+    sv.doneAt = Date.now();
+    await env.PENDING.put(SAVES_KEY, JSON.stringify(saves));
+  }
+  if (!ok) ctx.waitUntil(notify(env, url.origin, "Gag NOT saved" + (str(data.gagId) ? ": " + str(data.gagId) : ""), str(data.message) || "Open the app for details.", "x"));
+  return json({ ok: true });
+}
+
+async function gagsState(env) {
+  const g = (await env.PENDING.get("gags", "json")) || null;
+  const saves = await loadSaves(env);
+  return json({ syncedAt: g ? g.at : null, saves: saves.map((x) => [x.ref, x.status]) });
+}
+
+async function gagsRefresh(env) {
+  if (!env.MAKE_GAGSYNC_HOOK) return json({ error: "MAKE_GAGSYNC_HOOK is not set" }, 500);
+  const res = await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "refresh" }) });
+  if (!res.ok) return json({ error: "Make didn't accept the refresh (" + res.status + ")" }, 502);
+  return json({ ok: true });
+}
+
+async function gagSave(request, env) {
+  if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
+  const d = await request.json();
+  const action = str(d.action);
+  if (!["fill", "append", "edit"].includes(action)) return json({ error: "Unknown action" }, 400);
+  const body = {
+    ref: crypto.randomUUID(), action, gagId: str(d.gagId), collection: str(d.collection), category: str(d.category),
+    text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: str(d.tag12), tag13: str(d.tag13),
+    d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4),
+  };
+  if (!body.text || !body.collection || !body.category || !body.stem || ![body.d1, body.d2, body.d3, body.d4].every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))) {
+    return json({ error: "Please fill in the gag, collection, category, title stem and all four dates." }, 400);
+  }
+  const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return json({ error: "Make didn't accept the save (" + res.status + "). Nothing was written." }, 502);
+  const saves = await loadSaves(env);
+  saves.unshift({ ref: body.ref, action, gagId: body.gagId, stem: body.stem, text: body.text, status: "pending", at: Date.now() });
+  await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
+  return json({ ok: true, ref: body.ref });
+}
+
+async function gagsPage(env) {
+  const g = await env.PENDING.get("gags", "json");
+  const saves = await loadSaves(env);
+  const savesHtml = saves.length ? `<h2>Recent saves</h2><div class="grid">${saves.slice(0, 12).map((x) => {
+    const cls = x.status === "ok" ? "ok" : x.status === "failed" ? "bad" : "wait";
+    const label = x.status === "ok" ? "✓ " + esc(x.message || "Saved to Core") : x.status === "failed" ? "<b>Not saved</b><br>" + esc(x.message || "") : "Saving to Core…";
+    return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
+  }).join("")}</div>` : "";
+  return shell(`
+<header><h1>Gags</h1><div style="display:flex;gap:8px"><a class="btn" href="/">← Approvals</a><button class="btn" id="refresh" type="button">Refresh from Core</button></div></header>
+<div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap Refresh from Core."}</div>
+<div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
+  <button class="btn tab" data-tab="new" type="button" style="font-weight:700">New gag</button>
+  <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
+</div>
+<div id="pick" class="card" style="display:none;margin-top:10px">
+  <input id="search" placeholder="Search by ID, text or title stem…" style="width:100%;padding:11px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)">
+  <div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div>
+</div>
+<form id="form" class="card" style="margin-top:10px;display:grid;gap:14px">
+  <div id="slot" class="status wait">Choose a collection.</div>
+  <label><b>Collection</b><select id="collection" required></select></label>
+  <div class="gagrow">
+    <label style="flex:1 1 320px"><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+      <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
+    <div style="flex:1 1 300px"><b>Preview</b> <span class="small">(12 × 9 grid of capital Ws, like Canva and the video)</span>
+      <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div></div>
+  </div>
+  <label><b>Gag category</b><select id="category" required></select></label>
+  <label><b>Title stem</b><input id="stem" required maxlength="60"><span class="small" id="stemnote"></span></label>
+  <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="birthday gift"></label><label><b>Custom tag 13</b><input id="tag13" value="treat yourself"></label></div>
+  <div><b>Release dates</b>
+    <div class="four">
+      <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
+      <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
+    </div></div>
+  <button class="btn-main" type="submit" id="save">Save to Core</button>
+</form>
+${savesHtml}
+<style>
+  select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:11px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-family:inherit}
+  textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
+  .gagrow{display:flex;gap:14px;flex-wrap:wrap}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .four{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:6px}
+  #stage{margin-top:6px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden}
+  #pbox{transform-origin:top left;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
+  #pbox div{white-space:nowrap}
+  #pbox .over{color:#ff9a8a}
+  .result{padding:10px;border-top:1px solid var(--line);cursor:pointer}
+  .result:hover{background:var(--bg)}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
+<script>
+const G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
+${GAGS_SCRIPT}</script>`);
+}
+
+// Page script for /gags, kept verbatim (String.raw) so backslashes like \n survive.
+const GAGS_SCRIPT = String.raw`const BOX = { "INTROVERT HERE…": 509, "SHHH.": 505, "PER CONTRACT": 543 };
+const $ = (id) => document.getElementById(id);
+let mode = "new", editing = null;
+
+function opts(sel, items, placeholder) {
+  sel.innerHTML = '<option value="">' + placeholder + '</option>' + items.map((x) => '<option>' + x.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</option>').join('');
+}
+if (G) { opts($("collection"), G.collections, "Choose…"); opts($("category"), G.categories, "Choose…"); }
+
+function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); }
+
+function slotInfo() {
+  if (mode === "edit") { $("slot").className = "status wait"; $("slot").textContent = editing ? "Editing " + editing.id + " (not built yet). Saving updates its row in Core." : "Pick a gag to edit above."; return; }
+  const c = $("collection").value, pc = G && G.perCollection[c];
+  if (!c || !pc) { $("slot").className = "status wait"; $("slot").textContent = "Choose a collection."; return; }
+  const n = pc.next;
+  $("slot").className = "status ok";
+  $("slot").textContent = n.mode === "fill"
+    ? "Will fill prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left). Its dates are filled in below."
+    : "No empty " + (pc.prefix || "") + " rows left - will add a new row at the bottom as " + n.id + ", dated the day after the latest date in Core.";
+  setDates(n.dates);
+}
+$("collection").addEventListener("change", () => { slotInfo(); preview(); });
+
+// ----- live preview -----
+let wAt100 = null;
+function measureW() {
+  const m = document.createElement('span');
+  m.style.cssText = "position:absolute;left:-9999px;white-space:nowrap;font-family:Montserrat,sans-serif;font-weight:400;font-size:100px;letter-spacing:-0.04em";
+  m.textContent = "WWWWWWWWWWWW"; document.body.appendChild(m); wAt100 = m.getBoundingClientRect().width; m.remove();
+}
+function preview() {
+  if (!wAt100) return;
+  const width = BOX[$("collection").value] || 509;
+  const fs = width / wAt100 * 100;
+  const box = $("pbox"); box.style.width = width + "px"; box.style.fontSize = fs.toFixed(2) + "px";
+  const lines = $("text").value.replace(/\r/g, "").split("\n");
+  box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
+  const over = [];
+  [...box.children].forEach((d, i) => { const w = d.scrollWidth; if (w > width + 0.5) { d.classList.add('over'); over.push(i + 1); } });
+  const stage = $("stage"); const scale = Math.min(1, (stage.clientWidth - 28) / width);
+  box.style.transform = "scale(" + scale + ")"; stage.style.height = (box.scrollHeight * scale + 28) + "px";
+  const warn = [];
+  if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
+  if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
+  $("pwarn").innerHTML = warn.length ? '<div class="status bad">' + warn.join("<br>") + '</div>' : (lines.join("").trim() ? '<div class="status ok">Fits the grid.</div>' : "");
+}
+$("text").addEventListener("input", preview);
+window.addEventListener("resize", preview);
+(document.fonts ? document.fonts.load("400 100px 'Montserrat'", "W") : Promise.resolve()).then(() => { measureW(); preview(); });
+
+// ----- title stem note -----
+function stemNote() {
+  const s = $("stem").value.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!s) { $("stemnote").textContent = ""; return; }
+  if (s.length <= 20) { $("stemnote").textContent = "Etsy tag: “" + s + "”"; return; }
+  const longest = s.split(" ").reduce((a, b) => b.length > a.length ? b : a, "");
+  $("stemnote").textContent = "Too long for a tag (" + s.length + "/20) - the tag will be “" + longest.slice(0, 20) + "”";
+}
+$("stem").addEventListener("input", stemNote);
+
+// ----- tabs / edit picker -----
+document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
+  mode = b.dataset.tab; editing = null;
+  document.querySelectorAll('.tab').forEach((x) => x.style.fontWeight = x === b ? 700 : 400);
+  $("pick").style.display = mode === "edit" ? "block" : "none";
+  $("collection").disabled = mode === "edit";
+  $("form").reset(); $("tag12").value = "birthday gift"; $("tag13").value = "treat yourself";
+  slotInfo(); preview(); stemNote(); if (mode === "edit") search();
+}));
+function search() {
+  const q = $("search").value.toLowerCase().trim();
+  const list = ((G && G.editable) || []).filter((e) => !q || (e.id + " " + e.text + " " + e.stem).toLowerCase().includes(q)).slice(0, 40);
+  $("results").innerHTML = list.map((e) => '<div class="result" data-id="' + e.id + '"><b>' + e.id + '</b> ' + (e.stem || '').replace(/</g,'&lt;') + '<div class="small">' + e.text.replace(/</g,'&lt;').replace(/\n/g, ' / ') + '</div></div>').join('') || '<div class="small" style="padding:10px">No matches.</div>';
+  document.querySelectorAll('.result').forEach((r) => r.addEventListener('click', () => {
+    editing = G.editable.find((e) => e.id === r.dataset.id);
+    $("collection").value = editing.collection; $("category").value = editing.category; $("text").value = editing.text;
+    $("stem").value = editing.stem; $("tag12").value = editing.tag12; $("tag13").value = editing.tag13; setDates(editing.dates);
+    slotInfo(); preview(); stemNote(); $("form").scrollIntoView({ behavior: "smooth" });
+  }));
+}
+$("search").addEventListener("input", search);
+
+// ----- save -----
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  let action, gagId = "";
+  if (mode === "edit") { if (!editing) { alert("Pick a gag to edit first."); return; } action = "edit"; gagId = editing.id; }
+  else { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : ""; }
+  if ($("pwarn").querySelector('.bad') && !confirm("The preview shows a problem with the line breaks. Save anyway?")) return;
+  const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value,
+    tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value };
+  $("save").disabled = true; $("save").textContent = "Sending to Core…";
+  const res = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) { alert(out.error || "Couldn't save."); $("save").disabled = false; $("save").textContent = "Save to Core"; return; }
+  location.reload();
+});
+
+// ----- refresh + auto-update -----
+$("refresh").addEventListener('click', async () => {
+  $("refresh").disabled = true; $("refresh").textContent = "Reading Core…";
+  const r = await fetch('/api/gags-refresh', { method: 'POST' }); if (!r.ok) { alert((await r.json().catch(()=>({}))).error || 'Refresh failed'); }
+});
+let last = null;
+setInterval(async () => {
+  try {
+    const s = await (await fetch('/api/gags-state')).json(); const sig = JSON.stringify(s);
+    if (last === null) { last = sig; return; }
+    const typing = document.activeElement && ["TEXTAREA","INPUT","SELECT"].includes(document.activeElement.tagName) && $("text").value;
+    if (sig !== last && !typing) location.reload();
+  } catch (e) {}
+}, 5000);
+slotInfo();
+`;
