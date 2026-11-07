@@ -46,12 +46,30 @@ if (action === "append") {
   const id = `${p}-${String(max + 1).padStart(5, "0")}`;
   return out({ op: "add", gagId: id, values: [id, ...fields, "READY_FOR_RELEASE", ...dates, ellipsis], message: `Added to Core as a new row: ${id}` });
 }
-const g = gags.find((x) => x.id === str(req.gagId));
+let g = gags.find((x) => x.id === str(req.gagId));
 if (!g) return fail(`${str(req.gagId)} isn't in GAGS any more - refresh.`);
-if (action === "fill" && g.text) return fail(`${g.id} already has a gag in it now - refresh and try again.`);
+let note = "";
+if (action === "fill" && g.text) {
+  // That prepared row got used in the meantime (e.g. two gags saved quickly) - use the next empty one instead.
+  const taken = g.id;
+  const nxt = gags.find((x) => prefixOf(x.id) === prefixOf(taken) && !x.text);
+  const useSlotDates = str(req.datesFromSlot) === "true";
+  if (!nxt) {
+    const p = prefixOf(taken);
+    const max = gags.reduce((m, x) => (prefixOf(x.id) === p ? Math.max(m, numOf(x.id)) : m), 0);
+    const id = `${p}-${String(max + 1).padStart(5, "0")}`;
+    let ds = dates;
+    if (useSlotDates) { let latest = null; for (const x of gags) for (const d of x.dates) if (d && (!latest || d > latest)) latest = d;
+      const plus1 = new Date(Date.parse(latest + "T00:00:00Z") + 86400000).toISOString().slice(0, 10); ds = [plus1, plus1, plus1, plus1]; }
+    return out({ op: "add", gagId: id, values: [id, ...fields, "READY_FOR_RELEASE", ...ds, ellipsis], message: `${taken} was already taken, so it went into a new row: ${id}` });
+  }
+  if (useSlotDates && nxt.dates.every(Boolean)) dates.splice(0, 4, ...nxt.dates);
+  note = `${taken} was already taken, so it went into the next prepared row: `;
+  g = nxt;
+}
 if (action === "edit") {
   if (!g.text) return fail(`${g.id} is empty - nothing to edit.`);
   if (g.status === "LIVE_EXISTING" || TYPES.some((t) => built.has(`${g.id}-${t}`))) return fail(`${g.id} already has listings built, so it can't be edited here (it needs an amendment).`);
 }
 return out({ op: "patch", rowNum: g.index + 2, gagId: g.id, values: [null, ...fields, action === "fill" ? "READY_FOR_RELEASE" : null, ...dates, ellipsis],
-  message: action === "fill" ? `Added to Core in prepared row ${g.id}` : `${g.id} updated in Core` });
+  message: action === "fill" ? (note ? note + g.id : `Added to Core in prepared row ${g.id}`) : `${g.id} updated in Core` });

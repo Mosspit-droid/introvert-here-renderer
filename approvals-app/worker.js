@@ -63,6 +63,7 @@ export default {
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
+      if (pathname === "/api/gags-data" && method === "GET") return json((await env.PENDING.get("gags", "json")) || null);
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
@@ -778,7 +779,7 @@ async function gagSave(request, env) {
   const body = {
     ref: crypto.randomUUID(), action, gagId: str(d.gagId), collection: str(d.collection), category: str(d.category),
     text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: str(d.tag12), tag13: str(d.tag13),
-    d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4),
+    d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4), datesFromSlot: d.datesFromSlot ? "true" : "false",
   };
   if (!body.text || !body.collection || !body.category || !body.stem || ![body.d1, body.d2, body.d3, body.d4].every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))) {
     return json({ error: "Please fill in the gag, collection, category, title stem and all four dates." }, 400);
@@ -850,7 +851,7 @@ ${savesHtml}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <script>
-const G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
+let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}</script>`);
 }
 
@@ -864,7 +865,9 @@ function opts(sel, items, placeholder) {
 }
 if (G) { opts($("collection"), G.collections, "Choose…"); opts($("category"), G.categories, "Choose…"); }
 
-function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); }
+let datesTouched = false;
+function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); datesTouched = false; }
+["d1","d2","d3","d4"].forEach((k) => $(k).addEventListener("input", () => { datesTouched = true; }));
 
 const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC" };
 function setLook(coll) {
@@ -979,10 +982,12 @@ $("form").addEventListener("submit", async (e) => {
   e.preventDefault();
   let action, gagId = "";
   if (mode === "edit") { if (!editing) { alert("Pick a gag to edit first."); return; } action = "edit"; gagId = editing.id; }
-  else { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : ""; }
+  let datesFromSlot = false;
+  if (mode !== "edit") { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : "";
+    datesFromSlot = !datesTouched && ["d1","d2","d3","d4"].every((k, i) => $(k).value === (pc.next.dates[i] || "")); }
   if ($("pwarn").querySelector('.bad') && !confirm("The preview shows a problem with the line breaks. Save anyway?")) return;
   const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value,
-    tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value };
+    tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value, datesFromSlot };
   $("save").disabled = true; $("save").textContent = "Sending to Core…";
   const res = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const out = await res.json().catch(() => ({}));
@@ -1002,6 +1007,11 @@ setInterval(async () => {
     if (last === null) { last = sig; return; }
     const typing = document.activeElement && ["TEXTAREA","INPUT","SELECT"].includes(document.activeElement.tagName) && $("text").value;
     if (sig !== last && !typing) location.reload();
+    else if (sig !== last && typing) {
+      // Core changed while you're typing: pick up the new row info without reloading the page.
+      const fresh = await (await fetch('/api/gags-data')).json();
+      if (fresh) { G = fresh; last = sig; if (mode !== "edit") { const keep = datesTouched ? ["d1","d2","d3","d4"].map((k) => $(k).value) : null; slotInfo(); if (keep) { ["d1","d2","d3","d4"].forEach((k, i) => $(k).value = keep[i]); datesTouched = true; } } }
+    }
   } catch (e) {}
 }, 5000);
 slotInfo();
