@@ -926,6 +926,28 @@ function stemNote() {
   $("stemnote").textContent = "Too long for a tag (" + s.length + "/20) - the tag will be “" + longest.slice(0, 20) + "”";
 }
 $("stem").addEventListener("input", stemNote);
+// ----- auto-formatting -----
+// Gag text: capitals, except anything between *asterisks* and a letter straight after a number (e.g. 1960s).
+function capsGag(t) {
+  return t.split(/(\*[^*\n]*\*)/).map((part) => /^\*[^*\n]*\*$/.test(part) ? part : part.replace(/[a-z]/g, (ch, i, all) => (i > 0 && /\d/.test(all[i - 1]) ? ch : ch.toUpperCase()))).join("");
+}
+// Title stem: an all-capitals stem becomes Proper Case (a single short word like FOMO is left alone);
+// otherwise just make sure every word starts with a capital.
+function properStem(t) {
+  const s = t.replace(/\s+/g, " ");
+  const allCaps = /[A-Z]/.test(s) && !/[a-z]/.test(s);
+  const words = s.trim().split(" ");
+  if (allCaps && !(words.length === 1 && words[0].length <= 4)) {
+    return s.toLowerCase().replace(/(^|[\s\-\/("'“])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  }
+  return s.replace(/(^|[\s\-\/("'“])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+}
+$("text").addEventListener("input", () => {
+  const el = $("text"), v = el.value, f = capsGag(v);
+  if (f !== v && f.length === v.length) { const a = el.selectionStart, b = el.selectionEnd; el.value = f; el.setSelectionRange(a, b); preview(); }
+});
+$("stem").addEventListener("change", () => { $("stem").value = properStem($("stem").value).trim(); stemNote(); });
+
 
 // ----- spelling & grammar -----
 const escH = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -985,6 +1007,7 @@ $("form").addEventListener("submit", async (e) => {
   let datesFromSlot = false;
   if (mode !== "edit") { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : "";
     datesFromSlot = !datesTouched && ["d1","d2","d3","d4"].every((k, i) => $(k).value === (pc.next.dates[i] || "")); }
+  $("text").value = capsGag($("text").value); $("stem").value = properStem($("stem").value).trim();
   if ($("pwarn").querySelector('.bad') && !confirm("The preview shows a problem with the line breaks. Save anyway?")) return;
   const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value,
     tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value, datesFromSlot };
