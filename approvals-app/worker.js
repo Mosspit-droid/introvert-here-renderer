@@ -41,6 +41,7 @@ export default {
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
+      if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
 
       if (pathname.startsWith("/assets/") && method === "GET") return await asset(env, pathname.slice(8));
       if (pathname === "/manifest.webmanifest") return manifest();
@@ -50,6 +51,9 @@ export default {
       const authed = await isAuthed(request, env);
       if (pathname === "/" && method === "GET") {
         return authed ? await page(env) : loginPage(url.searchParams.has("wrong"));
+      }
+      if (pathname === "/stats" && method === "GET") {
+        return authed ? await statsPage(env, url) : redirect("/");
       }
       if (pathname === "/gags" && method === "GET") {
         return authed ? await gagsPage(env) : redirect("/");
@@ -569,7 +573,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -801,7 +805,7 @@ async function gagsPage(env) {
     return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`)}
+${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`)}
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap Refresh from Core."}</div>
 <div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
   <button class="btn tab on" data-tab="new" type="button">New gag</button>
@@ -1095,4 +1099,144 @@ async function spell(request, env) {
     };
   });
   return json({ matches });
+}
+
+
+// ---------- stats (views, favourites, sales) ----------
+// The noon Make check ("Reconcile Core LISTING_REGISTRY vs Etsy") posts a fresh copy once a day.
+// A small daily history of views/favourites per listing is kept so the page can show the last 7 days.
+
+const HIST_DAYS = 60;
+
+async function statsIngest(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = (await request.json()) || {};
+  if (!Array.isArray(data.listings)) return json({ error: "no listings" }, 400);
+  data.at = data.at || new Date().toISOString();
+  await env.PENDING.put("stats", JSON.stringify(data));
+  const day = new Date(data.at).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const hist = (await env.PENDING.get("stats-hist", "json")) || {};
+  hist[day] = Object.fromEntries(data.listings.filter((l) => l.listingId).map((l) => [l.code, [l.views || 0, l.favs || 0]]));
+  const keep = Object.keys(hist).sort().slice(-HIST_DAYS);
+  const trimmed = Object.fromEntries(keep.map((k) => [k, hist[k]]));
+  await env.PENDING.put("stats-hist", JSON.stringify(trimmed));
+  return json({ ok: true, listings: data.listings.length, days: keep.length });
+}
+
+const TYPE_LABEL = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long-sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
+const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract" };
+const gagOf = (code) => String(code || "").split("-").slice(0, 2).join("-");
+const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
+
+async function statsPage(env, url) {
+  const st = await env.PENDING.get("stats", "json");
+  const hist = (await env.PENDING.get("stats-hist", "json")) || {};
+  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a>`;
+  if (!st) {
+    return shell(`${brandHeader("Stats", nav)}<div class="card empty">No stats yet. They arrive with the daily Etsy check at 12:00.</div>`);
+  }
+  const live = st.listings.filter((l) => l.listingId);
+  const days = Object.keys(hist).sort();
+  const today = days[days.length - 1];
+  // Oldest snapshot that is at least 7 days back, else the oldest we have.
+  const base = days.filter((d) => d <= addDays(today, -7)).pop() || days[0];
+  const baseDays = base && today ? Math.round((Date.parse(today) - Date.parse(base)) / 864e5) : 0;
+  const recent = (code, i) => (base && base !== today && hist[base][code] ? (hist[today][code] || [0, 0])[i] - hist[base][code][i] : null);
+
+  // Sales per product code and per gag
+  const sold = {}; let revenue = 0, units = 0;
+  for (const o of st.orders || []) {
+    units += o.qty; revenue += o.price * o.qty;
+    if (o.code) sold[o.code] = (sold[o.code] || 0) + o.qty;
+  }
+
+  // Group by gag
+  const gags = {};
+  for (const l of live) {
+    const id = gagOf(l.code);
+    const g = (gags[id] ||= { id, stem: l.stem, coll: collOf(l.code), views: 0, favs: 0, recent: 0, hasRecent: false, sales: 0, items: [] });
+    g.views += l.views; g.favs += l.favs; g.sales += sold[l.code] || 0;
+    const r = recent(l.code, 0);
+    if (r != null) { g.recent += r; g.hasRecent = true; }
+    g.items.push(l);
+  }
+  const sortBy = ["views", "recent", "favs", "sales"].includes(url.searchParams.get("sort")) ? url.searchParams.get("sort") : "views";
+  const list = Object.values(gags).sort((a, b) => b[sortBy] - a[sortBy] || b.views - a.views);
+
+  const tot = (k) => live.reduce((n, l) => n + (l[k] || 0), 0);
+  const totRecent = live.reduce((n, l) => n + (recent(l.code, 0) || 0), 0);
+  const tile = (label, value, sub = "") => `<div class="card tile"><div class="tv">${value}</div><div class="tl">${label}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
+
+  const group = (keyFn, labelFn) => {
+    const m = {};
+    for (const l of live) {
+      const k = keyFn(l);
+      const x = (m[k] ||= { k, n: 0, views: 0, favs: 0, sales: 0 });
+      x.n++; x.views += l.views; x.favs += l.favs; x.sales += sold[l.code] || 0;
+    }
+    return Object.values(m).sort((a, b) => b.views - a.views).map((x) =>
+      `<div class="srow"><div class="sname">${esc(labelFn(x.k))}<div class="small">${x.n} listing${x.n === 1 ? "" : "s"}</div></div><div class="snum">${x.views}<span>views</span></div><div class="snum">${x.favs}<span>favs</span></div><div class="snum">${x.sales}<span>sold</span></div></div>`).join("");
+  };
+
+  const sortBtn = (k, label) => `<a class="btn${sortBy === k ? " on" : ""}" href="/stats?sort=${k}">${label}</a>`;
+  const gagRows = list.map((g) => `
+<details class="srow-wrap" data-coll="${g.coll}">
+  <summary class="srow"><div class="sname"><b>${esc(g.stem || g.id)}</b><div class="small">${esc(g.id)} · ${esc(COLL_LABEL[g.coll] || g.coll)}</div></div>
+    <div class="snum">${g.views}<span>views</span></div>
+    <div class="snum">${g.hasRecent ? (g.recent > 0 ? "+" : "") + g.recent : "–"}<span>${baseDays ? baseDays + " days" : "recent"}</span></div>
+    <div class="snum">${g.favs}<span>favs</span></div>
+    <div class="snum${g.sales ? " hot" : ""}">${g.sales}<span>sold</span></div></summary>
+  <div class="sub">${g.items.sort((a, b) => b.views - a.views).map((l) => `<div class="srow small2"><div class="sname"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(TYPE_LABEL[l.type] || l.type)}</a>${l.state && l.state !== "active" ? ` <span class="badge">${esc(l.state)}</span>` : ""}</div><div class="snum">${l.views}<span>views</span></div><div class="snum">${recent(l.code, 0) ?? "–"}<span>recent</span></div><div class="snum">${l.favs}<span>favs</span></div><div class="snum">${sold[l.code] || 0}<span>sold</span></div></div>`).join("")}</div>
+</details>`).join("");
+
+  const ordersHtml = (st.orders || []).length ? (st.orders || []).slice().sort((a, b) => (b.date > a.date ? 1 : -1)).map((o) =>
+    `<div class="srow"><div class="sname"><b>${esc(o.title)}</b><div class="small">${esc(o.variant)} · ${esc(o.date)}${o.status ? " · " + esc(o.status.replace(/-|_/g, " ")) : ""}</div></div><div class="snum">${money(o.price * o.qty)}<span>sale</span></div><div class="snum">${money(o.cost)}<span>Printify</span></div></div>`).join("")
+    : `<div class="small">No orders yet.</div>`;
+
+  return shell(`
+<style>
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.tile{padding:14px 16px}.tv{font-size:28px;font-weight:700}.tl{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:700}
+.list{padding:6px 14px}
+.srow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);list-style:none;cursor:default}
+.srow-wrap:last-child>.srow,.list>.srow:last-child{border-bottom:0}
+summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
+.srow-wrap{border-left:4px solid transparent;padding-left:8px;margin-left:-8px}
+.srow-wrap[data-coll=IH]{border-left-color:#d8d3c8}.srow-wrap[data-coll=SH]{border-left-color:#9fd4b1}.srow-wrap[data-coll=PC]{border-left-color:#e0574a}
+.sname{flex:1;min-width:0;overflow-wrap:anywhere}
+.snum{width:62px;text-align:right;font-weight:700;font-size:17px;flex-shrink:0}
+.snum span{display:block;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.snum.hot{color:var(--ok)}
+.sub{background:var(--field);border-radius:10px;padding:0 10px;margin:0 0 10px}
+.small2{font-size:14px}.small2 .snum{font-size:15px}
+.btn.on{background:var(--accent);color:#111}
+.sorts{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+@media (max-width:700px){.snum{width:50px;font-size:15px}.tv{font-size:24px}.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
+${brandHeader("Stats", nav)}
+<div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
+<h2>Shop totals</h2>
+<div class="tiles">
+${tile("Listings", live.length)}
+${tile("Views", tot("views"), baseDays ? `${totRecent >= 0 ? "+" : ""}${totRecent} in the last ${baseDays} days` : "")}
+${tile("Favourites", tot("favs"))}
+${tile("Items sold", units)}
+${tile("Sales", money(revenue))}
+</div>
+<h2>By gag</h2>
+<div class="sorts">${sortBtn("views", "Most views")}${sortBtn("recent", "Most views lately")}${sortBtn("favs", "Most favourites")}${sortBtn("sales", "Most sold")}</div>
+<div class="card list">${gagRows || `<div class="small">Nothing live yet.</div>`}</div>
+<p class="small">Tap a gag to see each garment.</p>
+<h2>By collection</h2>
+<div class="card list">${group((l) => collOf(l.code), (k) => COLL_LABEL[k] || k)}</div>
+<h2>By garment</h2>
+<div class="card list">${group((l) => l.type, (k) => TYPE_LABEL[k] || k)}</div>
+<h2>Orders</h2>
+<div class="card list">${ordersHtml}</div>
+`);
+}
+
+function addDays(day, n) {
+  const d = new Date(Date.parse(day + "T12:00:00Z") + n * 864e5);
+  return d.toISOString().slice(0, 10);
 }
