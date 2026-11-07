@@ -815,7 +815,7 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><button class="b
   <div class="gagrow">
     <label style="flex:1 1 320px"><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
       <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
-    <div style="flex:1 1 300px"><b>Preview</b> <span class="small">(12 × 9 grid of capital Ws, like Canva and the video)</span>
+    <div style="flex:1 1 300px"><b>Preview</b>
       <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div></div>
   </div>
   <label><b>Gag category</b><select id="category" required></select></label>
