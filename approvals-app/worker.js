@@ -38,6 +38,7 @@ export default {
       if (pathname === "/api/pending" && method === "POST") return await ingest(request, env, ctx, url);
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
+      if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
 
       if (pathname === "/login" && method === "POST") return await login(request, env);
       if (pathname === "/logout") return logout();
@@ -169,6 +170,109 @@ async function result(request, env, ctx, url) {
     ctx.waitUntil(notify(env, url.origin, item.product + ": approval FAILED" + (item.result.step ? " at " + item.result.step : ""), item.result.message || "Open the app for details.", "x"));
   }
   return json({ ok: true });
+}
+
+// Daily summary from the Make "Approvals App: Daily Checks" scenario.
+// Make sends raw facts; this works out what's new and raises alerts.
+const MAKE_TEAM_URL = "https://eu1.make.com/2110125";
+
+async function daily(request, env, ctx, url) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = (await request.json()) || {};
+  const today = str(data.today) || new Date().toISOString().slice(0, 10);
+  const st = (await env.PENDING.get("daily-state", "json")) || { errors: {}, dlq: {}, sent: {} };
+  const fresh = [];
+  const dayMs = 864e5;
+  const todayMs = Date.parse(today + "T00:00:00Z");
+
+  // 1. Connections expiring within 7 days (or expired in the last 2 days).
+  for (const c of data.connections || []) {
+    if (!c.expire) continue;
+    const exp = Date.parse(c.expire);
+    if (!Number.isFinite(exp)) continue;
+    const daysLeft = Math.ceil((exp - Date.now()) / dayMs);
+    if (daysLeft > 7 || daysLeft < -2) continue;
+    if (Array.isArray(c.usedBy) && c.usedBy.length === 0) continue; // not used by any scenario
+    const key = `conn:${c.id}:${String(c.expire).slice(0, 10)}`;
+    if (st.sent[key]) continue;
+    st.sent[key] = today;
+    const when = new Date(exp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+    fresh.push({
+      title: daysLeft >= 0 ? `Make connection expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}: ${c.label || "connection"}` : `Make connection has EXPIRED: ${c.label || "connection"}`,
+      body: `"${c.name}" (connection ID ${c.id}) ${daysLeft >= 0 ? "expires" : "expired"} on ${when}.` +
+        (Array.isArray(c.usedBy) && c.usedBy.length ? `\nUsed by: ${c.usedBy.join(", ")}.` : "") +
+        `\nOpen the link, find this connection by name and tap Reauthorize - or ask Claude to renew it for you.`,
+      link: `${MAKE_TEAM_URL}/connections`,
+      source: "Daily check",
+    });
+  }
+
+  // 2. Scenarios with new errors, and stuck (incomplete) runs.
+  const firstRun = !st.baselineDone;
+  for (const s of data.scenarios || []) {
+    const id = String(s.id);
+    const errors = Number(s.errors) || 0;
+    const dlq = Number(s.dlq) || 0;
+    const prevErr = st.errors[id];
+    if (!firstRun && prevErr !== undefined && errors > prevErr) {
+      const n = errors - prevErr;
+      fresh.push({
+        title: `Make scenario failed ${n} time${n === 1 ? "" : "s"}: ${s.name}`,
+        body: `"${s.name}" has had ${n} failed run${n === 1 ? "" : "s"} since the last daily check. Open it to see what went wrong.`,
+        link: `${MAKE_TEAM_URL}/scenarios/${id}/logs`,
+        source: "Daily check",
+      });
+    }
+    const prevDlq = st.dlq[id];
+    if (dlq > 0 && (prevDlq === undefined || dlq > prevDlq)) {
+      fresh.push({
+        title: `${dlq} stuck run${dlq === 1 ? "" : "s"} in: ${s.name}`,
+        body: `Make is holding ${dlq} run${dlq === 1 ? "" : "s"} of "${s.name}" that failed part-way and were never finished (incomplete executions). They may need retrying or deleting.`,
+        link: `${MAKE_TEAM_URL}/scenarios/${id}`,
+        source: "Daily check",
+      });
+    }
+    st.errors[id] = errors;
+    st.dlq[id] = dlq;
+  }
+  st.baselineDone = true;
+
+  // 3. Release runway per collection.
+  for (const r of data.runway || []) {
+    if (!r.lastDate) continue;
+    const daysLeft = Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / dayMs);
+    if (daysLeft >= 7) continue;
+    const key = `runway:${r.collection}:${r.lastDate}`;
+    if (st.sent[key]) continue;
+    st.sent[key] = today;
+    fresh.push({
+      title: `${r.collection}: releases run out ${daysLeft <= 0 ? "today" : "in " + daysLeft + " day" + (daysLeft === 1 ? "" : "s")}`,
+      body: `The last scheduled ${r.collection} release in GAGS is on ${r.lastDate}. Add more gags (with release dates) to keep listings going out.`,
+      link: "",
+      source: "Daily check",
+    });
+  }
+
+  // Forget old "already sent" markers after 60 days.
+  for (const [k, d] of Object.entries(st.sent)) if (todayMs - Date.parse(d + "T00:00:00Z") > 60 * dayMs) delete st.sent[k];
+  await env.PENDING.put("daily-state", JSON.stringify(st));
+
+  await env.PENDING.put("daily", JSON.stringify({
+    at: Date.now(),
+    today,
+    upcoming: (data.upcoming || []).slice(0, 200),
+    runway: data.runway || [],
+  }));
+
+  if (fresh.length) {
+    const alerts = await loadAlerts(env);
+    for (const a of fresh.reverse()) alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), ...a });
+    await saveAlerts(env, alerts);
+    ctx.waitUntil((async () => {
+      for (const a of fresh) await notify(env, url.origin, a.title, a.body.slice(0, 200), "warning");
+    })());
+  }
+  return json({ ok: true, alerts: fresh.length });
 }
 
 async function notify(env, origin, title, body, tag) {
@@ -416,6 +520,7 @@ async function page(env) {
     ? `<div class="grid">${pending.map(pendingCard).join("")}</div>`
     : `<div class="card empty">Nothing waiting for review.</div>`;
   const alertsHtml = alerts.length ? `<h2>Alerts</h2><div class="grid">${alerts.map(alertCard).join("")}</div>` : "";
+  const comingHtml = comingUp(await env.PENDING.get("daily", "json"));
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
@@ -423,6 +528,7 @@ async function page(env) {
 <a class="btn" href="/">Refresh</a></header>
 ${pendingHtml}
 ${alertsHtml}
+${comingHtml}
 ${handledHtml}
 <p class="small" style="margin-top:32px">Handled items and alerts are cleared after ${KEEP_HANDLED_DAYS} days. <a href="/logout" style="color:inherit">Sign out</a></p>
 <script>
@@ -525,6 +631,36 @@ function handledCard(i) {
   ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
   ${status}
   ${action}
+</div>`;
+}
+
+const TYPE_NAMES = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long-sleeve", SWEATSHIRT: "Sweatshirt", HOODIE: "Hoodie" };
+
+function comingUp(d) {
+  if (!d) return "";
+  const byDate = {};
+  for (const u of d.upcoming || []) (byDate[u.date] = byDate[u.date] || []).push(u);
+  const dates = Object.keys(byDate).sort();
+  const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const rows = dates.map((date) => {
+    const groups = {};
+    for (const u of byDate[date]) (groups[u.gag] = groups[u.gag] || { title: u.title, items: [] }).items.push(u);
+    const lines = Object.entries(groups).map(([gag, g]) =>
+      `<div>${esc(gag)} <span class="small">${esc(g.title)}</span><br>${g.items.map((u) =>
+        `<span class="badge"${u.built ? ' style="color:var(--ok);border-color:var(--ok)"' : ""}>${esc(TYPE_NAMES[u.type] || u.type)}${u.built ? " ✓" : ""}</span>`).join(" ")}</div>`).join("");
+    return `<div style="display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line)"><div style="min-width:92px;font-weight:600">${esc(dayName(date))}${date === d.today ? '<br><span class="small">today</span>' : ""}</div><div style="display:grid;gap:8px">${lines}</div></div>`;
+  }).join("");
+  const todayMs = Date.parse(d.today + "T00:00:00Z");
+  const runway = (d.runway || []).map((r) => {
+    const left = r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
+    const low = left !== null && left < 7;
+    return `<span class="badge"${low ? ' style="color:var(--warn);border-color:var(--warn)"' : ""}>${esc(r.collection)}: until ${esc(r.lastDate ? dayName(r.lastDate) : "nothing scheduled")}</span>`;
+  }).join(" ");
+  return `<h2>Coming up (next 7 days)</h2>
+<div class="card">
+  ${rows || '<div class="small">Nothing scheduled in the next 7 days.</div>'}
+  <div style="border-top:1px solid var(--line);padding-top:10px;margin-top:4px"><div class="small" style="margin-bottom:6px">Releases scheduled up to (✓ = listing already built):</div>${runway}</div>
+  <div class="small" style="margin-top:8px">Updated daily at 09:15 (last: ${esc(when(d.at))}).</div>
 </div>`;
 }
 
