@@ -42,6 +42,8 @@ export default {
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
 
+      if (pathname.startsWith("/assets/") && method === "GET") return await asset(env, pathname.slice(8));
+      if (pathname === "/manifest.webmanifest") return manifest();
       if (pathname === "/login" && method === "POST") return await login(request, env);
       if (pathname === "/logout") return logout();
 
@@ -460,40 +462,62 @@ function when(ms) {
 // ---------- HTML ----------
 
 const STYLE = `
-:root{--bg:#f6f5f2;--card:#fff;--text:#1d1d1b;--muted:#6b6a66;--line:#e4e2dc;--accent:#2f6b4f;--accent-text:#fff;--warn:#9a3b2e;--warn-bg:#fbeeea;--ok:#2f6b4f;--ok-bg:#e9f3ed}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--card:#21211f;--text:#eeede9;--muted:#a3a29c;--line:#34332f;--accent:#4f9e77;--accent-text:#0f1a14;--warn:#e08b7d;--warn-bg:#3a2420;--ok:#7cc29c;--ok-bg:#1d2f25}}
+:root{--text:#efede8;--muted:#b3afa6;--line:rgba(255,255,255,.12);--card:rgba(20,20,19,.80);--field:rgba(0,0,0,.35);
+  --accent:#d8d3c8;--go:#5aa983;--go-text:#0d1a13;--warn:#e7897b;--warn-bg:rgba(150,50,40,.28);--ok:#8fd0ab;--ok-bg:rgba(60,140,95,.22);
+  --bgimg:url(/assets/bg-ih.jpg)}
+body[data-coll=SH]{--accent:#9fd4b1;--bgimg:url(/assets/bg-sh.jpg)}
+body[data-coll=PC]{--accent:#e0574a;--bgimg:url(/assets/bg-pc.jpg)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-main{max-width:1100px;margin:0 auto;padding:20px 16px 48px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
-h1{font-size:22px;margin:0}
-h2{font-size:15px;color:var(--muted);font-weight:600;margin:28px 0 10px;text-transform:uppercase;letter-spacing:.04em}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-.code{font-weight:700;font-size:18px}
+html{background:#121211}
+body{margin:0;min-height:100vh;color:var(--text);font:16px/1.45 'Montserrat',-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:linear-gradient(rgba(8,8,8,.45),rgba(8,8,8,.72)),var(--bgimg) center/cover fixed #121211;transition:background .4s}
+main{max-width:1180px;margin:0 auto;padding:22px 20px 56px}
+a{color:inherit}
+header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.logo{height:58px;width:auto;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.45)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.01em}
+h2{font-size:13px;color:var(--accent);font-weight:700;margin:30px 0 10px;text-transform:uppercase;letter-spacing:.12em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.card[data-coll=IH]{border-left:5px solid #d8d3c8}.card[data-coll=SH]{border-left:5px solid #9fd4b1}.card[data-coll=PC]{border-left:5px solid #e0574a}
+.code{font-weight:700;font-size:18px;letter-spacing:.02em}
 .title{margin:4px 0 2px}
 .meta{color:var(--muted);font-size:14px}
-video{display:block;width:100%;aspect-ratio:1/1;background:#000;border-radius:10px;margin:12px 0}
-.caption{font-size:14px;background:var(--bg);border-radius:8px;padding:8px 10px;margin:8px 0;white-space:pre-wrap}
-.caption b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+video{display:block;width:100%;aspect-ratio:1/1;background:#000;border-radius:12px;margin:12px 0}
+.caption{font-size:14px;background:var(--field);border-radius:10px;padding:9px 11px;margin:8px 0;white-space:pre-wrap}
+.caption b{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
 .links{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
-.links a{flex:1 1 120px;text-align:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;color:var(--text);text-decoration:none;font-weight:600;font-size:15px}
-.btn-main{display:block;width:100%;text-align:center;padding:15px;border-radius:10px;background:var(--accent);color:var(--accent-text);font-weight:700;font-size:17px;text-decoration:none;border:0;cursor:pointer}
-.btn-alt{display:block;width:100%;text-align:center;padding:12px;margin-top:10px;border-radius:10px;background:none;color:var(--warn);border:1px solid var(--warn);font-weight:600;font-size:16px;cursor:pointer}
-.link-btn{background:none;border:0;color:var(--muted);font-size:14px;padding:10px 0 0;text-decoration:underline;cursor:pointer}
-.done{opacity:.75}
-.badge{display:inline-block;font-size:13px;font-weight:600;padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
-.status{border-radius:10px;padding:10px 12px;margin-top:10px;font-size:15px}
+.links a{flex:1 1 120px;text-align:center;padding:11px 12px;border:1px solid var(--line);border-radius:12px;color:var(--text);text-decoration:none;font-weight:600;font-size:15px;background:var(--field)}
+.btn-main{display:block;width:100%;text-align:center;padding:15px;border-radius:12px;background:var(--go);color:var(--go-text);font:700 17px 'Montserrat',sans-serif;text-decoration:none;border:0;cursor:pointer;letter-spacing:.02em}
+.btn-alt{display:block;width:100%;text-align:center;padding:13px;margin-top:10px;border-radius:12px;background:none;color:var(--warn);border:1px solid var(--warn);font:600 16px 'Montserrat',sans-serif;cursor:pointer}
+.link-btn{background:none;border:0;color:var(--muted);font:14px 'Montserrat',sans-serif;padding:10px 0 0;text-decoration:underline;cursor:pointer}
+.done{opacity:.8}
+.badge{display:inline-block;font-size:13px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.status{border-radius:12px;padding:11px 13px;margin-top:10px;font-size:15px}
 .status.ok{background:var(--ok-bg);color:var(--ok)}
 .status.bad{background:var(--warn-bg);color:var(--warn)}
-.status.wait{background:var(--bg);color:var(--muted)}
-.alert{border-left:4px solid var(--warn)}
+.status.wait{background:var(--field);color:var(--muted)}
+.alert{border-left:5px solid var(--warn)}
 .alert .body{white-space:pre-wrap;font-size:14px;margin-top:6px}
 .empty{text-align:center;color:var(--muted);padding:40px 12px}
 .small{font-size:14px;color:var(--muted)}
-.btn{padding:9px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-size:15px;text-decoration:none}
-input[type=password]{width:100%;padding:13px;font-size:17px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);margin:10px 0 14px}
+.btn{display:inline-block;padding:10px 15px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font:600 15px 'Montserrat',sans-serif;text-decoration:none;cursor:pointer;backdrop-filter:blur(6px)}
+input[type=password]{width:100%;padding:13px;font:17px 'Montserrat',sans-serif;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);margin:10px 0 14px}
 .err{color:var(--warn)}
+/* Phone: one column, bigger targets */
+@media (max-width:700px){
+  main{padding:14px 12px 40px}
+  .logo{height:42px}
+  h1{font-size:18px}
+  header{gap:10px}
+  .actions{width:100%}
+  .actions .btn{flex:1;text-align:center;padding:12px}
+  .grid{grid-template-columns:1fr}
+  .card{padding:15px}
+  .btn-main{padding:17px}
+}
 `;
 
 function shell(body) {
@@ -501,15 +525,26 @@ function shell(body) {
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Mosspit Approvals</title><style>${STYLE}</style></head>
-<body><main>${body}</main></body></html>`,
+<meta name="theme-color" content="#121211">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/assets/icon-192.png">
+<link rel="apple-touch-icon" href="/assets/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<title>Introvert Here</title><style>${STYLE}</style></head>
+<body data-coll="IH"><main>${body}</main></body></html>`,
     { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
   );
 }
 
+const collOf = (code) => (/^(IH|SH|PC)-/.exec(String(code || "")) || [, "IH"])[1];
+function brandHeader(title, actions = "") {
+  return `<header><div class="brand"><img class="logo" id="logo" src="/assets/logo-ih.jpg" alt="Introvert Here"><h1>${title}</h1></div>${actions ? `<div class="actions">${actions}</div>` : ""}</header>`;
+}
+
 function loginPage(wrong) {
   return shell(`
-<header><h1>Mosspit Approvals</h1></header>
+${brandHeader("Sign in")}
 <form class="card" method="post" action="/login" style="max-width:420px">
   <label for="pw"><b>Password</b></label>
   <input id="pw" type="password" name="password" autocomplete="current-password" autofocus required>
@@ -532,8 +567,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-<header><h1>Waiting for review${pending.length ? ` (${pending.length})` : ""}</h1>
-<div style="display:flex;gap:8px"><a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/">Refresh</a></div></header>
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -602,7 +636,7 @@ function pendingCard(i) {
     ? `<video controls playsinline preload="metadata" src="/video/${encodeURIComponent(i.row)}/${encodeURIComponent(i.code)}"></video>`
     : "";
   return `
-<div class="card" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}">
+<div class="card" data-coll="${collOf(i.product)}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}">
   <div class="code">${esc(i.product)}</div>
   ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
   <div class="meta">Rendered ${esc(when(i.receivedAt))}</div>
@@ -634,7 +668,7 @@ function handledCard(i) {
     status = `<div class="status wait">Hidden ${esc(when(i.updatedAt))}</div>`;
   }
   return `
-<div class="card ${i.status === "rejected" ? "" : "done"}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}">
+<div class="card ${i.status === "rejected" ? "" : "done"}" data-coll="${collOf(i.product)}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}">
   <div class="code">${esc(i.product)}</div>
   ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
   ${status}
@@ -765,10 +799,10 @@ async function gagsPage(env) {
     return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-<header><h1>Gags</h1><div style="display:flex;gap:8px"><a class="btn" href="/">← Approvals</a><button class="btn" id="refresh" type="button">Refresh from Core</button></div></header>
+${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`)}
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap Refresh from Core."}</div>
 <div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
-  <button class="btn tab" data-tab="new" type="button" style="font-weight:700">New gag</button>
+  <button class="btn tab on" data-tab="new" type="button">New gag</button>
   <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
 </div>
 <div id="pick" class="card" style="display:none;margin-top:10px">
@@ -776,8 +810,8 @@ async function gagsPage(env) {
   <div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div>
 </div>
 <form id="form" class="card" style="margin-top:10px;display:grid;gap:14px">
-  <div id="slot" class="status wait">Choose a collection.</div>
   <label><b>Collection</b><select id="collection" required></select></label>
+  <div id="slot" class="small" style="display:none;margin-top:-6px"></div>
   <div class="gagrow">
     <label style="flex:1 1 320px"><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
       <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
@@ -796,13 +830,18 @@ async function gagsPage(env) {
 </form>
 ${savesHtml}
 <style>
-  select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:11px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text);font-family:inherit}
+  select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
+  select option{background:#1c1c1b;color:var(--text)}
+  .tab.on{background:var(--accent);color:#141413;border-color:var(--accent)}
+  #stage{background:rgba(0,0,0,.55)!important}
+  @media (max-width:700px){.two{grid-template-columns:1fr}.four{grid-template-columns:1fr 1fr}.gagrow{flex-direction:column}}
   textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
   .gagrow{display:flex;gap:14px;flex-wrap:wrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .four{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:6px}
-  #stage{margin-top:6px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden}
-  #pbox{transform-origin:top left;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
+  #stage{margin-top:6px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden;position:relative;width:100%;min-height:60px}
+  .gagrow > *{min-width:0}
+  #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
   #pbox div{white-space:nowrap}
   #pbox .over{color:#ff9a8a}
   .result{padding:10px;border-top:1px solid var(--line);cursor:pointer}
@@ -826,15 +865,22 @@ if (G) { opts($("collection"), G.collections, "Choose…"); opts($("category"), 
 
 function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); }
 
+const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC" };
+function setLook(coll) {
+  const c = CODE[coll] || "IH";
+  document.body.dataset.coll = c;
+  const logo = document.getElementById("logo"); if (logo) logo.src = "/assets/logo-" + c.toLowerCase() + ".jpg";
+}
+function note(text, cls) { const el = $("slot"); el.style.display = text ? "block" : "none"; el.className = cls || "small"; el.textContent = text || ""; }
 function slotInfo() {
-  if (mode === "edit") { $("slot").className = "status wait"; $("slot").textContent = editing ? "Editing " + editing.id + " (not built yet). Saving updates its row in Core." : "Pick a gag to edit above."; return; }
+  setLook($("collection").value);
+  if (mode === "edit") { note(editing ? "Editing " + editing.id + " (not built yet). Saving updates its row in Core." : "", "small"); return; }
   const c = $("collection").value, pc = G && G.perCollection[c];
-  if (!c || !pc) { $("slot").className = "status wait"; $("slot").textContent = "Choose a collection."; return; }
+  if (!c || !pc) { note(""); return; }
   const n = pc.next;
-  $("slot").className = "status ok";
-  $("slot").textContent = n.mode === "fill"
-    ? "Will fill prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left). Its dates are filled in below."
-    : "No empty " + (pc.prefix || "") + " rows left - will add a new row at the bottom as " + n.id + ", dated the day after the latest date in Core.";
+  note(n.mode === "fill"
+    ? "Fills prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left) \u2014 its dates are filled in below."
+    : "No empty " + (pc.prefix || "") + " rows left \u2014 adds a new row at the bottom as " + n.id + ", dated the day after the latest date in Core.", "small");
   setDates(n.dates);
 }
 $("collection").addEventListener("change", () => { slotInfo(); preview(); });
@@ -880,7 +926,7 @@ $("stem").addEventListener("input", stemNote);
 // ----- tabs / edit picker -----
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
   mode = b.dataset.tab; editing = null;
-  document.querySelectorAll('.tab').forEach((x) => x.style.fontWeight = x === b ? 700 : 400);
+  document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   $("pick").style.display = mode === "edit" ? "block" : "none";
   $("collection").disabled = mode === "edit";
   $("form").reset(); $("tag12").value = "birthday gift"; $("tag13").value = "treat yourself";
@@ -932,3 +978,19 @@ setInterval(async () => {
 }, 5000);
 slotInfo();
 `;
+
+// ---------- brand assets ----------
+const ASSET_TYPES = { jpg: "image/jpeg", png: "image/png" };
+async function asset(env, name) {
+  if (!/^[a-z0-9-]+\.(jpg|png)$/.test(name)) return new Response("Not found", { status: 404 });
+  const buf = await env.PENDING.get("asset:" + name, "arrayBuffer");
+  if (!buf) return new Response("Not found", { status: 404 });
+  return new Response(buf, { headers: { "Content-Type": ASSET_TYPES[name.split(".").pop()], "Cache-Control": "public, max-age=604800" } });
+}
+function manifest() {
+  return new Response(JSON.stringify({
+    name: "Introvert Here", short_name: "Introvert Here", start_url: "/", display: "standalone",
+    background_color: "#121211", theme_color: "#121211",
+    icons: [{ src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+  }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
+}
