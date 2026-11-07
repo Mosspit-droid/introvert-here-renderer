@@ -822,7 +822,7 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><button class="b
   </div>
   <label><b>Gag category</b><select id="category" required></select></label>
   <label><b>Title stem</b><input id="stem" required maxlength="60"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
-  <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="birthday gift"></label><label><b>Custom tag 13</b><input id="tag13" value="treat yourself"></label></div>
+  <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="christmas present"></label><label><b>Custom tag 13</b><input id="tag13" value="holiday gift"></label></div>
   <div><b>Release dates</b>
     <div class="four">
       <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
@@ -989,7 +989,7 @@ document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () 
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   $("pick").style.display = mode === "edit" ? "block" : "none";
   $("collection").disabled = mode === "edit";
-  $("form").reset(); $("tag12").value = "birthday gift"; $("tag13").value = "treat yourself";
+  $("form").reset(); $("tag12").value = "christmas present"; $("tag13").value = "holiday gift";
   slotInfo(); preview(); stemNote(); if (mode === "edit") search();
 }));
 function search() {
