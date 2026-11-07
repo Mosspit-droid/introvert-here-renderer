@@ -947,6 +947,13 @@ $("text").addEventListener("input", () => {
   if (f !== v && f.length === v.length) { const a = el.selectionStart, b = el.selectionEnd; el.value = f; el.setSelectionRange(a, b); preview(); }
 });
 $("stem").addEventListener("change", () => { $("stem").value = properStem($("stem").value).trim(); stemNote(); });
+// As you type: capitalise the first letter of each word (same length, so the cursor stays put).
+$("stem").addEventListener("input", () => {
+  const el = $("stem"), v = el.value;
+  if (/[A-Z]/.test(v) && !/[a-z]/.test(v)) return; // typing in capitals: tidied when you leave the box
+  const f = v.replace(/(^|[\s\-\/("'\u201c])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  if (f !== v) { const a = el.selectionStart, b = el.selectionEnd; el.value = f; el.setSelectionRange(a, b); stemNote(); }
+});
 
 
 // ----- spelling & grammar -----
