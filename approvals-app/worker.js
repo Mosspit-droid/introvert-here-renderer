@@ -929,7 +929,7 @@ $("stem").addEventListener("input", stemNote);
 // ----- auto-formatting -----
 // Gag text: capitals, except anything between *asterisks* and a letter straight after a number (e.g. 1960s).
 function capsGag(t) {
-  return t.split(/(\*[^*\n]*\*)/).map((part) => /^\*[^*\n]*\*$/.test(part) ? part : part.replace(/[a-z]/g, (ch, i, all) => (i > 0 && /\d/.test(all[i - 1]) ? ch : ch.toUpperCase()))).join("");
+  return t.split(/(\*[^*\n]*\*|\*[^*\n]*(?=\n|$))/).map((part) => /^\*[^*\n]*(\*|$)/.test(part) ? part : part.replace(/[a-z]/g, (ch, i, all) => (i > 0 && /\d/.test(all[i - 1]) ? ch : ch.toUpperCase()))).join("");
 }
 // Title stem: an all-capitals stem becomes Proper Case (a single short word like FOMO is left alone);
 // otherwise just make sure every word starts with a capital.
