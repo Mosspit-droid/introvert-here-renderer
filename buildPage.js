@@ -45,9 +45,27 @@
  * @param {number} [spec.outputHeight=1080]
  * @returns {{html: string, totalDurationMs: number}}
  */
+// Where the text box sits for each collection, in the 1080px frame.
+// left/width are the outer edges of that collection's logo frame on its
+// background image (measured from the backgrounds themselves), so the box
+// runs from directly under the logo's left edge to directly under its
+// right edge. top keeps the existing gap between logo and text.
+const TEXT_BOX_PRESETS = {
+  IH: { left: 286, width: 509, top: 404 }, // INTROVERT HERE… (Y003 background)
+  SH: { left: 287, width: 505, top: 404 }, // SHHH.
+  PC: { left: 265, width: 543, top: 404 }, // PER CONTRACT
+};
+
+// The text box is a grid of 12 x 9 capital Ws, the same as the Canva box
+// in Core: the font size is whatever makes 12 Ws exactly fill the box.
+const GRID_COLUMNS = 12;
+const LINE_HEIGHT = 1.2;
+
 function buildPage(spec) {
   const {
     textLines: rawTextLines,
+    collection,
+    textBox: textBoxOverride,
     backgroundImageUrl,
     productImages,
     charIntervalMs = 85.5,
@@ -55,6 +73,11 @@ function buildPage(spec) {
     outputWidth = 1080,
     outputHeight = 1080,
   } = spec;
+
+  const textBox =
+    textBoxOverride ||
+    TEXT_BOX_PRESETS[String(collection || '').toUpperCase()] ||
+    TEXT_BOX_PRESETS.IH;
 
   if (!Array.isArray(rawTextLines) || rawTextLines.length === 0) {
     throw new Error('textLines must be a non-empty array of strings');
@@ -99,6 +122,9 @@ function buildPage(spec) {
     charIntervalMs,
     holdAfterTypingMs,
     textPhaseDurationMs,
+    textBoxWidth: textBox.width,
+    gridColumns: GRID_COLUMNS,
+    lineHeight: LINE_HEIGHT,
   };
 
   const html = `<!doctype html>
@@ -141,21 +167,34 @@ function buildPage(spec) {
   }
   .textbox {
     position: absolute;
-    left: 285px;
-    top: 404px;
-    width: 511px;
+    left: ${textBox.left}px;
+    top: ${textBox.top}px;
+    width: ${textBox.width}px;
     text-align: right;
+    /* font-size is set by the script once the font has loaded: it's
+       whatever makes 12 capital Ws exactly fill this box's width. */
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 400;
+    line-height: ${LINE_HEIGHT};
+    letter-spacing: -0.04em;
+    color: rgba(255, 255, 255, 1);
   }
   .textbox div {
     display: block;
     width: 100%;
+    /* Like the Canva box: a line too long for the box wraps at a space
+       instead of spilling past the right edge. */
+    white-space: normal;
+  }
+  .measure {
+    position: absolute;
+    left: -10000px;
+    top: 0;
     white-space: nowrap;
     font-family: 'Montserrat', sans-serif;
     font-weight: 400;
-    font-size: 28px;
-    line-height: 120%;
+    font-size: 100px;
     letter-spacing: -0.04em;
-    color: rgba(255, 255, 255, 1);
   }
   .textbox .ch {
     visibility: hidden;
@@ -190,19 +229,38 @@ function buildPage(spec) {
   function renderFullLinesHidden() {
     const linesHtml = SPEC.textLines.map((line) => {
       if (line.length === 0) {
-        // Explicit height here, rather than relying on &nbsp; plus the
-        // div's own line-height to create the gap - belt-and-braces
-        // against a blank-only div collapsing its box in some rendering
-        // conditions. 50px font-size * 120% line-height = 60px.
-        return '<div style="height:60px;">&nbsp;</div>'
+        // Explicit height (one line), rather than relying on &nbsp; plus
+        // the div's own line-height - belt-and-braces against a blank-only
+        // div collapsing its box in some rendering conditions.
+        return '<div style="height:' + SPEC.lineHeight + 'em;">&nbsp;</div>'
       }
+      // Spaces stay ordinary (breakable) spaces, so a line that's too long
+      // for the box wraps there, like the Canva box. Each space still gets
+      // its own span so the typing pace is unchanged.
       const chars = line
         .split('')
-        .map((ch) => '<span class="ch">' + (ch === ' ' ? '&nbsp;' : ch) + '</span>')
+        .map((ch) => '<span class="ch">' + (ch === ' ' ? ' ' : escapeHtml(ch)) + '</span>')
         .join('');
       return '<div>' + chars + '</div>';
     });
     textbox.innerHTML = linesHtml.join('');
+  }
+
+  function escapeHtml(ch) {
+    return ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch;
+  }
+
+  // Font size = the size at which 12 capital Ws exactly fill the box.
+  function fitFontToGrid() {
+    const probe = document.createElement('span');
+    probe.className = 'measure';
+    probe.textContent = 'W'.repeat(SPEC.gridColumns);
+    document.body.appendChild(probe);
+    const widthAt100 = probe.getBoundingClientRect().width;
+    probe.remove();
+    const fontSize = (SPEC.textBoxWidth / widthAt100) * 100;
+    textbox.style.fontSize = fontSize.toFixed(2) + 'px';
+    window.__FONT_SIZE__ = fontSize;
   }
 
   function revealCharsUpTo(revealed) {
@@ -232,16 +290,21 @@ function buildPage(spec) {
     // Wait for the web font to actually be ready before we start typing,
     // so the very first frame is already using Montserrat Regular, not a
     // fallback font that then swaps mid-recording.
-    if (document.fonts && document.fonts.ready) {
+    if (document.fonts) {
+      try { await document.fonts.load("400 100px 'Montserrat'", 'W'); } catch (e) {}
       try { await document.fonts.ready; } catch (e) {}
+      if (!document.fonts.check("400 100px 'Montserrat'", 'W')) {
+        console.error('[font] Montserrat did not load - text size would be wrong');
+      }
     }
+    fitFontToGrid();
 
     const bg = makeImageEl(SPEC.backgroundImageUrl);
     await waitForImageLoad(bg);
     bg.classList.add('active');
 
     renderFullLinesHidden();
-    const totalChars = SPEC.textLines.reduce((s, l) => s + l.length, 0);
+    const totalChars = textbox.querySelectorAll('.ch').length;
     let revealed = 0;
     revealCharsUpTo(0);
 
