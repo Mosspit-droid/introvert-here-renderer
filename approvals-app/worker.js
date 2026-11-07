@@ -163,7 +163,9 @@ async function result(request, env, ctx, url) {
   item.updatedAt = Date.now();
   await saveItems(env, items);
 
-  if (!ok) {
+  if (ok) {
+    ctx.waitUntil(notify(env, url.origin, item.product + " is live", "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark"));
+  } else {
     ctx.waitUntil(notify(env, url.origin, item.product + ": approval FAILED" + (item.result.step ? " at " + item.result.step : ""), item.result.message || "Open the app for details.", "x"));
   }
   return json({ ok: true });
