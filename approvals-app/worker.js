@@ -65,6 +65,7 @@ export default {
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       return new Response("Not found", { status: 404 });
     } catch (err) {
       console.error(err);
@@ -816,10 +817,10 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><button class="b
     <label style="flex:1 1 320px"><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
       <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
     <div style="flex:1 1 300px"><b>Preview</b>
-      <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div></div>
+      <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div></div>
   </div>
   <label><b>Gag category</b><select id="category" required></select></label>
-  <label><b>Title stem</b><input id="stem" required maxlength="60"><span class="small" id="stemnote"></span></label>
+  <label><b>Title stem</b><input id="stem" required maxlength="60"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
   <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="birthday gift"></label><label><b>Custom tag 13</b><input id="tag13" value="treat yourself"></label></div>
   <div><b>Release dates</b>
     <div class="four">
@@ -923,6 +924,33 @@ function stemNote() {
 }
 $("stem").addEventListener("input", stemNote);
 
+// ----- spelling & grammar -----
+const escH = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function spellBox(el, matches, label) {
+  if (!matches) { el.innerHTML = ""; return; }
+  if (!matches.length) { el.innerHTML = label === "gag" ? '<div class="status ok">No spelling or grammar problems found.</div>' : ""; return; }
+  el.innerHTML = '<div class="status bad">' + matches.map((m) =>
+    m.kind + ': \u201c' + escH(m.word) + '\u201d' + (m.suggestions.length ? ' \u2014 did you mean \u201c' + m.suggestions.map(escH).join('\u201d / \u201c') + '\u201d?' : '') +
+    (m.kind === "Grammar" && m.message ? ' <span style="opacity:.8">(' + escH(m.message) + ')</span>' : '')).join('<br>') + '</div>';
+}
+const timers = {};
+function checkLater(id, outId, label) {
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(async () => {
+    const text = $(id).value;
+    if (!text.trim()) { spellBox($(outId), null); return; }
+    $(outId).innerHTML = '<div class="small" style="margin-top:8px">Checking spelling and grammar\u2026</div>';
+    try {
+      const r = await (await fetch('/api/spell', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })).json();
+      if ($(id).value !== text) return;
+      if (r.unavailable) { $(outId).innerHTML = '<div class="small" style="margin-top:8px">Spell check isn\u2019t available right now.</div>'; return; }
+      spellBox($(outId), r.matches, label);
+    } catch (e) { $(outId).innerHTML = ""; }
+  }, 1200);
+}
+$("text").addEventListener("input", () => checkLater("text", "spell", "gag"));
+$("stem").addEventListener("input", () => checkLater("stem", "stemspell", "stem"));
+
 // ----- tabs / edit picker -----
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
   mode = b.dataset.tab; editing = null;
@@ -941,7 +969,7 @@ function search() {
     editing = G.editable.find((e) => e.id === r.dataset.id);
     $("collection").value = editing.collection; $("category").value = editing.category; $("text").value = editing.text;
     $("stem").value = editing.stem; $("tag12").value = editing.tag12; $("tag13").value = editing.tag13; setDates(editing.dates);
-    slotInfo(); preview(); stemNote(); $("form").scrollIntoView({ behavior: "smooth" });
+    slotInfo(); preview(); stemNote(); checkLater("text", "spell", "gag"); checkLater("stem", "stemspell", "stem"); $("form").scrollIntoView({ behavior: "smooth" });
   }));
 }
 $("search").addEventListener("input", search);
@@ -993,4 +1021,38 @@ function manifest() {
     background_color: "#121211", theme_color: "#121211",
     icons: [{ src: "/assets/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
   }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
+}
+
+// ---------- spelling & grammar (LanguageTool, British English) ----------
+// Gags are written in capitals, which spell checkers skip, so we check a
+// sentence-case copy (same length, so positions still line up).
+const LT_OFF = ["UPPERCASE_SENTENCE_START", "WHITESPACE_RULE", "ELLIPSIS", "EN_QUOTES", "DASH_RULE", "PUNCTUATION_PARAGRAPH_END",
+  "COMMA_PARENTHESIS_WHITESPACE", "DOUBLE_PUNCTUATION", "MORFOLOGIK_RULE_EN_US", "EN_UNPAIRED_QUOTES", "EN_UNPAIRED_BRACKETS", "ENGLISH_WORD_REPEAT_RULE", "ENGLISH_WORD_REPEAT_BEGINNING_RULE"];
+function sentenceCase(t) {
+  let s = String(t).toLowerCase();
+  s = s.replace(/(^\s*|[.!?…]\s+)([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  s = s.replace(/\bi\b/g, "I");
+  return s;
+}
+async function spell(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const text = String(d.text || "").slice(0, 3000);
+  if (!text.trim()) return json({ matches: [] });
+  const form = new URLSearchParams({ text: sentenceCase(text), language: "en-GB", disabledRules: LT_OFF.join(",") });
+  let res;
+  try { res = await fetch("https://api.languagetool.org/v2/check", { method: "POST", body: form, headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" } }); }
+  catch (e) { return json({ unavailable: true }); }
+  if (!res.ok) return json({ unavailable: true, status: res.status });
+  const out = await res.json();
+  const matches = (out.matches || []).map((m) => {
+    const orig = text.substr(m.offset, m.length);
+    const caps = orig && orig === orig.toUpperCase() && /[A-Z]/.test(orig);
+    return {
+      offset: m.offset, length: m.length, word: orig,
+      kind: (m.rule && m.rule.issueType) === "misspelling" ? "Spelling" : "Grammar",
+      message: m.shortMessage || m.message,
+      suggestions: (m.replacements || []).slice(0, 3).map((r) => (caps ? r.value.toUpperCase() : r.value)),
+    };
+  });
+  return json({ matches });
 }
