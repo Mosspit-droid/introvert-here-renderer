@@ -1,0 +1,10 @@
+name = "mosspit-approvals"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Storage for the pending list. Replace the id with the one Cloudflare gives you
+# (see SETUP.md, step 2).
+[[kv_namespaces]]
+binding = "PENDING"
+id = "1c5342ad32504af1abd1da52c342f3ce"
