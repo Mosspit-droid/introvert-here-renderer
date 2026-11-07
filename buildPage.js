@@ -152,7 +152,7 @@ function buildPage(spec) {
     white-space: nowrap;
     font-family: 'Montserrat', sans-serif;
     font-weight: 400;
-    font-size: 50px;
+    font-size: 28px;
     line-height: 120%;
     letter-spacing: -0.04em;
     color: rgba(255, 255, 255, 1);
