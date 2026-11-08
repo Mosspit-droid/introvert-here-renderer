@@ -196,20 +196,36 @@ async function main() {
     productImages,
     charIntervalMs,
     holdAfterTypingMs,
+    collection,
+    textStyle,
+    motion,
+    teaser,
     fps = 24,
     width = 1080,
     height = 1080,
   } = spec;
 
-  const { html, totalDurationMs } = buildPage({
+  // The product code (e.g. PC-00003-HOODIE) rides along in the callback URL;
+  // it picks this video's style so each garment's video looks different.
+  let seed = spec.seed;
+  try { seed = seed || new URL(callbackUrl).searchParams.get('product_code') || undefined; } catch (e) {}
+
+  const { html, totalDurationMs, variant } = buildPage({
     textLines,
     backgroundImageUrl,
     productImages,
     charIntervalMs,
     holdAfterTypingMs,
+    collection,
+    seed,
+    textStyle,
+    motion,
+    teaser,
     outputWidth: width,
     outputHeight: height,
   });
+
+  console.log(`[render-once] ${seed || 'no product code'}: style ${JSON.stringify(variant)}`);
 
   let browser;
   try {
@@ -222,6 +238,9 @@ async function main() {
       recordVideo: { dir: workDir, size: { width, height } },
     });
 
+    // The recording starts when the page opens, before anything is drawn
+    // (a white then black flash). Note the time so it can be trimmed off.
+    const recordingStartedAt = Date.now();
     const page = await context.newPage();
 
     page.on('console', (msg) => {
@@ -240,6 +259,10 @@ async function main() {
       timeout: safetyTimeoutMs,
     });
 
+    const firstFrameAt = await page.evaluate('window.__START_MS__ || 0');
+    const trimSeconds = firstFrameAt ? Math.max(0, (firstFrameAt - recordingStartedAt) / 1000 + 0.08) : 0;
+    console.log(`[render-once] trimming ${trimSeconds.toFixed(2)}s of blank start`);
+
     const video = page.video();
     await page.close();
     await context.close();
@@ -256,6 +279,7 @@ async function main() {
     const gop = fps * 2;
     await execFileAsync('ffmpeg', [
       '-y',
+      '-ss', trimSeconds.toFixed(3),
       '-i', rawVideoPath,
       // Playwright's raw recording has no audio track at all. Some
       // platforms' upload validators (Etsy included, per observed

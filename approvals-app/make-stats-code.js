@@ -19,6 +19,7 @@ let od = {}; try { od = JSON.parse(input.orders || "{}"); } catch (e) {}
 const orders = [];
 (od.data || []).forEach(o => {
   if (String(o.status || "") === "canceled") return;
+  if (String((o.metadata || {}).order_type || "") === "sample") return; // your own sample orders are not sales
   (o.line_items || []).forEach(li => {
     const md = li.metadata || {};
     const title = s(md.title);

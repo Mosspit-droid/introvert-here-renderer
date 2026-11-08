@@ -61,6 +61,38 @@ const TEXT_BOX_PRESETS = {
 const GRID_COLUMNS = 12;
 const LINE_HEIGHT = 1.2;
 
+// Video styles, so the posts don't all look the same. Each video gets one
+// of each, picked from its product code (so a re-render looks the same) unless
+// the spec names them. The text always sits in the same branded box.
+//   textStyle: how the gag appears
+//     type   - typewriter, left to right (the original look, a bit quicker)
+//     lines  - each line rises into place in turn
+//     punch  - setup lines appear, a beat, then the last line lands with a bump
+//     words  - word by word, like captions
+//   motion: how the product photos move - zoomOut, zoomIn, panLeft, panRight
+//   teaser: open with a 0.8s flash of the garment before the gag (a visual hook)
+const TEXT_STYLES = ['type', 'lines', 'punch', 'words'];
+const MOTIONS = ['zoomOut', 'zoomIn', 'panLeft', 'panRight'];
+
+function hashString(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pickVariant(spec) {
+  const seed = String(spec.seed || (spec.textLines || []).join('|'));
+  const h = hashString(seed);
+  return {
+    textStyle: TEXT_STYLES.includes(spec.textStyle) ? spec.textStyle : TEXT_STYLES[h % TEXT_STYLES.length],
+    motion: MOTIONS.includes(spec.motion) ? spec.motion : MOTIONS[Math.floor(h / 7) % MOTIONS.length],
+    teaser: typeof spec.teaser === 'boolean' ? spec.teaser : Math.floor(h / 101) % 2 === 0,
+  };
+}
+
 function buildPage(spec) {
   const {
     textLines: rawTextLines,
@@ -68,8 +100,8 @@ function buildPage(spec) {
     textBox: textBoxOverride,
     backgroundImageUrl,
     productImages,
-    charIntervalMs = 85.5,
-    holdAfterTypingMs = 500,
+    charIntervalMs = 55,
+    holdAfterTypingMs,
     outputWidth = 1080,
     outputHeight = 1080,
   } = spec;
@@ -96,12 +128,18 @@ function buildPage(spec) {
     typeof line === 'string' && (line.trim().length === 0 || line.trim() === '[BLANKLINE]') ? '' : line
   );
 
-  // Total characters across all lines decides how long the typing phase
-  // takes. Blank lines contribute 0 characters (they're already visible
-  // as a spacer from the start), matching the original template.
+  const variant = pickVariant(spec);
+
+  // Rough length of the text phase (the page itself decides the real timing;
+  // this is only used for the safety timeout). Blank lines count as nothing.
   const totalChars = textLines.reduce((sum, line) => sum + line.length, 0);
-  const typingDurationMs = totalChars * charIntervalMs;
-  const textPhaseDurationMs = typingDurationMs + holdAfterTypingMs;
+  const totalWords = textLines.reduce((sum, line) => sum + line.split(/\s+/).filter(Boolean).length, 0);
+  const textLineCount = textLines.filter((l) => l.length).length;
+  // Once the whole gag is showing, hold it long enough to read.
+  const hold = Number.isFinite(holdAfterTypingMs) ? holdAfterTypingMs : 1400 + totalChars * 15;
+  const revealMs = { type: totalChars * charIntervalMs, lines: textLineCount * 650, punch: textLineCount * 500 + 900, words: totalWords * 190 }[variant.textStyle];
+  const teaserMs = variant.teaser ? 800 : 0;
+  const textPhaseDurationMs = teaserMs + revealMs + hold;
 
   const productPhaseDurationMs = productImages.reduce(
     (sum, img) => sum + Number(img.durationMs || 0),
@@ -120,8 +158,9 @@ function buildPage(spec) {
       durationMs: Number(img.durationMs || 0),
     })),
     charIntervalMs,
-    holdAfterTypingMs,
+    holdAfterTypingMs: hold,
     textPhaseDurationMs,
+    variant,
     textBoxWidth: textBox.width,
     gridColumns: GRID_COLUMNS,
     lineHeight: LINE_HEIGHT,
@@ -164,6 +203,31 @@ function buildPage(spec) {
   @keyframes zoomOut {
     from { transform: scale(1.15); }
     to   { transform: scale(1.0); }
+  }
+  @keyframes zoomIn {
+    from { transform: scale(1.0); }
+    to   { transform: scale(1.15); }
+  }
+  @keyframes panLeft {
+    from { transform: scale(1.18) translateX(4%); }
+    to   { transform: scale(1.18) translateX(-4%); }
+  }
+  @keyframes panRight {
+    from { transform: scale(1.18) translateX(-4%); }
+    to   { transform: scale(1.18) translateX(4%); }
+  }
+  .bg-image { transition: opacity 250ms ease; }
+  .bg-image.first { transition: none; }
+  .bg-image.zooming { animation-name: ${variant.motion}; }
+  .textbox div.line { opacity: 1; }
+  .textbox.by-line div.line { opacity: 0; transform: translateY(0.35em); transition: opacity 320ms ease, transform 320ms ease; }
+  .textbox.by-line div.line.in { opacity: 1; transform: none; }
+  .textbox div.line.punch { opacity: 0; transform: scale(1.35); transform-origin: right center; transition: none; }
+  .textbox div.line.punch.in { opacity: 1; animation: punchIn 420ms cubic-bezier(.2,1.6,.4,1) forwards; }
+  @keyframes punchIn {
+    0%   { transform: scale(1.35); opacity: 0; }
+    60%  { transform: scale(0.96); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
   }
   .textbox {
     position: absolute;
@@ -241,7 +305,7 @@ function buildPage(spec) {
         .split('')
         .map((ch) => '<span class="ch">' + (ch === ' ' ? ' ' : escapeHtml(ch)) + '</span>')
         .join('');
-      return '<div>' + chars + '</div>';
+      return '<div class="line">' + chars + '</div>';
     });
     textbox.innerHTML = linesHtml.join('');
   }
@@ -300,27 +364,71 @@ function buildPage(spec) {
     fitFontToGrid();
 
     const bg = makeImageEl(SPEC.backgroundImageUrl);
+    bg.classList.add('first');
     await waitForImageLoad(bg);
-    bg.classList.add('active');
 
     renderFullLinesHidden();
-    const totalChars = textbox.querySelectorAll('.ch').length;
-    let revealed = 0;
-    revealCharsUpTo(0);
+    const V = SPEC.variant;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const lineEls = Array.from(textbox.querySelectorAll('div.line'));
+    const spans = Array.from(textbox.querySelectorAll('.ch'));
 
-    await new Promise((resolve) => {
-      if (totalChars === 0) { resolve(); return; }
-      const interval = setInterval(() => {
-        revealed += 1;
-        revealCharsUpTo(revealed);
-        if (revealed >= totalChars) {
-          clearInterval(interval);
-          resolve();
-        }
-      }, SPEC.charIntervalMs);
-    });
+    // Set the starting state of the text before anything is shown.
+    const byLine = V.textStyle === 'lines' || V.textStyle === 'punch';
+    if (byLine) {
+      revealCharsUpTo(spans.length);
+      textbox.classList.add('by-line');
+    } else {
+      revealCharsUpTo(0);
+    }
 
-    await new Promise((r) => setTimeout(r, SPEC.holdAfterTypingMs));
+    // Optional hook: a quick flash of the garment before the gag.
+    if (V.teaser && SPEC.productImages.length) {
+      const t = makeImageEl(SPEC.productImages[0].url);
+      await waitForImageLoad(t);
+      window.__START_MS__ = Date.now(); // first real frame: the recording is trimmed to start here
+      t.style.animationDuration = '800ms';
+      t.classList.add('active', 'zooming');
+      textbox.style.visibility = 'hidden';
+      await sleep(800);
+      t.remove();
+      textbox.style.visibility = 'visible';
+    }
+    if (!window.__START_MS__) window.__START_MS__ = Date.now();
+    bg.classList.add('active');
+
+    if (V.textStyle === 'type') {
+      for (let i = 1; i <= spans.length; i++) {
+        await sleep(SPEC.charIntervalMs);
+        revealCharsUpTo(i);
+      }
+    } else if (V.textStyle === 'words') {
+      // A word ends after a space or at the end of a line.
+      const ends = [];
+      lineEls.forEach((el) => {
+        const cs = Array.from(el.querySelectorAll('.ch'));
+        cs.forEach((c, i) => {
+          const next = cs[i + 1];
+          if (!next || (c.textContent !== ' ' && next.textContent === ' ')) ends.push(spans.indexOf(c) + 1);
+        });
+      });
+      for (const n of ends) {
+        await sleep(190);
+        revealCharsUpTo(n);
+      }
+    } else {
+      // lines / punch: whole lines appear in turn.
+      const shown = lineEls.filter((el) => el.querySelector('.ch'));
+      const last = V.textStyle === 'punch' && shown.length > 1 ? shown[shown.length - 1] : null;
+      if (last) last.classList.add('punch');
+      for (const el of shown) {
+        if (el === last) await sleep(650); // the comic beat
+        el.classList.add('in');
+        await sleep(V.textStyle === 'punch' ? 450 : 650);
+      }
+    }
+
+    await sleep(SPEC.holdAfterTypingMs);
 
     // Cut to the product photo sequence.
     bg.classList.remove('active');
@@ -344,7 +452,7 @@ function buildPage(spec) {
 </body>
 </html>`;
 
-  return { html, totalDurationMs };
+  return { html, totalDurationMs, variant };
 }
 
-module.exports = { buildPage };
+module.exports = { buildPage, pickVariant, TEXT_STYLES, MOTIONS };
