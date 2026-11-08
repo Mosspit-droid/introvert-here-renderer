@@ -20,13 +20,21 @@ const stamp=(x,y,w,h,rot,fs)=>`<div style="position:absolute;left:${x}px;top:${y
 // Introvert Here stacked: black pill with three white dots in the bottom band
 const pill=`<div style="position:absolute;left:2696px;top:1022px;width:564px;height:99px;border-radius:50px;background:#000"></div>`+
  [2820,2982,3144].map(cx=>`<div style="position:absolute;left:${cx-24.5}px;top:${1072-24.5}px;width:49px;height:49px;border-radius:50%;background:#fff"></div>`).join('');
+// One standard layout for every collection (the Introvert Here geometry). Only the colour,
+// figure and label differ.
+const STD={
+ wide:{frame:[117,433,4266,634],ro:165,th:[86,86,86,86],ri:80,fig:[547,951,430],text:['NTROVERT HERE...',474,4155,615,891]},
+ stacked:{frame:[1163,38,2176,1124],ro:60,th:[72,72,179,72],ri:34,fig:[186,911,1536],l1:['NTROVERT',1583,3196,213,415],l2:['HERE',1576,3171,508,910]},
+};
+const wideBase=(c,f)=>svg(ring(COL[c],STD.wide.frame,STD.wide.ro,STD.wide.th,STD.wide.ri))+figImg(f,...STD.wide.fig)+line(...STD.wide.text);
+const stackBase=(c,f)=>svg(ring(COL[c],STD.stacked.frame,STD.stacked.ro,STD.stacked.th,STD.stacked.ri))+figImg(f,...STD.stacked.fig)+line(...STD.stacked.l1)+line(...STD.stacked.l2);
 const L={
- 'introvert-here-wide': svg(ring(COL.ih,[117,433,4266,634],165,[86,86,86,86],80))+figImg('ih',547,951,420)+line('NTROVERT HERE...',474,4155,615,891),
- 'introvert-here-stacked': svg(ring(COL.ih,[1163,38,2176,1124],60,[72,72,179,72],34))+pill+figImg('ih',186,911,1533)+line('NTROVERT',1583,3196,213,415)+line('HERE',1576,3171,508,910),
- 'shhh-wide': tab(3594,770,815,483,60,-3,190,40)+svg(ring(COL.sh,[149,207,4268,634],165,[85,85,85,85],80))+figImg('sh',324,734,461)+line('NTROVERT HERE...',508,4189,388,666),
- 'shhh-stacked': svg(ring(COL.sh,[1124,37,2177,1125],60,[72,73,177,73],34))+tab(2595,848,693,333,59,-3,140,34)+figImg('sh',174,917,1510)+line('NTROVERT',1545,3159,213,417)+line('HERE',1538,3126,507,910),
- 'per-contract-wide': svg(ring(COL.pc,[117,423,4266,653],170,[96,96,96,96],80))+figImg('pc',542,962,438)+line('NTROVERT HERE...',474,4155,615,891)+stamp(3090,1090,1262,236,-3,118),
- 'per-contract-stacked': svg(ring(COL.pc,[1164,42,2173,1117],60,[67,70,172,70],34))+figImg('pc',196,917,1543)+line('NTROVERT',1584,3193,215,415)+line('HERE',1577,3168,510,911)+stamp(2290,975,985,192,-3,92),
+ 'introvert-here-wide': wideBase('ih','ih'),
+ 'introvert-here-stacked': stackBase('ih','ih')+pill,
+ 'shhh-wide': tab(3560,997,815,470,60,-3,190,40)+wideBase('sh','sh'),
+ 'shhh-stacked': stackBase('sh','sh')+tab(2633,848,693,333,59,-3,140,34),
+ 'per-contract-wide': wideBase('pc','pc')+stamp(3090,1081,1262,236,-3,118),
+ 'per-contract-stacked': stackBase('pc','pc')+stamp(2290,978,985,192,-3,92),
 };
 const css=`*{margin:0;padding:0;box-sizing:border-box}html,body{width:4500px;height:1500px;background:transparent;overflow:hidden}
 .t{position:absolute;font-family:'Montserrat';font-weight:700;color:#fff;white-space:nowrap;line-height:1}`;

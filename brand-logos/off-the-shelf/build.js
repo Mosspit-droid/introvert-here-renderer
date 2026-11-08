@@ -63,17 +63,17 @@ html,body{width:4500px;height:1500px;background:transparent;overflow:hidden}
 img{position:absolute}
 ${METAL?'.t,img{filter:url(#silver)} path{filter:url(#goldleaf)}':''}`;
 const wide=`<div class="c">
- <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M287,424 H4213 A170,170 0 0 1 4383,594 V906 A170,170 0 0 1 4213,1076 H287 A170,170 0 0 1 117,906 V594 A170,170 0 0 1 287,424 Z M293,520 H4207 A80,80 0 0 1 4287,600 V900 A80,80 0 0 1 4207,980 H293 A80,80 0 0 1 213,900 V600 A80,80 0 0 1 293,520 Z"/></svg>
- <img src="${fig}" style="left:286px;top:542px;height:422px">
- <div class="t" id="w1" data-x="473" data-r="4155" data-cap="612" data-capb="889">NTROVERT HERE...</div>
- <div style="position:absolute;left:3010px;top:965px">${parchment(1300,330,-2.5,118)}</div>
+ <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M282,433 H4218 A165,165 0 0 1 4383,598 V902 A165,165 0 0 1 4218,1067 H282 A165,165 0 0 1 117,902 V598 A165,165 0 0 1 282,433 Z M283,519 H4217 A80,80 0 0 1 4297,599 V901 A80,80 0 0 1 4217,981 H283 A80,80 0 0 1 203,901 V599 A80,80 0 0 1 283,519 Z"/></svg>
+ <img class="fig" data-right="430" src="${fig}" style="top:547px;height:404px">
+ <div class="t" id="w1" data-x="474" data-r="4155" data-cap="615" data-capb="891">NTROVERT HERE...</div>
+ <div style="position:absolute;left:3010px;top:956px">${parchment(1300,330,-2.5,118)}</div>
 </div>`;
 const stacked=`<div class="c">
- <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M1224,42 H3277 A60,60 0 0 1 3337,102 V1099 A60,60 0 0 1 3277,1159 H1224 A60,60 0 0 1 1164,1099 V102 A60,60 0 0 1 1224,42 Z M1268,109 H3233 A34,34 0 0 1 3267,143 V953 A34,34 0 0 1 3233,987 H1268 A34,34 0 0 1 1234,953 V143 A34,34 0 0 1 1268,109 Z"/></svg>
- <img src="${fig}" style="left:1285px;top:188px;height:723px">
- <div class="t" id="s1" data-x="1576" data-r="3195" data-cap="215" data-capb="416">NTROVERT</div>
- <div class="t" id="s2" data-x="1576" data-r="3195" data-cap="509" data-capb="911">HERE</div>
- <div style="position:absolute;left:2290px;top:960px">${parchment(1060,250,-2,96)}</div>
+ <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M1223,38 H3279 A60,60 0 0 1 3339,98 V1102 A60,60 0 0 1 3279,1162 H1223 A60,60 0 0 1 1163,1102 V98 A60,60 0 0 1 1223,38 Z M1269,110 H3233 A34,34 0 0 1 3267,144 V949 A34,34 0 0 1 3233,983 H1269 A34,34 0 0 1 1235,949 V144 A34,34 0 0 1 1269,110 Z"/></svg>
+ <img class="fig" data-right="1536" src="${fig}" style="top:186px;height:725px">
+ <div class="t" id="s1" data-x="1583" data-r="3196" data-cap="213" data-capb="415">NTROVERT</div>
+ <div class="t" id="s2" data-x="1576" data-r="3171" data-cap="508" data-capb="910">HERE</div>
+ <div style="position:absolute;left:2290px;top:963px">${parchment(1060,250,-2,96)}</div>
 </div>`;
 (async()=>{
  const b=await chromium.launch();
@@ -83,21 +83,17 @@ const stacked=`<div class="c">
   await p.evaluate(async()=>{await document.fonts.ready;});
   // Fit each text line: cap top/bottom and left/right as measured from Barry's version.
   const info=await p.evaluate(()=>{
-    const out=[];
+    document.querySelectorAll('img.fig').forEach(im=>{const w=im.getBoundingClientRect().width; im.style.left=(+im.dataset.right-w)+'px';});
+    const c=document.createElement('canvas').getContext('2d'); const out=[];
     document.querySelectorAll('.t').forEach(el=>{
-      const x=+el.dataset.x,r=+el.dataset.r,cap=+el.dataset.cap,capb=+el.dataset.capb;
-      // cap height of Montserrat = 0.70em
-      const fs=(capb-cap)/0.70; el.style.fontSize=fs+'px';
-      // stretch letter-spacing so the line spans x..r
-      const w=el.getBoundingClientRect().width; const n=el.textContent.length;
-      el.style.letterSpacing=((r-x)-w)/(n-1)+'px';
-      el.style.left=x+'px';
-      // place: cap top = top + (lineheight - capheight)/2 approx; measure via canvas
-      const c=document.createElement('canvas').getContext('2d'); c.font=`700 ${fs}px Montserrat`;
-      const m=c.measureText('H'); const asc=m.actualBoundingBoxAscent;
-      const fa=m.fontBoundingBoxAscent;
-      el.style.top=(cap-(fa-asc) - (fs - (m.fontBoundingBoxAscent+m.fontBoundingBoxDescent))/2)+'px';
-      out.push({t:el.textContent,fs:Math.round(fs),ls:el.style.letterSpacing,ok:document.fonts.check(`700 10px Montserrat`)});
+      const x=+el.dataset.x,r=+el.dataset.r,cap=+el.dataset.cap,capb=+el.dataset.capb,txt=el.textContent;
+      c.font='700 100px Montserrat'; const hh=c.measureText('H').actualBoundingBoxAscent;
+      const fs=(capb-cap)/hh*100; el.style.fontSize=fs+'px'; c.font=`700 ${fs}px Montserrat`;
+      const m=c.measureText(txt); const ink=m.actualBoundingBoxLeft+m.actualBoundingBoxRight;
+      el.style.letterSpacing=((r-x)-ink)/(txt.length-1)+'px'; el.style.left=(x+m.actualBoundingBoxLeft)+'px';
+      const fa=m.fontBoundingBoxAscent, fd=m.fontBoundingBoxDescent;
+      el.style.top=(cap-(fa-c.measureText('H').actualBoundingBoxAscent)-(fs-(fa+fd))/2)+'px';
+      out.push(txt);
     });
     return out;});
   console.log(name,JSON.stringify(info));
