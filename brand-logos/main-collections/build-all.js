@@ -33,7 +33,7 @@ const stackBase=(c,f,extra='',holes='',mask='')=>svg(extra+ring(COL[c],STD.stack
 const L={
  'introvert-here-wide': wideBase('ih','ih'),
  'introvert-here-stacked': stackBase('ih','ih','',PILL_HOLE)+dots,
- 'shhh-wide': wideBase('sh','sh',tabMask('mw',3753,1033,650,290,50,-3),'','mw')+tab(3753,1033,650,290,50,-3,150),
+ 'shhh-wide': wideBase('sh','sh',tabMask('mw',3753,858,650,290,50,-3),'','mw')+tab(3753,858,650,290,50,-3,150),
  'shhh-stacked': stackBase('sh','sh',tabMask('ms',2700,940,600,272,50,-3),'','ms')+tab(2700,940,600,272,50,-3,124),
  'per-contract-wide': wideBase('pc','pc')+stamp(3090,1081,1262,236,-3,118),
  'per-contract-stacked': stackBase('pc','pc')+stamp(2290,978,985,192,-3,92),
