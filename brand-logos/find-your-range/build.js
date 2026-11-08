@@ -3,9 +3,9 @@ const dir=process.argv[2];
 const img=n=>'data:image/png;base64,'+fs.readFileSync(`${dir}/${n}.png`).toString('base64');
 const R=[
  {logo:'introvert-here',c:'#F2F0EC',k:'THE ORIGINAL RANGE',h:'EVERYDAY INTROVERSION.',s:'Social plans. Small talk. Other people.',f:'FOR GENERAL AVOIDANCE.'},
- {logo:'shhh',c:'#A8CEA8',k:'THE QUIETER RANGE',h:'COMMUNICATION. YOUR WAY.',s:'Low-verbal. Non-verbal. Sensory-aware.',f:'NON-VERBAL. NOT ABSENT.'},
  {logo:'per-contract',c:'#C2403A',k:'THE WORKPLACE RANGE',h:'PROFESSIONALLY PRESENT.',s:'Meetings. Colleagues. Compulsory enthusiasm.',f:'INTERACTION: CONTRACTUALLY OBLIGED.'},
  {logo:'off-the-shelf',c:'#C9A62A',k:'THE READING RANGE',h:'ACHIEVABLE ESCAPE.',s:'Books. Characters. Preferable company.',f:'READING: CONVERSATION OPTIONAL.'},
+ {logo:'shhh',c:'#A8CEA8',k:'THE QUIETER RANGE',h:'COMMUNICATION. YOUR WAY.',s:'Low-verbal. Non-verbal. Sensory-aware.',f:'NON-VERBAL. NOT ABSENT.'},
 ];
 const card=r=>`<div class="card" style="--c:${r.c}"><div class="lg"><img src="${img(r.logo)}"></div><div class="tx">
  <div class="k">${r.k}</div><div class="h">${r.h}</div><div class="s">${r.s}</div><div class="rule"></div><div class="f">${r.f}</div></div></div>`;
