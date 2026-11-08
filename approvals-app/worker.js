@@ -636,7 +636,9 @@ function captionBlock(i) {
 }
 
 function pendingCard(i) {
-  const listing = safeUrl(i.listingUrl);
+  // Not yet approved = not live, so open the listing in Shop Manager's editor rather than the public page.
+  const listingId = (/\/listing\/(\d+)/.exec(String(i.listingUrl || "")) || [])[1];
+  const listing = listingId ? `https://www.etsy.com/your/shops/me/listing-editor/edit/${listingId}` : safeUrl(i.listingUrl);
   const oneDrive = safeUrl(i.videoUrl);
   const player = i.hasVideo
     ? `<video controls playsinline preload="metadata" src="/video/${encodeURIComponent(i.row)}/${encodeURIComponent(i.code)}"></video>`
@@ -649,7 +651,7 @@ function pendingCard(i) {
   ${player}
   ${captionBlock(i)}
   <div class="links">
-    ${listing ? `<a href="${esc(listing)}" target="_blank" rel="noopener">Open listing</a>` : ""}
+    ${listing ? `<a href="${esc(listing)}" target="_blank" rel="noopener">${listingId ? "Edit in Shop Manager" : "Open listing"}</a>` : ""}
     ${oneDrive ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">${i.hasVideo ? "Video in OneDrive" : "▶ Watch video"}</a>` : ""}
   </div>
   <a class="btn-main" data-approve href="${esc(approveUrl(i))}" target="_blank" rel="noopener">Approve</a>
