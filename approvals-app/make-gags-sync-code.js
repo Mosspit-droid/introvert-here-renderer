@@ -13,7 +13,7 @@ const TYPES = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
 const parseGags = (rowsIn) => list(rowsIn, "value").map((r, i) => {
   const v = rowVals(r);
   return { index: typeof r.index === "number" ? r.index : i, id: str(v[0]), text: str(v[1]) ? String(v[1]).replace(/\r\n?/g, "\n").replace(/\s+$/, "") : "", collection: str(v[2]), category: str(v[3]),
-    tag12: str(v[4]), tag13: str(v[5]), stem: str(v[6]), status: str(v[7]), dates: [8, 9, 10, 11].map((c) => toISO(v[c])) };
+    tag12: str(v[4]), tag13: str(v[5]), stem: str(v[6]), rawStem: v[6] == null ? "" : String(v[6]), status: str(v[7]), dates: [8, 9, 10, 11].map((c) => toISO(v[c])) };
 }).filter((g) => g.id);
 const prefixOf = (id) => { const m = /^([A-Z]+)-(\d+)$/.exec(id); return m ? m[1] : null; };
 const numOf = (id) => { const m = /^([A-Z]+)-(\d+)$/.exec(id); return m ? Number(m[2]) : 0; };
@@ -41,4 +41,6 @@ for (const c of collections) {
 }
 const editable = gags.filter((g) => g.text && g.status !== "LIVE_EXISTING" && !TYPES.some((t) => built.has(`${g.id}-${t}`)))
   .map((g) => ({ id: g.id, text: g.text, collection: g.collection, category: g.category, tag12: g.tag12, tag13: g.tag13, stem: g.stem, dates: g.dates }));
-return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable }) };
+// Every written gag, compact, for the app's "Check Core for problems" tool.
+const all = gags.filter((g) => g.text).map((g) => ({ id: g.id, row: g.index + 2, text: g.text, stem: g.rawStem, status: g.status, t12: g.tag12, t13: g.tag13 }));
+return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable, all }) };

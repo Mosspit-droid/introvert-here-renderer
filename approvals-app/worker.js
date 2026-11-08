@@ -59,6 +59,9 @@ export default {
       if (pathname === "/" && method === "GET") {
         return authed ? await page(env) : loginPage(url.searchParams.has("wrong"));
       }
+      if (pathname === "/tools" && method === "GET") {
+        return authed ? await toolsPage(env) : redirect("/");
+      }
       if (pathname === "/pricing" && method === "GET") {
         return authed ? await pricingPage(env) : redirect("/");
       }
@@ -82,6 +85,7 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
+      if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
       if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
       return new Response("Not found", { status: 404 });
@@ -586,7 +590,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1395,5 +1399,127 @@ async function save() {
 async function poll() { const r = await fetch("/api/pricing-state"); if (r.ok) { const d = await r.json(); if (d && (!D || d.receivedAt !== D.receivedAt)) { D = d; render(); return; } } setTimeout(poll, 8000); }
 $("refresh").addEventListener("click", async () => { $("refresh").disabled = true; $("refresh").textContent = "Reading Core…"; await fetch("/api/pricing-refresh", { method: "POST" }); setTimeout(poll, 6000); });
 render();
+</script>`);
+}
+
+
+// ---------- tools ----------
+// Buttons for the Make tools (each has its own webhook), plus a "Check Core" scan that runs in the browser
+// on the gag list the Gags sync keeps in KV.
+
+const TOOLS = {
+  print:   { hook: "MAKE_TOOL_PRINT_HOOK",   name: "Refresh print files" },
+  range:   { hook: "MAKE_TOOL_RANGE_HOOK",   name: "Swap Find Your Range photo" },
+  reprice: { hook: "MAKE_TOOL_REPRICE_HOOK", name: "Re-price listings" },
+};
+async function toolRun(request, env) {
+  const d = await request.json();
+  const t = TOOLS[d.tool];
+  if (!t) return json({ error: "Unknown tool" }, 400);
+  const url = env[t.hook];
+  if (!url) return json({ error: t.hook + " is not set" }, 500);
+  const collections = String(d.collections || "").split(",").filter((c) => ["IH", "SH", "PC", "OS"].includes(c)).join(",");
+  const only = String(d.only || "").toUpperCase().split(/[\s,]+/).filter((c) => /^[A-Z]{2}-\d{5}-[A-Z-]+$/.test(c)).join(",");
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collections, only }) });
+  if (!res.ok) return json({ error: "Make didn't accept it (" + res.status + ")" }, 502);
+  const runs = (await env.PENDING.get("tool-runs", "json")) || {};
+  runs[d.tool] = { at: Date.now(), scope: only || collections || "all" };
+  await env.PENDING.put("tool-runs", JSON.stringify(runs));
+  return json({ ok: true });
+}
+
+async function toolsPage(env) {
+  const runs = (await env.PENDING.get("tool-runs", "json")) || {};
+  const last = (k) => runs[k] ? "Last started " + esc(when(runs[k].at)) + " (" + esc(runs[k].scope) + ")" : "Not run from the app yet";
+  const scope = (k, withOS) => `<div class="prow"><label>Which listings</label><select class="tsel" data-k="${k}">
+    <option value="">All collections</option><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option></select></div>
+    <div class="prow"><label>Or just these product codes (optional)</label><input class="tonly" data-k="${k}" placeholder="e.g. IH-00002-HOODIE"></div>`;
+  return shell(`
+<style>
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.prow{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.prow label{flex:1;min-width:140px;font-size:14px;color:var(--muted)}
+.prow select,.prow input{flex:1;min-width:160px;padding:9px 10px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
+.tcard h3{margin:0 0 6px;font-size:18px}
+.tcard p{margin:0 0 8px;font-size:14px;color:var(--muted)}
+.issue{border-top:1px solid var(--line);padding:9px 0;font-size:14px;white-space:pre-wrap}
+.issue b{display:block;font-size:13px;color:var(--accent);margin-bottom:2px}
+</style>
+${brandHeader("Tools", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a>`)}
+<div class="tgrid">
+ <div class="card tcard" style="grid-column:1/-1">
+  <h3>Check Core for problems</h3>
+  <p>Looks through every written gag for duplicates, very similar gags, title stems with stray spaces or line breaks, gags missing the opening "...", and custom tags over Etsy's 20 characters. Instant and free.</p>
+  <button class="btn-main" id="scan" type="button">Check now</button>
+  <button class="link-btn" id="scanRefresh" type="button">Re-read Core first (takes about a minute)</button>
+  <div id="scanOut" class="small" style="margin-top:10px"></div>
+ </div>
+ <div class="card tcard" data-tool="print">
+  <h3>Refresh print files</h3>
+  <p>Remakes each listing's print file from the current print template (new logo, current gag text) and puts it on the Printify product. About 40 seconds per listing, roughly 15 credits each.</p>
+  ${scope("print")}
+  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("print")}</div>
+ </div>
+ <div class="card tcard" data-tool="range">
+  <h3>Swap Find Your Range photo</h3>
+  <p>Replaces the range photo (the PROMO page, or RANGE for Per Contract) on each listing with the current graphic. A few seconds per listing, about 5 credits each.</p>
+  ${scope("range")}
+  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("range")}</div>
+ </div>
+ <div class="card tcard" data-tool="reprice">
+  <h3>Re-price listings</h3>
+  <p>Puts the prices from the Pricing page onto live listings (keeps each listing's colours and sizes). A few seconds per listing, about 6 credits each.</p>
+  <div class="prow"><label>Just these product codes (optional; blank = all)</label><input class="tonly" data-k="reprice" placeholder="e.g. SH-00002-T-SHIRT"></div>
+  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("reprice")}</div>
+ </div>
+</div>
+<p class="small" style="margin-top:20px">Each tool sends an alert to the Approvals page when it finishes.</p>
+<script>
+const $ = (id) => document.getElementById(id);
+document.querySelectorAll(".trun").forEach((b) => b.addEventListener("click", async () => {
+  const card = b.closest("[data-tool]"), tool = card.dataset.tool;
+  const sel = card.querySelector(".tsel"), only = card.querySelector(".tonly");
+  const collections = sel ? sel.value : "", codes = only ? only.value.trim() : "";
+  const what = codes ? codes : (collections ? sel.options[sel.selectedIndex].text : "ALL listings");
+  if (!confirm("Run “" + card.querySelector("h3").textContent + "” on " + what + "?")) return;
+  b.disabled = true; card.querySelector(".tmsg").textContent = "Starting…";
+  const r = await fetch("/api/tool-run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tool, collections, only: codes }) });
+  const j = await r.json().catch(() => ({}));
+  b.disabled = false;
+  card.querySelector(".tmsg").textContent = r.ok ? "Started. You'll get an alert on the Approvals page when it's done." : (j.error || "Something went wrong.");
+}));
+const norm = (t) => String(t || "").toUpperCase().replace(/…/g, " ").replace(/[^A-Z0-9' ]+/g, " ").replace(/\\s+/g, " ").trim();
+function bigrams(s) { const m = new Map(); for (let i = 0; i < s.length - 1; i++) { const g = s.slice(i, i + 2); m.set(g, (m.get(g) || 0) + 1); } return m; }
+function dice(a, b) { let inter = 0, na = 0, nb = 0; a.forEach((v) => na += v); b.forEach((v) => nb += v); a.forEach((v, k) => { if (b.has(k)) inter += Math.min(v, b.get(k)); }); return na + nb ? 2 * inter / (na + nb) : 0; }
+async function scan() {
+  const out = $("scanOut"); out.textContent = "Checking…";
+  const r = await fetch("/api/gags-data"); const g = r.ok ? await r.json() : null;
+  if (!g || !g.all) { out.innerHTML = "The app hasn't got the full gag list yet. Tap “Re-read Core first”, wait a minute, then check again."; return; }
+  const all = g.all, issues = [];
+  const by = (f) => { const m = {}; all.forEach((x) => { const k = f(x); if (k) (m[k] = m[k] || []).push(x.id); }); return Object.entries(m).filter(([, v]) => v.length > 1); };
+  by((x) => x.id).forEach(([k, v]) => issues.push(["Same gag ID used twice", k + " (" + v.length + " rows)"]));
+  by((x) => norm(x.text)).forEach(([, v]) => issues.push(["Identical gag text", v.join(", ")]));
+  by((x) => String(x.stem).trim().toLowerCase()).forEach(([k, v]) => issues.push(["Same title stem", "“" + k + "”: " + v.join(", ")]));
+  all.forEach((x) => {
+    const s = String(x.stem || "");
+    if (/[\\r\\n\\t]/.test(s)) issues.push(["Line break in title stem", x.id + " (row " + x.row + "): " + JSON.stringify(s)]);
+    else if (/^\\s|\\s$|\\s{2,}/.test(s)) issues.push(["Stray spaces in title stem", x.id + " (row " + x.row + "): “" + s + "”"]);
+    if (!/^\\s*(\\.\\.\\.|…)/.test(x.text)) issues.push(["Missing the opening ...", x.id + " (row " + x.row + ")"]);
+    [x.t12, x.t13].forEach((t) => { if (t && String(t).trim().length > 20) issues.push(["Custom tag over 20 characters", x.id + ": “" + t + "”"]); });
+  });
+  const B = all.map((x) => ({ id: x.id, n: norm(x.text), t: x.text }));
+  B.forEach((x) => x.bg = bigrams(x.n));
+  const sim = [];
+  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+    const a = B[i], b = B[j]; if (a.n === b.n) continue;
+    if (Math.abs(a.n.length - b.n.length) > 0.5 * Math.max(a.n.length, b.n.length)) continue;
+    const d = dice(a.bg, b.bg); if (d >= 0.72) sim.push([d, a, b]);
+  }
+  sim.sort((p, q) => q[0] - p[0]).slice(0, 15).forEach(([d, a, b]) => issues.push(["Very similar gags (" + Math.round(d * 100) + "% alike)", a.id + ": " + a.t.replace(/\\n+/g, " ") + "\\n" + b.id + ": " + b.t.replace(/\\n+/g, " ")]));
+  const head = "Checked " + all.length + " written gags (Core read " + new Date(g.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + "). ";
+  out.innerHTML = issues.length ? head + issues.length + " thing" + (issues.length === 1 ? "" : "s") + " to look at:" + issues.map(([t, d]) => '<div class="issue"><b>' + t + '</b>' + d.replace(/[<&]/g, (c) => c === "<" ? "&lt;" : "&amp;") + '</div>').join("") : head + "No problems found. ✓";
+}
+$("scan").addEventListener("click", scan);
+$("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Re-reading Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); });
 </script>`);
 }
