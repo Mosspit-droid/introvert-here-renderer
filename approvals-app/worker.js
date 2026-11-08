@@ -42,6 +42,7 @@ export default {
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
+      if (pathname === "/api/pricing-sync" && method === "POST") return await pricingSync(request, env);
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
@@ -57,6 +58,9 @@ export default {
       const authed = await isAuthed(request, env);
       if (pathname === "/" && method === "GET") {
         return authed ? await page(env) : loginPage(url.searchParams.has("wrong"));
+      }
+      if (pathname === "/pricing" && method === "GET") {
+        return authed ? await pricingPage(env) : redirect("/");
       }
       if (pathname === "/stats" && method === "GET") {
         return authed ? await statsPage(env, url) : redirect("/");
@@ -77,6 +81,9 @@ export default {
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
+      if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
+      if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
+      if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
       return new Response("Not found", { status: 404 });
     } catch (err) {
       console.error(err);
@@ -579,7 +586,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1247,4 +1254,146 @@ ${tile("Sales", money(revenue))}
 function addDays(day, n) {
   const d = new Date(Date.parse(day + "T12:00:00Z") + n * 864e5);
   return d.toISOString().slice(0, 10);
+}
+
+
+// ---------- pricing ----------
+// Make ("Approvals App — Pricing") posts the current prices (PRODUCT_RULES) and the cost table + fee settings
+// (PRICING sheet in Core) to /api/pricing-sync. The page recalculates profit as you type; Save sends the new
+// prices back through Make, which writes Core and (optionally) re-prices every live listing.
+
+async function pricingSync(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = await request.json();
+  data.receivedAt = Date.now();
+  await env.PENDING.put("pricing", JSON.stringify(data));
+  return json({ ok: true });
+}
+async function pricingRefresh(env) {
+  if (!env.MAKE_PRICING_HOOK) return json({ error: "MAKE_PRICING_HOOK is not set" }, 500);
+  const res = await fetch(env.MAKE_PRICING_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync" }) });
+  return res.ok ? json({ ok: true }) : json({ error: "Make didn't accept the refresh (" + res.status + ")" }, 502);
+}
+async function pricingSave(request, env) {
+  if (!env.MAKE_PRICING_HOOK) return json({ error: "MAKE_PRICING_HOOK is not set" }, 500);
+  const d = await request.json();
+  const types = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+  const prices = {};
+  for (const t of types) {
+    const x = (d.prices || {})[t] || {};
+    const price = Number(x.price), x2 = Number(x.x2), x3 = Number(x.x3);
+    if (!(price > 5 && price < 500) || !(x2 >= 0 && x2 < 50) || !(x3 >= 0 && x3 < 50)) return json({ error: "Check the prices for " + t.toLowerCase() + "." }, 400);
+    prices[t] = { price: Math.round(price * 100) / 100, x2: Math.round(x2 * 100) / 100, x3: Math.round(x3 * 100) / 100 };
+  }
+  const st = d.settings || {};
+  const settings = { target: Number(st.target), rate: Number(st.rate), card: Number(st.card) };
+  if (!(settings.target >= 0 && settings.target < 100) || !(settings.rate > 0.5 && settings.rate < 3) || !(settings.card >= 0 && settings.card < 0.2)) return json({ error: "Check the settings." }, 400);
+  const body = { action: "save", prices: JSON.stringify(prices), settings: JSON.stringify(settings), reprice: d.reprice ? "true" : "false" };
+  const res = await fetch(env.MAKE_PRICING_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return json({ error: "Make didn't accept the save (" + res.status + "). Nothing was changed." }, 502);
+  const cur = (await env.PENDING.get("pricing", "json")) || {};
+  cur.pendingSave = { at: Date.now(), reprice: !!d.reprice };
+  await env.PENDING.put("pricing", JSON.stringify(cur));
+  return json({ ok: true });
+}
+
+async function pricingPage(env) {
+  const data = await env.PENDING.get("pricing", "json");
+  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`;
+  return shell(`
+<style>
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.pcard h3{margin:0 0 10px;font-size:18px}
+.prow{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
+.prow label{flex:1;min-width:120px;font-size:14px;color:var(--muted)}
+.prow input{width:110px;padding:9px 10px;font:600 16px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);text-align:right}
+table.pt{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+table.pt th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:right;padding:6px 4px;font-weight:600}
+table.pt th:first-child,table.pt td:first-child{text-align:left}
+table.pt td{padding:7px 4px;text-align:right;border-top:1px solid var(--line);font-weight:600}
+.good{color:var(--ok)}.meh{color:#e7c27b}.bad{color:var(--warn)}
+.small2{font-size:13px;color:var(--muted)}
+</style>
+${brandHeader("Pricing", nav)}
+<div class="small" id="synced"></div>
+<div id="app"></div>
+<script>
+let D = ${JSON.stringify(data || null)};
+const $ = (id) => document.getElementById(id);
+const TYPES = [["T-SHIRT","T-shirt"],["LONG-SLEEVE","Long-sleeve"],["SWEATSHIRT","Sweatshirt"],["HOODIE","Hoodie"]];
+const money = (n) => (n < 0 ? "−£" : "£") + Math.abs(n).toFixed(2);
+function cls(p, target){ return p >= target - 0.005 ? "good" : (p >= target / 2 ? "meh" : "bad"); }
+function render() {
+  if (!D || !D.garments) { $("app").innerHTML = '<div class="card empty">No pricing data yet. Tap “Refresh from Core”.</div>'; return; }
+  const s = D.settings;
+  $("synced").textContent = "Core read " + new Date(D.receivedAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) + (D.pendingSave ? " · saving…" : "") + (D.lastSave ? " · last saved " + D.lastSave : "");
+  let html = '<div class="card" style="margin:14px 0"><h3 style="margin:0 0 6px">Settings</h3>' +
+    '<div class="prow"><label>Profit you want per item (£)</label><input id="s_target" type="number" step="0.5" value="' + s.target + '"></div>' +
+    '<div class="prow"><label>US dollars per £1 (Printify bills in dollars)</label><input id="s_rate" type="number" step="0.01" value="' + s.rate + '"></div>' +
+    '<div class="prow"><label>Card foreign-currency fee (0.03 = 3%)</label><input id="s_card" type="number" step="0.005" value="' + s.card + '"></div>' +
+    '<div class="small2">Etsy fees (6.5% + 4% + 20p + 0.48% + renewal, plus 20% VAT) and Printify\\'s 20% VAT on UK orders are included. Prices apply to all three collections.</div></div>';
+  html += '<div class="pgrid">';
+  for (const [t, name] of TYPES) {
+    const g = D.garments[t], r = D.prices[t];
+    html += '<div class="card pcard" data-t="' + t + '"><h3>' + name + '</h3>' +
+      '<div class="prow"><label>Price, sizes S–XL (£)</label><input class="pin" data-k="price" type="number" step="0.01" value="' + r.price + '"></div>' +
+      '<div class="prow"><label>Extra for 2XL (£)</label><input class="pin" data-k="x2" type="number" step="0.5" value="' + r.x2 + '"></div>' +
+      '<div class="prow"><label>Extra for 3XL and up (£)</label><input class="pin" data-k="x3" type="number" step="0.5" value="' + r.x3 + '"></div>' +
+      '<table class="pt"><thead><tr><th>Size</th><th>Price</th><th>Profit UK</th><th>Profit US</th><th>£' + '<span class="tgt"></span> price</th></tr></thead><tbody></tbody></table>' +
+      '<button class="link-btn usefloor" type="button">Use the prices that hit my target</button></div>';
+  }
+  html += '</div><div class="card" style="margin-top:16px"><label style="display:flex;gap:10px;align-items:center;font-size:15px"><input id="reprice" type="checkbox" checked style="width:20px;height:20px"> Also update the prices on all live Etsy listings now</label>' +
+    '<button class="btn-main" id="save" type="button" style="margin-top:12px">Save prices</button><div id="msg" class="small" style="margin-top:8px"></div></div>';
+  $("app").innerHTML = html;
+  document.querySelectorAll("input").forEach((i) => i.addEventListener("input", calc));
+  document.querySelectorAll(".usefloor").forEach((b) => b.addEventListener("click", () => useFloor(b.closest(".pcard"))));
+  $("save").addEventListener("click", save);
+  calc();
+}
+function settings() { return Object.assign({}, D.settings, { target: +$("s_target").value, rate: +$("s_rate").value, card: +$("s_card").value }); }
+function numbers(card) { const v = {}; card.querySelectorAll(".pin").forEach((i) => v[i.dataset.k] = +i.value); return v; }
+function rowsFor(t, v, s) {
+  const g = D.garments[t];
+  const pct = s.txn + s.procPct + s.reg, fixed = s.procFixed + s.renew;
+  return [["S–XL", 0], ["2XL", v.x2], ["3XL", v.x3]].map(([size, extra]) => {
+    const c = g[size]; if (!c) return null;
+    const P = v.price + extra;
+    const fees = (1 + s.vatFees) * (pct * P + fixed);
+    const uk = (c.cost + c.shipUK) / s.rate * (1 + s.card) * (1 + s.vatUK);
+    const us = (c.cost + c.shipUS) / s.rate * (1 + s.card);
+    const floor = (s.target + uk + (1 + s.vatFees) * fixed) / (1 - (1 + s.vatFees) * pct);
+    return { size, P, pUK: P - fees - uk, pUS: P - fees - us, floor: Math.ceil(floor) - 0.01, extra };
+  }).filter(Boolean);
+}
+function calc() {
+  const s = settings();
+  document.querySelectorAll(".tgt").forEach((e) => e.textContent = s.target);
+  document.querySelectorAll(".pcard").forEach((card) => {
+    const rows = rowsFor(card.dataset.t, numbers(card), s);
+    card.querySelector("tbody").innerHTML = rows.map((r) => '<tr><td>' + r.size + '</td><td>' + money(r.P) + '</td><td class="' + cls(r.pUK, s.target) + '">' + money(r.pUK) + '</td><td class="' + cls(r.pUS, s.target) + '">' + money(r.pUS) + '</td><td>' + money(r.floor) + '</td></tr>').join("");
+  });
+}
+function useFloor(card) {
+  const rows = rowsFor(card.dataset.t, numbers(card), settings());
+  const base = rows[0].floor;
+  card.querySelector('[data-k=price]').value = base.toFixed(2);
+  if (rows[1]) card.querySelector('[data-k=x2]').value = Math.max(0, Math.ceil(rows[1].floor - base)).toFixed(2);
+  if (rows[2]) card.querySelector('[data-k=x3]').value = Math.max(0, Math.ceil(rows[2].floor - base)).toFixed(2);
+  calc();
+}
+async function save() {
+  const prices = {}; document.querySelectorAll(".pcard").forEach((c) => prices[c.dataset.t] = numbers(c));
+  const reprice = $("reprice").checked;
+  if (reprice && !confirm("Save these prices and update all live Etsy listings now?")) return;
+  $("save").disabled = true; $("msg").textContent = "Saving…";
+  const r = await fetch("/api/pricing-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prices, settings: settings(), reprice }) });
+  const j = await r.json().catch(() => ({}));
+  $("save").disabled = false;
+  $("msg").textContent = r.ok ? (reprice ? "Saved to Core. Live listings are being updated now (a few minutes); you'll get an alert when it's done." : "Saved to Core. New listings will use these prices.") : (j.error || "Something went wrong.");
+  if (r.ok) setTimeout(poll, 8000);
+}
+async function poll() { const r = await fetch("/api/pricing-state"); if (r.ok) { const d = await r.json(); if (d && (!D || d.receivedAt !== D.receivedAt)) { D = d; render(); return; } } setTimeout(poll, 8000); }
+$("refresh").addEventListener("click", async () => { $("refresh").disabled = true; $("refresh").textContent = "Reading Core…"; await fetch("/api/pricing-refresh", { method: "POST" }); setTimeout(poll, 6000); });
+render();
+</script>`);
 }
