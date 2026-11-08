@@ -156,8 +156,21 @@ function fetchAsDataUri(imageUrl) {
 // Downloads backgroundImageUrl and every productImages[].url up front and
 // replaces them with data: URIs, so the browser never fetches an external
 // image URL directly (see fetchAsDataUri above for why).
+// The video backgrounds live in this repo (backgrounds/IH.jpg etc.), so every
+// collection uses the same 2026 logo size and position. If there is no file
+// for a collection, the backgroundImageUrl Make sends is used instead.
+function localBackground(collection) {
+  const code = String(collection || '').toUpperCase().slice(0, 2);
+  if (!/^[A-Z]{2}$/.test(code)) return null;
+  const file = path.join(__dirname, 'backgrounds', `${code}.jpg`);
+  if (!fs.existsSync(file)) return null;
+  return `data:image/jpeg;base64,${fs.readFileSync(file).toString('base64')}`;
+}
+
 async function inlineImages(spec) {
-  const backgroundImageUrl = await fetchAsDataUri(spec.backgroundImageUrl);
+  const local = localBackground(spec.collection);
+  if (local) console.log(`[render-once] using built-in background for ${spec.collection}`);
+  const backgroundImageUrl = local || (await fetchAsDataUri(spec.backgroundImageUrl));
 
   const productImages = await Promise.all(
     (spec.productImages || []).map(async (img) => ({

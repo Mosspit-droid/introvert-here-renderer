@@ -50,10 +50,12 @@
 // background image (measured from the backgrounds themselves), so the box
 // runs from directly under the logo's left edge to directly under its
 // right edge. top keeps the existing gap between logo and text.
+const STANDARD_TEXT_BOX = { left: 286, width: 509, top: 404 }; // every 2026 background has its logo frame at x 286-795, top 53
 const TEXT_BOX_PRESETS = {
-  IH: { left: 286, width: 509, top: 404 }, // INTROVERT HERE… (Y003 background)
-  SH: { left: 287, width: 505, top: 404 }, // SHHH.
-  PC: { left: 265, width: 543, top: 404 }, // PER CONTRACT
+  IH: STANDARD_TEXT_BOX, // INTROVERT HERE…
+  SH: STANDARD_TEXT_BOX, // SHHH.
+  PC: STANDARD_TEXT_BOX, // PER CONTRACT
+  OS: STANDARD_TEXT_BOX, // OFF THE SHELF
 };
 
 // The text box is a grid of 12 x 9 capital Ws, the same as the Canva box
