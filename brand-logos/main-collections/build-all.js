@@ -7,7 +7,10 @@ const COL={ih:'#FFFFFF',sh:'#A8CEA8',pc:'#A7322D'};
 function rr(X,Y,W,H,R){return `M${X+R},${Y} H${X+W-R} A${R},${R} 0 0 1 ${X+W},${Y+R} V${Y+H-R} A${R},${R} 0 0 1 ${X+W-R},${Y+H} H${X+R} A${R},${R} 0 0 1 ${X},${Y+H-R} V${Y+R} A${R},${R} 0 0 1 ${X+R},${Y} Z`;}
 function ring(c,[x,y,w,h],ro,[t,r,b,l],ri){return `<path fill="${c}" fill-rule="evenodd" d="${rr(x,y,w,h,ro)} ${rr(x+l,y+t,w-l-r,h-t-b,ri)}"/>`;}
 const svg=inner=>`<svg width="4500" height="1500" style="position:absolute;left:0;top:0">${inner}</svg>`;
-const figImg=(n,top,bottom,right)=>`<img class="fig" data-right="${right}" src="${fig(n)}" style="position:absolute;top:${top}px;height:${bottom-top}px">`;
+// Figures are placed by the centre of their legs (so arm poses don't shift them), a little left of
+// halfway between the inside of the frame and the N.
+const LEGS={ih:0.499,sh:0.479,pc:0.491};
+const figImg=(n,top,bottom,cx)=>`<img class="fig" data-cx="${cx}" data-legs="${LEGS[n]}" src="${fig(n)}" style="position:absolute;top:${top}px;height:${bottom-top}px">`;
 const line=(txt,x,r,cap,capb)=>`<div class="t" data-x="${x}" data-r="${r}" data-cap="${cap}" data-capb="${capb}">${txt}</div>`;
 // SHHH. tab: mint rounded label with black inside, tilted; drawn under the frame so the frame band covers its top
 const tab=(x,y,w,h,bw,rot,fs,tx)=>`<div style="position:absolute;left:${x}px;top:${y}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg);background:${COL.sh};border-radius:${bw*2}px;padding:${bw}px">
@@ -23,8 +26,8 @@ const pill=`<div style="position:absolute;left:2696px;top:1022px;width:564px;hei
 // One standard layout for every collection (the Introvert Here geometry). Only the colour,
 // figure and label differ.
 const STD={
- wide:{frame:[117,433,4266,634],ro:165,th:[86,86,86,86],ri:80,fig:[547,951,430],text:['NTROVERT HERE...',474,4155,615,891]},
- stacked:{frame:[1163,38,2176,1124],ro:60,th:[72,72,179,72],ri:34,fig:[186,911,1536],l1:['NTROVERT',1583,3196,213,415],l2:['HERE',1576,3171,508,910]},
+ wide:{frame:[117,433,4266,634],ro:165,th:[86,86,86,86],ri:80,fig:[547,951,332],text:['NTROVERT HERE...',474,4155,615,891]},
+ stacked:{frame:[1163,38,2176,1124],ro:60,th:[72,72,179,72],ri:34,fig:[186,911,1397],l1:['NTROVERT',1583,3196,213,415],l2:['HERE',1576,3171,508,910]},
 };
 const wideBase=(c,f)=>svg(ring(COL[c],STD.wide.frame,STD.wide.ro,STD.wide.th,STD.wide.ri))+figImg(f,...STD.wide.fig)+line(...STD.wide.text);
 const stackBase=(c,f)=>svg(ring(COL[c],STD.stacked.frame,STD.stacked.ro,STD.stacked.th,STD.stacked.ri))+figImg(f,...STD.stacked.fig)+line(...STD.stacked.l1)+line(...STD.stacked.l2);
@@ -45,7 +48,7 @@ const css=`*{margin:0;padding:0;box-sizing:border-box}html,body{width:4500px;hei
   const p=await b.newPage({viewport:{width:4500,height:1500}});
   await p.setContent(`<!doctype html><html><head><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Courier+Prime:wght@700&display=block" rel="stylesheet"><style>${css}</style></head><body>${body}</body></html>`,{waitUntil:'networkidle'});
   await p.evaluate(async()=>{await document.fonts.load("700 100px Montserrat");await document.fonts.load("700 100px 'Courier Prime'");await document.fonts.ready;
-   document.querySelectorAll('img.fig').forEach(im=>{const w=im.getBoundingClientRect().width; im.style.left=(+im.dataset.right-w)+'px';});
+   document.querySelectorAll('img.fig').forEach(im=>{const w=im.getBoundingClientRect().width; im.style.left=(+im.dataset.cx - (+im.dataset.legs)*w)+'px';});
    const c=document.createElement('canvas').getContext('2d');
    document.querySelectorAll('.t').forEach(el=>{
     const x=+el.dataset.x,r=+el.dataset.r,cap=+el.dataset.cap,capb=+el.dataset.capb,txt=el.textContent;

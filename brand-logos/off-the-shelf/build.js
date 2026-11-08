@@ -64,13 +64,13 @@ img{position:absolute}
 ${METAL?'.t,img{filter:url(#silver)} path{filter:url(#goldleaf)}':''}`;
 const wide=`<div class="c">
  <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M282,433 H4218 A165,165 0 0 1 4383,598 V902 A165,165 0 0 1 4218,1067 H282 A165,165 0 0 1 117,902 V598 A165,165 0 0 1 282,433 Z M283,519 H4217 A80,80 0 0 1 4297,599 V901 A80,80 0 0 1 4217,981 H283 A80,80 0 0 1 203,901 V599 A80,80 0 0 1 283,519 Z"/></svg>
- <img class="fig" data-right="430" src="${fig}" style="top:547px;height:404px">
+ <img class="fig" data-cx="332" data-legs="0.495" src="${fig}" style="top:547px;height:404px">
  <div class="t" id="w1" data-x="474" data-r="4155" data-cap="615" data-capb="891">NTROVERT HERE...</div>
  <div style="position:absolute;left:3010px;top:956px">${parchment(1300,330,-2.5,118)}</div>
 </div>`;
 const stacked=`<div class="c">
  <svg width="4500" height="1500" style="position:absolute;left:0;top:0"><path fill="#BC9C22" fill-rule="evenodd" d="M1223,38 H3279 A60,60 0 0 1 3339,98 V1102 A60,60 0 0 1 3279,1162 H1223 A60,60 0 0 1 1163,1102 V98 A60,60 0 0 1 1223,38 Z M1269,110 H3233 A34,34 0 0 1 3267,144 V949 A34,34 0 0 1 3233,983 H1269 A34,34 0 0 1 1235,949 V144 A34,34 0 0 1 1269,110 Z"/></svg>
- <img class="fig" data-right="1536" src="${fig}" style="top:186px;height:725px">
+ <img class="fig" data-cx="1397" data-legs="0.495" src="${fig}" style="top:186px;height:725px">
  <div class="t" id="s1" data-x="1583" data-r="3196" data-cap="213" data-capb="415">NTROVERT</div>
  <div class="t" id="s2" data-x="1576" data-r="3171" data-cap="508" data-capb="910">HERE</div>
  <div style="position:absolute;left:2290px;top:963px">${parchment(1060,250,-2,96)}</div>
@@ -83,7 +83,7 @@ const stacked=`<div class="c">
   await p.evaluate(async()=>{await document.fonts.ready;});
   // Fit each text line: cap top/bottom and left/right as measured from Barry's version.
   const info=await p.evaluate(()=>{
-    document.querySelectorAll('img.fig').forEach(im=>{const w=im.getBoundingClientRect().width; im.style.left=(+im.dataset.right-w)+'px';});
+    document.querySelectorAll('img.fig').forEach(im=>{const w=im.getBoundingClientRect().width; im.style.left=(+im.dataset.cx - (+im.dataset.legs)*w)+'px';});
     const c=document.createElement('canvas').getContext('2d'); const out=[];
     document.querySelectorAll('.t').forEach(el=>{
       const x=+el.dataset.x,r=+el.dataset.r,cap=+el.dataset.cap,capb=+el.dataset.capb,txt=el.textContent;
