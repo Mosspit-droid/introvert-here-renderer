@@ -42,6 +42,12 @@ export default {
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
+      if (pathname === "/api/debug" && method === "POST") {
+        // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
+        if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+        await env.PENDING.put("debug", JSON.stringify({ at: new Date().toISOString(), text: (await request.text()).slice(0, 200000) }));
+        return json({ ok: true });
+      }
 
       if (pathname.startsWith("/assets/") && method === "GET") return await asset(env, pathname.slice(8));
       if (pathname === "/manifest.webmanifest") return manifest();
