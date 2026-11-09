@@ -96,9 +96,10 @@
 
   <section class="panel" aria-labelledby="in-h">
     <h2 id="in-h">Your phrases</h2>
-    <label for="phrases">One phrase per line</label>
+    <label for="phrases">One phrase per line, or separated by commas</label>
     <textarea id="phrases" spellcheck="false" autocapitalize="none" autocorrect="off" autocomplete="off" writingsuggestions="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" placeholder="introvert gift&#10;social battery&#10;coffee mug"></textarea>
-    <p class="hint">Everything happens in your browser. Nothing you type is sent anywhere or saved.</p>
+    <p class="hint">You can also paste cells straight from a spreadsheet (a row, a column or a block). Everything happens in your browser. Nothing you type is sent anywhere or saved.</p>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:8px 0 0"><input type="checkbox" id="commas" checked style="width:20px;height:20px"> Treat commas as separators</label>
 
     <div style="margin:14px 0 0">
       <label for="platform">Rules</label>
@@ -190,9 +191,19 @@
     return Array.from(new Set(phrase.toLowerCase().split(/[^\p{L}\p{N}']+/u).filter(function (w) { return w && !SMALL[w]; })));
   }
 
-  function plan(text, fieldCount, limit, etsyRules) {
+  // Lines, spreadsheet cells (tabs) and, if ticked, commas all separate phrases.
+  // Quotes a spreadsheet adds around a cell are removed.
+  function splitPhrases(text, commas) {
+    return text.split(commas ? /\r\n|\r|\n|\t|,/ : /\r\n|\r|\n|\t/).map(function (x) {
+      x = x.trim();
+      if (x.length > 1 && x.charAt(0) === '"' && x.charAt(x.length - 1) === '"') x = x.slice(1, -1).replace(/""/g, '"').trim();
+      return x;
+    });
+  }
+
+  function plan(text, fieldCount, limit, etsyRules, commas) {
     var seen = {}, unique = [], duplicates = [];
-    text.split(/\r\n|\r|\n/).forEach(function (line) {
+    splitPhrases(text, commas !== false).forEach(function (line) {
       var phrase = line.trim();
       if (!phrase) return;                                   // blank lines are ignored
       var key = phrase.toLowerCase();
@@ -278,7 +289,7 @@
   function process() {
     var fieldCount = wholeNumber($("fields"), 13, 500);
     var limit = wholeNumber($("limit"), 20, 1000);
-    var r = plan($("phrases").value, fieldCount, limit, $("platform").value === "etsy");
+    var r = plan($("phrases").value, fieldCount, limit, $("platform").value === "etsy", $("commas").checked);
     $("phrases").scrollTop = 0;
     render(r);
     $("status").textContent = r.placed.length + " placed, " + (r.tooLong.length + r.noRoom.length + r.badChars.length) + " left out, " +
