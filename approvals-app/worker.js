@@ -1157,6 +1157,7 @@ const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
 async function statsPage(env, url) {
   const st = await env.PENDING.get("stats", "json");
   const hist = (await env.PENDING.get("stats-hist", "json")) || {};
+  const planner = await env.PENDING.get("planner-stats", "json");
   const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a>`;
   if (!st) {
     return shell(`${brandHeader("Stats", nav)}<div class="card empty">No stats yet. They arrive with the daily Etsy check at 12:00.</div>`);
@@ -1249,6 +1250,7 @@ ${tile("Favourites", tot("favs"))}
 ${tile("Items sold", units)}
 ${tile("Sales", money(revenue))}
 </div>
+${plannerStatsHtml(planner, tile)}
 <h2>By gag</h2>
 <div class="sorts">${sortBtn("views", "Most views")}${sortBtn("recent", "Most views lately")}${sortBtn("favs", "Most favourites")}${sortBtn("sales", "Most sold")}</div>
 <div class="card list">${gagRows || `<div class="small">Nothing live yet.</div>`}</div>
@@ -1721,4 +1723,29 @@ $('refresh').addEventListener('click', async () => {
 });
 load().then(d => { if (!d || Date.now() - (d.receivedAt || 0) > 12 * 3600e3) $('refresh').click(); });
 </script>`);
+}
+
+
+// ---------- Phrase planner visits ----------
+// The free Phrase Field Planner (phrase-planner.mosspit.workers.dev) counts page loads into KV "planner-stats".
+function plannerStatsHtml(st, tile) {
+  const days = st && st.days ? st.days : {};
+  const iso = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+  const sum = (from) => { const out = { v: 0, phone: 0, ref: {}, c: {} };
+    for (const [d, x] of Object.entries(days)) { if (d < from) continue; out.v += x.v; out.phone += x.phone;
+      for (const [k, n] of Object.entries(x.ref || {})) out.ref[k] = (out.ref[k] || 0) + n;
+      for (const [k, n] of Object.entries(x.c || {})) out.c[k] = (out.c[k] || 0) + n; }
+    return out; };
+  const today = sum(iso(0)), week = sum(iso(6)), month = sum(iso(29));
+  const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${esc(k === "direct" ? "typed in / app / unknown" : k)}: ${v}`).join("<br>") || "none yet";
+  const pct = month.v ? Math.round((100 * month.phone) / month.v) + "% on phones" : "";
+  return `<h2>Phrase planner (free tool)</h2>
+<div class="small"><a href="https://phrase-planner.mosspit.workers.dev" target="_blank" rel="noopener" style="color:inherit">phrase-planner.mosspit.workers.dev</a>. Page visits, counted anonymously (no cookies). Bots are left out.</div>
+<div class="tiles">
+${tile("Today", today.v)}
+${tile("Last 7 days", week.v)}
+${tile("Last 30 days", month.v, pct)}
+</div>
+<div class="card" style="margin-top:10px"><b>Where visitors came from (30 days)</b><div class="small" style="margin-top:6px">${top(month.ref, 8)}</div>
+<b style="display:block;margin-top:10px">Countries (30 days)</b><div class="small" style="margin-top:6px">${top(month.c, 6)}</div></div>`;
 }
