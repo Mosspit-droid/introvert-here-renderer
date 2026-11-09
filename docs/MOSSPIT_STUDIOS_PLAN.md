@@ -49,7 +49,7 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 
 ## To do (Barry's priorities, roughly in order)
 
-1. **Mosspit Studios logo.** Done 9 Nov: mascot **Rupert Cheek** (smug yuppie peach, "smartarse") plus a MOSSPIT STUDIOS serif wordmark and the tagline **"Purveyors of Fine Cheek"** (use the tagline versions by default). Kit in `docs/brand/mosspit-logo-kit/`, brief in `docs/brand/MOSSPIT_MASCOT_BRIEF.md`. Elspeth reference scene: "The Moss Pit" sign, dark brick, ivy, amber office glow.
+1. **Mosspit Studios logo.** Done 9 Nov: mascot **Rupert Cheek** (smug yuppie peach, "smartarse") plus a MOSSPIT STUDIOS serif wordmark and the tagline **"Purveyors of Fine Cheek"** (use the tagline versions by default). Kit in `docs/brand/mosspit-logo-kit/` (main files also in Canva folder "Mosspit Studios logo kit"), brief in `docs/brand/MOSSPIT_MASCOT_BRIEF.md`. Elspeth reference scene: "The Moss Pit" sign, dark brick, ivy, amber office glow.
 2. **Studio website** on mosspit.org: a simple brand-hub page first. Barry will ask when ready.
 3. **Connect the domains** to Cloudflare (walk Barry through it step by step; he's not technical).
 4. **Introvert Here site** on introverthere.com (can start as a single page linking to Etsy).

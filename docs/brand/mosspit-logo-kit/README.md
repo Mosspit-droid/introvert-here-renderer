@@ -3,6 +3,7 @@
 Mascot: **Rupert Cheek**, a smug yuppie peach (a smartarse). Wordmark: "MOSSPIT STUDIOS" in Caladea Bold, capitals, wide letter spacing.
 Tagline: **"Purveyors of Fine Cheek"** (Caladea Italic). Use the tagline versions by default (chosen 9 Nov 2026); the plain versions are for very small spaces.
 See `mosspit-logo-kit-overview.png` for everything at a glance.
+The main files are also in Barry's Canva, folder **Mosspit Studios logo kit** (https://www.canva.com/folder/FAHadS3v8sM).
 
 | File | Use |
 |---|---|
