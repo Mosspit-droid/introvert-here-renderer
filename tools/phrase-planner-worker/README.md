@@ -1,4 +1,4 @@
-# Phrase Field Planner hosting
+# Mosspit Tag Checker for Etsy (formerly Phrase Field Planner) hosting
 
 Live at https://phrase-planner.mosspit.workers.dev (Cloudflare Worker "phrase-planner").
 
