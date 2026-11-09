@@ -40,7 +40,7 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 14px; }
-  .stat { background: var(--note); border-radius: 10px; padding: 10px; text-align: center; }
+  .stat { background: var(--note); border-radius: 10px; padding: 10px; text-align: center; white-space: nowrap; }
   .stat b { display: block; font-size: 1.5rem; }
   ol.fields { margin: 0; padding: 0; list-style: none; counter-reset: f; }
   ol.fields li { counter-increment: f; display: flex; justify-content: space-between; gap: 10px; align-items: center;
@@ -74,10 +74,10 @@
 </head>
 <body>
 <main>
-  <div class="ad-slot" role="complementary" aria-label="Advertisement space, top"></div>
-
   <h1>Phrase Field Planner</h1>
   <p class="disclaimer" role="note">Free tool. It checks character limits and arranges your phrases. It does not predict rankings, traffic or sales, and it cannot know how any marketplace will read your text. You are responsible for what you publish.</p>
+
+  <div class="ad-slot" role="complementary" aria-label="Advertisement space, top"></div>
 
   <section class="panel" aria-labelledby="in-h">
     <h2 id="in-h">Your phrases</h2>
@@ -110,8 +110,8 @@
   <section class="panel" id="results" aria-labelledby="out-h" hidden>
     <h2 id="out-h">Results</h2>
     <div class="summary">
-      <div class="stat"><b id="s-fields">0</b>fields used</div>
-      <div class="stat"><b id="s-placed">0</b>phrases placed</div>
+      <div class="stat"><b id="s-fields">0</b>fields</div>
+      <div class="stat"><b id="s-placed">0</b>placed</div>
       <div class="stat"><b id="s-left">0</b>left out</div>
     </div>
     <ol class="fields" id="placed"></ol>
@@ -123,7 +123,7 @@
   </section>
 
   <div class="ad-slot" role="complementary" aria-label="Advertisement space, bottom"></div>
-  <footer>No ads, logins or tracking. Works offline once the page has loaded.</footer>
+  <footer>No logins or tracking. Works offline once the page has loaded.</footer>
 </main>
 
 <script>
@@ -206,6 +206,7 @@
     var fieldCount = wholeNumber($("fields"), 13, 500);
     var limit = wholeNumber($("limit"), 20, 1000);
     var r = plan($("phrases").value, fieldCount, limit);
+    $("phrases").scrollTop = 0;
     render(r);
     $("status").textContent = r.placed.length + " placed, " + (r.tooLong.length + r.noRoom.length) + " left out, " +
       r.duplicates.length + " duplicate" + (r.duplicates.length === 1 ? "" : "s") + " removed.";
