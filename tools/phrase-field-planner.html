@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phrase Field Planner</title>
-<meta name="description" content="Free tool: paste phrases, set a number of fields and a character limit, and see which phrases fit.">
+<meta name="description" content="Free tool: paste phrases, set a number of tags and a character limit, and see which phrases fit.">
 <style>
   :root {
     --bg: #f6f5f2; --panel: #ffffff; --text: #1d1c1a; --muted: #5f5c57; --line: #dcd8d0;
@@ -87,11 +87,11 @@
 
     <div class="settings">
       <div>
-        <label for="fields">Number of fields</label>
+        <label for="fields">Number of tags</label>
         <input id="fields" type="number" inputmode="numeric" min="1" max="500" step="1" value="13">
       </div>
       <div>
-        <label for="limit">Character limit per field</label>
+        <label for="limit">Character limit per tag</label>
         <input id="limit" type="number" inputmode="numeric" min="1" max="1000" step="1" value="20">
       </div>
     </div>
@@ -101,7 +101,7 @@
       <button id="copy" type="button" disabled>Copy All</button>
       <button id="clear" type="button">Clear</button>
     </div>
-    <p class="hint">"Copy All" copies the placed phrases, separated by commas.</p>
+    <p class="hint">Etsy allows 13 tags of up to 20 characters. Change the numbers for other sites. "Copy All" copies the placed phrases, separated by commas.</p>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </section>
 
@@ -110,14 +110,14 @@
   <section class="panel" id="results" aria-labelledby="out-h" hidden>
     <h2 id="out-h">Results</h2>
     <div class="summary">
-      <div class="stat"><b id="s-fields">0</b>fields</div>
+      <div class="stat"><b id="s-fields">0</b>tags used</div>
       <div class="stat"><b id="s-placed">0</b>placed</div>
       <div class="stat"><b id="s-left">0</b>left out</div>
     </div>
     <ol class="fields" id="placed"></ol>
     <div class="report">
       <div class="too-long"><h3>Did not fit: too long</h3><ul id="too-long"></ul></div>
-      <div class="no-room"><h3>Did not fit: no free fields</h3><ul id="no-room"></ul></div>
+      <div class="no-room"><h3>Did not fit: no free tags</h3><ul id="no-room"></ul></div>
       <div class="dupes"><h3>Duplicates removed</h3><ul id="dupes"></ul></div>
     </div>
   </section>
