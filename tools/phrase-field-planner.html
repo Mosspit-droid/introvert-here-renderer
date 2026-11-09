@@ -50,8 +50,17 @@
   ol.fields li span.phrase { flex: 1; }
   ol.fields li { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
   ol.fields li:active { filter: brightness(.95); }
-  ol.fields li .tick { min-width: 4.2em; text-align: right; font-size: .85rem; color: var(--accent); font-weight: 600; }
+  ol.fields li .tick { min-width: 3.6em; text-align: right; font-size: .85rem; color: var(--accent); font-weight: 600; }
   ol.fields li.copied { opacity: .6; }
+  ol.fields li.shared { background: var(--warn); border-color: var(--warn-line); }
+  mark { background: var(--warn-line); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .notes { margin: 10px 0 0; padding: 0; list-style: none; }
+  .notes li { padding: 8px 12px; margin: 0 0 6px; border-radius: 8px; background: var(--warn); border: 1px solid var(--warn-line); }
+  .notes li.info { background: var(--note); border-color: var(--line); }
+  select { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .85rem; color: var(--muted); margin: 0 0 10px; }
+  .key span::before { content: ""; display: inline-block; width: .8em; height: .8em; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .key .k-ok::before { background: var(--ok-line); } .key .k-amber::before { background: var(--warn-line); } .key .k-red::before { background: var(--bad-line); }
   ol.fields li.copied span.phrase { text-decoration: line-through; }
   .count { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
   .report h3 { font-size: 1rem; margin: 14px 0 6px; }
@@ -91,6 +100,14 @@
     <textarea id="phrases" spellcheck="false" autocapitalize="none" autocorrect="off" autocomplete="off" writingsuggestions="false" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" placeholder="introvert gift&#10;social battery&#10;coffee mug"></textarea>
     <p class="hint">Everything happens in your browser. Nothing you type is sent anywhere or saved.</p>
 
+    <div style="margin:14px 0 0">
+      <label for="platform">Rules</label>
+      <select id="platform">
+        <option value="etsy" selected>Etsy (13 tags, 20 characters, Etsy's character rules)</option>
+        <option value="custom">Custom (your own numbers, no character rules)</option>
+      </select>
+    </div>
+
     <div class="settings">
       <div>
         <label for="fields">Number of tags</label>
@@ -107,7 +124,7 @@
       <button id="copy" type="button" disabled>Copy All</button>
       <button id="clear" type="button">Clear</button>
     </div>
-    <p class="hint">Etsy allows 13 tags of up to 20 characters. Change the numbers for other sites.</p>
+    <p class="hint" id="rules-hint">Etsy rules: up to 13 tags of up to 20 characters, using letters, numbers and spaces. ' and - are allowed inside a tag but not at the start. Changing the numbers switches to Custom.</p>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </section>
 
@@ -121,9 +138,12 @@
       <div class="stat"><b id="s-left">0</b>left out</div>
     </div>
     <p class="hint" id="tap-hint" style="margin:0 0 8px">Tap a phrase to copy it, then paste it into Etsy's Tags box and tap Add. Copied phrases get a tick. "Copy All" copies everything as one comma-separated line, which the Etsy app does not split into tags.</p>
+    <div class="key"><span class="k-ok">fine</span><span class="k-amber">shares a word with another tag (allowed, worth a look)</span><span class="k-red">won't be accepted</span></div>
     <ol class="fields" id="placed"></ol>
+    <ul class="notes" id="notes"></ul>
     <div class="report">
       <div class="too-long"><h3>Did not fit: too long</h3><ul id="too-long"></ul></div>
+      <div class="too-long" id="bad-wrap"><h3>Did not fit: characters Etsy won't accept</h3><ul id="bad-chars"></ul></div>
       <div class="no-room"><h3>Did not fit: no free tags</h3><ul id="no-room"></ul></div>
       <div class="dupes"><h3>Duplicates removed</h3><ul id="dupes"></ul></div>
     </div>
@@ -151,7 +171,26 @@
   }
 
   // The rules, kept separate from the page so they are easy to check.
-  function plan(text, fieldCount, limit) {
+  // Etsy: letters, numbers and spaces; ' and - inside a tag but not at the start.
+  var ETSY_OK = /^[\p{L}\p{N}\p{M} '\u2019-]+$/u;
+  function etsyProblem(phrase) {
+    var first = phrase.charAt(0);
+    if (first === "'" || first === "\u2019" || first === "-") return "starts with " + first;
+    if (!ETSY_OK.test(phrase)) {
+      var bad = Array.from(new Set(Array.from(phrase).filter(function (ch) { return !ETSY_OK.test(ch); })));
+      return "contains " + bad.map(function (c) { return c === " " ? "a space" : "\u201c" + c + "\u201d"; }).join(" ");
+    }
+    if (/  /.test(phrase)) return "has a double space";
+    return "";
+  }
+
+  // Short joining words aren't counted as shared words.
+  var SMALL = { a:1, an:1, and:1, the:1, "for":1, of:1, to:1, "in":1, on:1, at:1, by:1, "with":1, or:1, my:1, your:1, is:1, it:1, i:1, me:1 };
+  function wordsOf(phrase) {
+    return Array.from(new Set(phrase.toLowerCase().split(/[^\p{L}\p{N}']+/u).filter(function (w) { return w && !SMALL[w]; })));
+  }
+
+  function plan(text, fieldCount, limit, etsyRules) {
     var seen = {}, unique = [], duplicates = [];
     text.split(/\r\n|\r|\n/).forEach(function (line) {
       var phrase = line.trim();
@@ -161,14 +200,20 @@
       seen[key] = phrase;
       unique.push(phrase);
     });
-    var placed = [], tooLong = [], noRoom = [];
+    var placed = [], tooLong = [], noRoom = [], badChars = [];
     unique.forEach(function (phrase) {
-      var n = charCount(phrase);
+      var n = charCount(phrase), why = etsyRules ? etsyProblem(phrase) : "";
       if (n > limit) tooLong.push({ phrase: phrase, n: n });
+      else if (why) badChars.push({ phrase: phrase, n: n, why: why });
       else if (placed.length < fieldCount) placed.push({ phrase: phrase, n: n });
       else noRoom.push({ phrase: phrase, n: n });
     });
-    return { placed: placed, tooLong: tooLong, noRoom: noRoom, duplicates: duplicates, limit: limit, fieldCount: fieldCount };
+    var uses = {};
+    placed.forEach(function (p) { p.words = wordsOf(p.phrase); p.words.forEach(function (w) { uses[w] = (uses[w] || 0) + 1; }); });
+    var shared = Object.keys(uses).filter(function (w) { return uses[w] > 1; }).sort(function (a, b) { return uses[b] - uses[a] || (a < b ? -1 : 1); });
+    placed.forEach(function (p) { p.shared = p.words.filter(function (w) { return uses[w] > 1; }); });
+    return { placed: placed, tooLong: tooLong, noRoom: noRoom, badChars: badChars, duplicates: duplicates, limit: limit, fieldCount: fieldCount,
+      shared: shared.map(function (w) { return { word: w, n: uses[w] }; }), etsyRules: etsyRules };
   }
 
   function item(text, extraClass) {
@@ -189,9 +234,15 @@
     placedList.textContent = "";
     r.placed.forEach(function (p) {
       var li = document.createElement("li");
-      var a = document.createElement("span"); a.className = "phrase"; a.textContent = p.phrase;
+      var a = document.createElement("span"); a.className = "phrase";
+      // Highlight words this tag shares with another tag.
+      p.phrase.split(/([^\p{L}\p{N}']+)/u).forEach(function (part) {
+        if (part && p.shared.indexOf(part.toLowerCase()) >= 0) { var m = document.createElement("mark"); m.textContent = part; a.appendChild(m); }
+        else if (part) a.appendChild(document.createTextNode(part));
+      });
+      if (p.shared.length) li.className = "shared";
       var b = document.createElement("span"); b.className = "count"; b.textContent = "[" + p.n + "/" + r.limit + "]";
-      var t = document.createElement("span"); t.className = "tick"; t.textContent = "Tap to copy";
+      var t = document.createElement("span"); t.className = "tick"; t.textContent = "Copy";
       li.appendChild(a); li.appendChild(b); li.appendChild(t);
       li.setAttribute("role", "button"); li.tabIndex = 0; li.dataset.phrase = p.phrase;
       li.setAttribute("aria-label", "Copy " + p.phrase);
@@ -200,6 +251,17 @@
     if (!r.placed.length) placedList.appendChild(item("No phrases placed.", "empty"));
 
     fill($("too-long"), r.tooLong.map(function (p) { return item(p.phrase + " [" + p.n + "/" + r.limit + "]"); }), "None");
+    $("bad-wrap").hidden = !r.etsyRules;
+    fill($("bad-chars"), r.badChars.map(function (p) { return item(p.phrase + " (" + p.why + ")"); }), "None");
+
+    var notes = $("notes"); notes.textContent = "";
+    if (r.shared.length) {
+      notes.appendChild(item("Words in more than one tag: " + r.shared.map(function (x) { return x.word + " \u00d7" + x.n; }).join(", ") +
+        ". " + (r.etsyRules ? "Etsy accepts this. " : "") + "Each tag is a separate chance to be found, so check the repeats are on purpose."));
+    }
+    var free = r.fieldCount - r.placed.length;
+    if (free > 0 && r.placed.length) notes.appendChild(item(free + " of your " + r.fieldCount + " tags " + (free === 1 ? "is" : "are") + " unused." +
+      (r.etsyRules ? " Etsy lets every listing use all 13." : ""), "info"));
     fill($("no-room"), r.noRoom.map(function (p) { return item(p.phrase + " [" + p.n + "/" + r.limit + "]"); }), "None");
     fill($("dupes"), r.duplicates.map(function (d) {
       return item(d.phrase === d.first ? d.phrase + " (listed twice)" : d.phrase + " (same as “" + d.first + "”)");
@@ -207,7 +269,7 @@
 
     $("s-fields").textContent = r.placed.length + " of " + r.fieldCount;
     $("s-placed").textContent = r.placed.length;
-    $("s-left").textContent = r.tooLong.length + r.noRoom.length;
+    $("s-left").textContent = r.tooLong.length + r.noRoom.length + r.badChars.length;
     $("results").hidden = false;
     lastPlaced = r.placed.map(function (p) { return p.phrase; });
     $("copy").disabled = !lastPlaced.length;
@@ -216,10 +278,10 @@
   function process() {
     var fieldCount = wholeNumber($("fields"), 13, 500);
     var limit = wholeNumber($("limit"), 20, 1000);
-    var r = plan($("phrases").value, fieldCount, limit);
+    var r = plan($("phrases").value, fieldCount, limit, $("platform").value === "etsy");
     $("phrases").scrollTop = 0;
     render(r);
-    $("status").textContent = r.placed.length + " placed, " + (r.tooLong.length + r.noRoom.length) + " left out, " +
+    $("status").textContent = r.placed.length + " placed, " + (r.tooLong.length + r.noRoom.length + r.badChars.length) + " left out, " +
       r.duplicates.length + " duplicate" + (r.duplicates.length === 1 ? "" : "s") + " removed.";
     return r;
   }
@@ -261,6 +323,19 @@
   }
 
   $("process").addEventListener("click", process);
+  // Etsy sets 13 tags / 20 characters; changing either number switches to Custom.
+  $("platform").addEventListener("change", function () {
+    if (this.value === "etsy") { $("fields").value = 13; $("limit").value = 20; }
+    $("rules-hint").hidden = this.value !== "etsy";
+    if (!$("results").hidden) process();
+  });
+  ["fields", "limit"].forEach(function (id) {
+    $(id).addEventListener("input", function () {
+      if ($("platform").value === "etsy" && (String($("fields").value) !== "13" || String($("limit").value) !== "20")) {
+        $("platform").value = "custom"; $("rules-hint").hidden = true;
+      }
+    });
+  });
   $("copy").addEventListener("click", copyAll);
   $("placed").addEventListener("click", function (e) { var li = e.target.closest("li[data-phrase]"); if (li) copyOne(li); });
   $("placed").addEventListener("keydown", function (e) {
