@@ -47,6 +47,13 @@ The tag checker:
 The automation behind Introvert Here (Make scenarios, Core Excel workbook, renderer) is described in
 `docs/tagging/TAGGING_SPEC.md` and the repo README.
 
+## Collection taglines (approved 9 Nov 2026)
+
+- **INTROVERT HERE…** Every design opens with "Introvert here…" and finishes with what someone of few words would say if they bothered. A pre-emptive strike, printed once, so it never has to be said out loud.
+- **SHHH.** Gentle words for people who can't always find their voice, and a quiet reminder to everyone else that struggling to say something isn't the same as having nothing to say. (Not humour-led: a gentle plea for understanding.)
+- **PER CONTRACT** For the team-building days, the mandatory fun and the after-work drinks you can't get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included.
+- **OFF THE SHELF** For people who'd rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly. (Launching soon; paraphrased movie lines may come later.)
+
 ## To do (Barry's priorities, roughly in order)
 
 1. **Mosspit Studios logo.** Done 9 Nov: mascot **Rupert Cheek** (smug yuppie peach, "smartarse") plus a MOSSPIT STUDIOS serif wordmark and the tagline **"Purveyors of Fine Cheek"** (use the tagline versions by default). Kit in `docs/brand/mosspit-logo-kit/` (main files also in Canva folder "Mosspit Studios logo kit"), brief in `docs/brand/MOSSPIT_MASCOT_BRIEF.md`. Elspeth reference scene: "The Moss Pit" sign, dark brick, ivy, amber office glow.
