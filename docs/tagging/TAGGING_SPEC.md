@@ -1,7 +1,27 @@
-# Etsy tagging – build-ready specification (v2, 9 Nov 2026)
+# Etsy tagging – build-ready specification (v3, 9 Nov 2026)
 
-Status: **for approval. Nothing in Core, Make or Etsy has been changed.**
-Companion file: `TAG_POOLS_REVIEW.xlsx` (draft pools, stem review, live backfill, overlap baseline, preview).
+Status: **Excel side built in Core and verified. The Make builder is NOT switched over: listings are still built with the old tag logic until you approve §7.**
+Companion file: `TAG_POOLS_REVIEW.xlsx` (pools, stem review, live backfill, overlap baseline, preview).
+
+## 0. Build log (9 Nov 2026)
+
+| Step | Result |
+|---|---|
+| Core access | Added a `graph:` route to the Printify lookup tool (7446858) so Core can be read and written through Make's existing Excel connection. Printify route unchanged and re-tested. Backup: `backup_7446858_before_graph.json` |
+| Gate 0: 5-formula capability test | **All PASS**: LET+VSTACK+MAP+LAMBDA → 12; TEXTSPLIT → 2; TAKE/DROP/SEQUENCE → "2,3"; XMATCH → 2; SORTBY → "y". Main design used, no fallback needed. Test cells cleared |
+| New sheets/tables | `TAG_SETTINGS` (11 named cells), `TAG_POOL` (250 phrases), `SEASON_POOL` (14), `PRODUCT_TAGS_FLAT` (60), `GAG_TAGS` (637 rows, one per GagID), `LISTING_TAGS` (79 live listings, verified Etsy tags), `POOL_CAPACITY` (13), `SEARCH_LOG` (baseline row). **No existing table or sheet was changed** |
+| Live backfill | 21 live gags frozen from the tags actually on Etsy (fetched 8 Nov 21:47 UTC), APPROVED=TRUE, message "Backfilled… (Etsy unchanged)". Etsy not touched |
+| Excel vs Python mirror | **40/40 upcoming gags identical** (gag-level 5, seasonal 2, stem). 0 error cells in GAG_TAGS |
+| Row-add behaviour (was U2) | Adding table rows with blank formula columns keeps and fills the formulas (verified by adding 5 phrases to TAG_POOL). Save Gag → GAG_TAGS row creation will work |
+| Status now | 21 READY (live), 296 awaiting approval, 109 held on stem. Overlap bands where computed: 39 green, 10 amber, 2 red |
+| Capacity (12-month horizon) | All 13 types OK after adding 5 phrases (Introvert Life +3, Social Exhaustion +2) |
+| Syntax notes for anyone editing formulas | Write row references fully bracketed (`[@[PRODUCT_TYPE]]`); this connection rejects `[@PRODUCT_TYPE]` for some names. LET variable names must not look like cells (`m1`, `s2`, `g5` were renamed) |
+
+**Changes from v2 per your final spec:**
+- Overlap now scores only the **4 flavour tags + in-season seasonal phrases + stem** (5–7 slots). The type anchor and the 5 product tags are reported separately in `CONTEXT_INFO`.
+- Capacity follows your rule (phrases needed = planned gags × 4 ÷ cap) over a rolling `PlanMonths` horizon (12) in `POOL_CAPACITY`. A type turns AMBER with a suggested number of phrases to add.
+- Least-used reuse is flagged "AMBER:" in `TAG_NOTES`.
+- "Write approved tags to the listing registry" is done through `LISTING_TAGS`, a new table. The registry itself can't take extra columns (fixed 53-column writes).
 
 ---
 
@@ -181,7 +201,25 @@ TAG_NOTES     =LET(g,[@EFF_GAG5],
                  IF(AND([@APPROVED],[@GAG5_FROZEN]=""),"Will freeze: "&[@GAG5_SUGGESTED]&" + "&[@SEAS2_SUGGESTED]&" + "&[@TAG13],"")))
 ```
 
-**Overlap (advisory).** It compares gag-level, in-season seasonal and stem slots (6–8 comparable) against **frozen** gags with a different GagID. Product tags and fallback phrases are informational only.
+**Overlap (advisory).** It compares the 4 flavour tags, in-season seasonal phrases and the stem (5–7 comparable) against **frozen** gags with a different GagID. Type anchor, product tags and fallback phrases are informational only (`CONTEXT_INFO`). *As built (v3):*
+```
+COMPARABLE    =IF([@GAG_TYPE]="","",LET(g,IF([@GAG5_FROZEN]<>"",[@GAG5_FROZEN],[@GAG5_SUGGESTED]),
+               IF(LEFT(g,6)="SHORT:","",LET(gl,TEXTSPLIT(MID(g,2,LEN(g)-2),,"|"),
+               an,FILTER(TAG_POOL[KEY],(TAG_POOL[POOL]=[@GAG_TYPE])*(TAG_POOL[CLASS]="Anchor"),"#none"),
+               fl,FILTER(gl,ISNA(XMATCH(gl,an)),""),
+               z,IF([@SEAS2_FROZEN]<>"",[@SEAS2_FROZEN],[@SEAS2_SUGGESTED]),
+               zl,IFERROR(TEXTSPLIT(MID(z,2,LEN(z)-2),,"|"),""),
+               sz,FILTER(zl,ISNUMBER(XMATCH(zl,SEASON_POOL[KEY])),""),
+               st,IF([@STEM_FROZEN]<>"",[@STEM_FROZEN],[@TAG13]),a,VSTACK(fl,sz,st),
+               "|"&TEXTJOIN("|",TRUE,FILTER(a,a<>""))&"|"))))
+OVERLAP_MAX is computed only for frozen or approved gags, or gags releasing within 120 days of SeasonDate (keeps recalculation fast).
+CONTEXT_INFO  ="Type anchor: <anchor> · plus 5 fixed product tags per garment (not scored)"
+POOL_CAPACITY: QUEUE_IN_HORIZON =COUNTIFS(GAG_TAGS[GAG_TYPE],[@GAG_TYPE],GAG_TAGS[GAG5_FROZEN],"",GAG_TAGS[FIRST_RELEASE],"<="&EDATE(SeasonDate,PlanMonths))
+               PHRASES_NEEDED   =ROUNDUP([@QUEUE_IN_HORIZON]*FlavourSlots/TagCap,0)
+               SLOTS_LEFT       =LET(u,IFERROR(--TAG_POOL[GAG_USES],0),SUM((TAG_POOL[POOL]=[@GAG_TYPE])*(TAG_POOL[CLASS]="Flavour")*(TAG_POOL[ACTIVE]="Y")*TAG_POOL[VALID]*IF(u<TagCap,TagCap-u,0)))
+               CAPACITY_STATUS  =IF([@SLOTS_LEFT]>=[@QUEUE_IN_HORIZON]*FlavourSlots,"OK","AMBER – add about "&ROUNDUP(([@QUEUE_IN_HORIZON]*FlavourSlots-[@SLOTS_LEFT])/TagCap,0)&" flavour phrases")
+```
+*v2 draft kept below for reference:*
 ```
 COMPARABLE    =LET(g,[@EFF_GAG5],sv,[@SEAS_VALID],IF(LEFT(g,6)="SHORT:","",
                g&IF([@SEAS2_FROZEN]<>"",MID([@SEAS2_FROZEN],2,999),MID(sv,2,999))&[@EFF_STEM]&"|"))
