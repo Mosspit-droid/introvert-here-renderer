@@ -17,6 +17,30 @@ Companion file: `TAG_POOLS_REVIEW.xlsx` (pools, stem review, live backfill, over
 | Capacity (12-month horizon) | All 13 types OK after adding 5 phrases (Introvert Life +3, Social Exhaustion +2) |
 | Syntax notes for anyone editing formulas | Write row references fully bracketed (`[@[PRODUCT_TYPE]]`); this connection rejects `[@PRODUCT_TYPE]` for some names. LET variable names must not look like cells (`m1`, `s2`, `g5` were renamed) |
 
+
+### Gate 2 + dry runs (9 Nov 2026, test data removed afterwards)
+
+| Test | Result |
+|---|---|
+| T1 normal | PASS: 5 + 2 + stem, awaiting approval |
+| T2 short pool / T3 empty pool | PASS: "only 3 of 5" / "only 0 of 5" |
+| T4 duplicates | PASS: stem, product tag, seasonal phrase and both copies of a repeated phrase excluded |
+| T5 invalid characters | PASS: "café & co", "-leading", 21 chars marked invalid, never picked |
+| T6 cap (TagCap 1) | PASS: second gag un-ticked with message; new suggestion avoids the first gag's phrases |
+| T7 race | PASS: first frozen, second un-ticked; its new suggestion reuses least-used phrases with an AMBER note |
+| T8 stems | PASS: curly apostrophe, 23 chars, 5 words held; typed STEM_TAG clears it |
+| T9 out of season (15 Mar 2027) | PASS: Christmas phrases dropped, fallback gift phrases fill; `auto` picks Easter / Mother's Day |
+| T10 frozen stability | PASS: pool edit leaves frozen cells unchanged; dry-run build used the frozen set |
+| Make dry run, test gag | PASS: 13 valid tags reported to the app, stopped before Printify/Etsy (17 credits) |
+| Make dry run, unapproved gag | PASS: "has no approved, frozen tag set", not built |
+| Make dry run, IH-00014 long-sleeve | PASS: exactly the approved tags + long-sleeve product tags |
+| New gag row repair | PASS: a gag added to GAGS got its GAG_TAGS row at the next run, fully calculated |
+| OFF mode = old behaviour | PASS: picker identical to the old code on 60 simulated days |
+
+**Found in testing:** rows added to GAG_TAGS through the API don't calculate until their formulas are re-entered. The builder's freeze step now re-enters them (M10 is done there instead of in Save Gag). Typing a tag that starts with "-" into a sheet makes Excel treat it as a formula; type it with a leading apostrophe.
+
+**Builder changes now live (all inactive while `TagEngine` = OFF and `DryRun` = FALSE):** 9602 batch read, 9603 freeze/repair/season date (code in `make/freeze.js`), 9604 batch write, 21 picker (`make/c21.js`), 6012/6013 tag lists (`make/c6012.js`), router 9610 with dry-run/hold report 9611, LISTING_TAGS records 9620/9621, extra conditions on 239 and 950. About 4 credits extra per build. Switch-on = set `TagEngine` to ON.
+
 **Changes from v2 per your final spec:**
 - Overlap now scores only the **4 flavour tags + in-season seasonal phrases + stem** (5–7 slots). The type anchor and the 5 product tags are reported separately in `CONTEXT_INFO`.
 - Capacity follows your rule (phrases needed = planned gags × 4 ÷ cap) over a rolling `PlanMonths` horizon (12) in `POOL_CAPACITY`. A type turns AMBER with a suggested number of phrases to add.
