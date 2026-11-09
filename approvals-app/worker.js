@@ -1727,7 +1727,7 @@ load().then(d => { if (!d || Date.now() - (d.receivedAt || 0) > 12 * 3600e3) $('
 
 
 // ---------- Phrase planner visits ----------
-// The free Phrase Field Planner (phrase-planner.mosspit.workers.dev) counts page loads into KV "planner-stats".
+// The free Phrase Field Planner (tag-checker.mosspit.workers.dev) counts page loads into KV "planner-stats".
 function plannerStatsHtml(st, tile) {
   const days = st && st.days ? st.days : {};
   const iso = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
@@ -1739,8 +1739,8 @@ function plannerStatsHtml(st, tile) {
   const today = sum(iso(0)), week = sum(iso(6)), month = sum(iso(29));
   const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${esc(k === "direct" ? "typed in / app / unknown" : k)}: ${v}`).join("<br>") || "none yet";
   const pct = month.v ? Math.round((100 * month.phone) / month.v) + "% on phones" : "";
-  return `<h2>Phrase planner (free tool)</h2>
-<div class="small"><a href="https://phrase-planner.mosspit.workers.dev" target="_blank" rel="noopener" style="color:inherit">phrase-planner.mosspit.workers.dev</a>. Page visits, counted anonymously (no cookies). Bots are left out.</div>
+  return `<h2>Tag checker (free tool)</h2>
+<div class="small"><a href="https://tag-checker.mosspit.workers.dev" target="_blank" rel="noopener" style="color:inherit">tag-checker.mosspit.workers.dev</a>. Page visits, counted anonymously (no cookies). Bots are left out.</div>
 <div class="tiles">
 ${tile("Today", today.v)}
 ${tile("Last 7 days", week.v)}

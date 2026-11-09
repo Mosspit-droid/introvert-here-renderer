@@ -45,5 +45,5 @@ export default {
 };
 '''.replace("__HTML__", json.dumps(html))
 open(D+"/worker.js","w").write(js)
-open(D+"/wrangler.toml","w").write('name = "phrase-planner"\nmain = "worker.js"\ncompatibility_date = "2024-09-01"\nworkers_dev = true\n\n[[kv_namespaces]]\nbinding = "STATS"\nid = "1c5342ad32504af1abd1da52c342f3ce"\n')
+open(D+"/wrangler.toml","w").write('name = "tag-checker"\nmain = "worker.js"\ncompatibility_date = "2024-09-01"\nworkers_dev = true\n\n[[kv_namespaces]]\nbinding = "STATS"\nid = "1c5342ad32504af1abd1da52c342f3ce"\n')
 print("ok")
