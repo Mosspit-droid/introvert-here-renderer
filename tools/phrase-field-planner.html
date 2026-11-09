@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phrase Field Planner</title>
+<meta name="description" content="Free tool: paste phrases, set a number of fields and a character limit, and see which phrases fit.">
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --text: #1d1c1a; --muted: #5f5c57; --line: #dcd8d0;
+    --accent: #2f5d50; --accent-text: #ffffff; --ok: #e7f2ec; --ok-line: #9cc7b0;
+    --warn: #fbf1df; --warn-line: #e2c27f; --bad: #fbe7e5; --bad-line: #e1a49d; --note: #eef1f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151514; --panel: #1f1e1c; --text: #ecebe7; --muted: #a8a49d; --line: #3a3834;
+      --accent: #6fb39c; --accent-text: #0f1a16; --ok: #1d2e26; --ok-line: #3f6e58;
+      --warn: #2f2818; --warn-line: #7a6431; --bad: #331f1d; --bad-line: #7d413a; --note: #222731;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.6rem; margin: 8px 0 12px; }
+  h2 { font-size: 1.15rem; margin: 0 0 10px; }
+  .disclaimer { background: var(--warn); border: 2px solid var(--warn-line); border-radius: 10px;
+    padding: 12px 14px; margin: 0 0 16px; font-weight: 600; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 16px; }
+  label { display: block; font-weight: 600; margin: 0 0 6px; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 4px 0 0; }
+  textarea, input[type=number] { width: 100%; font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  textarea { min-height: 220px; resize: vertical; }
+  textarea:focus, input:focus, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+  .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  .buttons { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+  button { font: inherit; font-weight: 600; padding: 12px 14px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); min-height: 48px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 14px; }
+  .stat { background: var(--note); border-radius: 10px; padding: 10px; text-align: center; }
+  .stat b { display: block; font-size: 1.5rem; }
+  ol.fields { margin: 0; padding: 0; list-style: none; counter-reset: f; }
+  ol.fields li { counter-increment: f; display: flex; justify-content: space-between; gap: 10px; align-items: center;
+    padding: 8px 12px; margin: 0 0 6px; border-radius: 8px; background: var(--ok); border: 1px solid var(--ok-line);
+    overflow-wrap: anywhere; }
+  ol.fields li::before { content: counter(f) "."; color: var(--muted); min-width: 2em; }
+  ol.fields li span.phrase { flex: 1; }
+  .count { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  .report h3 { font-size: 1rem; margin: 14px 0 6px; }
+  .report ul { margin: 0; padding: 0; list-style: none; }
+  .report li { padding: 7px 12px; margin: 0 0 6px; border-radius: 8px; overflow-wrap: anywhere; }
+  .too-long li { background: var(--bad); border: 1px solid var(--bad-line); }
+  .no-room li { background: var(--warn); border: 1px solid var(--warn-line); }
+  .dupes li { background: var(--note); border: 1px solid var(--line); }
+  .empty { color: var(--muted); }
+  .status { min-height: 1.5em; color: var(--muted); font-size: .95rem; margin: 10px 0 0; }
+  /* Reserved ad space. Version one loads no ad scripts; these boxes just keep the room free.
+     To hide them, add  .ad-slot { display: none; }  at the end of this style block. */
+  .ad-slot { border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: .8rem;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    min-height: 60px; margin: 0 auto 16px; max-width: 728px; }
+  .ad-slot::before { content: "Advertisement space (empty)"; }
+  footer { color: var(--muted); font-size: .85rem; text-align: center; padding: 8px 0 24px; }
+  @media (max-width: 560px) {
+    .settings, .buttons { grid-template-columns: 1fr; }
+    .stat { padding: 8px 4px; font-size: .85rem; }
+    .stat b { font-size: 1.25rem; }
+    .ad-slot { min-height: 50px; max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="ad-slot" role="complementary" aria-label="Advertisement space, top"></div>
+
+  <h1>Phrase Field Planner</h1>
+  <p class="disclaimer" role="note">Free tool. It checks character limits and arranges your phrases. It does not predict rankings, traffic or sales, and it cannot know how any marketplace will read your text. You are responsible for what you publish.</p>
+
+  <section class="panel" aria-labelledby="in-h">
+    <h2 id="in-h">Your phrases</h2>
+    <label for="phrases">One phrase per line</label>
+    <textarea id="phrases" spellcheck="false" placeholder="introvert gift&#10;social battery&#10;coffee mug"></textarea>
+    <p class="hint">Everything happens in your browser. Nothing you type is sent anywhere or saved.</p>
+
+    <div class="settings">
+      <div>
+        <label for="fields">Number of fields</label>
+        <input id="fields" type="number" inputmode="numeric" min="1" max="500" step="1" value="13">
+      </div>
+      <div>
+        <label for="limit">Character limit per field</label>
+        <input id="limit" type="number" inputmode="numeric" min="1" max="1000" step="1" value="20">
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="process" class="primary" type="button">Process</button>
+      <button id="copy" type="button" disabled>Copy All</button>
+      <button id="clear" type="button">Clear</button>
+    </div>
+    <p class="hint">"Copy All" copies the placed phrases, separated by commas.</p>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </section>
+
+  <div class="ad-slot" role="complementary" aria-label="Advertisement space, middle"></div>
+
+  <section class="panel" id="results" aria-labelledby="out-h" hidden>
+    <h2 id="out-h">Results</h2>
+    <div class="summary">
+      <div class="stat"><b id="s-fields">0</b>fields used</div>
+      <div class="stat"><b id="s-placed">0</b>phrases placed</div>
+      <div class="stat"><b id="s-left">0</b>left out</div>
+    </div>
+    <ol class="fields" id="placed"></ol>
+    <div class="report">
+      <div class="too-long"><h3>Did not fit: too long</h3><ul id="too-long"></ul></div>
+      <div class="no-room"><h3>Did not fit: no free fields</h3><ul id="no-room"></ul></div>
+      <div class="dupes"><h3>Duplicates removed</h3><ul id="dupes"></ul></div>
+    </div>
+  </section>
+
+  <div class="ad-slot" role="complementary" aria-label="Advertisement space, bottom"></div>
+  <footer>No ads, logins or tracking. Works offline once the page has loaded.</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var lastPlaced = [];
+
+  // Count characters the way people see them (an emoji or accented letter counts as one).
+  function charCount(s) { return Array.from(s).length; }
+
+  function wholeNumber(input, fallback, max) {
+    var n = Math.floor(Number(input.value));
+    if (!isFinite(n) || n < 1) n = fallback;
+    if (n > max) n = max;
+    input.value = n;
+    return n;
+  }
+
+  // The rules, kept separate from the page so they are easy to check.
+  function plan(text, fieldCount, limit) {
+    var seen = {}, unique = [], duplicates = [];
+    text.split(/\r\n|\r|\n/).forEach(function (line) {
+      var phrase = line.trim();
+      if (!phrase) return;                                   // blank lines are ignored
+      var key = phrase.toLowerCase();
+      if (seen[key]) { duplicates.push({ phrase: phrase, first: seen[key] }); return; }
+      seen[key] = phrase;
+      unique.push(phrase);
+    });
+    var placed = [], tooLong = [], noRoom = [];
+    unique.forEach(function (phrase) {
+      var n = charCount(phrase);
+      if (n > limit) tooLong.push({ phrase: phrase, n: n });
+      else if (placed.length < fieldCount) placed.push({ phrase: phrase, n: n });
+      else noRoom.push({ phrase: phrase, n: n });
+    });
+    return { placed: placed, tooLong: tooLong, noRoom: noRoom, duplicates: duplicates, limit: limit, fieldCount: fieldCount };
+  }
+
+  function item(text, extraClass) {
+    var li = document.createElement("li");
+    if (extraClass) li.className = extraClass;
+    li.textContent = text;
+    return li;
+  }
+
+  function fill(list, rows, emptyText) {
+    list.textContent = "";
+    if (!rows.length) { list.appendChild(item(emptyText, "empty")); return; }
+    rows.forEach(function (r) { list.appendChild(r); });
+  }
+
+  function render(r) {
+    var placedList = $("placed");
+    placedList.textContent = "";
+    r.placed.forEach(function (p) {
+      var li = document.createElement("li");
+      var a = document.createElement("span"); a.className = "phrase"; a.textContent = p.phrase;
+      var b = document.createElement("span"); b.className = "count"; b.textContent = "[" + p.n + "/" + r.limit + "]";
+      li.appendChild(a); li.appendChild(b); placedList.appendChild(li);
+    });
+    if (!r.placed.length) placedList.appendChild(item("No phrases placed.", "empty"));
+
+    fill($("too-long"), r.tooLong.map(function (p) { return item(p.phrase + " [" + p.n + "/" + r.limit + "]"); }), "None");
+    fill($("no-room"), r.noRoom.map(function (p) { return item(p.phrase + " [" + p.n + "/" + r.limit + "]"); }), "None");
+    fill($("dupes"), r.duplicates.map(function (d) {
+      return item(d.phrase === d.first ? d.phrase + " (listed twice)" : d.phrase + " (same as “" + d.first + "”)");
+    }), "None");
+
+    $("s-fields").textContent = r.placed.length + " of " + r.fieldCount;
+    $("s-placed").textContent = r.placed.length;
+    $("s-left").textContent = r.tooLong.length + r.noRoom.length;
+    $("results").hidden = false;
+    lastPlaced = r.placed.map(function (p) { return p.phrase; });
+    $("copy").disabled = !lastPlaced.length;
+  }
+
+  function process() {
+    var fieldCount = wholeNumber($("fields"), 13, 500);
+    var limit = wholeNumber($("limit"), 20, 1000);
+    var r = plan($("phrases").value, fieldCount, limit);
+    render(r);
+    $("status").textContent = r.placed.length + " placed, " + (r.tooLong.length + r.noRoom.length) + " left out, " +
+      r.duplicates.length + " duplicate" + (r.duplicates.length === 1 ? "" : "s") + " removed.";
+    return r;
+  }
+
+  function copyAll() {
+    var text = lastPlaced.join(", ");
+    function done() { $("status").textContent = "Copied " + lastPlaced.length + " phrases."; }
+    function fallback() {
+      var t = document.createElement("textarea");
+      t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); done(); } catch (e) { $("status").textContent = "Couldn't copy. Select the phrases and copy them by hand."; }
+      document.body.removeChild(t);
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
+    else fallback();
+  }
+
+  function clearAll() {
+    $("phrases").value = "";
+    $("results").hidden = true;
+    $("status").textContent = "";
+    lastPlaced = [];
+    $("copy").disabled = true;
+    $("phrases").focus();
+  }
+
+  $("process").addEventListener("click", process);
+  $("copy").addEventListener("click", copyAll);
+  $("clear").addEventListener("click", clearAll);
+  $("phrases").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) process();      // Ctrl/Cmd + Enter = Process
+  });
+
+  window.PhrasePlanner = { plan: plan, process: process };            // used by the automated checks
+})();
+</script>
+</body>
+</html>
