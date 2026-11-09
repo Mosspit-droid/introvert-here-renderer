@@ -49,7 +49,7 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 
 ## To do (Barry's priorities, roughly in order)
 
-1. **Mosspit Studios logo.** Not started. Agree the direction first (what the studio stands for, the feel), then concepts, then final versions (Canva is connected). The hands-over-face figure is the approvals app icon and an example of Barry's visual voice, not the studio logo.
+1. **Mosspit Studios logo.** Direction chosen 9 Nov: a smug yuppie peach mascot ("smartarse"); brief in `docs/brand/MOSSPIT_MASCOT_BRIEF.md`. Clean sign/seal/fringe/ransom-note sketches were rejected as too corporate and too clean. Barry's reference scene: Elspeth outside "The Moss Pit" (hand-painted wooden plank sign, dark brick, ivy, amber office glow, purple fringe). Agree the direction first (what the studio stands for, the feel), then concepts, then final versions (Canva is connected). The hands-over-face figure is the approvals app icon and an example of Barry's visual voice, not the studio logo.
 2. **Studio website** on mosspit.org: a simple brand-hub page first. Barry will ask when ready.
 3. **Connect the domains** to Cloudflare (walk Barry through it step by step; he's not technical).
 4. **Introvert Here site** on introverthere.com (can start as a single page linking to Etsy).
