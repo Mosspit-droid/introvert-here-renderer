@@ -48,6 +48,11 @@
     overflow-wrap: anywhere; }
   ol.fields li::before { content: counter(f) "."; color: var(--muted); min-width: 2em; }
   ol.fields li span.phrase { flex: 1; }
+  ol.fields li { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+  ol.fields li:active { filter: brightness(.95); }
+  ol.fields li .tick { min-width: 4.2em; text-align: right; font-size: .85rem; color: var(--accent); font-weight: 600; }
+  ol.fields li.copied { opacity: .6; }
+  ol.fields li.copied span.phrase { text-decoration: line-through; }
   .count { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
   .report h3 { font-size: 1rem; margin: 14px 0 6px; }
   .report ul { margin: 0; padding: 0; list-style: none; }
@@ -102,7 +107,7 @@
       <button id="copy" type="button" disabled>Copy All</button>
       <button id="clear" type="button">Clear</button>
     </div>
-    <p class="hint">Etsy allows 13 tags of up to 20 characters. Change the numbers for other sites. "Copy All" copies the placed phrases, separated by commas.</p>
+    <p class="hint">Etsy allows 13 tags of up to 20 characters. Change the numbers for other sites.</p>
     <p class="status" id="status" role="status" aria-live="polite"></p>
   </section>
 
@@ -115,6 +120,7 @@
       <div class="stat"><b id="s-placed">0</b>placed</div>
       <div class="stat"><b id="s-left">0</b>left out</div>
     </div>
+    <p class="hint" id="tap-hint" style="margin:0 0 8px">Tap a phrase to copy it, then paste it into Etsy's Tags box and tap Add. Copied phrases get a tick. "Copy All" copies everything as one comma-separated line, which the Etsy app does not split into tags.</p>
     <ol class="fields" id="placed"></ol>
     <div class="report">
       <div class="too-long"><h3>Did not fit: too long</h3><ul id="too-long"></ul></div>
@@ -185,7 +191,11 @@
       var li = document.createElement("li");
       var a = document.createElement("span"); a.className = "phrase"; a.textContent = p.phrase;
       var b = document.createElement("span"); b.className = "count"; b.textContent = "[" + p.n + "/" + r.limit + "]";
-      li.appendChild(a); li.appendChild(b); placedList.appendChild(li);
+      var t = document.createElement("span"); t.className = "tick"; t.textContent = "Tap to copy";
+      li.appendChild(a); li.appendChild(b); li.appendChild(t);
+      li.setAttribute("role", "button"); li.tabIndex = 0; li.dataset.phrase = p.phrase;
+      li.setAttribute("aria-label", "Copy " + p.phrase);
+      placedList.appendChild(li);
     });
     if (!r.placed.length) placedList.appendChild(item("No phrases placed.", "empty"));
 
@@ -214,18 +224,31 @@
     return r;
   }
 
-  function copyAll() {
-    var text = lastPlaced.join(", ");
-    function done() { $("status").textContent = "Copied " + lastPlaced.length + " phrases."; }
+  function copyText(text, done) {
+    function fail() { $("status").textContent = "Couldn't copy. Select the text and copy it by hand."; }
     function fallback() {
       var t = document.createElement("textarea");
       t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
       document.body.appendChild(t); t.select();
-      try { document.execCommand("copy"); done(); } catch (e) { $("status").textContent = "Couldn't copy. Select the phrases and copy them by hand."; }
+      try { if (document.execCommand("copy")) done(); else fail(); } catch (e) { fail(); }
       document.body.removeChild(t);
     }
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback);
     else fallback();
+  }
+
+  function copyAll() {
+    copyText(lastPlaced.join(", "), function () { $("status").textContent = "Copied " + lastPlaced.length + " phrases as one line."; });
+  }
+
+  // Tap a placed phrase: copy just that phrase and tick it off.
+  function copyOne(li) {
+    copyText(li.dataset.phrase, function () {
+      li.classList.add("copied");
+      li.querySelector(".tick").textContent = "\u2713 Copied";
+      var left = document.querySelectorAll("#placed li[data-phrase]:not(.copied)").length;
+      $("status").textContent = "Copied \u201c" + li.dataset.phrase + "\u201d. " + (left ? left + " still to copy." : "All copied.");
+    });
   }
 
   function clearAll() {
@@ -239,6 +262,11 @@
 
   $("process").addEventListener("click", process);
   $("copy").addEventListener("click", copyAll);
+  $("placed").addEventListener("click", function (e) { var li = e.target.closest("li[data-phrase]"); if (li) copyOne(li); });
+  $("placed").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    var li = e.target.closest("li[data-phrase]"); if (li) { e.preventDefault(); copyOne(li); }
+  });
   $("clear").addEventListener("click", clearAll);
   $("phrases").addEventListener("keydown", function (e) {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) process();      // Ctrl/Cmd + Enter = Process
