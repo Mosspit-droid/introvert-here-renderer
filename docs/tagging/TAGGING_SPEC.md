@@ -53,7 +53,7 @@ Companion file: `TAG_POOLS_REVIEW.xlsx` (pools, stem review, live backfill, over
 | 1–5 gag-level | `TAG_POOL` for the gag's GAG_CATEGORY: **1 Anchor + 4 Flavour** (configurable), deterministic per-gag rotation, borrowing if short | gag |
 | 6–10 product-type | `PRODUCT_RULES` PRODUCT_TAG_09–13 (unchanged; colours allowed) | collection + garment |
 | 11–12 seasonal | GAGS `CUSTOM_TAG_12/13` (manual). Used only if the phrase is in `SEASON_POOL`, active and in season on `SeasonDate`. Otherwise filled from the non-seasonal `FALLBACK` pool, rotated per gag. Optional keyword `auto` = rotate in-season phrases per gag | gag + date |
-| 13 | Title stem: `STEM_TAG` if typed, else `TITLE_STEM`, lower-case. 1–3 words, ≤20 chars, valid characters. **Never auto-cut** | gag |
+| 13 | Title stem: `STEM_TAG` if typed, else `TITLE_STEM`, lower-case. 1–4 words (setting StemMaxWords, raised from 3 on 9 Nov), ≤20 chars, valid characters. **Never auto-cut** | gag |
 
 Uniqueness is guaranteed by construction. Gag-level and fallback phrases exclude the stem, every product tag of the gag's collection (all 4 garments), the valid seasonal phrases, and each other. A final 13-tag check runs again in Make before any Printify/Etsy call.
 
@@ -127,7 +127,7 @@ TAG13         =LOWER(TRIM(IF([@STEM_TAG]<>"",[@STEM_TAG],[@TITLE_STEM])))
 STEM_PROBLEM  =LET(t,[@TAG13],n,LEN(t),w,IF(n=0,0,n-LEN(SUBSTITUTE(t," ",""))+1),
                IF(n=0,"No stem",IF(n>TagMaxLen,n&" characters (max "&TagMaxLen&")",
                IF(NOT(AND(ISNUMBER(FIND(MID(t,SEQUENCE(n),1),TagAllowed)))),"Has characters Etsy rejects",
-               IF(OR(LEFT(t)="'",LEFT(t)="-"),"Starts with ' or -",IF(w>3,w&" words (max 3)",""))))))
+               IF(OR(LEFT(t)="'",LEFT(t)="-"),"Starts with ' or -",IF(w>StemMaxWords,w&" words (max "&StemMaxWords&")",""))))))
 STEM_OK       =[@STEM_PROBLEM]=""
 
 SEAS_VALID    =LET(id,[@GAG_ID],
