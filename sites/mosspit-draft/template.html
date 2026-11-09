@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mosspit Studios — Purveyors of Fine Cheek</title>
+<meta name="description" content="Mosspit Studios. Leaders in the field of saying what everyone's thinking.">
+<link rel="icon" href="{{icon}}">
+<style>
+  :root { --cream:#f6f0e4; --paper:#fffaf0; --navy:#1e2446; --ink:#23263a; --muted:#5c5f73; --peach:#fd874b; --pink:#fa6958; --red:#ec2426; --line:#ddd3c0; --brick:#2a2420; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--cream); color: var(--ink); font: 18px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .serif, h1, h2, h3, .brand-name { font-family: Georgia, "Times New Roman", serif; }
+  a { color: var(--navy); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  .draft { background: var(--navy); color: var(--cream); text-align: center; font-size: 13px; letter-spacing: .08em; padding: 6px; text-transform: uppercase; }
+
+  /* top bar */
+  header.top { border-bottom: 1px solid var(--line); background: var(--paper); }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 10px; padding-bottom: 10px; }
+  .mark { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--navy); }
+  .mark img { width: 40px; height: 40px; border-radius: 50%; }
+  .mark b { font-family: Georgia, serif; letter-spacing: .14em; font-size: 15px; }
+  nav a { margin-left: 18px; text-decoration: none; font-size: 15px; color: var(--muted); }
+  nav a:hover { color: var(--navy); }
+
+  /* hero */
+  .hero .wrap { display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; gap: 24px; padding-top: 48px; padding-bottom: 24px; }
+  .eyebrow { text-transform: uppercase; letter-spacing: .22em; font-size: 13px; color: var(--muted); margin: 0 0 10px; }
+  h1 { font-size: clamp(44px, 7vw, 84px); line-height: 1; margin: 0; color: var(--navy); letter-spacing: .02em; }
+  h1 small { display: block; font-size: .32em; letter-spacing: .5em; margin-top: 14px; padding-top: 14px; border-top: 3px solid var(--navy); }
+  .tagline { font-style: italic; font-size: 24px; color: var(--muted); margin: 14px 0 22px; }
+  .lede { font-size: 20px; max-width: 34ch; }
+  .hero img { width: 100%; max-width: 360px; justify-self: center; filter: drop-shadow(0 12px 18px rgba(30,36,70,.18)); }
+  .memo { display: inline-block; margin-top: 18px; font-size: 14px; color: var(--muted); border: 1px dashed var(--line); padding: 8px 12px; background: var(--paper); }
+
+  section { padding: 56px 0; }
+  section + section { border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(30px, 4vw, 42px); color: var(--navy); margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-style: italic; font-family: Georgia, serif; }
+
+  /* brands */
+  .brands { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+  .card { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 22px 20px 20px; overflow: hidden; }
+  .brand-name { font-size: 22px; color: var(--navy); margin: 0 0 6px; }
+  .card p { margin: 0 0 12px; font-size: 16px; color: var(--muted); }
+  .card .go { font-weight: 600; font-size: 15px; }
+  .stamp { display: inline-block; margin: 0 0 10px; border: 2px solid var(--navy); color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: .14em; padding: 2px 8px; text-transform: uppercase; transform: rotate(-2deg); border-radius: 3px; }
+  .stamp.live { border-color: #c4501c; color: #c4501c; }
+  .card.hm .stamp { border-color: #3d2b1f; color: #3d2b1f; }
+  .card.hm { background: #d9c7a5; border-color: #3d2b1f; }
+  .card.hm .brand-name, .card.hm p { color: #3d2b1f; }
+  .card.hm .face { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; float: right; margin: 0 0 6px 10px; border: 2px solid #3d2b1f; }
+  .card.redacted .brand-name span { background: var(--ink); color: var(--ink); border-radius: 2px; padding: 0 4px; user-select: none; }
+
+  /* values */
+  .values { list-style: none; padding: 0; margin: 0; counter-reset: v; display: grid; gap: 10px; max-width: 760px; }
+  .values li { counter-increment: v; background: var(--paper); border-left: 4px solid var(--navy); padding: 12px 16px; font-size: 18px; }
+  .values li::before { content: counter(v, upper-roman) ". "; font-family: Georgia, serif; color: var(--muted); }
+  .values li i { color: var(--muted); }
+
+  /* tools */
+  .tool { display: flex; gap: 18px; align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 20px; max-width: 760px; }
+  .tool .badge { flex: none; width: 64px; height: 64px; border-radius: 12px; background: var(--navy); color: var(--cream); display: grid; place-items: center; font: 700 26px Georgia, serif; }
+  .tool h3 { margin: 0 0 4px; color: var(--navy); }
+  .tool p { margin: 0 0 6px; color: var(--muted); font-size: 16px; }
+
+  /* the moss pit */
+  .pit { background: var(--brick); color: #eadfcb; }
+  .pit h2 { color: #f3e6cc; }
+  .pit .sub { color: #b9a98d; }
+  .pit .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: center; }
+  .pit img { width: 100%; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+  .pit p { font-size: 17px; }
+  .pit .sig { font-style: italic; color: #b9a98d; }
+  .pit a { color: #f0c27a; }
+
+  /* investor relations */
+  .ir { text-align: center; }
+  .ir .no { font-family: Georgia, serif; font-size: 96px; color: var(--navy); line-height: 1; margin: 10px 0; }
+
+  footer { background: var(--navy); color: #cfd3e6; padding: 36px 0 44px; font-size: 15px; }
+  footer .wrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+  footer img { width: 56px; height: 56px; border-radius: 50%; }
+  footer .who { display: flex; gap: 12px; align-items: center; }
+  footer i { font-family: Georgia, serif; }
+  footer a { color: #f6f0e4; }
+
+  @media (max-width: 760px) {
+    nav { display: none; }
+    .hero .wrap { grid-template-columns: 1fr; padding-top: 28px; text-align: center; }
+    .lede { margin: 0 auto; }
+    .hero img { max-width: 240px; grid-row: 1; }
+    .pit .grid { grid-template-columns: 1fr; }
+    .tool { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="draft">Draft for Barry · not public yet</div>
+
+<header class="top"><div class="wrap">
+  <a class="mark" href="#"><img src="{{icon}}" alt=""><b>MOSSPIT STUDIOS</b></a>
+  <nav><a href="#brands">Our Brands</a><a href="#values">Our Values</a><a href="#tools">Tools</a><a href="#pit">The Moss Pit</a><a href="#ir">Investor Relations</a></nav>
+</div></header>
+
+<section class="hero" style="padding:0"><div class="wrap">
+  <div>
+    <p class="eyebrow">Est. 2026 · A family of disappointing brands</p>
+    <h1>MOSSPIT<small>STUDIOS</small></h1>
+    <p class="tagline serif">Purveyors of Fine Cheek</p>
+    <p class="lede">Leaders in the field of saying what everyone's thinking. We make clothing, gifts and comics for people who've sat through one meeting too many.</p>
+    <p class="memo">Memo from the Chief Executive Peach: <i>"Per my last email, buy something."</i></p>
+  </div>
+  <img src="{{rupert}}" alt="Rupert Cheek, a smug peach in a pinstripe suit, doing finger guns">
+</div></section>
+
+<section id="brands"><div class="wrap">
+  <h2>Our Brands</h2>
+  <p class="sub">A diversified portfolio of things we probably shouldn't have said.</p>
+  <div class="brands">
+    <div class="card"><span class="stamp live">Open</span>
+      <h3 class="brand-name">Introvert Here…</h3>
+      <p>Dry, deadpan clothing for people who'd rather not. Includes SHHH., Per Contract and Off The Shelf.</p>
+      <a class="go" href="https://www.etsy.com/shop/IntrovertHereShop" target="_blank" rel="noopener">Visit the shop →</a></div>
+    <div class="card hm"><span class="stamp">In development</span>
+      <img class="face" src="{{elspeth}}" alt="Elspeth">
+      <h3 class="brand-name">Herd Mentality</h3>
+      <p><i>The Ruminations of Elspeth.</i> Corporate despair. Yours to own. You're welcome.</p></div>
+    <div class="card"><span class="stamp">In development</span>
+      <h3 class="brand-name">Notice Bored</h3>
+      <p>A sitcom told entirely through the office notice board. Management posts memos. The staff post back.</p></div>
+    <div class="card"><span class="stamp">In development</span>
+      <h3 class="brand-name">Gift As Good As You Get</h3>
+      <p>Vaguely insulting gifts. Affection first, insult second. Like a brother. But Jesus…</p></div>
+    <div class="card"><span class="stamp">In development</span>
+      <h3 class="brand-name">Substandard Deviation</h3>
+      <p>Charts, polls and graphs, stated with total confidence. Statistically insignificant. Emotionally accurate.</p></div>
+    <div class="card redacted"><span class="stamp">Pending legal</span>
+      <h3 class="brand-name"><span>Classified project</span></h3>
+      <p>Our legal team has asked us not to describe this one yet. Our legal team is a peach.</p></div>
+  </div>
+</div></section>
+
+<section id="values"><div class="wrap">
+  <h2>Our Values</h2>
+  <p class="sub">Laminated and displayed in every kitchen.</p>
+  <ol class="values">
+    <li>Excellence. <i>In moderation.</i></li>
+    <li>Synergy. <i>We looked it up. Still unclear.</i></li>
+    <li>Customer focus. <i>From a respectful distance.</i></li>
+    <li>Work–life balance. <i>Mostly the second bit.</i></li>
+    <li>Integrity. <i>And leaving early on Fridays.</i></li>
+  </ol>
+</div></section>
+
+<section id="tools"><div class="wrap">
+  <h2>Tools</h2>
+  <p class="sub">Giving back to the community, as our accountant suggested.</p>
+  <div class="tool"><div class="badge">#13</div>
+    <div><h3>Mosspit Tag Checker for Etsy</h3>
+      <p>Paste your tags from a list or a spreadsheet, check them against Etsy's rules, and copy all 13 into a listing in one go. Free, no login, nothing saved.</p>
+      <a href="https://tag-checker.mosspit.workers.dev" target="_blank" rel="noopener"><b>Open the tag checker →</b></a></div></div>
+</div></section>
+
+<section id="pit" class="pit"><div class="wrap">
+  <h2>The Moss Pit</h2>
+  <p class="sub">Where the honest conversations happen.</p>
+  <div class="grid">
+    <img src="{{moss}}" alt="Elspeth, a Highland cow in a leather jacket, smoking outside an office under a hand-painted sign reading The Moss Pit">
+    <div>
+      <p>Every workplace has a corner where the truth gets told. Ours is round the back, between the bench and the bins, under a hand-painted sign that says <b>The Moss Pit</b>.</p>
+      <p>Inside, the posters say <i>Exceed Expectations</i>. Out here, Elspeth, our longest-serving cynic, has some notes.</p>
+      <p>Everything we make starts as something muttered out here.</p>
+      <p class="sig">Elspeth's own comic, Herd Mentality, is coming soon.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="ir" class="ir"><div class="wrap">
+  <h2>Investor Relations</h2>
+  <p class="no">No.</p>
+  <p class="sub">But thank you for your interest.</p>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="who"><img src="{{icon}}" alt="Rupert Cheek"><div><b>Mosspit Studios</b><br><i>Purveyors of Fine Cheek</i></div></div>
+  <div>© 2026 Mosspit Studios. All rights reserved, most wrongs regretted.</div>
+</div></footer>
+</body>
+</html>
