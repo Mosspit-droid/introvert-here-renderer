@@ -55,6 +55,15 @@
   .card.hm .face { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; float: right; margin: 0 0 6px 10px; border: 2px solid #3d2b1f; }
   .card.redacted .brand-name span { background: var(--ink); color: var(--ink); border-radius: 2px; padding: 0 4px; user-select: none; }
 
+  .feature { display: grid; grid-template-columns: 1.1fr 1fr; gap: 26px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 26px; }
+  .feature .brand-name { font-size: 30px; }
+  .feature p { color: var(--muted); }
+  .ranges { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; align-content: center; }
+  .ranges li { border-left: 4px solid var(--peach); padding: 6px 12px; background: var(--cream); }
+  .ranges b { display: block; font-family: Georgia, serif; letter-spacing: .08em; color: var(--navy); }
+  .ranges span { font-size: 15px; color: var(--muted); }
+  .aside { margin: 18px 0 0; font-style: italic; font-family: Georgia, serif; color: var(--muted); }
+  @media (max-width: 760px) { .feature { grid-template-columns: 1fr; } }
   /* values */
   .values { list-style: none; padding: 0; margin: 0; counter-reset: v; display: grid; gap: 10px; max-width: 760px; }
   .values li { counter-increment: v; background: var(--paper); border-left: 4px solid var(--navy); padding: 12px 16px; font-size: 18px; }
@@ -111,7 +120,7 @@
     <p class="eyebrow">Est. 2026 · A family of disappointing brands</p>
     <h1>MOSSPIT<small>STUDIOS</small></h1>
     <p class="tagline serif">Purveyors of Fine Cheek</p>
-    <p class="lede">Leaders in the field of saying what everyone's thinking. We make clothing, gifts and comics for people who've sat through one meeting too many.</p>
+    <p class="lede">Leaders in the field of saying what everyone's thinking. We make clothing for people who've sat through one meeting too many.</p>
     <p class="memo">Memo from the Chief Executive Peach: <i>"Per my last email, buy something."</i></p>
   </div>
   <img src="{{rupert}}" alt="Rupert Cheek, a smug peach in a pinstripe suit, doing finger guns">
@@ -119,29 +128,20 @@
 
 <section id="brands"><div class="wrap">
   <h2>Our Brands</h2>
-  <p class="sub">A diversified portfolio of things we probably shouldn't have said.</p>
-  <div class="brands">
-    <div class="card"><span class="stamp live">Open</span>
+  <p class="sub">A carefully curated portfolio of things we probably shouldn't have said.</p>
+  <div class="feature">
+    <div class="feature-head"><span class="stamp live">Open for business</span>
       <h3 class="brand-name">Introvert Here…</h3>
-      <p>Dry, deadpan clothing for people who'd rather not. Includes SHHH., Per Contract and Off The Shelf.</p>
-      <a class="go" href="https://www.etsy.com/shop/IntrovertHereShop" target="_blank" rel="noopener">Visit the shop →</a></div>
-    <div class="card hm"><span class="stamp">In development</span>
-      <img class="face" src="{{elspeth}}" alt="Elspeth">
-      <h3 class="brand-name">Herd Mentality</h3>
-      <p><i>The Ruminations of Elspeth.</i> Corporate despair. Yours to own. You're welcome.</p></div>
-    <div class="card"><span class="stamp">In development</span>
-      <h3 class="brand-name">Notice Bored</h3>
-      <p>A sitcom told entirely through the office notice board. Management posts memos. The staff post back.</p></div>
-    <div class="card"><span class="stamp">In development</span>
-      <h3 class="brand-name">Gift As Good As You Get</h3>
-      <p>Vaguely insulting gifts. Affection first, insult second. Like a brother. But Jesus…</p></div>
-    <div class="card"><span class="stamp">In development</span>
-      <h3 class="brand-name">Substandard Deviation</h3>
-      <p>Charts, polls and graphs, stated with total confidence. Statistically insignificant. Emotionally accurate.</p></div>
-    <div class="card redacted"><span class="stamp">Pending legal</span>
-      <h3 class="brand-name"><span>Classified project</span></h3>
-      <p>Our legal team has asked us not to describe this one yet. Our legal team is a peach.</p></div>
+      <p>Dry, deadpan clothing for people who'd rather not. T-shirts, long sleeves, sweatshirts and hoodies, each carrying one quiet line that says it for you.</p>
+      <a class="go" href="https://www.etsy.com/shop/IntrovertHereShop" target="_blank" rel="noopener">Visit the shop on Etsy →</a></div>
+    <ul class="ranges">
+      <li><b>INTROVERT HERE…</b><span>The original. For the socially exhausted.</span></li>
+      <li><b>SHHH.</b><span>Quietly, firmly, leave me alone.</span></li>
+      <li><b>PER CONTRACT</b><span>Office life, as stipulated.</span></li>
+      <li><b>OFF THE SHELF</b><span>For the bookish and the hiding.</span></li>
+    </ul>
   </div>
+  <p class="aside">Other brands are in development. We'll tell you about them when they exist, which is more than most companies manage.</p>
 </div></section>
 
 <section id="values"><div class="wrap">
@@ -174,7 +174,6 @@
       <p>Every workplace has a corner where the truth gets told. Ours is round the back, between the bench and the bins, under a hand-painted sign that says <b>The Moss Pit</b>.</p>
       <p>Inside, the posters say <i>Exceed Expectations</i>. Out here, Elspeth, our longest-serving cynic, has some notes.</p>
       <p>Everything we make starts as something muttered out here.</p>
-      <p class="sig">Elspeth's own comic, Herd Mentality, is coming soon.</p>
     </div>
   </div>
 </div></section>
