@@ -1,16 +1,17 @@
 # Mosspit Studios logo kit
 
 Mascot: **Rupert Cheek**, a smug yuppie peach (a smartarse). Wordmark: "MOSSPIT STUDIOS" in Caladea Bold, capitals, wide letter spacing.
+Tagline: **"Purveyors of Fine Cheek"** (Caladea Italic). Use the tagline versions by default (chosen 9 Nov 2026); the plain versions are for very small spaces.
 See `mosspit-logo-kit-overview.png` for everything at a glance.
 
 | File | Use |
 |---|---|
-| `mosspit-logo-horizontal-cream.png` | Main logo |
-| `mosspit-logo-horizontal-transparent.png` | Main logo on any light background |
-| `mosspit-logo-horizontal-dark.png` | Dark backgrounds (Rupert gets a white outline) |
-| `mosspit-logo-horizontal-cream-tagline.png` | With "Purveyors of Fine Cheek" (optional) |
-| `mosspit-logo-horizontal-one-colour.png` | Stamps, embroidery, one-colour printing |
-| `mosspit-logo-stacked-cream.png` / `-dark.png` | Square-ish spaces, posters, profile banners |
+| `mosspit-logo-horizontal-cream-tagline.png` | **Main logo** |
+| `mosspit-logo-horizontal-transparent-tagline.png` | Main logo on any light background |
+| `mosspit-logo-horizontal-dark-tagline.png` | Dark backgrounds (Rupert gets a white outline) |
+| `mosspit-logo-horizontal-one-colour-tagline.png` | Stamps, embroidery, one-colour printing |
+| `mosspit-logo-stacked-cream-tagline.png` / `-dark-tagline.png` | Square-ish spaces, posters, profile banners |
+| `mosspit-logo-*.png` without "tagline" | Same layouts without the tagline, for very small spaces |
 | `rupert-icon-cream-*.png` / `rupert-icon-navy-*.png` | Profile pictures, app and site icons (1024, 512, 192, 64, 32) |
 | `rupert-icon-*-square-1024.png` | Where the site crops the circle itself (Instagram, Etsy shop icon) |
 | `rupert-full-colour.png` / `.svg` | Rupert alone (SVG scales to any size) |
