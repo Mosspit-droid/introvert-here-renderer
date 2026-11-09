@@ -40,6 +40,7 @@ export default {
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
+      if (pathname === "/api/tags-sync" && method === "POST") return await tagsSync(request, env);
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
       if (pathname === "/api/pricing-sync" && method === "POST") return await pricingSync(request, env);
@@ -68,6 +69,9 @@ export default {
       if (pathname === "/stats" && method === "GET") {
         return authed ? await statsPage(env, url) : redirect("/");
       }
+      if (pathname === "/tags" && method === "GET") {
+        return authed ? await tagsPage(env) : redirect("/");
+      }
       if (pathname === "/gags" && method === "GET") {
         return authed ? await gagsPage(env) : redirect("/");
       }
@@ -82,6 +86,9 @@ export default {
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
       if (pathname === "/api/gags-data" && method === "GET") return json((await env.PENDING.get("gags", "json")) || null);
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
+      if (pathname === "/api/tags-data" && method === "GET") return json((await env.PENDING.get("tags", "json")) || null);
+      if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
+      if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
@@ -590,7 +597,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1521,5 +1528,197 @@ async function scan() {
 }
 $("scan").addEventListener("click", scan);
 $("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Re-reading Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); });
+</script>`);
+}
+
+// ---------- Tags ----------
+// Make "Approvals App: Gags Sync" (action "tags-…") reads Core's GAG_TAGS and posts a short summary to /api/tags-sync.
+// Saving from the page sends {action:"tags-save", …} to the same webhook; Make writes GAG_TAGS, waits for Excel, then re-syncs.
+// Nothing here freezes tags or touches Etsy: freezing happens at the 08:00 build, once the builder is switched over.
+
+async function tagsSync(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = await request.json();
+  data.receivedAt = Date.now();
+  await env.PENDING.put("tags", JSON.stringify(data));
+  return json({ ok: true });
+}
+
+async function tagsHook(env, body) {
+  if (!env.MAKE_GAGSYNC_HOOK) return json({ error: "MAKE_GAGSYNC_HOOK is not set" }, 500);
+  const res = await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return json({ error: "Make didn't accept that (" + res.status + "). Nothing was changed." }, 502);
+  return json({ ok: true });
+}
+
+async function tagsSave(request, env) {
+  const d = await request.json();
+  const gagId = str(d.gagId);
+  if (!/^(IH|SH|PC|OS)-\d{5}$/.test(gagId)) return json({ error: "Unknown gag" }, 400);
+  if (d.regenerate) return tagsHook(env, { action: "tags-save", gagId, regenerate: "true" });
+  const tags = String(d.override || "").split("|").map((s) => s.replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean);
+  if (tags.length && tags.length !== 5) return json({ error: "Your own tags need exactly 5 (you have " + tags.length + ")." }, 400);
+  return tagsHook(env, { action: "tags-save", gagId, stemTag: str(d.stemTag).slice(0, 60), approved: d.approved ? "true" : "false", override: tags.join("|"), regenerate: "false" });
+}
+
+async function tagsPage(env) {
+  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`;
+  return shell(`
+${brandHeader("Tags", nav)}
+<style>
+.tcounts{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.tcount{padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.06);cursor:pointer;border:2px solid transparent}
+.tcount.on{border-color:currentColor}.tcount b{font-size:22px;display:block}
+.tcard{margin:0 0 14px}.tcard h3{margin:0 0 4px;font-size:16px}
+.gagtext{white-space:pre-wrap;opacity:.85;margin:6px 0 10px;font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.1);font-size:13px}
+.chip.stem{background:#3a3220}.chip.seas{background:#1f3326}.chip.bad{background:#5a1f1f}
+.tstat{padding:8px 10px;border-radius:8px;margin:8px 0;font-size:14px}
+.tstat.ok{background:#1f3a26}.tstat.wait{background:#3a3320}.tstat.bad{background:#4a1f1f}
+.trow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.tcard input[type=text]{width:100%;box-sizing:border-box;padding:8px;font-size:15px}
+.hint{font-size:13px;opacity:.8;margin:4px 0}.hint.bad{color:#ff8a8a;opacity:1}
+.edit{display:none;margin-top:10px}.edit.open{display:block}
+details summary{cursor:pointer;font-size:13px;opacity:.8}
+</style>
+<div class="small" id="synced">Loading…</div>
+<div class="small" id="msg"></div>
+<div class="tcounts" id="counts"></div>
+<div class="trow" style="margin-bottom:12px"><button class="btn" id="approveAll" type="button">Approve all ready (0)</button></div>
+<div id="list"></div>
+<p class="small" style="margin-top:28px">Shows gags due in the next 60 days. Approving doesn't send anything to Etsy: the tags are locked in when the garment is built. Listings already live on Etsy are never changed from here.</p>
+<script>
+const $ = (id) => document.getElementById(id);
+const E = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MAX = 20, OK = /^[a-z0-9][a-z0-9 '\\-]*$/;
+let D = null, filter = 'need', waiting = 0;
+const fmt = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
+function kind(it) {
+  const s = String(it.status || '');
+  if (s.startsWith('READY') || s.startsWith('APPROVED')) return 'ready';
+  if (s.includes('awaiting approval')) return 'need';
+  return 'problem';
+}
+function plain(it) {
+  const s = String(it.status || '');
+  if (s.startsWith('READY')) return 'Locked in. Nothing to do.';
+  if (s.startsWith('APPROVED')) return 'Approved. Tags lock in when it is built.';
+  if (s.includes('awaiting approval')) return 'Looks fine. Check the tags and press Approve.';
+  if (s.startsWith('HOLD – stem')) return 'The title stem tag is a problem: ' + (it.stemProblem || s.slice(13)) + '. Type a shorter one below (20 characters max).';
+  if (s.startsWith('HOLD – your tags')) return 'Your own tags: ' + s.slice(19) + '.';
+  if (s.includes('gag-level')) return 'Not enough unused tag phrases for this type. Use "Edit tags" to type 5 of your own.';
+  if (s.includes('seasonal')) return 'Not enough seasonal or gift tags. Tell Claude - this needs a pool fix.';
+  if (s.includes('product tags')) return 'A product tag breaks Etsy rules. Tell Claude.';
+  if (s.includes('frozen set incomplete')) return 'Locked set is incomplete. Press Regenerate.';
+  return s;
+}
+function checkTag(t) {
+  if (!t) return 'empty tag';
+  if (t.length > MAX) return '"' + t + '" is ' + t.length + ' characters (max ' + MAX + ')';
+  if (!OK.test(t)) return '"' + t + '" has a character Etsy won\\'t take';
+  return '';
+}
+function card(it) {
+  const k = kind(it), cls = k === 'ready' ? 'ok' : k === 'need' ? 'wait' : 'bad';
+  const prod = (D.prod[it.coll + '|' + it.garments[0]] || []);
+  const ov = it.override ? String(it.override).split('|') : null;
+  const band = it.band && it.band !== 'OK' && it.band !== '' ? '<div class="hint">Overlap with another gag: ' + E(it.overlap) + ' shared tags (' + E(it.band) + '). Just a heads-up, it won\\'t stop anything.' + (it.overlapDetail ? ' ' + E(it.overlapDetail) : '') + '</div>' : '';
+  const locked = it.frozen;
+  const pool = (D.pool[it.type] || []).map(p => p.t);
+  return '<div class="card tcard" data-id="' + E(it.id) + '">' +
+    '<h3>' + E(it.id) + ' · ' + E(it.type) + '</h3><div class="meta">Next due ' + E(fmt(it.due)) + ' (' + E(it.garments[0].toLowerCase()) + ')' + (it.live ? ' · some garments already live' : '') + '</div>' +
+    '<div class="gagtext">' + E(it.text) + '</div>' +
+    '<div class="tstat ' + cls + '">' + E(plain(it)) + '</div>' +
+    '<div class="chips">' + (it.stem ? '<span class="chip stem" title="Title stem tag">' + E(it.stem) + '</span>' : '<span class="chip bad">no stem tag</span>') +
+      it.gag5.map(t => '<span class="chip" title="Gag tag">' + E(t) + '</span>').join('') +
+      it.seas2.map(t => '<span class="chip seas" title="Seasonal / gift tag">' + E(t) + '</span>').join('') + '</div>' +
+    '<details><summary>+ ' + prod.length + ' product tags (same for every ' + E(it.garments[0].toLowerCase()) + ')</summary><div class="chips">' + prod.map(t => '<span class="chip">' + E(t) + '</span>').join('') + '</div></details>' +
+    band +
+    (locked ? '<div class="trow">' + (it.live ? '' : '<button class="btn" data-act="regen" type="button">Regenerate</button>') + '</div>' :
+    '<div style="margin-top:10px"><label class="hint">Title stem tag (shown as tag 13)</label>' +
+      '<input type="text" class="stemIn" maxlength="40" value="' + E(it.stemTag || it.stem || '') + '" placeholder="' + E(it.stem || '') + '"><div class="hint stemHint"></div></div>' +
+    '<div class="edit' + (ov ? ' open' : '') + '"><label class="hint">Your own 5 gag tags, one per box (leave all empty to use the suggestions)</label>' +
+      [0,1,2,3,4].map(i => '<input type="text" class="ovIn" list="pool-' + E(it.id) + '" maxlength="30" value="' + E(ov ? ov[i] || '' : '') + '" placeholder="' + E(it.gag5[i] || '') + '" style="margin:3px 0">').join('') +
+      '<datalist id="pool-' + E(it.id) + '">' + pool.map(t => '<option value="' + E(t) + '">').join('') + '</datalist><div class="hint ovHint"></div></div>' +
+    '<div class="trow"><button class="btn-main" data-act="approve" type="button"' + (it.approved ? '>Save changes' : '>Approve') + '</button>' +
+      '<button class="btn" data-act="edit" type="button">' + (ov ? 'Hide my tags' : 'Edit tags') + '</button>' +
+      (it.approved ? '<button class="btn" data-act="unapprove" type="button">Un-approve</button>' : '') + '</div>') +
+    '</div>';
+}
+function validate(c) {
+  let bad = '';
+  const s = c.querySelector('.stemIn'); if (s) { const v = s.value.trim().toLowerCase().replace(/\\s+/g, ' '); const e = v ? checkTag(v) : ''; c.querySelector('.stemHint').textContent = e || (v ? v.length + ' / ' + MAX + ' characters' : 'Leave empty to use the suggestion'); c.querySelector('.stemHint').className = 'hint stemHint' + (e ? ' bad' : ''); bad = bad || e; }
+  const ins = [...c.querySelectorAll('.ovIn')], vals = ins.map(i => i.value.trim().toLowerCase().replace(/\\s+/g, ' ')).filter(Boolean);
+  let e = '';
+  if (vals.length && c.querySelector('.edit').classList.contains('open')) {
+    if (vals.length !== 5) e = 'Fill in all 5 (you have ' + vals.length + '), or empty them all';
+    else e = vals.map(checkTag).find(Boolean) || (new Set(vals).size < 5 ? 'A tag is repeated' : '');
+  }
+  const h = c.querySelector('.ovHint'); if (h) { h.textContent = e; h.className = 'hint ovHint' + (e ? ' bad' : ''); }
+  bad = bad || e;
+  const b = c.querySelector('[data-act=approve]'); if (b) b.disabled = !!bad;
+  return !bad;
+}
+function render() {
+  if (!D) { $('synced').textContent = 'Not read from Core yet. Tap Refresh from Core (takes about a minute).'; return; }
+  $('synced').textContent = 'Core read ' + new Date(D.at).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+  const n = {need:0, ready:0, problem:0}; D.items.forEach(it => n[kind(it)]++);
+  $('counts').innerHTML = [['need','Needs you'],['problem','Problem'],['ready','Ready'],['all','All']].map(([k, l]) => '<div class="tcount' + (filter === k ? ' on' : '') + '" data-f="' + k + '"><b>' + (k === 'all' ? D.items.length : n[k]) + '</b>' + l + '</div>').join('');
+  $('approveAll').textContent = 'Approve all ready (' + n.need + ')'; $('approveAll').disabled = !n.need;
+  const show = D.items.filter(it => filter === 'all' || kind(it) === filter);
+  $('list').innerHTML = show.length ? show.map(card).join('') : '<div class="card empty">Nothing here.</div>';
+  document.querySelectorAll('.tcard').forEach(validate);
+}
+async function load() { const r = await fetch('/api/tags-data'); D = r.ok ? await r.json() : null; render(); return D; }
+async function waitForSync(since, note) {
+  $('msg').textContent = note + ' Writing to Core and re-reading - about a minute…';
+  waiting++;
+  for (let i = 0; i < 40; i++) {
+    await new Promise(r => setTimeout(r, 6000));
+    const r = await fetch('/api/tags-data'); const d = r.ok ? await r.json() : null;
+    if (d && d.receivedAt > since) { waiting--; D = d; render(); $('msg').textContent = d.msg ? '✓ ' + d.msg : '✓ Up to date'; return; }
+  }
+  waiting--; $('msg').textContent = 'Core is taking a while. Tap Refresh from Core in a minute.';
+}
+async function send(body, note) {
+  const since = D ? D.receivedAt || 0 : 0;
+  const r = await fetch('/api/tags-save', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const o = await r.json().catch(() => ({}));
+  if (!r.ok) { alert(o.error || 'Failed'); return; }
+  waitForSync(since, note);
+}
+$('counts').addEventListener('click', e => { const t = e.target.closest('.tcount'); if (t) { filter = t.dataset.f; render(); } });
+$('list').addEventListener('input', e => { const c = e.target.closest('.tcard'); if (c) validate(c); });
+$('list').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const c = b.closest('.tcard'), id = c.dataset.id, it = D.items.find(x => x.id === id), act = b.dataset.act;
+  if (act === 'edit') { const ed = c.querySelector('.edit'); ed.classList.toggle('open'); b.textContent = ed.classList.contains('open') ? 'Hide my tags' : 'Edit tags'; validate(c); return; }
+  if (act === 'regen') { if (confirm('Throw away the locked tags for ' + id + ' and get fresh suggestions?')) { b.disabled = true; send({gagId:id, regenerate:true}, 'Regenerating ' + id + '.'); } return; }
+  if (!validate(c)) return;
+  const stem = c.querySelector('.stemIn').value.trim().toLowerCase().replace(/\\s+/g, ' ');
+  const open = c.querySelector('.edit').classList.contains('open');
+  const ov = open ? [...c.querySelectorAll('.ovIn')].map(i => i.value.trim().toLowerCase().replace(/\\s+/g, ' ')).filter(Boolean).join('|') : '';
+  b.disabled = true; b.textContent = 'Saving…';
+  send({gagId:id, stemTag: stem === it.stem && !it.stemTag ? '' : stem, override: ov, approved: act !== 'unapprove'}, (act === 'unapprove' ? 'Un-approving ' : 'Saving ') + id + '.');
+});
+$('approveAll').addEventListener('click', async () => {
+  const ready = D.items.filter(it => kind(it) === 'need');
+  if (!ready.length || !confirm('Approve ' + ready.length + ' gag(s) with their suggested tags?')) return;
+  $('approveAll').disabled = true;
+  const since = D.receivedAt || 0;
+  for (const it of ready) {
+    await fetch('/api/tags-save', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({gagId: it.id, stemTag: it.stemTag || '', override: it.override || '', approved: true})});
+    $('msg').textContent = 'Sent ' + it.id + '…';
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  waitForSync(since, 'Approved ' + ready.length + '.');
+});
+$('refresh').addEventListener('click', async () => {
+  const since = D ? D.receivedAt || 0 : 0;
+  const r = await fetch('/api/tags-refresh', {method:'POST'}); if (!r.ok) { alert((await r.json().catch(() => ({}))).error || 'Refresh failed'); return; }
+  waitForSync(since, '');
+});
+load().then(d => { if (!d || Date.now() - (d.receivedAt || 0) > 12 * 3600e3) $('refresh').click(); });
 </script>`);
 }
