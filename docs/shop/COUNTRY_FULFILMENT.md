@@ -59,3 +59,9 @@ Hoodie pages pair fronts (1.5 wide) with backs per printer.
 - Canada long sleeve: drop it in Canada, or find another Canadian printer.
 - Fresh print files from the archived Canva templates, or let the automation fit the current files to each printer's print area.
 - Prices per country.
+
+## Off The Shelf colours (Barry, 10 Nov)
+
+Maroon (main), Dark Chocolate, Forest Green. Checked 10 Nov:
+- Printify Choice (Etsy): all three on all four garments.
+- Print Clever UK: all three on tee, sweatshirt and hoodie; **long sleeve has no Dark Chocolate** (Maroon and Forest Green only).
