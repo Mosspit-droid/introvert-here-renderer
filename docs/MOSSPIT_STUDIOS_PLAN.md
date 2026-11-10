@@ -92,7 +92,7 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 
 ## Introvert Here work in progress
 
-- **New tag system:** built, tested, switched OFF (`TagEngine` in Core's TAG_SETTINGS). Barry decides when to switch it on. After about a week of good new builds, back-date existing listings in small batches (about 5 gags a week) after Barry approves fresh suggestions on the Tags page.
+- **New tag system:** switched ON 10 Nov 2026 at 12:46 (`TagEngine` in Core's TAG_SETTINGS). First freeze at the 11 Nov 08:00 build. After about a week of good new builds, back-date existing listings in small batches (about 5 gags a week) after Barry approves fresh suggestions on the Tags page.
 - **Deferred:** sales/profit reconciliation tracker (early December, after November's statement), and the social-content rotation tracker.
 
 ## How Barry likes to work
