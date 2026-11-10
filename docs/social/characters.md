@@ -1,12 +1,12 @@
 # The Introvert Here team (character sheets)
 
-Reference images: `docs/social/team/` (currently 16:9 with captions baked in; caption-free square, 4:5 and 9:16 versions still to make).
+Reference images: `docs/social/team/` (16:9 with captions baked in; no caption-free originals exist, so captions are removed with Canva Magic Eraser and scenes extended with Magic Expand).
 Use these sheets for every new image or post so the characters stay consistent across ChatGPT, Canva and anything else.
 House style: photoreal, cinematic lighting, dark and moody palettes, Introvert Here logo appears in-world (banners, gates, wax seals, clipboards). Garments in scenes are black/charcoal Introvert Here pieces. Captions: one dry line, name first: "Name. Job. Punchline."
 
 | # | Character | Look | Setting | Job / joke | Original caption |
 |---|---|---|---|---|---|
-| 1 | **The Boss** (name TBC) | Bald man seen from the front in silhouette, black high-collared suit, fingers steepled. A smouldering, burnt-out employee slumped nearby | Villain's lair boardroom: endless black table, giant Introvert Here banner, rockets launching outside | Runs the company like a Bond villain; avoids people on a grand scale | "Big plans. People weren't invited." |
+| 1 | **The Boss** (that is his name) | Bald man seen from the front in silhouette, black high-collared suit, fingers steepled. A smouldering, burnt-out employee slumped nearby | Villain's lair boardroom: endless black table, giant Introvert Here banner, rockets launching outside | Runs the company like a Bond villain; avoids people on a grand scale | "Big plans. People weren't invited." |
 | 2 | **Doris** | Large brown T-rex, stern expression, knitting with two bone needles; a worried black sheep supplies the yarn | Jungle park gates with torches, "INTROVERT HERE…" sign over the gate (Jurassic-style) | Production / knitwear standards | "Doris. Maintaining Introvert Here's exacting standards." |
 | 3 | **Brian** | Hooded figure in a coarse brown monk's robe, face in shadow, ink-stained hands, giant white quill; sleeping raven; bell tagged "INSPIRATION" under cobwebs | Candlelit medieval scriptorium, crumpled drafts everywhere, wax seal with the Introvert Here figure | Head writer of the gags | "Brian. Keeping the jokes fresh since 1347." |
 | 4 | **Keith** | Giant red octopus with a jeweller's loupe and spectacles, holding callipers, tape measure, clipboard with checklist; a nervous diver takes notes | Underwater workshop, garment rails, brass gauges, kelp | Quality control | "Keith. Quality control. Keeping the jokes dry." |

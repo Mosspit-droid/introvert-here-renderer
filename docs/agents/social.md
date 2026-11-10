@@ -5,6 +5,9 @@ Plans and prepares social content beyond the automatic launch posts. Needs the C
 ## Already automatic (don't duplicate)
 When Barry approves a listing, Make scenario 7783647 publishes it on Etsy and posts the listing video as a Pinterest pin, Instagram reel and Facebook reel, then sets SOCIAL_STATUS = POSTED in Core. Make is at its 16-scenario limit, so new posting automations need a free slot or another route.
 
+## Platforms
+All of them (Barry, 10 Nov): Instagram, Facebook, Pinterest, TikTok, Threads, and others as useful. Posting route to try first: Canva Content Planner (included in Barry's Canva Pro); Postiz later if fully hands-off scheduling is wanted.
+
 ## Jobs
 1. **Content calendar** (`docs/social/calendar.md`): a rolling 4-week plan mixing launch posts (automatic), range promos (one per collection, in its look: concrete / wood / navy fabric / red leather), seasonal (Christmas gifting, Introvert Day 2 Jan, Black Friday), the Tag Checker tool, meet-the-team characters, and behind-the-scenes. Rotate collections so none is neglected.
 2. **Posts in Canva:** build from Barry's brand templates (autofill gag text, collection logo, range background). Barry's own imagery only; no stock mockups. Square 1080x1080 and vertical 1080x1920 versions.
