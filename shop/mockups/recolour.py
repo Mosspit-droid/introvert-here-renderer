@@ -76,7 +76,7 @@ def glow_weight(lab, m, reach=0.08):
     sg = 0.0025 * max(h, w)
     mu = gaussian_filter(lab[..., 0], sg)
     tex = np.sqrt(np.clip(gaussian_filter(lab[..., 0] ** 2, sg) - mu * mu, 0, None))
-    wgt = wgt * (1 - (tex > 2.5) * (chroma < 44))
+    wgt = wgt * (1 - (tex > 2.5) * (chroma < 44) * (((hue - href + 180) % 360 - 180) > 8))   # only orange-leaning texture (leather), not sharp rims in the garment's own hue
     # deep shadow right at the garment's edge (under cuffs and hems): dark and garment-coloured
     dark = (dh < 14) & (chroma > 6) & (lab[..., 0] < 18) & (distance_transform_edt(~m) < 0.004 * max(h, w))
     wgt = np.maximum(wgt, dark.astype(float)) * near
