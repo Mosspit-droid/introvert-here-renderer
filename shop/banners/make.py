@@ -9,13 +9,13 @@ FONT=S+"/fonts/expo-google-fonts-montserrat-0.4.2/800ExtraBold/Montserrat_800Ext
 W,H=1800,600
 # IH banner (2400x800) logo frame spans x 24..1131, y 68..646 -> logo png frame starts at (1163,38), 2176 wide
 SC=(1131-24)/2176*0.75; OX=24*0.75-1163*SC; OY=68*0.75-38*SC
-LOGOS={"SH":R+"brand-logos/main-collections/shhh-stacked.png","PC":R+"brand-logos/main-collections/per-contract-stacked.png",
+LOGOS={"IH":R+"brand-logos/main-collections/introvert-here-stacked.png","SH":R+"brand-logos/main-collections/shhh-stacked.png","PC":R+"brand-logos/main-collections/per-contract-stacked.png",
        "OS":R+"brand-logos/off-the-shelf/off-the-shelf-logo-stacked-metallic.png"}
 def background(c):
     if c=="SH":
         im=Image.open(R+"backgrounds/SH.jpg").convert("RGB").crop((0,330,1080,690))
     else:
-        im=Image.open(S+f"/look/bg-{c}.jpg").convert("RGB"); im=im.crop((0,0,im.width,im.width//3))
+        im=Image.open(S+("/look/concrete.jpg" if c=="IH" else f"/look/bg-{c}.jpg")).convert("RGB"); im=im.crop((0,0,im.width,im.width//3))
     return np.asarray(im.resize((W,H),Image.LANCZOS)).astype(np.float32)/255
 def blend(B,layer,k=1.4,seed=1,wear=0.0):
     a=layer[...,3]; tex=B.mean(2); tex=tex-gaussian_filter(tex,3)
@@ -37,9 +37,9 @@ def text_layer(lines,colour=(242,240,234)):
 def build(c,lines,name):
     B=background(c)
     if c=="SH": B=B*0.82
-    B=blend(B,logo_layer(c),k=1.2,seed=2)
+    B=blend(B,logo_layer(c),k=1.6 if c=="IH" else 1.2,seed=2,wear=0.5 if c=="IH" else 0.0)  # IH logo is distressed
     if lines: B=blend(B,text_layer(lines),k=1.6,seed=5,wear=0.5)
     Image.fromarray((np.clip(B,0,1)*255).astype(np.uint8)).save(f"{OUT}/{name}",quality=86)
 if __name__=="__main__":
-    TAGLINES={"SH":["Said softly.","Meant completely."],"PC":["Dressed for","mandatory fun"],"OS":["A literal","escape"]}  # Barry, 10 Nov
-    for c in "SH PC OS".split(): build(c,TAGLINES[c],f"hero-{c}.jpg")
+    TAGLINES={"IH":["Quiet humour","for socially","exhausted","people"],"SH":["Said softly.","Meant completely."],"PC":["Dressed for","mandatory fun"],"OS":["A literal","escape"]}  # Barry, 10 Nov
+    for c in "IH SH PC OS".split(): build(c,TAGLINES[c],"hero.jpg" if c=="IH" else f"hero-{c}.jpg")
