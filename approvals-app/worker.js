@@ -814,7 +814,7 @@ async function gagSave(request, env) {
   if (!["fill", "append", "edit"].includes(action)) return json({ error: "Unknown action" }, 400);
   const body = {
     ref: crypto.randomUUID(), action, gagId: str(d.gagId), collection: str(d.collection), category: str(d.category),
-    text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: str(d.tag12), tag13: str(d.tag13),
+    text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: "auto", tag13: "auto", // seasonal tags: always rotated by the tag engine (Barry, 10 Nov 2026)
     d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4), datesFromSlot: d.datesFromSlot ? "true" : "false",
   };
   if (!body.text || !body.collection || !body.category || !body.stem || ![body.d1, body.d2, body.d3, body.d4].every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))) {
@@ -859,7 +859,7 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" h
   </div>
   <label><b>Gag category</b><select id="category" required></select></label>
   <label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
-  <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="christmas present"></label><label><b>Custom tag 13</b><input id="tag13" value="holiday gift"></label></div>
+  <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
   <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
   <div><b>Release dates</b>
     <div class="four">
@@ -1034,7 +1034,7 @@ document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () 
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   $("pick").style.display = mode === "edit" ? "block" : "none";
   $("collection").disabled = mode === "edit";
-  $("form").reset(); $("tag12").value = "christmas present"; $("tag13").value = "holiday gift";
+  $("form").reset(); $("tag12").value = "auto"; $("tag13").value = "auto";
   slotInfo(); preview(); stemNote(); if (mode === "edit") search();
 }));
 function search() {
@@ -1045,7 +1045,7 @@ function search() {
   document.querySelectorAll('.result').forEach((r) => r.addEventListener('click', () => {
     editing = G.editable.find((e) => e.id === r.dataset.id);
     $("collection").value = editing.collection; $("category").value = editing.category; $("text").value = editing.text;
-    $("stem").value = editing.stem; $("tag12").value = editing.tag12; $("tag13").value = editing.tag13; setDates(editing.dates);
+    $("stem").value = editing.stem; setDates(editing.dates);
     slotInfo(); preview(); stemNote(); checkLater("text", "spell", "gag"); checkLater("stem", "stemspell", "stem"); $("form").scrollIntoView({ behavior: "smooth" });
   }));
 }
@@ -1081,7 +1081,7 @@ $("refresh").addEventListener('click', async () => {
 });
 $("clear").addEventListener('click', () => {
   if ($("text").value.trim() && !confirm("Clear every field?")) return;
-  ["text","stem","tag12","tag13","d1","d2","d3","d4","search"].forEach((k) => { if ($(k)) $(k).value = ""; });
+  ["text","stem","d1","d2","d3","d4","search"].forEach((k) => { if ($(k)) $(k).value = ""; });
   $("collection").value = ""; $("category").value = "";
   editing = null; datesTouched = false;
   ["stemnote","spell","stemspell","pwarn"].forEach((k) => { if ($(k)) $(k).textContent = ""; });
