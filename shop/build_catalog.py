@@ -36,7 +36,10 @@ def printify_mockups(p, variants):
     out = []
     for colour in dict.fromkeys(v["colour"] for v in variants):
         ids = {v["id"] for v in variants if v["colour"] == colour}
+        printed = {ph["position"] for pa in p.get("print_areas", []) for ph in pa["placeholders"] if ph.get("images")}
         for view, cams in MOCKUP_VIEWS.items():
+            if view not in printed:
+                continue  # no back print (only hoodies have one), so skip Printify's picture of a blank back
             # The variant in the mockup's address is the colour it was drawn in (its variant_ids list can span colours).
             mine = [i for i in p.get("images", []) if int(i["src"].split("/mockup/")[1].split("/")[1]) in ids]
             im = next((i for cam in cams for i in mine if i["src"].split("camera_label=")[-1] == cam), None)

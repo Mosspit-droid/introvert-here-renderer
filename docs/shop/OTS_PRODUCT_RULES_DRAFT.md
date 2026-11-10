@@ -1,6 +1,6 @@
-# OFF THE SHELF: draft PRODUCT_RULES (10 Nov 2026, not in Core yet)
+# OFF THE SHELF: PRODUCT_RULES (written to Core 10 Nov 2026)
 
-Copied from SHHH. / PER CONTRACT unless listed here. Waiting on Barry's answers (see bottom) before writing to Core.
+Copied from PER CONTRACT (features from SHHH.) unless listed here. Added to Core 10 Nov: 4 PRODUCT_RULES rows, 31 ETSY_TAXONOMY_PROPERTY_IDS rows (Red 9 / Brown 3, verified with Etsy), COLOUR_PROFILES row, 20 PRODUCT_TAGS_FLAT rows (all VALID). Not yet: COLLECTIONS_LOOKUP, gag types + TAG_POOL phrases, MOCKUP_PAGES, Canva codes, video slots.
 
 | Field | Draft |
 |---|---|
@@ -12,7 +12,7 @@ Copied from SHHH. / PER CONTRACT unless listed here. Waiting on Barry's answers 
 | TITLE_SUFFIX | `\| Bookish Escapism T-Shirt` (Long Sleeve / Sweatshirt / Hoodie) |
 | DESCRIPTION_TYPE | OS_T-SHIRT, OS_LONG-SLEEVE, OS_SWEATSHIRT, OS_HOODIE |
 | COLLECTION_INTRO | Part of the Off The Shelf series.<br><br>For people who'd rather be somewhere else entirely: between the pages, anywhere but here.<br><br>Escapism, worn proudly. |
-| AUDIENCE_TEXT | A gift for book lovers, chronic re-readers, reluctant guests and anyone who has ever brought a book to a party. |
+| AUDIENCE_TEXT | A gift for book lovers, chronic re-readers and reluctant guests who'd rather dive headfirst into a fictional world than deal with people in the real one. |
 | CLOSING_TEXT | A literal escape. + the same EU representative lines |
 | Tags 09–13, tee | graphic tee, bookish tshirt, reader gift, literary clothing, dark academia |
 | Tags 09–13, long sleeve | long sleeve tee, bookish long sleeve, reading top, literary gift, dark academia |
@@ -23,8 +23,5 @@ Copied from SHHH. / PER CONTRACT unless listed here. Waiting on Barry's answers 
 
 UK own shop: long sleeve Maroon + Forest Green only (no Dark Chocolate at Print Clever). Etsy keeps all three.
 
-## Questions for Barry
-1. Back print on sweatshirt and hoodie, like the other ranges? Tee and long sleeve front only?
-2. Same prices as the other ranges?
-3. Is OTS humour-led (Etsy "graphic: humorous saying") or more of a straight bookish quote line?
-4. Any changes to the wording above.
+## Barry's answers (10 Nov)
+Hoodie only has a back print (all ranges). Same prices. Humorous. Audience line reworded (above).
