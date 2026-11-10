@@ -13,6 +13,11 @@ src, out = sys.argv[1], sys.argv[2]
 core = json.load(open(f"{src}/core.json"))
 printify = {p["id"]: p for p in json.load(open(f"{src}/printify_products.json"))}
 photos = json.load(open(f"{src}/etsy_images.json"))
+# Mockups already put on range backgrounds by mockups/run_all.py ({printify url: key}); optional.
+try:
+    composed = json.load(open(f"{src}/processed.json"))
+except FileNotFoundError:
+    composed = {}
 
 COLL = {"INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS"}
 GARMENTS = [("T-SHIRT", "T-shirt"), ("LONG-SLEEVE", "Long sleeve"), ("SWEATSHIRT", "Sweatshirt"), ("HOODIE", "Hoodie")]
@@ -44,7 +49,9 @@ def printify_mockups(p, variants):
             mine = [i for i in p.get("images", []) if int(i["src"].split("/mockup/")[1].split("/")[1]) in ids]
             im = next((i for cam in cams for i in mine if i["src"].split("camera_label=")[-1] == cam), None)
             if im:
-                out.append({"url": im["src"], "thumb": im["src"], "alt": f"{colour}, {view}", "colour": colour, "mockup": True})
+                k = composed.get(im["src"])
+                url = f"/m/{k}.jpg" if k else im["src"]
+                out.append({"url": url, "thumb": url, "src": im["src"], "alt": f"{colour}, {view}", "colour": colour, "mockup": True})
     return out
 
 SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"]
@@ -101,6 +108,8 @@ for r in reg[1:]:
     mockups = printify_mockups(p, variants)
     if not mockups:
         problems.append(f"{code}: no Printify mockups")
+    elif composed and any(m["url"] == m["src"] for m in mockups):
+        problems.append(f"{code}: some mockups not on range backgrounds yet (run the mirror + mockups/run_all.py)")
     rl = rule.get((row["COLLECTION"], gtype), {})
     d = designs.setdefault(gag_id, {
         "id": gag_id, "coll": COLL.get(row["COLLECTION"], "IH"), "collection": row["COLLECTION"],

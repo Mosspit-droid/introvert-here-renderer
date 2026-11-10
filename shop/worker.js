@@ -68,6 +68,11 @@ export default {
         const buf = await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer");
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
+      const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
+      if (mk) {
+        const buf = await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer");
+        return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
+      }
       return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the shop</a>.</p>`), 404);
     } catch (e) {
       console.error(e);
@@ -116,7 +121,7 @@ async function checkout(request, env, url) {
     form[`${p}[price_data][product_data][name]`] = `${d.title} – ${g.label}`;
     form[`${p}[price_data][product_data][description]`] = [v.colour, v.size].filter(Boolean).join(", ");
     const pic = ((g.mockups || []).find((m) => m.colour === v.colour) || {}).thumb || g.tile || (g.images[0] || {}).thumb;
-    if (pic) form[`${p}[price_data][product_data][images][0]`] = pic;
+    if (pic) form[`${p}[price_data][product_data][images][0]`] = pic.startsWith("/") ? url.origin + pic : pic; // Stripe needs a full address
     form[`${p}[price_data][product_data][metadata][code]`] = g.code;
     form[`${p}[price_data][product_data][metadata][printify_product_id]`] = g.printifyId;
     form[`${p}[price_data][product_data][metadata][printify_variant_id]`] = String(v.id);
