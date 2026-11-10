@@ -47,6 +47,19 @@ The tag checker:
 The automation behind Introvert Here (Make scenarios, Core Excel workbook, renderer) is described in
 `docs/tagging/TAGGING_SPEC.md` and the repo README.
 
+## Own shop on introverthere.com (decided 10 Nov 2026)
+
+- **Payments: Stripe** (Stripe-hosted checkout, about 1.5% + 20p per UK card), not Shopify or Etsy. Etsy stays as a second channel.
+- **Flow:** customer pays on Stripe → Stripe webhook to a Cloudflare worker → worker places the Printify order directly (Printify API, not Make: Make is at its 16-scenario limit) → Printify prints, posts and emails tracking. New "Orders" page in the approvals app.
+- **Country picker first:** pre-selected from Cloudflare's country hint, remembered in the browser.
+  - **UK shop** (phase 1): GBP, UK-printed products, UK returns rules.
+  - **US shop** (phase 2): USD, products made with a US Printify provider (US de minimis is suspended, so UK-printed parcels pick up duty). US state sales tax only applies above about $100k a year per state.
+  - **Everyone else:** sent to the Etsy shop.
+  - Stripe checkout is restricted to the chosen shop's country.
+- **Barry's steps:** open a Stripe account (sole trader); create a Stripe key and a Printify API key and paste them into a private form in the approvals app (never in chat); connect introverthere.com to Cloudflare.
+- **Open decisions:** published contact address (virtual address?); how to handle 14-day change-of-mind returns (Printify doesn't take them back).
+- Test everything in Stripe test mode before going live.
+
 ## Collection taglines (approved 9 Nov 2026)
 
 - **INTROVERT HERE…** Every design opens with "Introvert here…" and finishes with what someone of few words would say if they bothered. A pre-emptive strike, printed once, so it never has to be said out loud.
