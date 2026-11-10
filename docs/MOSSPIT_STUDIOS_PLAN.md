@@ -49,6 +49,9 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 
 ## Own shop on introverthere.com (decided 10 Nov 2026)
 
+- **Site structure:** the shop is an **Introvert Here-branded site on introverthere.com** (shoppers looking for IH shouldn't land on the studio site). mosspit.org stays the parody studio site and links to it. Future brands get their own shop sites; all share one engine (one Stripe account, one checkout, one Orders page, one Printify connection).
+- **Stripe account:** business name "Mosspit Studios" (sole trader, UK). Public name and statement descriptor: "Introvert Here" / "INTROVERT HERE". Later brands: per-sale descriptor or a second Stripe account under the same login. Started in test mode on 10 Nov.
+
 - **Payments: Stripe** (Stripe-hosted checkout, about 1.5% + 20p per UK card), not Shopify or Etsy. Etsy stays as a second channel.
 - **Flow:** customer pays on Stripe → Stripe webhook to a Cloudflare worker → worker places the Printify order directly (Printify API, not Make: Make is at its 16-scenario limit) → Printify prints, posts and emails tracking. New "Orders" page in the approvals app.
 - **Country picker first:** pre-selected from Cloudflare's country hint, remembered in the browser.
