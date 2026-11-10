@@ -858,14 +858,14 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" h
       <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div></div>
   </div>
   <label><b>Gag category</b><select id="category" required></select></label>
-  <label><b>Title stem</b><input id="stem" required maxlength="60"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
+  <label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
   <div class="two"><label><b>Custom tag 12</b><input id="tag12" value="christmas present"></label><label><b>Custom tag 13</b><input id="tag13" value="holiday gift"></label></div>
+  <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
   <div><b>Release dates</b>
     <div class="four">
       <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
       <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
     </div></div>
-  <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
 </form>
 ${savesHtml}
 <style>
@@ -967,6 +967,8 @@ function stemNote() {
   $("stemnote").textContent = "Too long for a tag (" + s.length + "/20) - the tag will be “" + longest.slice(0, 20) + "”";
 }
 $("stem").addEventListener("input", stemNote);
+// After a save the page reloads; land back at the top, ready for the next gag.
+try { if (sessionStorage.getItem("gagTop")) { sessionStorage.removeItem("gagTop"); window.scrollTo(0, 0); addEventListener("load", () => window.scrollTo(0, 0)); if ("scrollRestoration" in history) history.scrollRestoration = "auto"; } } catch (e) {}
 // ----- auto-formatting -----
 // Gag text: capitals, except anything between *asterisks* and a letter straight after a number (e.g. 1960s).
 function capsGag(t) {
@@ -981,7 +983,9 @@ function properStem(t) {
   if (allCaps && !(words.length === 1 && words[0].length <= 4)) {
     return s.toLowerCase().replace(/(^|[\s\-\/("'“])([a-z])/g, (m, a, b) => a + b.toUpperCase());
   }
-  return s.replace(/(^|[\s\-\/("'“])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  // a first word stuck in capitals (e.g. "HELLO There"), 5+ letters so short acronyms like FOMO stay
+  const fixed = /[a-z]/.test(s) ? s.replace(/^(\s*)([A-Z]{5,})(?=[\s\-\/]|$)/, (m, a, w) => a + w[0] + w.slice(1).toLowerCase()) : s;
+  return fixed.replace(/(^|[\s\-\/("'“])([a-z])/g, (m, a, b) => a + b.toUpperCase());
 }
 $("text").addEventListener("input", () => {
   const el = $("text"), v = el.value, f = capsGag(v);
@@ -992,7 +996,7 @@ $("stem").addEventListener("change", () => { $("stem").value = properStem($("ste
 $("stem").addEventListener("input", () => {
   const el = $("stem"), v = el.value;
   if (/[A-Z]/.test(v) && !/[a-z]/.test(v)) return; // typing in capitals: tidied when you leave the box
-  const f = v.replace(/(^|[\s\-\/("'\u201c])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  const f = v.replace(/^([A-Z]{5,})(?=\s)/, (m, w) => w[0] + w.slice(1).toLowerCase()).replace(/(^|[\s\-\/("'\u201c])([a-z])/g, (m, a, b) => a + b.toUpperCase());
   if (f !== v) { const a = el.selectionStart, b = el.selectionEnd; el.value = f; el.setSelectionRange(a, b); stemNote(); }
 });
 
@@ -1063,7 +1067,9 @@ $("form").addEventListener("submit", async (e) => {
   const res = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) { alert(out.error || "Couldn't save."); $("save").disabled = false; $("save").textContent = "Save to Core"; return; }
-  location.reload();
+  try { sessionStorage.setItem("gagTop", "1"); } catch (e) {}
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  window.scrollTo(0, 0); location.reload();
 });
 
 // ----- refresh + auto-update -----
