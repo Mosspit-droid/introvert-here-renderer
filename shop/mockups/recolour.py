@@ -70,8 +70,16 @@ def glow_weight(lab, m, reach=0.08):
     dh = np.abs(((hue - href + 180) % 360) - 180)
     wgt = np.clip((26 - dh) / 8, 0, 1) * np.clip((chroma - 24) / 10, 0, 1)   # rims are vivid; leather/wood is dull
     # strongly sunlit rims drift further towards orange; the backdrop sits there too but is much less vivid
-    orange = np.clip((30 - dh) / 6, 0, 1) * np.clip((chroma - 58) / 5, 0, 1) * (lab[..., 0] < 64)
-    wgt = np.maximum(wgt, orange) * near
+    orange = np.clip((36 - dh) / 6, 0, 1) * np.clip((chroma - 62) / 5, 0, 1) * (lab[..., 0] < 74)
+    wgt = np.maximum(wgt, orange)
+    # cracked leather can be vivid enough to pass; rims are smooth along the edge or far more vivid
+    sg = 0.0025 * max(h, w)
+    mu = gaussian_filter(lab[..., 0], sg)
+    tex = np.sqrt(np.clip(gaussian_filter(lab[..., 0] ** 2, sg) - mu * mu, 0, None))
+    wgt = wgt * (1 - (tex > 2.5) * (chroma < 44))
+    # deep shadow right at the garment's edge (under cuffs and hems): dark and garment-coloured
+    dark = (dh < 14) & (chroma > 6) & (lab[..., 0] < 18) & (distance_transform_edt(~m) < 0.004 * max(h, w))
+    wgt = np.maximum(wgt, dark.astype(float)) * near
     wgt[m] = 0
     # only glow that touches the garment (not a stray red prop further away)
     ids, _ = label(wgt > 0.05)
