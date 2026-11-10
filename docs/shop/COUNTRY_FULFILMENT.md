@@ -66,3 +66,12 @@ Maroon (main), Dark Chocolate, Forest Green. Checked 10 Nov:
 - Printify Choice (Etsy): all three on all four garments.
 - Print Clever UK: all three on tee, sweatshirt and hoodie; **long sleeve has no Dark Chocolate** (Maroon and Forest Green only).
 - **Decision (Barry, 10 Nov):** UK site long sleeve = Maroon + Forest Green only. Reassess Dark Chocolate long sleeve when setting up other countries.
+
+## UK pilot (10 Nov 2026)
+
+Draft Printify product 6af328cf8ed63010bb0d8e0f "UK DRAFT Do Not Publish - Outside My Duvet T-shirt - Print Clever" (not published).
+Method (Barry's standard: same physical print size in every country, centred): reuse the existing print file;
+scale = Choice print-area width / Print Clever width per size (S 0.8714, M 0.8737, L+ 0.878); x 0.5.
+Measured against the Etsy mockup: centred (y 0.5) sat ~1 cm lower, so y = 0.482 matches Etsy exactly (Barry: "nudge it up").
+Each garment type needs its own y check. Barry: no generic Printify mockups (models, folded, lifestyle) anywhere; his own photos only.
+Sample orders only with Barry's say-so (he may order it himself in Printify: "Order sample").
