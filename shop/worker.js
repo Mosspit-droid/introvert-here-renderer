@@ -346,11 +346,11 @@ function $(i){return document.getElementById(i)}function money(p){return '£'+(p
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
 function sizes(){return G().variants.filter(function(v){return v.colour===st.colour})}
-function pics(){var g=G(),c=st.colour;return (g.mockups||[]).filter(function(m){return m.colour===c}).concat(g.images.filter(function(i){return i.colour===c}),g.images.filter(function(i){return !i.colour}))}
+function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});return c===g.mainColour?own.concat(m,any):m.concat(own,any)}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
  $('garments').innerHTML=D.order.map(function(t){return '<button class="chip'+(t===st.g?' on':'')+'" data-g="'+t+'">'+D.garments[t].label+'</button>'}).join('');
- var cs=colours();if(!cs.some(function(v){return v.colour===st.colour}))st.colour=cs[0].colour;
+ var cs=colours();if(!cs.some(function(v){return v.colour===st.colour}))st.colour=g.mainColour||cs[0].colour;
  $('colours').innerHTML=cs.map(function(v){return '<button class="swatch'+(v.colour===st.colour?' on':'')+'" title="'+v.colour+'" aria-label="'+v.colour+'" data-c="'+v.colour+'" style="background:'+(v.hex||'#888')+'"></button>'}).join('');
  $('cname').textContent=st.colour;
  var ss=sizes();if(!ss.some(function(v){return v.size===st.size}))st.size=null;

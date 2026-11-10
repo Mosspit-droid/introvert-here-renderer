@@ -20,6 +20,10 @@ GARMENTS = [("T-SHIRT", "T-shirt"), ("LONG-SLEEVE", "Long sleeve"), ("SWEATSHIRT
 # "GREY" photos were made when IH/PC used Black + Dark Heather, so GREY = Dark Heather.
 PHOTO_COLOUR = {"DARK_HEATHER": "Dark Heather", "GREY": "Dark Heather", "CHARCOAL": "Charcoal", "NAVY": "Navy", "BLACK": "Black"}
 # Printify mockup views shown in the shop, in order; each lists the cameras to try (tees only have "front-2").
+# Each range's main colour (Barry, 10 Nov). Lifestyle photos without a colour label show this colour.
+MAIN_COLOUR = {"IH": "Black", "SH": "Dark Heather", "PC": "Navy", "OS": "Maroon"}
+# Photos that show no garment colour (promo cards, gift message, range line-up) show for every colour.
+ANY_COLOUR = re.compile(r"_(PROMO|AGM|RANGE)$")
 MOCKUP_VIEWS = {"front": ["front", "front-2"], "back": ["back", "back-2"]}
 
 def photo_colour(alt):
@@ -82,7 +86,13 @@ for r in reg[1:]:
     is_sg = lambda g: re.search(r"SIZE[ _]GUIDE", g["alt"].upper())
     size_guide = next((g for g in gallery if is_sg(g)), None)
     gallery = [g for g in gallery if not is_sg(g)]
+    main = MAIN_COLOUR.get(COLL.get(row["COLLECTION"], "IH"))
+    for g in gallery:
+        if g["colour"] is None and not ANY_COLOUR.search(g["alt"].upper()):
+            g["colour"] = main
     shop_colours = {v["colour"] for v in variants}
+    if main not in shop_colours:
+        problems.append(f"{code}: main colour {main} not offered, so its lifestyle photos are hidden")
     gallery = [g for g in gallery if g["colour"] is None or g["colour"] in shop_colours]
     tile = gallery[0]["thumb"] if gallery else None
     mockups = printify_mockups(p, variants)
@@ -97,7 +107,7 @@ for r in reg[1:]:
         "label": dict(GARMENTS)[gtype], "code": code, "printifyId": p["id"], "etsyId": str(row["ETSY_LISTING_ID"]),
         "etsyUrl": f"https://www.etsy.com/listing/{row['ETSY_LISTING_ID']}",
         "priceFrom": min(v["price"] for v in variants), "variants": variants,
-        "images": gallery, "mockups": mockups, "tile": tile, "sizeGuide": size_guide["url"] if size_guide else None,
+        "images": gallery, "mockups": mockups, "tile": tile, "mainColour": main if main in shop_colours else None, "sizeGuide": size_guide["url"] if size_guide else None,
         "features": str(rl.get("PRODUCT_FEATURES") or "").strip()}
 
 # Order: newest designs first within the file; the site sorts per page.
