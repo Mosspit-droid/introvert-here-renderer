@@ -65,3 +65,4 @@ Hoodie pages pair fronts (1.5 wide) with backs per printer.
 Maroon (main), Dark Chocolate, Forest Green. Checked 10 Nov:
 - Printify Choice (Etsy): all three on all four garments.
 - Print Clever UK: all three on tee, sweatshirt and hoodie; **long sleeve has no Dark Chocolate** (Maroon and Forest Green only).
+- **Decision (Barry, 10 Nov):** UK site long sleeve = Maroon + Forest Green only. Reassess Dark Chocolate long sleeve when setting up other countries.
