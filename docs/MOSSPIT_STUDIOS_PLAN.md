@@ -77,6 +77,10 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 - **PER CONTRACT** For the team-building days, the mandatory fun and the after-work drinks you can't get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included.
 - **OFF THE SHELF** For people who'd rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly. (Launching soon; paraphrased movie lines may come later.)
 
+## Agent team (started 10 Nov 2026)
+
+Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Coordinator, Canva, Printify, Etsy, Watchtower (weekly, Mondays, scheduled task; reports in `docs/watchtower/`), Finance (proposed monthly from December). Report first, act only after Barry's OK.
+
 ## Ideas being discussed (10 Nov 2026, not decided)
 
 - **Interaction Distractions:** an Introvert Here range of games and puzzles that give you something to do instead of talking. First idea: printable paper escape rooms (themes like Escape the Party, Escape Small Talk, Escape the Office Christmas Do). Suggested start: one printable on Etsy as a test (digital downloads need no fulfilment and no new shop code). Own shop would need download delivery (no postage, link after payment) and a separate shop section.
