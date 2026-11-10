@@ -361,7 +361,7 @@ Then a **Make dry run**: DryRun=TRUE, DryRunGagId=IH-99901 → the app receives 
 ## 9. Decisions (defaults proposed)
 
 1. **Allocation 1 Anchor + 4 Flavour.** In the sequential simulation of the next 60 gags (cap 3, seasonal rotated), most gags share only 2–4 comparable tags; with 2+3 it's slightly higher.
-2. **Seasonal `auto` keyword.** Recommended: it rotates in-season phrases per gag. With the same manual pair on every gag, the seasonal slots add 2 shared tags to every pair. I won't change your CUSTOM_TAG columns without your OK.
+2. **Seasonal `auto` keyword.** DECIDED 10 Nov 2026: always `auto`. The gag tool no longer shows the custom tag boxes and saves `auto` for both; all 439 READY_FOR_RELEASE gags were switched (live gags and already-frozen tags untouched). Original note: recommended: it rotates in-season phrases per gag. With the same manual pair on every gag, the seasonal slots add 2 shared tags to every pair. I won't change your CUSTOM_TAG columns without your OK.
 3. **Season windows** as in SEASON_POOL (review the dates).
 4. **Overlap bands provisional: AMBER ≥4, RED ≥6** of 6–8 comparable slots. Today 18 of 21 live gags score 7 (red), which is expected. Refine after a month.
 5. **Stems:** 110 future gags need a valid 1–3 word stem (114 flagged, 4 are live and left alone). Draft shorteners are in STEM_REVIEW; only gags due soon matter right away (9 of the next 40).
