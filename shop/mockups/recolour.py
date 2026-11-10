@@ -25,12 +25,15 @@ def garment_mask(rgb, ref_lab=None, grow=True):
         h, w = lab.shape[:2]
         ref_lab = np.median(lab[h // 2 - h // 10:h // 2 + h // 10, w // 2 - w // 10:w // 2 + w // 10].reshape(-1, 3), 0)
     d = np.sqrt(((lab[..., 1:] - ref_lab[1:]) ** 2).sum(-1))           # chroma distance (lighting-independent)
-    core = (d < 14) & (lab[..., 0] < ref_lab[0] + 30)
+    lmax = lab[..., 0] < ref_lab[0] + 16          # fabric (even in highlights) is darker than skin and lit wood
+    core = (d < 14) & lmax
     # sunlit or shaded fabric drifts in brightness and warmth, so also accept pixels whose hue angle is close
     # to the garment's (background orange/brown sits at a clearly different angle), if they touch the core
     hue = np.degrees(np.arctan2(lab[..., 2], lab[..., 1])); href = np.degrees(np.arctan2(ref_lab[2], ref_lab[1]))
     chroma = np.hypot(lab[..., 1], lab[..., 2])
-    loose = (np.abs(((hue - href + 180) % 360) - 180) < 16) & (chroma > 6)
+    loose = (np.abs(((hue - href + 180) % 360) - 180) < 16) & (chroma > 6) & lmax
+    if ref_lab[0] < 30 and np.hypot(ref_lab[1], ref_lab[2]) < 25:   # dark, low-colour garment (e.g. Dark Chocolate): strict match only
+        grow = False; core = (d < 9) & lmax
     near = binary_closing(core, iterations=3)
     grown_ids, _ = label(near | loose) if grow else label(near)
     keep = np.unique(grown_ids[near]); keep = keep[keep > 0]
@@ -50,14 +53,16 @@ def stats(lab, m):
     return v.mean(0), v.std(0) + 1e-6
 
 
-def recolour(photo, src_ref, tgt_ref):
+def recolour(photo, src_ref, tgt_ref, seed_by_ref=True):
     P = np.asarray(Image.open(photo).convert("RGB")).astype(np.float64) / 255
     S = np.asarray(Image.open(src_ref).convert("RGB")).astype(np.float64) / 255
     T = np.asarray(Image.open(tgt_ref).convert("RGB")).astype(np.float64) / 255
-    pm, seed = garment_mask(P)
     # references: strict detection only (a brown garment can sit close in hue to a brown/orange backdrop)
     sm, _ = garment_mask(S, color.rgb2lab(S)[S.shape[0] // 2, S.shape[1] // 2], grow=False)
     tm, _ = garment_mask(T, color.rgb2lab(T)[T.shape[0] // 2, T.shape[1] // 2], grow=False)
+    # find the garment in the photo by the source garment's colour (wearers are often off-centre)
+    seed = np.median(color.rgb2lab(S)[sm], 0) if seed_by_ref else None
+    pm, _ = garment_mask(P, seed)
     Pl, Sl, Tl = color.rgb2lab(P), color.rgb2lab(S), color.rgb2lab(T)
     ms, ss = stats(Sl, sm)          # source garment in its reference photo
     mt, st = stats(Tl, tm)          # target garment in its reference photo
