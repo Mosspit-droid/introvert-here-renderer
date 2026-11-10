@@ -29,8 +29,10 @@ def logo_layer(c):
 def text_layer(lines,colour=(242,240,234)):
     # IH tagline: left edge x=934, block centred on the logo's height, ~90px per line
     o=Image.new("RGBA",(W,H)); d=ImageDraw.Draw(o); f=ImageFont.truetype(FONT,64)
-    lh=90; top=(51+485)//2-lh*len(lines)//2+8
-    for i,t in enumerate(lines): d.text((934,top+i*lh),t.upper(),font=f,fill=colour+(255,))
+    # Top of the capitals level with the top of the logo frame (y=51); same left edge as the IH tagline.
+    lh=90; logo_top=round(OY+38*SC); cap_top=f.getbbox("H")[1]
+    for i,t in enumerate(lines): d.text((934,logo_top-cap_top+i*lh),t.upper(),font=f,fill=colour+(255,))
+    right=max(d.textbbox((934,0),t.upper(),font=f)[2] for t in lines); assert right<W-30, f"tagline too wide ({right}px)"
     return np.asarray(o).astype(np.float32)/255
 def build(c,lines,name):
     B=background(c)
@@ -39,4 +41,5 @@ def build(c,lines,name):
     if lines: B=blend(B,text_layer(lines),k=1.6,seed=5,wear=0.5)
     Image.fromarray((np.clip(B,0,1)*255).astype(np.uint8)).save(f"{OUT}/{name}",quality=86)
 if __name__=="__main__":
-    for c in "SH PC OS".split(): build(c,None,f"hero-{c}.jpg")
+    TAGLINES={"SH":["Said softly.","Meant completely."],"PC":["Dressed for","mandatory fun"],"OS":["A literal","escape"]}  # Barry, 10 Nov
+    for c in "SH PC OS".split(): build(c,TAGLINES[c],f"hero-{c}.jpg")
