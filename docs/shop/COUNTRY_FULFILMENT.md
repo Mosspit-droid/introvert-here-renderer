@@ -14,7 +14,7 @@ which is when everything moved to Printify Choice.
 |---|---|---|---|---|---|
 | UK | Print Clever (72) | ✓ | ✓ | ✓ | ✓ |
 | US | Monster Digital (29) | ✓ | ✓ | ✓ | ✓ |
-| CA | Print Geek (27) | ✓ | **not offered** | ✓ | ✓ |
+| CA | Print Geek (27) | ✓ | **Gildan 2400 not offered** (Bella+Canvas long sleeve bp 41 is: Print Geek, Duplium) | ✓ | ✓ |
 | AU | The Print Bar (34) | ✓ | ✓ | ✓ | ✓ |
 
 All four printers still offer these garments in Printify's catalogue today (checked 10 Nov), except Print Geek long sleeve.

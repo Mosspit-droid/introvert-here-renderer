@@ -1,6 +1,6 @@
 # Mosspit Studios: plan and where things stand
 
-Owner: Barry (contact via the account on this repo). Last updated 9 Nov 2026.
+Owner: Barry (contact via the account on this repo). Last updated 10 Nov 2026.
 Read this first in any new session. No passwords or keys belong in this file.
 
 ## The idea
@@ -64,6 +64,7 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 - **Keys saved in the cloud environment (10 Nov):** Stripe test secret key (api.stripe.com, test sandbox acct_1UZtLkR6sm3kVsoD "Mosspit Studios sandbox") and a Printify API token (api.printify.com; sees IntrovertHereShop 27154106 and HerdMentalityShop 27163591). The shop worker will need its own copies (restricted Stripe key + Printify token) via a private form in the approvals app.
 - **Built 10 Nov (test mode):** shop worker `introvert-here-shop` (code in `shop/`, live test address introvert-here-shop.mosspit.workers.dev): country picker, UK shop with 22 designs / 80 garments (catalogue from `shop/build_catalog.py`, stored in KV `shop:catalog`), design pages, basket, Stripe Checkout (prices from the catalogue, UK only, free delivery), signed webhook (endpoint we_1UaASgR6sm3kVsoDCGasVs5v in the sandbox) placing the Printify order on hold. Test payments are never sent to Printify. Approvals app: 🛒 Orders page with Send to Printify and a write-only key form (KV namespace shop-secrets). Legal pages have placeholders for address/email.
 - **10 Nov decisions:** IH look = concrete wall background + distressed stacked logo (banner "Quiet humour for socially exhausted people"), now on the test shop. **No Printify Choice for the own shop**: each country's orders go to a printer in that country (old setup found: UK Print Clever, US Monster Digital, CA Print Geek, AU The Print Bar). Research in `docs/shop/COUNTRY_FULFILMENT.md`. Barry: "We get it right, then draw traffic." Don't rush.
+- **Built 10 Nov (look):** each collection tab and design page has its own background and banner (IH concrete, SHHH. wood as one fixed photo, PC navy fabric, OS red leather). Design-page photos follow the chosen colour: Printify mockups for that colour first, then Etsy photos labelled with that colour, then unlabelled photos (shown for every colour until Barry says which colour they show). Etsy "GREY" photos = Dark Heather.
 - **First build check (done):** Printify accepts API orders into the Etsy-linked shop (an API order already existed), so no separate store needed. Postage via Printify Choice ≈ $10.39 first item, $4 each extra.
 - **Previously planned check:** whether Printify accepts API orders into the Etsy-linked shop or needs a separate API store (test by creating and cancelling an order).
 - **Open decisions:** published contact address (virtual address?); how to handle 14-day change-of-mind returns (Printify doesn't take them back).
