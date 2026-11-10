@@ -24,7 +24,7 @@ def _morph(fn, m, it):
 from skimage import color
 
 
-def garment_mask(rgb, ref_lab=None, grow=True, hue_tol=16, cmin=6, dark_strict=True):
+def garment_mask(rgb, ref_lab=None, grow=True, hue_tol=16, cmin=6, dark_strict=True, keep_frac=0):
     lab = color.rgb2lab(rgb)
     if ref_lab is None:
         # seed: the colour at the centre of the image (the garment is always centred)
@@ -50,6 +50,8 @@ def garment_mask(rgb, ref_lab=None, grow=True, hue_tol=16, cmin=6, dark_strict=T
         raise SystemExit("garment not found")
     sizes = np.bincount(lab_ids.ravel())[1:]
     m = lab_ids == (1 + sizes.argmax())
+    if keep_frac:   # also keep separate large parts (e.g. a sleeve cut off by a hand or a book)
+        m = np.isin(lab_ids, 1 + np.nonzero(sizes >= keep_frac * sizes.max())[0])
     m = binary_fill_holes(m)
     return m, ref_lab
 
@@ -101,8 +103,8 @@ def recolour(photo, src_ref, tgt_ref, seed_by_ref=True, glow=False, space="lab",
     # (dark, red-leaning); the tighter hue window keeps it off orange-brown leather and wood
     def find(Q):
         if glow:
-            strict, _ = garment_mask(Q, seed, grow=False)
-            loose, _ = garment_mask(Q, seed, hue_tol=12, cmin=3)
+            strict, _ = garment_mask(Q, seed, grow=False, keep_frac=0.03)
+            loose, _ = garment_mask(Q, seed, hue_tol=12, cmin=3, keep_frac=0.03)
             # dark folds sit inside the garment's outline; leaks onto shaded leather stick out of it
             r = max(2, round(0.025 * max(strict.shape)))
             env = binary_fill_holes(_morph(binary_closing, strict, r))
@@ -114,7 +116,8 @@ def recolour(photo, src_ref, tgt_ref, seed_by_ref=True, glow=False, space="lab",
             r = max(2, round(0.004 * max(pm.shape)))
             op = _morph(binary_opening, pm, r)
             ids, _ = label(op); sz = np.bincount(ids.ravel()); sz[0] = 0
-            pm = binary_fill_holes(pm & binary_dilation(ids == sz.argmax(), iterations=r))   # keep edges, lose spikes
+            big = np.isin(ids, np.nonzero(sz >= 0.03 * sz.max())[0])   # main body plus separate large parts (a sleeve behind a hand or book)
+            pm = binary_fill_holes(pm & binary_dilation(big, iterations=r))   # keep edges, lose spikes
             # cracked leather next to the garment can match maroon; it is far more textured and a touch more orange
             L0 = color.rgb2lab(Q)
             sg = 0.0025 * max(pm.shape)
@@ -124,7 +127,7 @@ def recolour(photo, src_ref, tgt_ref, seed_by_ref=True, glow=False, space="lab",
             href0 = np.median(hue0[pm])
             pm = pm & ~((tex > 2.5) & (hue0 - href0 > 10))
             ids, _ = label(pm); sz = np.bincount(ids.ravel()); sz[0] = 0
-            pm = ids == sz.argmax()
+            pm = np.isin(ids, np.nonzero(sz >= 0.03 * sz.max())[0])
         return pm
     inbox = np.ones(P.shape[:2], bool)
     if box:   # only look inside this part of the photo (fractions x0, y0, x1, y1), e.g. a small figure in a busy scene
