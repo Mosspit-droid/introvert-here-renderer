@@ -77,6 +77,12 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 - **PER CONTRACT** For the team-building days, the mandatory fun and the after-work drinks you can't get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included.
 - **OFF THE SHELF** For people who'd rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly. (Launching soon; paraphrased movie lines may come later.)
 
+## Ideas being discussed (10 Nov 2026, not decided)
+
+- **Interaction Distractions:** an Introvert Here range of games and puzzles that give you something to do instead of talking. First idea: printable paper escape rooms (themes like Escape the Party, Escape Small Talk, Escape the Office Christmas Do). Suggested start: one printable on Etsy as a test (digital downloads need no fulfilment and no new shop code). Own shop would need download delivery (no postage, link after payment) and a separate shop section.
+- Related: small-talk / meeting bingo cards, conversation-ender card decks, Printify jigsaws and playing cards, "do not disturb" door hangers, enamel pins and stickers, phone wallpapers.
+- Film lines would be a separate brand with its own branding, not part of Off The Shelf.
+
 ## To do (Barry's priorities, roughly in order)
 
 1. **Mosspit Studios logo.** Done 9 Nov: mascot **Rupert Cheek** (smug yuppie peach, "smartarse") plus a MOSSPIT STUDIOS serif wordmark and the tagline **"Purveyors of Fine Cheek"** (use the tagline versions by default). Kit in `docs/brand/mosspit-logo-kit/` (main files also in Canva folder "Mosspit Studios logo kit"), brief in `docs/brand/MOSSPIT_MASCOT_BRIEF.md`. Elspeth reference scene: "The Moss Pit" sign, dark brick, ivy, amber office glow.
