@@ -16,3 +16,15 @@ Runs in sessions Barry starts (needs the Canva connector). Every edit is preview
 ## Never
 - Save edits without Barry's approval of the preview.
 - Use generic stock mockups in place of Barry's own.
+
+## Page naming convention (from Barry's OTS T-shirt brand template EAHajluNhMY, 10 Nov 2026)
+`{RANGE}_{NN}_{GARMENT}_{SCENE}_{COLOUR}`, NN = page position (01, 02...). Each scene is followed by its colour pages (main colour first, e.g. MAROON, FOREST_GREEN, DARK_CHOCOLATE). Story scenes interleave: SETUP_MAROON, PAYOFF_MAROON, SETUP_FOREST_GREEN, PAYOFF_FOREST_GREEN... Single pages without colour: VARIANTS, SIZE_GUIDE, RANGE, AGM.
+T-shirt scenes: THUMBNAIL, GIFT, HANGING, VARIANTS, CLOSEUP, SETUP, PAYOFF, FOLDED, SIZE_GUIDE, RANGE, AGM.
+
+## What the Canva API can do for colour pages (tested 10 Nov 2026 on a throwaway copy)
+- Read every page's name and which photo is on it (read-design with a transaction).
+- Swap a page's photo; a wired GAG_TEXT box keeps its wiring and font.
+- Add a new page WITH a name, put a photo on it and the logo at the exact position/angle/opacity.
+- Duplicate a page (merge-designs insert_pages from the same design): wiring and font kept, but the copy keeps the original page's name. Pages can't be renamed afterwards.
+- A gag-text box created from scratch can be wired, but its font can't be set (comes out in Canva's default), so text pages must be duplicates of Barry's wired pages.
+- The listing builder ignores Canva page names; it uses page order plus Core MOCKUP_PAGES (POSITION -> PAGE_NAME).
