@@ -115,7 +115,8 @@ async function checkout(request, env, url) {
     form[`${p}[price_data][unit_amount]`] = String(v.price);
     form[`${p}[price_data][product_data][name]`] = `${d.title} – ${g.label}`;
     form[`${p}[price_data][product_data][description]`] = [v.colour, v.size].filter(Boolean).join(", ");
-    if (g.images[0]) form[`${p}[price_data][product_data][images][0]`] = g.images[0].thumb;
+    const pic = ((g.mockups || []).find((m) => m.colour === v.colour) || {}).thumb || g.tile || (g.images[0] || {}).thumb;
+    if (pic) form[`${p}[price_data][product_data][images][0]`] = pic;
     form[`${p}[price_data][product_data][metadata][code]`] = g.code;
     form[`${p}[price_data][product_data][metadata][printify_product_id]`] = g.printifyId;
     form[`${p}[price_data][product_data][metadata][printify_variant_id]`] = String(v.id);
@@ -327,7 +328,7 @@ function shopPage(cat, only) {
   const list = cat.designs.filter((d) => !only || d.coll === only);
   const tiles = list.map((d) => {
     const gs = cat.garmentOrder.map((t) => d.garments[t]).filter(Boolean);
-    const img = (gs[0].images[0] || {}).thumb || "";
+    const img = gs[0].tile || (gs[0].images[0] || {}).thumb || "";
     const from = Math.min(...gs.map((g) => g.priceFrom));
     return `<a class="tile" href="/uk/p/${d.slug}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title)}"><div><b>${esc(d.title)}</b><span>${gs.length > 1 ? "From " : ""}${money(from)} · ${gs.map((g) => g.label).join(", ")}</span></div></a>`;
   }).join("");
@@ -345,6 +346,7 @@ function $(i){return document.getElementById(i)}function money(p){return '£'+(p
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
 function sizes(){return G().variants.filter(function(v){return v.colour===st.colour})}
+function pics(){var g=G(),c=st.colour;return (g.mockups||[]).filter(function(m){return m.colour===c}).concat(g.images.filter(function(i){return i.colour===c}),g.images.filter(function(i){return !i.colour}))}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
  $('garments').innerHTML=D.order.map(function(t){return '<button class="chip'+(t===st.g?' on':'')+'" data-g="'+t+'">'+D.garments[t].label+'</button>'}).join('');
@@ -354,14 +356,14 @@ function render(){var g=G();
  var ss=sizes();if(!ss.some(function(v){return v.size===st.size}))st.size=null;
  $('sizes').innerHTML=ss.map(function(v){return '<button class="chip'+(v.size===st.size?' on':'')+'" data-s="'+v.size+'">'+v.size+'</button>'}).join('');
  var v=variant();$('price').textContent=money(v?v.price:g.priceFrom);$('add').disabled=!v;$('add').textContent=v?'Add to basket':'Choose a size';
- if(st.img>=g.images.length)st.img=0;$('main').src=(g.images[st.img]||{}).url||'';
- $('thumbs').innerHTML=g.images.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
+ var ps=pics();if(st.img>=ps.length)st.img=0;$('main').src=(ps[st.img]||{}).url||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
+ $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
- if(t.dataset.g){st.g=t.dataset.g;st.img=0;render()}if(t.dataset.c){st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+ if(t.dataset.g){st.g=t.dataset.g;st.img=0;render()}if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
 $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;var b=B.get();
  var ex=b.find(function(i){return i.code===g.code&&i.variant===v.id});if(ex)ex.qty=Math.min(10,ex.qty+1);
- else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,img:(g.images[0]||{}).thumb||''});
+ else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
 render();`;
   return page(d.title, `<div class="design"><div><img id="main" class="main-img" alt="${esc(d.title)}"><div id="thumbs" class="thumbs"></div></div>
