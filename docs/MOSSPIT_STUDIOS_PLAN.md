@@ -79,7 +79,7 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
 
 ## Agent team (started 10 Nov 2026)
 
-Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Coordinator, Canva, Printify, Etsy, Watchtower (weekly, Mondays, scheduled task; reports in `docs/watchtower/`), Finance (proposed monthly from December). Report first, act only after Barry's OK.
+Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Coordinator, Canva, Printify, Etsy, Watchtower (weekly, Mondays, scheduled task; reports in `docs/watchtower/`), Finance (monthly on the 3rd, first run 3 Dec; reports in `docs/finance/`), Social (Canva + socials; proposed). Report first, act only after Barry's OK.
 
 ## Ideas being discussed (10 Nov 2026, not decided)
 

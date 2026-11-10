@@ -12,7 +12,8 @@ Started 10 Nov 2026 at Barry's request. Every agent reads, in this order:
 | Printify | `printify.md` | Per project + weekly health check | Drafts freely; publishing, deleting, orders only with Barry's OK |
 | Etsy | `etsy.md` | Weekly audit | No. Reports; changes go through Barry |
 | Watchtower | `watchtower.md` | Weekly (Mondays, scheduled task) | No. Briefings and proposals only |
-| Finance | `finance.md` | Monthly (proposed: first week of each month, from December) | No. Read-only |
+| Finance | `finance.md` | Monthly, 3rd of each month 09:23 UK (scheduled task, first run 3 Dec 2026) | No. Read-only |
+| Social (Canva + socials) | `social.md` | Weekly content pack, in a session Barry starts (needs the Canva connector) | No. Prepares posts; nothing posted without Barry's OK |
 
 ## How work flows
 - Barry sets a job (in a session, or later via the approvals app Inbox).
