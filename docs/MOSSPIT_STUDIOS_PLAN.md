@@ -60,6 +60,9 @@ The automation behind Introvert Here (Make scenarios, Core Excel workbook, rende
   - **Everyone else:** sent to the Etsy shop.
   - Stripe checkout is restricted to the chosen shop's country.
 - **Barry's steps:** open a Stripe account (sole trader); create a Stripe key and a Printify API key and paste them into a private form in the approvals app (never in chat); connect introverthere.com to Cloudflare.
+- **Tax:** Barry is **not VAT-registered** (confirmed 10 Nov): no VAT on prices or receipts. Stripe Tax off except free threshold monitoring.
+- **Keys saved in the cloud environment (10 Nov):** Stripe test secret key (api.stripe.com, test sandbox acct_1UZtLkR6sm3kVsoD "Mosspit Studios sandbox") and a Printify API token (api.printify.com; sees IntrovertHereShop 27154106 and HerdMentalityShop 27163591). The shop worker will need its own copies (restricted Stripe key + Printify token) via a private form in the approvals app.
+- **First build check:** whether Printify accepts API orders into the Etsy-linked shop or needs a separate API store (test by creating and cancelling an order).
 - **Open decisions:** published contact address (virtual address?); how to handle 14-day change-of-mind returns (Printify doesn't take them back).
 - Test everything in Stripe test mode before going live.
 
