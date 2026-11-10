@@ -837,8 +837,9 @@ async function gagsPage(env) {
     return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`)}
-<div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap Refresh from Core."}</div>
+${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a>`)}
+<button class="cornerbtn" id="refresh" type="button" title="Get the latest from Core" aria-label="Get the latest from Core">⟳</button>
+<div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap ⟳ (top right)."}</div>
 <div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
   <button class="btn tab on" data-tab="new" type="button">New gag</button>
   <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
@@ -864,7 +865,7 @@ ${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" h
       <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
       <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
     </div></div>
-  <button class="btn-main" type="submit" id="save">Save to Core</button>
+  <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
 </form>
 ${savesHtml}
 <style>
@@ -884,6 +885,10 @@ ${savesHtml}
   #pbox .over{color:#ff9a8a}
   .result{padding:10px;border-top:1px solid var(--line);cursor:pointer}
   .result:hover{background:var(--bg)}
+  .cornerbtn{position:fixed;top:12px;right:12px;z-index:50;width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:24px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+  .cornerbtn.busy{animation:spin 1s linear infinite;opacity:.7}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  header{padding-right:56px}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <script>
@@ -1063,8 +1068,18 @@ $("form").addEventListener("submit", async (e) => {
 
 // ----- refresh + auto-update -----
 $("refresh").addEventListener('click', async () => {
-  $("refresh").disabled = true; $("refresh").textContent = "Reading Core…";
-  const r = await fetch('/api/gags-refresh', { method: 'POST' }); if (!r.ok) { alert((await r.json().catch(()=>({}))).error || 'Refresh failed'); }
+  const b = $("refresh"); if (b.classList.contains("busy")) return;
+  b.classList.add("busy"); $("synced").textContent = "Reading Core… (about a minute)";
+  setTimeout(() => b.classList.remove("busy"), 90000);
+  const r = await fetch('/api/gags-refresh', { method: 'POST' }); if (!r.ok) { b.classList.remove("busy"); alert((await r.json().catch(()=>({}))).error || 'Refresh failed'); }
+});
+$("clear").addEventListener('click', () => {
+  if ($("text").value.trim() && !confirm("Clear every field?")) return;
+  ["text","stem","tag12","tag13","d1","d2","d3","d4","search"].forEach((k) => { if ($(k)) $(k).value = ""; });
+  $("collection").value = ""; $("category").value = "";
+  editing = null; datesTouched = false;
+  ["stemnote","spell","stemspell","pwarn"].forEach((k) => { if ($(k)) $(k).textContent = ""; });
+  slotInfo(); preview(); $("text").focus();
 });
 let last = null;
 setInterval(async () => {
