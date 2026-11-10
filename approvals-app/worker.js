@@ -60,6 +60,9 @@ export default {
       if (pathname === "/" && method === "GET") {
         return authed ? await page(env) : loginPage(url.searchParams.has("wrong"));
       }
+      if (pathname === "/orders" && method === "GET") {
+        return authed ? await ordersPage(env) : redirect("/");
+      }
       if (pathname === "/tools" && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
       }
@@ -92,6 +95,8 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
+      if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
+      if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
       if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
@@ -597,7 +602,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1748,4 +1753,92 @@ ${tile("Last 30 days", month.v, pct)}
 </div>
 <div class="card" style="margin-top:10px"><b>Where visitors came from (30 days)</b><div class="small" style="margin-top:6px">${top(month.ref, 8)}</div>
 <b style="display:block;margin-top:10px">Countries (30 days)</b><div class="small" style="margin-top:6px">${top(month.c, 6)}</div></div>`;
+}
+
+
+// ---------- Shop orders (introverthere.com) ----------
+// The shop worker ("introvert-here-shop") records each paid checkout in KV "shop:orders" and places a Printify order
+// that waits on hold. This page lists them, lets Barry send one to production, and holds the shop's two keys
+// (Stripe secret key, Printify token) in KV namespace SECRETS. Keys are write-only from here: only the last 4
+// characters are ever shown.
+
+async function shopKeys(request, env) {
+  if (!env.SECRETS) return json({ error: "Key store not connected" }, 500);
+  const d = await request.json().catch(() => ({}));
+  const saved = [];
+  const sk = str(d.stripe_secret_key);
+  if (sk) {
+    if (!/^(sk|rk)_(test|live)_[A-Za-z0-9]{20,}$/.test(sk)) return json({ error: "That doesn't look like a Stripe secret key. It should start sk_test_, sk_live_, rk_test_ or rk_live_." }, 400);
+    await env.SECRETS.put("stripe_secret_key", sk); saved.push("Stripe");
+  }
+  const pt = str(d.printify_token);
+  if (pt) {
+    if (pt.length < 40 || /\s/.test(pt)) return json({ error: "That doesn't look like a Printify token (it's a long code with no spaces)." }, 400);
+    await env.SECRETS.put("printify_token", pt); saved.push("Printify");
+  }
+  if (!saved.length) return json({ error: "Nothing to save." }, 400);
+  return json({ ok: true, saved });
+}
+
+async function shopOrderSend(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const session = str(d.session);
+  const rec = await env.PENDING.get("shop:order:" + session, "json");
+  if (!rec || !rec.printifyOrder) return json({ error: "No Printify order for that sale." }, 400);
+  const token = env.SECRETS && (await env.SECRETS.get("printify_token"));
+  if (!token) return json({ error: "Printify token not saved yet." }, 400);
+  const res = await fetch(`https://api.printify.com/v1/shops/27154106/orders/${rec.printifyOrder}/send_to_production.json`, {
+    method: "POST", headers: { Authorization: "Bearer " + token, "User-Agent": "IntrovertHereShop/1.0" } });
+  if (!res.ok) return json({ error: "Printify said no (" + res.status + "): " + (await res.text()).slice(0, 200) }, 502);
+  rec.status = "sent-to-production"; rec.sentAt = Date.now();
+  await env.PENDING.put("shop:order:" + session, JSON.stringify(rec));
+  const list = (await env.PENDING.get("shop:orders", "json")) || [];
+  const i = list.findIndex((x) => x.session === session); if (i >= 0) list[i] = rec;
+  await env.PENDING.put("shop:orders", JSON.stringify(list));
+  return json({ ok: true });
+}
+
+async function ordersPage(env) {
+  const orders = (await env.PENDING.get("shop:orders", "json")) || [];
+  const last4 = async (k) => { const v = env.SECRETS && (await env.SECRETS.get(k)); return v ? "saved ✓ (…" + esc(v.slice(-4)) + ", " + (/_live_/.test(v) ? "LIVE" : /_test_/.test(v) ? "test" : "") + ")" : "not saved yet"; };
+  const stripeState = await last4("stripe_secret_key");
+  const pState = env.SECRETS && (await env.SECRETS.get("printify_token")) ? "saved ✓" : "not saved yet";
+  const gbp = (p) => (p == null ? "" : "£" + (p / 100).toFixed(2));
+  const label = { "on-hold": ["wait", "Waiting for you: send to Printify"], "sent-to-production": ["ok", "Sent to Printify for printing"], "test-not-sent": ["ok", "Test payment (not sent to Printify)"], failed: ["bad", "NOT placed: needs you"], processing: ["wait", "Processing…"] };
+  const rows = orders.map((o) => {
+    const [cls, txt] = label[o.status] || ["wait", o.status];
+    return `<div class="card"><div class="meta">${esc(when(o.at))}${o.livemode ? "" : " · TEST"}</div>
+<div class="code" style="font-size:16px">${esc(o.name || "")} · ${gbp(o.total)}</div>
+<div class="small">${(o.items || []).map((i) => `${i.quantity} × ${esc(i.name)}`).join("<br>")}</div>
+<div class="small">${esc(o.address || "")}${o.email ? " · " + esc(o.email) : ""}</div>
+<div class="status ${cls}">${esc(txt)}${o.error ? "<br>" + esc(o.error) : ""}</div>
+${o.status === "on-hold" ? `<button class="btn-main" data-send="${esc(o.session)}" type="button">Send to Printify</button>` : ""}
+${o.printifyOrder ? `<div class="small"><a href="https://printify.com/app/order/${esc(o.printifyOrder)}" target="_blank" rel="noopener" style="color:inherit">Open in Printify</a></div>` : ""}</div>`;
+  }).join("");
+  return shell(`
+${brandHeader("Shop orders", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a>`)}
+<p class="small">Orders from your own shop (introverthere.com). Each paid order is placed with Printify on hold; press Send to Printify to have it printed. Test payments are never sent.</p>
+${rows ? `<div class="grid">${rows}</div>` : `<div class="card empty">No shop orders yet.</div>`}
+<h2>Shop keys</h2>
+<div class="card" style="max-width:560px">
+<p class="small">These let the shop take payments and place Printify orders. Paste a key and press Save. It's stored privately; this page only ever shows its last 4 characters.</p>
+<label><b>Stripe secret key</b> <span class="small">${stripeState}</span></label>
+<input id="sk" type="password" autocomplete="off" placeholder="sk_test_… (or sk_live_… when going live)">
+<label style="margin-top:12px;display:block"><b>Printify API token</b> <span class="small">${pState}</span></label>
+<input id="pt" type="password" autocomplete="off" placeholder="Printify token">
+<button id="savekeys" class="btn-main" type="button">Save keys</button>
+<p id="keymsg" class="small"></p></div>
+<script>
+document.getElementById('savekeys').addEventListener('click', async function(){
+  var m=document.getElementById('keymsg'); m.textContent='Saving…';
+  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.trim(),printify_token:document.getElementById('pt').value.trim()})});
+  var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'; setTimeout(function(){location.reload()},900)} else m.textContent=o.error||'Could not save.';
+});
+document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.target.dataset.send; if(!s) return;
+  if(!confirm('Send this order to Printify for printing? Printify will charge you for it.')) return;
+  e.target.disabled=true; e.target.textContent='Sending…';
+  var r=await fetch('/api/shop-order-send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:s})});
+  var o=await r.json().catch(function(){return{}}); if(r.ok) location.reload(); else { alert(o.error||'Failed'); e.target.disabled=false; e.target.textContent='Send to Printify'; }
+});
+</script>`);
 }

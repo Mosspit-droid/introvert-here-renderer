@@ -1,0 +1,17 @@
+name = "introvert-here-shop"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+workers_dev = true
+
+[vars]
+ALERT_URL = "https://mosspit-approvals.mosspit.workers.dev/api/alert"
+AUTO_SEND = "no"
+TEST_ORDERS_TO_PRINTIFY = "no"
+
+[[kv_namespaces]]
+binding = "PENDING"
+id = "1c5342ad32504af1abd1da52c342f3ce"
+
+[[kv_namespaces]]
+binding = "SECRETS"
+id = "63ad737faf1143ea9fab08feab432837"

@@ -8,3 +8,8 @@ workers_dev = true
 [[kv_namespaces]]
 binding = "PENDING"
 id = "1c5342ad32504af1abd1da52c342f3ce"
+
+# Private key store for the Introvert Here shop (Stripe secret key, Printify token), shared with "introvert-here-shop".
+[[kv_namespaces]]
+binding = "SECRETS"
+id = "63ad737faf1143ea9fab08feab432837"
