@@ -64,9 +64,9 @@ export default {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (path === "/logo.png" || path === "/icon.png") {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg"].includes(path)) {
         const buf = await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer");
-        return buf ? new Response(buf, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
+        return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
       return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the shop</a>.</p>`), 404);
     } catch (e) {
@@ -237,16 +237,17 @@ async function placeOrder(env, sessionId) {
 
 // ---------------- pages ----------------
 
-const LOGO = "/logo.png";
+const LOGO = "/logo-stacked.jpg";
 const STYLE = `
-:root{--bg:#121211;--panel:#1c1c1a;--line:#33332f;--text:#f2f0ea;--muted:#a9a69c;--accent:#f2f0ea}
+  :root{--bg:#121211;--panel:rgba(22,22,20,.86);--line:#3b3a35;--text:#f2f0ea;--muted:#a9a69c;--accent:#f2f0ea}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:#121211 url(/concrete.jpg) center top/1800px auto repeat;color:var(--text);font:16px/1.55 "Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:inherit}.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
-header{border-bottom:1px solid var(--line)}header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
-header img{height:34px;width:auto;display:block}
+header{border-bottom:1px solid var(--line);background:rgba(10,10,9,.55)}header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
+header img{height:56px;width:auto;display:block;border-radius:4px}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
-h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase}
+h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase;font-weight:800}
+.hero{display:block;width:100%;height:auto;border-radius:10px;margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04em}
 .muted{color:var(--muted)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--muted)}
@@ -282,7 +283,7 @@ footer a{margin-right:14px}
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
-${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><style>${STYLE}</style></head><body>
+${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body>
 <header><div class="wrap"><a href="/uk"><img src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : '<a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a>'}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
@@ -297,7 +298,7 @@ count:function(){var n=B.get().reduce(function(a,i){return a+i.qty},0);var el=do
 function countryPage(guess) {
   const opts = [["GB", "United Kingdom"], ["US", "United States"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
   const order = opts.slice().sort((a, b) => (b[0] === guess) - (a[0] === guess));
-  return page("Choose your country", `<div class="centre"><h1>Where are we sending it?</h1>
+  return page("Choose your country", `<img class="hero" src="/hero.jpg" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
 <div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="/country?c=${c}">${n}${i ? "" : " ✓"}</a>`).join("")}</div>
 <p class="centre note">We remember your choice on this device. You can change it at the bottom of any page.</p>`, { noBasket: true });
@@ -321,7 +322,7 @@ function shopPage(cat, only) {
     return `<a class="tile" href="/uk/p/${d.slug}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title)}"><div><b>${esc(d.title)}</b><span>${gs.length > 1 ? "From " : ""}${money(from)} · ${gs.map((g) => g.label).join(", ")}</span></div></a>`;
   }).join("");
   const intro = only && COLLECTIONS[only] ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only && COLLECTIONS[only] ? COLLECTIONS[only].name : "Shop", `<h1>${only && COLLECTIONS[only] ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`);
+  return page(only && COLLECTIONS[only] ? COLLECTIONS[only].name : "Shop", `${only ? "" : '<img class="hero" src="/hero.jpg" alt="Introvert Here: quiet humour for socially exhausted people">'}<h1>${only && COLLECTIONS[only] ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`);
 }
 
 function designPage(d, cat) {
