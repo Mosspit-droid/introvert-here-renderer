@@ -1821,17 +1821,18 @@ ${brandHeader("Shop orders", `<a class="btn" href="/">← Approvals</a><a class=
 ${rows ? `<div class="grid">${rows}</div>` : `<div class="card empty">No shop orders yet.</div>`}
 <h2>Shop keys</h2>
 <div class="card" style="max-width:560px">
-<p class="small">These let the shop take payments and place Printify orders. Paste a key and press Save. It's stored privately; this page only ever shows its last 4 characters.</p>
+<p class="small">These let the shop take payments and place Printify orders. Paste a key and press Save. You can save one at a time. Each box empties after saving; the key is stored privately and this page only ever shows its last 4 characters.</p>
 <label><b>Stripe secret key</b> <span class="small">${stripeState}</span></label>
-<input id="sk" type="password" autocomplete="off" placeholder="sk_test_… (or sk_live_… when going live)">
+<textarea id="sk" rows="2" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;font-family:monospace;font-size:13px" placeholder="sk_test_… (or sk_live_… when going live)"></textarea>
 <label style="margin-top:12px;display:block"><b>Printify API token</b> <span class="small">${pState}</span></label>
-<input id="pt" type="password" autocomplete="off" placeholder="Printify token">
+<textarea id="pt" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;font-family:monospace;font-size:13px" placeholder="Printify token (a long code)"></textarea>
 <button id="savekeys" class="btn-main" type="button">Save keys</button>
 <p id="keymsg" class="small"></p></div>
 <script>
 document.getElementById('savekeys').addEventListener('click', async function(){
   var m=document.getElementById('keymsg'); m.textContent='Saving…';
-  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.trim(),printify_token:document.getElementById('pt').value.trim()})});
+  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.replace(/\\s+/g,''),printify_token:document.getElementById('pt').value.replace(/\\s+/g,'')})});
+  document.getElementById('sk').value='';document.getElementById('pt').value='';
   var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'; setTimeout(function(){location.reload()},900)} else m.textContent=o.error||'Could not save.';
 });
 document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.target.dataset.send; if(!s) return;

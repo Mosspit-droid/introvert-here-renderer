@@ -140,8 +140,14 @@ async function checkout(request, env, url) {
     "metadata[shop]": "IH-UK",
     "payment_intent_data[metadata][shop]": "IH-UK",
   });
-  const session = await stripe(env, "POST", "/checkout/sessions", form);
-  return json({ url: session.url });
+  if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "The shop isn't connected to Stripe yet (the Stripe key hasn't been saved in the approvals app)." }, 503);
+  try {
+    const session = await stripe(env, "POST", "/checkout/sessions", form);
+    return json({ url: session.url });
+  } catch (e) {
+    console.error(e);
+    return json({ error: "Checkout couldn't be opened. Please try again in a minute." }, 502);
+  }
 }
 
 // ---------------- Stripe webhook ----------------
