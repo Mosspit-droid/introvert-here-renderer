@@ -64,7 +64,7 @@ export default {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg"].includes(path)) {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg"].includes(path)) {
         const buf = await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer");
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
@@ -276,6 +276,12 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .qty{display:flex;gap:6px;align-items:center}.qty button{width:30px;height:30px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text)}
 footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0 36px;color:var(--muted);font-size:14px}
 footer a{margin-right:14px}
+/* Range looks: each collection gets its own background, like the video renderer */
+body.r-PC{background:#0d1420 url(/bg-PC.jpg) center top/1800px auto repeat}
+body.r-OS{background:#2a0c0b url(/bg-OS.jpg) center top/1800px auto repeat}
+body.r-SH{background:#3a2112}
+body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,10,4,.42),rgba(20,10,4,.42)),#3a2112 url(/bg-SH.jpg) center/cover no-repeat}
+body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#e4d9cc}
 .countries{display:grid;gap:10px;max-width:420px;margin:24px auto}.countries a{text-align:left}
 .centre{text-align:center}
 @media(max-width:760px){.design{grid-template-columns:1fr}}
@@ -283,7 +289,7 @@ footer a{margin-right:14px}
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
-${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body>
+${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
 <header><div class="wrap"><a href="/uk"><img src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : '<a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a>'}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
@@ -311,6 +317,10 @@ function elsewherePage(c) {
 <p class="note"><a href="/?change=1">Choose a different country</a></p></div>`, { noBasket: true });
 }
 
+function heroImg(coll) {
+  if (coll && COLLECTIONS[coll] && coll !== "IH") return `<img class="hero" src="/hero-${coll}.jpg" alt="${esc(COLLECTIONS[coll].name)}">`;
+  return '<img class="hero" src="/hero.jpg" alt="Introvert Here: quiet humour for socially exhausted people">';
+}
 function shopPage(cat, only) {
   const present = [...new Set(cat.designs.map((d) => d.coll))];
   const tabs = `<nav class="tabs"><a href="/uk" class="${only ? "" : "on"}">All</a>${Object.entries(COLLECTIONS).filter(([k]) => present.includes(k)).map(([k, c]) => `<a href="/uk?c=${k}" class="${only === k ? "on" : ""}">${esc(c.name)}</a>`).join("")}</nav>`;
@@ -322,7 +332,7 @@ function shopPage(cat, only) {
     return `<a class="tile" href="/uk/p/${d.slug}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title)}"><div><b>${esc(d.title)}</b><span>${gs.length > 1 ? "From " : ""}${money(from)} · ${gs.map((g) => g.label).join(", ")}</span></div></a>`;
   }).join("");
   const intro = only && COLLECTIONS[only] ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only && COLLECTIONS[only] ? COLLECTIONS[only].name : "Shop", `${only ? "" : '<img class="hero" src="/hero.jpg" alt="Introvert Here: quiet humour for socially exhausted people">'}<h1>${only && COLLECTIONS[only] ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`);
+  return page(only && COLLECTIONS[only] ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only && COLLECTIONS[only] ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only });
 }
 
 function designPage(d, cat) {
@@ -364,7 +374,7 @@ render();`;
 <button id="add" class="btn" style="width:100%;margin-top:10px">Choose a size</button>
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
 <div class="box"><p class="note" style="margin:0 0 8px">${esc(coll.line)}</p><p id="features" class="note" style="white-space:pre-line;margin:0"></p></div>
-<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This design on Etsy</a></p></div></div>`, { script, desc: `${d.title}: ${d.text.replace(/\s+/g, " ")}` });
+<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This design on Etsy</a></p></div></div>`, { script, coll: d.coll, desc: `${d.title}: ${d.text.replace(/\s+/g, " ")}` });
 }
 
 function basketPage() {
