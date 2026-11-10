@@ -502,6 +502,7 @@ const STYLE = `
   --bgimg:url(/assets/bg-ih.jpg)}
 body[data-coll=SH]{--accent:#9fd4b1;--bgimg:url(/assets/bg-sh.jpg)}
 body[data-coll=PC]{--accent:#e0574a;--bgimg:url(/assets/bg-pc.jpg)}
+body[data-coll=OS]{--accent:#d4a94a;--bgimg:url(/assets/bg-os.jpg)}
 *{box-sizing:border-box}
 html{background:#121211}
 body{margin:0;min-height:100vh;color:var(--text);font:16px/1.45 'Montserrat',-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -516,7 +517,7 @@ h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.01em}
 h2{font-size:13px;color:var(--accent);font-weight:700;margin:30px 0 10px;text-transform:uppercase;letter-spacing:.12em}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
-.card[data-coll=IH]{border-left:5px solid #d8d3c8}.card[data-coll=SH]{border-left:5px solid #9fd4b1}.card[data-coll=PC]{border-left:5px solid #e0574a}
+.card[data-coll=IH]{border-left:5px solid #d8d3c8}.card[data-coll=SH]{border-left:5px solid #9fd4b1}.card[data-coll=PC]{border-left:5px solid #e0574a}.card[data-coll=OS]{border-left:5px solid #d4a94a}
 .code{font-weight:700;font-size:18px;letter-spacing:.02em}
 .title{margin:4px 0 2px}
 .meta{color:var(--muted);font-size:14px}
@@ -572,7 +573,7 @@ function shell(body) {
   );
 }
 
-const collOf = (code) => (/^(IH|SH|PC)-/.exec(String(code || "")) || [, "IH"])[1];
+const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
 function brandHeader(title, actions = "") {
   return `<header><div class="brand"><img class="logo" id="logo" src="/assets/logo-ih.jpg" alt="Introvert Here"><h1>${title}</h1></div>${actions ? `<div class="actions">${actions}</div>` : ""}</header>`;
 }
@@ -891,7 +892,7 @@ ${GAGS_SCRIPT}</script>`);
 }
 
 // Page script for /gags, kept verbatim (String.raw) so backslashes like \n survive.
-const GAGS_SCRIPT = String.raw`const BOX = { "INTROVERT HERE…": 509, "SHHH.": 505, "PER CONTRACT": 543 };
+const GAGS_SCRIPT = String.raw`const BOX = { "INTROVERT HERE…": 509, "SHHH.": 505, "PER CONTRACT": 543, "OFF THE SHELF": 509 }; // OTS width is a placeholder until the first OTS print file is measured
 const $ = (id) => document.getElementById(id);
 let mode = "new", editing = null;
 
@@ -904,7 +905,7 @@ let datesTouched = false;
 function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); datesTouched = false; }
 ["d1","d2","d3","d4"].forEach((k) => $(k).addEventListener("input", () => { datesTouched = true; }));
 
-const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC" };
+const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS" };
 function setLook(coll) {
   const c = CODE[coll] || "IH";
   document.body.dataset.coll = c;
@@ -1155,7 +1156,7 @@ async function statsIngest(request, env) {
 }
 
 const TYPE_LABEL = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long-sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
-const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract" };
+const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract", OS: "Off The Shelf" };
 const gagOf = (code) => String(code || "").split("-").slice(0, 2).join("-");
 const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
 
@@ -1234,7 +1235,7 @@ async function statsPage(env, url) {
 .srow-wrap:last-child>.srow,.list>.srow:last-child{border-bottom:0}
 summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 .srow-wrap{border-left:4px solid transparent;padding-left:8px;margin-left:-8px}
-.srow-wrap[data-coll=IH]{border-left-color:#d8d3c8}.srow-wrap[data-coll=SH]{border-left-color:#9fd4b1}.srow-wrap[data-coll=PC]{border-left-color:#e0574a}
+.srow-wrap[data-coll=IH]{border-left-color:#d8d3c8}.srow-wrap[data-coll=SH]{border-left-color:#9fd4b1}.srow-wrap[data-coll=PC]{border-left-color:#e0574a}.srow-wrap[data-coll=OS]{border-left-color:#d4a94a}
 .sname{flex:1;min-width:0;overflow-wrap:anywhere}
 .snum{width:62px;text-align:right;font-weight:700;font-size:17px;flex-shrink:0}
 .snum span{display:block;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -1446,7 +1447,7 @@ async function toolsPage(env) {
   const runs = (await env.PENDING.get("tool-runs", "json")) || {};
   const last = (k) => runs[k] ? "Last started " + esc(when(runs[k].at)) + " (" + esc(runs[k].scope) + ")" : "Not run from the app yet";
   const scope = (k, withOS) => `<div class="prow"><label>Which listings</label><select class="tsel" data-k="${k}">
-    <option value="">All collections</option><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option></select></div>
+    <option value="">All collections</option><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option><option value="OS">Off The Shelf</option></select></div>
     <div class="prow"><label>Or just these product codes (optional)</label><input class="tonly" data-k="${k}" placeholder="e.g. IH-00002-HOODIE"></div>`;
   return shell(`
 <style>
