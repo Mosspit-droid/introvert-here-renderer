@@ -1132,7 +1132,7 @@ ${brandHeader("Gags")}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{min-height:48px;padding:0 16px;border-radius:12px;border:2px solid var(--line);background:var(--field);color:var(--text);font:700 14px var(--display);letter-spacing:.02em;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
   .chip:hover{border-color:rgba(242,240,235,.6)}
-  .chip.on{background:var(--frame);border-color:var(--frame);color:#0d0d0c}
+  .chip.on{border:3px solid var(--c,var(--accent));padding:0 15px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);color:var(--text)}
   .chip:disabled{opacity:.45;cursor:not-allowed}
   .chip i{width:10px;height:10px;border-radius:50%;flex:none}
   .chip.more{border-style:dashed;color:var(--muted);font-weight:600}
@@ -1145,7 +1145,7 @@ ${brandHeader("Gags")}
   #refresh.busy svg{animation:spin 1s linear infinite}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
-  .tab.on{background:var(--accent);color:#141413;border-color:var(--accent)}
+  .tab.on{border:3px solid var(--accent);color:var(--text);background:var(--card)}
   #stage{background:rgba(0,0,0,.55)!important}
   @media (max-width:700px){.two{grid-template-columns:1fr}.four{grid-template-columns:1fr 1fr}.gagrow{flex-direction:column}}
   textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
@@ -1194,7 +1194,7 @@ const GAG_CHIPS_SCRIPT = String.raw`(function () {
   function pick(sel, v) { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); draw(); }
   function draw() {
     var ranges = Array.prototype.map.call(col.options, function (o) { return o.value; }).filter(Boolean);
-    rc.innerHTML = ranges.map(function (r) { var i = RANGE_INFO[r] || [r, "var(--muted)"]; return '<button type="button" class="chip' + (col.value === r ? " on" : "") + '" data-r="' + esc(r) + '"' + (col.disabled ? " disabled" : "") + '><i style="background:' + i[1] + '"></i>' + esc(i[0]) + "</button>"; }).join("");
+    rc.innerHTML = ranges.map(function (r) { var i = RANGE_INFO[r] || [r, "var(--muted)"]; return '<button type="button" class="chip' + (col.value === r ? " on" : "") + '" data-r="' + esc(r) + '" style="--c:' + (i[1] === "var(--pc)" ? "#e0574a" : i[1]) + '"' + (col.disabled ? " disabled" : "") + '><i style="background:' + i[1] + '"></i>' + esc(i[0]) + "</button>"; }).join("");
     if (!col.value) { cc.innerHTML = '<span class="small">Choose a range first.</span>'; return; }
     var all = Array.prototype.map.call(cat.options, function (o) { return o.value; }).filter(Boolean);
     var mine = (CATS[col.value] || []).filter(function (c) { return all.indexOf(c) >= 0; });
@@ -1205,12 +1205,18 @@ const GAG_CHIPS_SCRIPT = String.raw`(function () {
   }
   rc.addEventListener("click", function (e) { var b = e.target.closest("[data-r]"); if (!b || col.disabled) return; if (col.value !== b.dataset.r) { cat.value = ""; showAll = false; } pick(col, b.dataset.r); });
   cc.addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; if (b.dataset.more) { showAll = !showAll; draw(); return; } pick(cat, b.dataset.c); });
+  var tx = $("text");
+  function lead() { if (!tx.value.trim()) { tx.value = "... "; tx.dispatchEvent(new Event("input", { bubbles: true })); } }
+  tx.addEventListener("focus", function () { lead(); setTimeout(function () { if (tx.value === "... ") tx.setSelectionRange(4, 4); }, 0); });
+  $("clear").addEventListener("click", function () { setTimeout(lead, 0); });
   $("form").addEventListener("submit", function (e) {
+    var t = tx.value.replace(/^\s+/, "");
+    if (t && !/^(\.\.\.|…)/.test(t)) { tx.value = "... " + t; tx.dispatchEvent(new Event("input", { bubbles: true })); }
     var miss = !col.value ? "Choose a range." : !cat.value ? "Choose a gag category." : "";
     if (miss) { e.preventDefault(); e.stopImmediatePropagation(); if (window.toast) toast(miss, true); else alert(miss); }
   }, true);
   setInterval(function () { var k = col.value + "|" + cat.value + "|" + col.disabled + "|" + col.options.length + "|" + cat.options.length; if (k !== last) { last = k; draw(); } }, 300);
-  draw();
+  draw(); lead();
 })();`;
 
 // Page script for /gags, kept verbatim (String.raw) so backslashes like \n survive.
