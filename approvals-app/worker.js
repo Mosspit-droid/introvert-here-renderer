@@ -126,6 +126,7 @@ export default {
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
+      if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
       if (pathname === "/api/amend-apply" && method === "POST") return await amendApply(request, env);
       if (pathname === "/api/amend-refresh" && method === "POST") return await amendRefresh(env);
       if (pathname === "/api/amend-data" && method === "GET") return json((await env.PENDING.get("amend", "json")) || null);
@@ -1627,6 +1628,8 @@ function manifest() {
     background_color: "#121211", theme_color: "#121211",
     icons: [{ src: "/assets/icon3-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon3-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
     shortcuts: [{ name: "Links", short_name: "Links", url: "/links", icons: [{ src: "/assets/icon3-192.png", sizes: "192x192" }] }],
+    share_target: { action: "/links", method: "GET", params: { title: "title", text: "text", url: "url" } },
+    
   }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
 }
 
@@ -1637,6 +1640,8 @@ function manifest() {
 function linksManifest() {
   return new Response(JSON.stringify({
     id: "/links", name: "IH Links", short_name: "IH Links", start_url: "/links", scope: "/links", display: "standalone",
+    share_target: { action: "/links", method: "GET", params: { title: "title", text: "text", url: "url" } },
+    
     background_color: "#121211", theme_color: "#121211",
     icons: [{ src: "/assets/icon3-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon3-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
   }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
@@ -1659,39 +1664,109 @@ const BRAND_LINKS = [
   ["Instagram", "https://www.instagram.com/introverthere.shop/", "#E1306C", '<rect x="4.5" y="4.5" width="23" height="23" rx="7" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="16" cy="16" r="5.4" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="22.6" cy="9.4" r="1.7" fill="currentColor"/>'],
   ["Pinterest", "https://www.pinterest.com/introverthereshop/", "#E60023", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M14.2 27.6l2.4-9.4M13.6 19.4c-1.4-.7-2-2.2-2-3.8 0-3 2.4-5.4 5.6-5.4 2.9 0 4.8 2 4.8 4.6 0 3.2-1.8 5.6-4.3 5.6-1.3 0-2.2-1-1.9-2.2l1-3.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
 ];
+// App and site buttons (addresses come from Core's LINKS sheet when present).
+const OWN_LINKS = [
+  ["Introvert Here", /^(own shop|introvert here)/i, "https://introvert-here-shop.mosspit.workers.dev", "#f2f0eb", '<rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="16" cy="10" r="2.6" fill="currentColor"/><rect x="13.2" y="13.6" width="5.6" height="6.6" rx="1.8" fill="currentColor"/><rect x="13.2" y="18" width="2.4" height="6.5" rx="1.2" fill="currentColor"/><rect x="16.4" y="18" width="2.4" height="6.5" rx="1.2" fill="currentColor"/>'],
+  ["Tag Checker", /^tag checker/i, "https://tag-checker.mosspit.workers.dev", "#c9a434", '<path d="M4 6v9.5L17.5 29 29 17.5 15.5 4H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><circle cx="10.5" cy="10.5" r="2.4" fill="currentColor"/><path d="M14 18.5l3 3 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
+  ["Mosspit Studios", /^(studio site|mosspit)/i, "https://mosspit-draft.mosspit.workers.dev", "#f08a4b", '<path d="M16 9.5c-2-2.6-6.2-2.8-8.6-.3-2.8 2.9-2.6 8.6.4 12.8 2.2 3.1 5.4 5 8.2 5s6-1.9 8.2-5c3-4.2 3.2-9.9.4-12.8-2.4-2.5-6.6-2.3-8.6.3z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M16 9.5c.6 4.2.4 9.8-1.2 16.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M16.4 8.6c1.2-3 3.8-4.6 7.4-4.4-1 3.4-3.8 5-7.4 4.4z" fill="currentColor"/><path d="M15.6 9c-.2-1.8-.8-3.2-1.8-4.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'],
+  ["GitHub", /^code/i, "https://github.com/Mosspit-droid/introvert-here-renderer", "#8b949e", '<path d="M16 4a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 16 4z" fill="currentColor"/>'],
+];
+
+// Recent AI threads (Claude / ChatGPT). Neither service lets other apps read your chat list, so threads are saved here
+// (paste a link, or share it into the app) and sorted by when you last opened them from this page. KV "threads".
+const THREAD_HOSTS = { claude: /^(www\.)?claude\.ai$/i, chatgpt: /^(www\.)?(chatgpt\.com|chat\.openai\.com)$/i };
+async function threadsSave(request, env) {
+  const d = await request.json();
+  const T = (await env.PENDING.get("threads", "json")) || { claude: [], chatgpt: [] };
+  let u = null; try { u = new URL(String(d.url || "").trim()); } catch (e) {}
+  const which = u && Object.keys(THREAD_HOSTS).find((k) => THREAD_HOSTS[k].test(u.hostname));
+  if (d.action === "add") {
+    if (!which) return json({ error: "That isn't a Claude or ChatGPT link." }, 400);
+    const url = u.origin + u.pathname;
+    T[which] = T[which].filter((x) => x.url !== url);
+    T[which].unshift({ url, title: String(d.title || "").replace(/\s+/g, " ").trim().slice(0, 90) || "Untitled thread", used: Date.now() });
+    T[which] = T[which].slice(0, 30);
+  } else if (d.action === "use" || d.action === "remove") {
+    for (const k of Object.keys(T)) {
+      const i = T[k].findIndex((x) => x.url === d.url);
+      if (i < 0) continue;
+      if (d.action === "remove") T[k].splice(i, 1); else { T[k][i].used = Date.now(); T[k].sort((a, b) => b.used - a.used); }
+    }
+  } else return json({ error: "Unknown request" }, 400);
+  await env.PENDING.put("threads", JSON.stringify(T));
+  return json({ ok: true, threads: T });
+}
+
 async function linksPage(env) {
   const d = (await env.PENDING.get("links", "json")) || { rows: [] };
-  const list = d.rows.length ? d.rows.map((r) => `<a class="lk" href="${esc(r.address)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b><span>${esc(r.what)}</span><small>${esc(r.address.replace(/^https?:\/\//, ""))}</small></a>`).join("")
-    : `<p class="small">No links yet.</p>`;
-  const quick = BRAND_LINKS.map(([name, url, colour, svg]) => `<a class="qk" href="${url}" target="_blank" rel="noopener" style="--b:${colour}"><svg viewBox="0 0 32 32" aria-hidden="true">${svg}</svg><span>${name}</span></a>`).join("");
-  // Facebook opens in the browser, not the Facebook app, so it turns with the tablet. On Android a normal facebook.com link
-  // is grabbed by the app, so we hand it to Chrome directly (falling back to the plain link if Chrome isn't there).
+  const T = (await env.PENDING.get("threads", "json")) || { claude: [], chatgpt: [] };
+  const btn = (name, url, colour, svg, extra = "") => `<a class="qk" href="${esc(url)}" target="_blank" rel="noopener" style="--b:${colour}"${extra}><svg viewBox="0 0 32 32" aria-hidden="true">${svg}</svg><span>${esc(name)}</span></a>`;
+  const own = OWN_LINKS.map(([name, re, fallback, colour, svg]) => { const r = d.rows.find((x) => re.test(x.name)); return btn(name, r ? r.address : fallback, colour, svg); }).join("");
+  const quick = BRAND_LINKS.map(([name, url, colour, svg]) => btn(name, url, colour, svg, name === "Facebook" ? " data-fb" : "")).join("");
   const fbScript = `<script>(function () { if (!/Android/i.test(navigator.userAgent)) return; var a = document.querySelector('.qk[data-fb]'); if (!a) return;
     var u = a.href.replace(/^https:\\/\\//, ""); a.href = "intent://" + u + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(a.href) + ";end"; a.removeAttribute("target"); })();</script>`;
   return shell(`
 <style>
-.lwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
-.lks{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.lk{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.lk:hover{border-color:var(--frame)}
-.lk b{display:block;font:800 17px var(--display);margin-bottom:4px}
-.lk span{display:block;font-size:14px;color:var(--muted)}
-.lk small{display:block;margin-top:8px;font:500 12px var(--mono);color:var(--muted);word-break:break-all}
-.qside{position:sticky;top:90px}
+.lwrap{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.thr{display:grid;grid-template-rows:1fr 1fr;gap:14px}
+.tbox h3{display:flex;align-items:center;gap:10px;margin:0 0 12px;font:800 13px var(--display);letter-spacing:.16em;text-transform:uppercase}
+.tbox h3 svg{width:22px;height:22px}
+.tlist{display:flex;flex-direction:column;gap:8px}
+.ti{display:flex;align-items:center;gap:8px}
+.ti a{flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);text-decoration:none;color:var(--text)}
+.ti a:hover{border-color:var(--frame)}
+.ti a b{font:700 15px var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ti a span{font-size:12px;color:var(--muted)}
+.ti button{flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);font-size:20px;cursor:pointer}
+.tadd{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.tadd input{flex:1 1 160px;min-width:0;min-height:48px;padding:0 12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
+.qside{position:sticky;top:96px}
 .qside h3{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.qside h3.second{margin-top:18px}
 .qks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.qk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:104px;padding:14px 8px 18px;border:2px solid rgba(242,240,235,.5);border-radius:16px;background:var(--card);color:var(--text);text-decoration:none;font:800 12px var(--display);letter-spacing:.1em;text-transform:uppercase;overflow:hidden}
+.qk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:100px;padding:14px 8px 18px;border:2px solid rgba(242,240,235,.5);border-radius:16px;background:var(--card);color:var(--text);text-decoration:none;font:800 11px var(--display);letter-spacing:.1em;text-transform:uppercase;overflow:hidden;text-align:center}
 .qk:hover{border-color:var(--frame)}
-.qk svg{width:38px;height:38px}
+.qk svg{width:36px;height:36px}
 .qk::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--b)}
-@media (max-width:860px){.lwrap{grid-template-columns:1fr}.qside{position:static;order:-1}.qks{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:860px){.lwrap{grid-template-columns:1fr}.qside{position:static}.qks{grid-template-columns:repeat(4,1fr)}}
 @media (max-width:480px){.qks{grid-template-columns:repeat(3,1fr)}}
 </style>
 ${brandHeader("Links")}
 <div class="lwrap">
-  <div><div class="lks">${list}</div><p class="small" style="margin-top:14px">From the LINKS tab in Core${d.at ? " · updated " + esc(when(d.at)) : ""}.</p></div>
-  <aside class="qside frame"><div class="card"><h3>Open</h3><div class="qks">${quick.replace('href="https://www.facebook.com/', 'data-fb href="https://www.facebook.com/')}</div></div></aside>
-</div>${fbScript}`, "/links.webmanifest");
+  <div class="thr">
+    <div class="card tbox" data-list="claude"><h3><svg viewBox="0 0 32 32"><path d="M16 3v26M3 16h26M6.8 6.8l18.4 18.4M25.2 6.8L6.8 25.2" stroke="#d97757" stroke-width="3.2" stroke-linecap="round"/></svg>Claude</h3><div class="tlist"></div>
+      <div class="tadd"><input placeholder="Paste a Claude chat link" data-url><input placeholder="Name it (optional)" data-title><button class="btn" type="button" data-add>Add</button></div></div>
+    <div class="card tbox" data-list="chatgpt"><h3><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="#74aa9c" stroke-width="2.8"/><path d="M16 9.5v13M10.4 12.8l11.2 6.4M10.4 19.2l11.2-6.4" stroke="#74aa9c" stroke-width="2.6" stroke-linecap="round"/></svg>ChatGPT</h3><div class="tlist"></div>
+      <div class="tadd"><input placeholder="Paste a ChatGPT chat link" data-url><input placeholder="Name it (optional)" data-title><button class="btn" type="button" data-add>Add</button></div></div>
+    <p class="small" style="margin:0">Neither Claude nor ChatGPT lets other apps read your chat list, so save the threads you use here. Paste a link, or on your phone or tablet use Share in the Claude or ChatGPT app and pick Introvert Here. The one you open most recently goes to the top.</p>
+  </div>
+  <aside class="qside frame"><div class="card"><h3>Ours</h3><div class="qks">${own}</div><h3 class="second">Tools</h3><div class="qks">${quick}</div></div></aside>
+</div>${fbScript}
+<script>
+(function () {
+  var T = ${JSON.stringify(T).replace(/</g, "\\u003c")};
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function ago(ms) { var m = Math.round((Date.now() - ms) / 60000); return m < 60 ? m + " min ago" : m < 1440 ? Math.round(m / 60) + " hours ago" : Math.round(m / 1440) + " days ago"; }
+  function draw() {
+    document.querySelectorAll(".tbox").forEach(function (box) {
+      var list = T[box.dataset.list] || [];
+      box.querySelector(".tlist").innerHTML = list.length ? list.slice(0, 6).map(function (t) { return '<div class="ti"><a href="' + esc(t.url) + '" target="_blank" rel="noopener" data-use="' + esc(t.url) + '"><b>' + esc(t.title) + '</b><span>Opened ' + ago(t.used) + '</span></a><button type="button" data-rm="' + esc(t.url) + '" aria-label="Remove">×</button></div>'; }).join("") : '<p class="small" style="margin:0">No threads saved yet.</p>';
+    });
+  }
+  async function send(body) { var r = await fetch("/api/threads-save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); var j = await r.json().catch(function () { return {}; }); if (!r.ok) throw new Error(j.error || "Couldn't save"); T = j.threads; draw(); }
+  document.addEventListener("click", function (e) {
+    var u = e.target.closest("[data-use]"); if (u) { send({ action: "use", url: u.dataset.use }).catch(function () {}); return; }
+    var rm = e.target.closest("[data-rm]"); if (rm) { send({ action: "remove", url: rm.dataset.rm }).then(function () { toast("Removed"); }).catch(function (err) { toast(err.message, true); }); return; }
+    var add = e.target.closest("[data-add]"); if (add) { var box = add.closest(".tbox"); var url = box.querySelector("[data-url]").value, title = box.querySelector("[data-title]").value;
+      send({ action: "add", url: url, title: title }).then(function () { box.querySelector("[data-url]").value = ""; box.querySelector("[data-title]").value = ""; toast("Saved"); }).catch(function (err) { toast(err.message, true); }); }
+  });
+  draw();
+  // Shared into the app from Claude or ChatGPT: save it straight away.
+  var q = new URLSearchParams(location.search), text = (q.get("url") || "") + " " + (q.get("text") || "");
+  var m = text.match(/https?:\\/\\/[^\\s]+/);
+  if (m) { send({ action: "add", url: m[0], title: q.get("title") || "" }).then(function () { toast("Thread saved"); history.replaceState(null, "", "/links"); }).catch(function (err) { toast(err.message, true); }); }
+})();
+</script>`, "/links.webmanifest");
 }
 
 // ---------- spelling & grammar (LanguageTool, British English) ----------
