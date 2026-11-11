@@ -1065,15 +1065,15 @@ async function gagSave(request, env) {
 async function gagsPage(env) {
   const g = await env.PENDING.get("gags", "json");
   const saves = await loadSaves(env);
-  const savesHtml = saves.length ? `<h2>Recent saves</h2><div class="grid">${saves.slice(0, 12).map((x) => {
+  const savesHtml = saves.length ? `<h3 class="sideh">Recent saves</h3><div class="saves">${saves.slice(0, 8).map((x) => {
     const cls = x.status === "ok" ? "ok" : x.status === "failed" ? "bad" : "wait";
     const label = x.status === "ok" ? "✓ " + esc(x.message || "Saved to Core") : x.status === "failed" ? "<b>Not saved</b><br>" + esc(x.message || "") : "Saving to Core…";
-    return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
+    return `<div class="sv"><div class="svt"><b>${esc(x.stem || "")}</b><span>${esc(when(x.at))}</span></div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check for problems</a>`)}
-<button class="cornerbtn" id="refresh" type="button" title="Sync to Core" aria-label="Sync to Core">${icon("sync")}</button>
-<div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap ⟳ (top right)."}</div>
+${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`)}
+<div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet. Tap Sync to Core."}</div>
+<div class="gwrap"><div class="gmain">
 <div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
   <button class="btn tab on" data-tab="new" type="button">New gag</button>
   <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
@@ -1085,12 +1085,8 @@ ${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check f
 <form id="form" class="card" style="margin-top:10px;display:grid;gap:14px">
   <label><b>Collection</b><select id="collection" required></select></label>
   <div id="slot" class="small" style="display:none;margin-top:-6px"></div>
-  <div class="gagrow">
-    <label style="flex:1 1 320px"><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+  <label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
       <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
-    <div style="flex:1 1 300px"><b>Preview</b>
-      <div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div></div>
-  </div>
   <label><b>Gag category</b><select id="category" required></select></label>
   <label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
   <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
@@ -1101,8 +1097,22 @@ ${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check f
       <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
     </div></div>
 </form>
-${savesHtml}
+</div>
+<aside class="gside">
+  <div class="frame"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div>
+  <p class="small" style="margin:10px 0 0">How the gag sits on the print, at the range's print width.</p></div></div>
+  ${savesHtml ? `<div class="card" style="margin-top:14px">${savesHtml}</div>` : ""}
+</aside></div>
 <style>
+  .gwrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:10px}
+  .gside{position:sticky;top:90px;display:flex;flex-direction:column}
+  .sideh{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+  .saves{display:flex;flex-direction:column;gap:10px}
+  .sv{border-top:1px solid var(--line);padding-top:10px}.sv:first-child{border-top:0;padding-top:0}
+  .svt{display:flex;justify-content:space-between;gap:8px;font-size:14px}.svt span{color:var(--muted);font-size:12px;white-space:nowrap}
+  .sv .status{margin-top:6px;padding:8px 10px;font-size:13px}
+  #refresh.busy svg{animation:spin 1s linear infinite}
+  @media (max-width:820px){.gwrap{grid-template-columns:1fr}.gside{position:static;order:-1}}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
   .tab.on{background:var(--accent);color:#141413;border-color:var(--accent)}
@@ -1111,7 +1121,7 @@ ${savesHtml}
   textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
   .gagrow{display:flex;gap:14px;flex-wrap:wrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .four{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:6px}
+  .four{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
   #stage{margin-top:6px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden;position:relative;width:100%;min-height:60px}
   .gagrow > *{min-width:0}
   #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
@@ -1124,7 +1134,6 @@ ${savesHtml}
   .cornerbtn svg{width:28px;height:28px;display:block;margin:auto}
   .cornerbtn.busy{animation:spin 1s linear infinite;opacity:.7}
   @keyframes spin{to{transform:rotate(360deg)}}
-  header{padding-right:56px}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <script>
@@ -1311,7 +1320,7 @@ $("form").addEventListener("submit", async (e) => {
 // ----- refresh + auto-update -----
 $("refresh").addEventListener('click', async () => {
   const b = $("refresh"); if (b.classList.contains("busy")) return;
-  b.classList.add("busy"); $("synced").textContent = "Reading Core… (about a minute)";
+  b.classList.add("busy"); $("synced").textContent = "Syncing to Core… (about a minute)";
   setTimeout(() => b.classList.remove("busy"), 90000);
   const r = await fetch('/api/gags-refresh', { method: 'POST' }); if (!r.ok) { b.classList.remove("busy"); alert((await r.json().catch(()=>({}))).error || 'Refresh failed'); }
 });
@@ -1383,8 +1392,8 @@ const BRAND_LINKS = [
   ["Canva", "https://www.canva.com/projects", "#7D2AE8", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M20.5 12.2c-.7-1.4-2-2.2-3.6-2.2-3.2 0-5.4 2.8-5.4 6.2 0 3 1.8 5.3 4.6 5.3 1.9 0 3.4-.9 4.4-2.4" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>'],
   ["Make", "https://eu1.make.com/2110125/scenarios", "#6D00CC", '<rect x="5" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/><rect x="13" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/><rect x="21" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/>'],
   ["Facebook", "https://www.facebook.com/1396268276895585", "#1877F2", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M17.6 28.5V18h3.2l.5-3.6h-3.7v-2.3c0-1 .4-1.8 1.9-1.8h1.9V7.2a24 24 0 0 0-2.8-.2c-2.8 0-4.6 1.7-4.6 4.8v2.6h-3V18h3v10.5" fill="currentColor"/>'],
-  ["Instagram", "https://www.instagram.com/", "#E1306C", '<rect x="4.5" y="4.5" width="23" height="23" rx="7" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="16" cy="16" r="5.4" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="22.6" cy="9.4" r="1.7" fill="currentColor"/>'],
-  ["Pinterest", "https://www.pinterest.com/", "#E60023", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M14.2 27.6l2.4-9.4M13.6 19.4c-1.4-.7-2-2.2-2-3.8 0-3 2.4-5.4 5.6-5.4 2.9 0 4.8 2 4.8 4.6 0 3.2-1.8 5.6-4.3 5.6-1.3 0-2.2-1-1.9-2.2l1-3.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
+  ["Instagram", "https://www.instagram.com/introverthere.shop/", "#E1306C", '<rect x="4.5" y="4.5" width="23" height="23" rx="7" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="16" cy="16" r="5.4" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="22.6" cy="9.4" r="1.7" fill="currentColor"/>'],
+  ["Pinterest", "https://www.pinterest.com/introverthereshop/", "#E60023", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M14.2 27.6l2.4-9.4M13.6 19.4c-1.4-.7-2-2.2-2-3.8 0-3 2.4-5.4 5.6-5.4 2.9 0 4.8 2 4.8 4.6 0 3.2-1.8 5.6-4.3 5.6-1.3 0-2.2-1-1.9-2.2l1-3.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
 ];
 async function linksPage(env) {
   const d = (await env.PENDING.get("links", "json")) || { rows: [] };
