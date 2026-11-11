@@ -32,3 +32,12 @@ Sweatshirt (OTS, 11 Nov): THUMBNAIL_MAROON (1 page), GIFT, CLOSEUP, ARMCHAIR, VA
 
 ## Permissions (11 Nov 2026)
 Barry added `.claude/settings.json`: Canva reading, editing, copying, page merging/reordering, uploads, folders and exports run without asking in new sessions. Still asks: publishing a brand template, autofill. Rule stays: work on copies in Claude's folders, never overwrite or delete Barry's originals.
+
+## Off The Shelf print templates (11 Nov 2026, in progress)
+- Goal: H001/I001/J001/K001 OS print templates = the IH ones (A001-D001) with the OTS logo, same width and centring.
+- OTS wide logo in Canva: asset MAHaUanyvaU (4500x1500). Same canvas as the IH wide logo (MAHaUaTV8Sw) and repo files in `brand-logos/`: the frame sits at x 117-4383, top 433 in both; the OTS "OFF THE SHELF." tag reaches y 1326 (IH ends 1067), so the logo box must be taller than IH's to show it.
+- IH T-shirt logo: 3600 px wide image (scale 0.8) at left 175.5, frame 3413 px = 289 mm, centred on the 3951 page. Text box (GAG_TEXT) left 250, top 1000, width 3440 in IH and PC.
+- API limits found: a locked layer can't have its picture replaced, moved, resized or deleted; template pages are locked against adding layers; uploads to canva.com are blocked from the sandbox (use assets already in Canva).
+- PC T-shirt (L001) logo box is the only one that accepts a picture swap. Working copy DAHakQL4H1E: OTS logo swapped in, cropped to IH width and centring (image box top -236.9, left -6.5, 3600x1200 inside the 3590x963 box); frame sits 1.4 mm lower than IH (crop can't go higher). Not saved until Barry approves.
+- Long sleeve, sweatshirt and hoodie logos are locked in every range: Barry unlocks the logo (padlock) in the IH working copies, then Claude swaps and crops. Working copies in Canva folder FAHakYrx_Fk: LS DAHakVIuajY, SW DAHakbBLtSk, HD DAHakRDvxuA (front pocket needs the stacked OTS badge asset; back uses the wide logo).
+- Throwaway copies, safe to delete: DAHakawp7nk (IH tee), DAHakTwFHys (OTS mockup page), DAHakfzcxeA (PC hoodie).
