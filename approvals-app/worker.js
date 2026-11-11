@@ -210,7 +210,7 @@ async function result(request, env, ctx, url) {
   await saveItems(env, items);
 
   if (ok) {
-    ctx.waitUntil(notify(env, url.origin, item.product + " is live", "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark"));
+    ctx.waitUntil(notify(env, url.origin, item.product + " is live", "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
   } else {
     ctx.waitUntil(notify(env, url.origin, item.product + ": approval FAILED" + (item.result.step ? " at " + item.result.step : ""), item.result.message || "Open the app for details.", "x"));
   }
@@ -320,12 +320,13 @@ async function daily(request, env, ctx, url) {
   return json({ ok: true, alerts: fresh.length });
 }
 
-async function notify(env, origin, title, body, tag) {
+// priority: "high" = needs Barry (sound + pop-up); "low" = for information only (silent, no buzz).
+async function notify(env, origin, title, body, tag, priority = "high") {
   if (!env.NTFY_TOPIC) return;
   try {
     const res = await fetch("https://ntfy.sh/" + encodeURIComponent(env.NTFY_TOPIC), {
       method: "POST",
-      headers: { Title: ascii(title), Click: origin + "/", Tags: tag },
+      headers: { Title: ascii(title), Click: origin + "/", Tags: tag, Priority: priority },
       body,
     });
     if (!res.ok) console.error("ntfy failed", res.status, await res.text());
