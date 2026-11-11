@@ -59,3 +59,10 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - A002 (EAHXKA4EqCs) now 18 pages: thumbnail/gift/hanging/closeup in Black + Dark Heather, variants (9), setup/payoff Black (10, 11) and Dark Heather (12, 13), flatlay Black/DH (14, 15), AGM 16, size guide 17, brand 18.
 - MOCKUP_PAGES IH T-SHIRT: 12 rows, same rule as OTS (both thumbnails, Black of each scene, variants, AGM, size guide, brand): pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18. PRODUCT_RULES IH T-SHIRT VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_TS_pages.xlsx.
 - Page-name typos (page 9, pages 14/15) fixed by Barry 11 Nov; Canva names now match Core.
+
+## Lead colour cycles by gag number (builder change, 11 Nov, Barry approved)
+- Make builder 7896436, modules 700 (new builds) and 711 (artwork / "Update mockups" path): HERO_COLOURS is a list per range, in the same order as that range's THUMBNAIL pages in MOCKUP_PAGES: IH Black, Dark Heather; SHHH. Dark Heather; PER CONTRACT Navy; OFF THE SHELF Maroon, Forest Green, Dark Chocolate. Lead colour = list[(gag number - 1) % length] (gag number from the product code, e.g. IH-00014 -> 14 -> Dark Heather). The plain Printify shot (photo 2) uses that colour.
+- New module 7200 (main path, after 51) and module 716 (artwork path): sort pages by position, put the THUMBNAIL page whose name ends with the lead colour first, keep everything else in order, rank by list order. Only the thumbnails swap places, so video slots are unchanged.
+- When Barry adds colours to a range: add its THUMBNAIL_<COLOUR> pages to MOCKUP_PAGES and the colour (Printify name) to HERO_COLOURS in both 700 and 711, in the same order.
+- Backdating live listings: rerun their mockups through the artwork path (the planned "Update mockups" amend, AMENDMENT_REQUIRED_ARTWORK). Deterministic, so a rebuild matches what a new build would give. Live IH T-shirt listings would also switch to Barry's new 18-page suite. Needs Barry's go-ahead; small batches.
+- Checks scheduled 12 and 13 Nov 09:00 (one odd, one even gag). Pre-change blueprint: Make version history (and session scratchpad make/bp2_7896436.json).
