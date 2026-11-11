@@ -583,6 +583,7 @@ a{color:inherit}
 .topbar::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);background:linear-gradient(rgba(8,8,8,.94),rgba(8,8,8,.7));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:-1}
 .topbar .home{display:block;line-height:0}
 .topbar .home img{height:50px;width:auto;display:block}
+.topbar .home .mark{display:none;height:44px;width:44px;border-radius:12px}
 .topbar .sect{font:900 20px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;padding-left:16px;border-left:2px solid var(--line);margin-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pagehead{align-items:center;margin:4px 0 14px}
@@ -709,7 +710,11 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
   .tabbar{display:block}
   .topbar .when{display:none}
   .topbar .home img{height:38px}
-  .topbar .sect{font-size:14px;padding-left:10px}
+  .topbar .sect{font-size:17px;padding-left:12px}
+}
+@media (max-width:560px){
+  .topbar .home #logo{display:none}
+  .topbar .home .mark{display:block}
   .grid{grid-template-columns:1fr}
   .card{padding:15px}
   .actions{width:100%}
@@ -801,7 +806,7 @@ const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"]
 const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
+  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
 <div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
