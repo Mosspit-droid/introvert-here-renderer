@@ -28,6 +28,11 @@ const KEEP_VIDEO_SECONDS = 14 * 86400;
 const MAX_ALERTS = 30;
 
 export default {
+  // Every 5 minutes: while listing updates are running (or just saved), re-read Core so the Update listings page stays current.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(amendWatch(env));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
@@ -1647,6 +1652,21 @@ async function amendHook(env, body) {
   return null;
 }
 
+// Re-read Core about every 10 minutes while any gag is still updating, and once more after the last one finishes.
+async function amendWatch(env) {
+  const S = await env.PENDING.get("amend", "json");
+  if (!S) return;
+  const log = (await env.PENDING.get("amend-log", "json")) || [];
+  const w = (await env.PENDING.get("amend-watch", "json")) || {};
+  const now = Date.now();
+  const busy = S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status));
+  const justSaved = log[0] && now - log[0].at < 20 * 60000;
+  if (!busy && !justSaved) return;
+  if (w.last && now - w.last < 9 * 60000) return;
+  await env.PENDING.put("amend-watch", JSON.stringify({ last: now }));
+  await amendHook(env, { action: "state" });
+}
+
 async function amendRefresh(env) {
   return (await amendHook(env, { action: "state" })) || json({ ok: true });
 }
@@ -1953,7 +1973,7 @@ function submit() {
   if (A.what.colours) { var rs = {}; combos().forEach(function (c) { rs[c.split("|")[0]] = 1; }); Object.keys(rs).forEach(function (code) { if (A.colours[code]) body.colours[code] = A.colours[code]; else { var rules = S0.rules.filter(function (r) { return r.coll === rColl(code); }); var p = S0.profiles.filter(function (x) { return rules[0] && x.name === rules[0].profile; })[0]; body.colours[code] = String(p ? p.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean); } }); }
   $("go").disabled = true; $("go").textContent = "Saving…";
   fetch("/api/amend-apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { return [r.ok, j]; }); }).then(function (x) {
-    if (x[0]) { A.done = x[1]; A.err = ""; } else A.err = x[1].error || "Something went wrong.";
+    if (x[0]) { A.done = x[1]; A.err = ""; LOG.unshift({ at: Date.now(), what: whatOn(), listings: x[1].listings }); } else A.err = x[1].error || "Something went wrong.";
     render();
   }).catch(function () { A.err = "Couldn't reach the app. Check your connection and try again."; render(); });
 }
@@ -1997,6 +2017,17 @@ document.addEventListener("input", function (e) {
 $("next").onclick = function () { A.step++; A.err = ""; render(); window.scrollTo(0, 0); };
 $("back").onclick = function () { A.step--; A.err = ""; render(); window.scrollTo(0, 0); };
 $("reset").onclick = function () { fresh(); render(); window.scrollTo(0, 0); };
+// While anything is updating, check every minute for a fresh read of Core and show it.
+setInterval(function () {
+  if (!S0 || !S0.gags.some(function (g) { return /^AMENDMENT_REQUIRED/.test(g.status); }) && !(LOG[0] && Date.now() - LOG[0].at < 20 * 60000)) return;
+  fetch("/api/amend-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d || d.at === S0.at) return;
+    S0 = d; ALL = []; S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
+    Object.keys(A.sel).forEach(function (k) { if (ALL.indexOf(k) < 0) delete A.sel[k]; });
+    var typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && A.step === 2;
+    if (!typing) render();
+  });
+}, 60000);
 $("reread").onclick = function () {
   var b = $("reread"); b.disabled = true; b.textContent = "Reading Core…";
   var at = S0 ? S0.at : 0;
