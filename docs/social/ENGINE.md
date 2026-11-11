@@ -6,6 +6,12 @@ Status: **plan only. Nothing built yet.** Decisions from Barry on 11 Nov:
 - **Meet the Team leads the first month.** The own shop isn't live, so the posts aren't a sales push. They build the brand, and the only link is the Etsy shop.
 - Plan first. Build after Barry has reviewed this.
 
+Later decisions on 11 Nov:
+- **Barry writes all the text** (image lines and captions). Agents only fit it to each platform (length, hashtags, alt text). The Writer role below is reduced to that.
+- **Visuals come from prompts**, with as little involvement from Barry as possible. Barry is making clean reference shots of each character on 12 Nov (front full body on a plain background, three-quarter view, and in their usual setting with no text). Every image and clip is generated from those references so the characters stay consistent.
+- **Animation:** moving stills for most posts (push-in, parallax from separated image layers, typing text), plus AI video clips (Canva `create-video`) where they're worth it. Barry is watching the Canva AI limit. First test: **Meet The Boss** (`clips/01-meet-the-boss.md`).
+- **Channels:** Instagram, Facebook, Threads, Pinterest, TikTok, YouTube Shorts, Bluesky to try. **No Reddit.** X and LinkedIn not for now.
+
 ## What it does
 
 Each week the engine makes a pack of 3–4 finished posts: image, caption, platforms and time. Barry approves the pack in the approvals app. Approved posts go to Postiz and are published at their set times. Nothing is posted without Barry's OK (standing rule).
@@ -78,6 +84,8 @@ Series template, set up once in Canva and then reused for every post:
 | Threads | image + text | – |
 | Pinterest | 2:3 pin → Etsy shop | video pins |
 | TikTok | – (needs video) | 9:16, slow push-in on the still + caption reveal, via the repo renderer or Canva video. `DIRECT_POST` only |
+
+YouTube Shorts and Bluesky are added too (see decisions above). No Reddit.
 
 Default times: 19:30 UK on post days. These are settings, so they can be changed.
 
