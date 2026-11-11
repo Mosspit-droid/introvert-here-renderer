@@ -1643,6 +1643,9 @@ async function amendRefresh(env) {
 }
 
 async function amendApply(request, env) {
+  try { return await amendApply2(request, env); } catch (e) { return json({ error: String(e.message || e) }, 400); }
+}
+async function amendApply2(request, env) {
   const d = await request.json();
   const S = await env.PENDING.get("amend", "json");
   if (!S) return json({ error: "The page hasn't read Core yet. Tap Re-read Core and try again in a minute." }, 400);
@@ -1651,6 +1654,7 @@ async function amendApply(request, env) {
   const status = AMEND_STATUS[action];
   const ops = [];
   let gags = [];
+  const pick = (Array.isArray(d.garments) ? d.garments : []).map(String).filter((t) => ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"].includes(t));
   if (d.kind === "gag") {
     const g = S.gags.find((x) => x.id === String(d.gagId || ""));
     if (!g) return json({ error: "That gag isn't live" }, 400);
@@ -1663,12 +1667,13 @@ async function amendApply(request, env) {
       ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text;
     }
     gags = [g];
+    if (pick.length && !pick.some((t) => g.live.includes(t))) return json({ error: "Pick at least one garment" }, 400);
   } else if (d.kind === "range" || d.kind === "colours") {
     const code = String(d.coll || "");
     const coll = AMEND_COLL[code];
     if (!coll) return json({ error: "Unknown range" }, 400);
-    gags = S.gags.filter((x) => x.id.startsWith(code + "-"));
-    if (!gags.length) return json({ error: "No live listings in that range" }, 400);
+    gags = S.gags.filter((x) => x.id.startsWith(code + "-") && (!pick.length || pick.some((t) => x.live.includes(t))));
+    if (!gags.length) return json({ error: "No live listings in that range" + (pick.length ? " for that garment" : "") }, 400);
     const rules = S.rules.filter((r) => r.coll === coll);
     if (d.kind === "range" && Array.isArray(d.rules)) {
       if (action !== "text") return json({ error: "Text changes go with Update text" }, 400);
@@ -1699,12 +1704,17 @@ async function amendApply(request, env) {
       if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
     }
   } else return json({ error: "Unknown request" }, 400);
-  gags.forEach((g) => { ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status; });
+  gags.forEach((g) => {
+    const only = pick.length && g.live.some((t) => !pick.includes(t)) ? pick.filter((t) => g.live.includes(t)).join("|") : "";
+    if (only && !S.hasOnly) throw new Error("Core's GAGS table has no AMEND_ONLY column yet, so it can only update all garments.");
+    if (S.hasOnly && (only || g.only)) { ops.push(amendCell("GAGS_TABLE", "AMEND_ONLY", g.row, only)); g.only = only; }
+    ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status;
+  });
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "300", run: "yes" });
   if (err) return err;
   await env.PENDING.put("amend", JSON.stringify(S));
   const log = (await env.PENDING.get("amend-log", "json")) || [];
-  log.unshift({ at: Date.now(), what: action, scope: d.kind === "gag" ? gags[0].id : String(d.coll), n: gags.length });
+  log.unshift({ at: Date.now(), what: action, scope: (d.kind === "gag" ? gags[0].id : String(d.coll)) + (pick.length ? " (" + pick.map((t) => t.toLowerCase()).join(", ") + ")" : ""), n: gags.length });
   await env.PENDING.put("amend-log", JSON.stringify(log.slice(0, 20)));
   return json({ ok: true, gags: gags.length });
 }
@@ -1734,6 +1744,7 @@ async function amendPage(env) {
 .cols label{display:flex;gap:6px;align-items:center;color:var(--text);margin:0;font-size:14px}
 .cols input{width:auto}
 .note{font-size:13px;color:var(--muted);margin:4px 0}
+.prow2{display:flex;gap:8px;align-items:center;margin:8px 0}.prow2 select{flex:1;padding:8px 10px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
 .msg{font-size:14px;margin-top:6px}
 </style>
 ${brandHeader("Update live listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
@@ -1766,16 +1777,17 @@ function render() {
     const nBusy = gags.filter((g) => busy(g.status)).length;
     return '<div class="card rng" data-coll="' + code + '"><h2>' + h(name) + '</h2><div class="note">' + gags.length + ' live gag' + (gags.length === 1 ? '' : 's') + (nBusy ? ' · <b>' + nBusy + ' being updated</b>' : '') + '</div>' +
       '<div class="row2"><button class="btn" data-open="edit-' + code + '">✏ Edit all (titles, descriptions, tags)</button><button class="btn" data-open="col-' + code + '">🎨 Colours</button></div>' +
+      '<div class="prow2"><label class="note">Which garments</label><select class="gsel"><option value="">All garments</option>' + rules.map((r) => '<option value="' + r.type + '">' + h(GARM[r.type] || r.type) + 's only</option>').join("") + '</select></div>' +
       '<div class="row2"><button class="btn-main" data-range="text">Update text on all</button><button class="btn-main" data-range="mockups">Update mockups on all</button><button class="btn-main" data-range="reprint">Update printed design on all</button></div>' +
       '<div class="box" id="edit-' + code + '"><label>Garment</label><select class="rsel">' + rules.map((r) => '<option value="' + r.row + '">' + h(GARM[r.type] || r.type) + '</option>').join("") + '</select><div class="rfields"></div>' +
-        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div><div class="note">Saving changes only the garment shown; pick another garment to edit it too (unsaved edits are kept while you switch).</div></div>' +
+        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div><div class="note">Saving changes the text for the garment shown here; pick another garment to edit that too (unsaved edits are kept while you switch). The garment choice above says which listings get updated.</div></div>' +
       '<div class="box" id="col-' + code + '"><div class="note">Ticked colours are on every listing in this range. Untick a colour to take it off; tick a new one to add it (Printify must sell it for that garment; garments that don\\'t offer it are skipped).</div><div class="cols">' +
         allC.map((c) => '<label><input type="checkbox" value="' + h(c) + '"' + (have.has(c) ? ' checked' : '') + '>' + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ' only)</small>' : '') + '</label>').join("") + '</div>' +
         '<div class="note">Main colour for this range: ' + h(rules[0] ? rules[0].primary : "") + (rules[0] && rules[0].secondary ? ', then ' + h(rules[0].secondary) : '') + '. Don\\'t untick those without telling Claude.</div>' +
         '<div class="row2"><button class="btn-main" data-colsave>Update colours on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div></div>' +
       '<div class="msg rmsg"></div>' +
       gags.map((g) => '<div class="gl" data-gag="' + h(g.id) + '"><div class="top"><div class="nm">' + h(g.stem || g.id) + '<small>' + h(g.id) + ' · ' + h(g.live.map((t) => GARM[t] || t).join(", ")) + '</small></div><div><span class="pill' + (busy(g.status) ? ' busy' : '') + '">' + h(STAT[g.status] || g.status || "Live") + '</span> <button class="btn" data-edit>Edit</button></div></div>' +
-        '<div class="ed"><label>Title stem</label><input class="gstem" value="' + h(g.stem) + '"><label>Gag text (changing it needs Update printed design)</label><textarea class="gtext">' + h(g.text) + '</textarea>' +
+        '<div class="ed"><label>Garments to update</label><div class="cols gcols">' + g.live.map((t) => '<label><input type="checkbox" value="' + t + '" checked>' + h(GARM[t] || t) + '</label>').join("") + '</div><label>Title stem</label><input class="gstem" value="' + h(g.stem) + '"><label>Gag text (changing it needs Update printed design)</label><textarea class="gtext">' + h(g.text) + '</textarea>' +
         '<div class="row2"><button class="btn-main" data-gag-act="text">Update text</button><button class="btn-main" data-gag-act="mockups">Update mockups</button><button class="btn-main" data-gag-act="reprint">Update printed design</button><button class="btn" data-cancel>Cancel</button></div><div class="msg gmsg"></div></div></div>').join("") +
       '</div>';
   }).join("");
@@ -1819,20 +1831,26 @@ function setupRange(card) {
   cb.querySelector("[data-cancel]").addEventListener("click", () => { cb.querySelectorAll("input").forEach((i, k) => i.checked = ticks[k]); cb.classList.remove("open"); rmsg.textContent = ""; });
   eb.querySelector("[data-rsave]").addEventListener("click", () => {
     const rules = Object.entries(drafts).filter(([row]) => S.rules.some((r) => r.row === Number(row) && r.coll === RANGES.find((x) => x[0] === code)[2])).map(([row, d]) => ({ row: Number(row), ...d }));
-    send({ kind: "range", coll: code, action: "text", rules }, rmsg, "Save the " + name + " text and update text on every " + name + " listing?");
+    send({ kind: "range", coll: code, action: "text", rules, garments: gpick() }, rmsg, "Save the " + name + " text and update text on every " + name + " listing?");
   });
   card.querySelector("[data-colsave]").addEventListener("click", () => {
     const colours = [...$("col-" + code).querySelectorAll("input:checked")].map((i) => i.value);
-    send({ kind: "colours", coll: code, action: "colours", colours }, rmsg, "Set " + name + " colours to: " + colours.join(", ") + "?");
+    send({ kind: "colours", coll: code, action: "colours", colours, garments: gpick() }, rmsg, "Set " + name + " colours to: " + colours.join(", ") + "?");
   });
-  card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => send({ kind: "range", coll: code, action: b.dataset.range }, rmsg, LABEL[b.dataset.range] + " on every " + name + " listing?")));
+  const gsel = card.querySelector(".gsel");
+  const gpick = () => gsel.value ? [gsel.value] : [];
+  const gname = () => gsel.value ? name + " " + gsel.options[gsel.selectedIndex].text.replace(" only", "") : "every " + name + " listing";
+  card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => send({ kind: "range", coll: code, action: b.dataset.range, garments: gpick() }, rmsg, LABEL[b.dataset.range] + " on " + gname() + "?")));
   card.querySelectorAll(".gl").forEach((row) => {
     row.querySelector("[data-edit]").addEventListener("click", () => row.querySelector(".ed").classList.toggle("open"));
     const g0 = S.gags.find((x) => x.id === row.dataset.gag);
-    row.querySelector("[data-cancel]").addEventListener("click", () => { row.querySelector(".gstem").value = g0.stem; row.querySelector(".gtext").value = g0.text; row.querySelector(".ed").classList.remove("open"); row.querySelector(".gmsg").textContent = ""; });
+    row.querySelector("[data-cancel]").addEventListener("click", () => { row.querySelectorAll(".gcols input").forEach((i) => i.checked = true); row.querySelector(".gstem").value = g0.stem; row.querySelector(".gtext").value = g0.text; row.querySelector(".ed").classList.remove("open"); row.querySelector(".gmsg").textContent = ""; });
     row.querySelectorAll("[data-gag-act]").forEach((b) => b.addEventListener("click", () => {
       const act = b.dataset.gagAct;
-      send({ kind: "gag", gagId: row.dataset.gag, action: act, stem: row.querySelector(".gstem").value, text: row.querySelector(".gtext").value }, row.querySelector(".gmsg"), LABEL[act] + " on " + row.dataset.gag + "?");
+      const all = [...row.querySelectorAll(".gcols input")], on = all.filter((i) => i.checked).map((i) => i.value);
+      if (!on.length) { row.querySelector(".gmsg").textContent = "Tick at least one garment."; return; }
+      const garments = on.length === all.length ? [] : on;
+      send({ kind: "gag", gagId: row.dataset.gag, action: act, stem: row.querySelector(".gstem").value, text: row.querySelector(".gtext").value, garments }, row.querySelector(".gmsg"), LABEL[act] + " on " + row.dataset.gag + " (" + (garments.length ? on.map((t) => GARM[t] || t).join(", ") : "all garments") + ")?");
     }));
   });
 }
