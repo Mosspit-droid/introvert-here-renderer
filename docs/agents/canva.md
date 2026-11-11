@@ -58,4 +58,4 @@ Adding pages moves the page numbers, so every range done must also update Core i
 ## IH T-shirt mockups rebuilt by Barry (11 Nov): Core updated
 - A002 (EAHXKA4EqCs) now 18 pages: thumbnail/gift/hanging/closeup in Black + Dark Heather, variants (9), setup/payoff Black (10, 11) and Dark Heather (12, 13), flatlay Black/DH (14, 15), AGM 16, size guide 17, brand 18.
 - MOCKUP_PAGES IH T-SHIRT: 12 rows, same rule as OTS (both thumbnails, Black of each scene, variants, AGM, size guide, brand): pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18. PRODUCT_RULES IH T-SHIRT VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_TS_pages.xlsx.
-- Canva page-name typos seen (cosmetic; Core uses its own names): page 9 "IH_TS _VARIANTS", pages 14/15 lack "TS" ("IH_14_FLATLAY_BLACK").
+- Page-name typos (page 9, pages 14/15) fixed by Barry 11 Nov; Canva names now match Core.
