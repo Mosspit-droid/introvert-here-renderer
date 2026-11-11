@@ -35,7 +35,7 @@ or custom address. The Cloudflare account already exists (it runs the apps below
 
 | What | Address | Notes |
 |---|---|---|
-| Approvals app | mosspit-approvals.mosspit.workers.dev | Barry's control panel: approve listings, Gags, 🏷 Tags, Stats, Pricing, Tools. Code: `approvals-app/worker.js` |
+| Approvals app (all key addresses also in Core sheet LINKS, table LINKS_TABLE, since 11 Nov) | mosspit-approvals.mosspit.workers.dev | Barry's control panel: approve listings, Gags, 🏷 Tags, Stats, Pricing, Tools. Code: `approvals-app/worker.js` |
 | Mosspit Tag Checker for Etsy | tag-checker.mosspit.workers.dev | Free public tool. Old address phrase-planner.mosspit.workers.dev forwards. Code: `tools/phrase-field-planner.html`, hosting in `tools/tag-checker-worker/` |
 
 The tag checker:
