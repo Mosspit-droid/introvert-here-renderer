@@ -44,6 +44,7 @@ export default {
       if (pathname === "/api/gag-result" && method === "POST") return await gagResult(request, env, ctx, url);
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
       if (pathname === "/api/pricing-sync" && method === "POST") return await pricingSync(request, env);
+      if (pathname === "/api/amend-sync" && method === "POST") return await amendSync(request, env);
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
@@ -67,6 +68,9 @@ export default {
       }
       if (pathname === "/links" && method === "GET") {
         return authed ? await linksPage(env) : loginPage(false);
+      }
+      if (pathname === "/amend" && method === "GET") {
+        return authed ? await amendPage(env) : redirect("/");
       }
       if (pathname === "/tools" && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
@@ -103,6 +107,9 @@ export default {
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
+      if (pathname === "/api/amend-apply" && method === "POST") return await amendApply(request, env);
+      if (pathname === "/api/amend-refresh" && method === "POST") return await amendRefresh(env);
+      if (pathname === "/api/amend-data" && method === "GET") return json((await env.PENDING.get("amend", "json")) || null);
       if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
       if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
       return new Response("Not found", { status: 404 });
@@ -609,7 +616,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/links">🔗 Links</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/amend">✏ Update listings</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/links">🔗 Links</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1489,7 +1496,6 @@ render();
 
 const TOOLS = {
   print:   { hook: "MAKE_TOOL_PRINT_HOOK",   name: "Refresh print files" },
-  range:   { hook: "MAKE_TOOL_RANGE_HOOK",   name: "Swap Find Your Range photo" },
   reprice: { hook: "MAKE_TOOL_REPRICE_HOOK", name: "Re-price listings" },
 };
 async function toolRun(request, env) {
@@ -1540,11 +1546,10 @@ ${brandHeader("Tools", `<a class="btn" href="/">← Approvals</a><a class="btn" 
   ${scope("print")}
   <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("print")}</div>
  </div>
- <div class="card tcard" data-tool="range">
-  <h3>Swap Find Your Range photo</h3>
-  <p>Replaces the range photo (the PROMO page, or RANGE for Per Contract) on each listing with the current graphic. A few seconds per listing, about 5 credits each.</p>
-  ${scope("range")}
-  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("range")}</div>
+ <div class="card tcard">
+  <h3>Update live listings</h3>
+  <p>Change titles, descriptions, tags, mockups, the printed design or colours on live listings, one gag or a whole range at a time. Replaces the old Find Your Range photo swap: change the page in Canva, then use Update mockups.</p>
+  <a class="btn-main" href="/amend" style="display:inline-block;text-align:center;text-decoration:none">Open</a>
  </div>
  <div class="card tcard" data-tool="reprice">
   <h3>Re-price listings</h3>
@@ -1601,6 +1606,236 @@ async function scan() {
 }
 $("scan").addEventListener("click", scan);
 $("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Re-reading Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); });
+</script>`);
+}
+
+// ---------- Update live listings ----------
+// Make "Tool — Amend live listings (app)" (MAKE_TOOL_RANGE_HOOK) does two jobs:
+//  {action:"state"}  reads Core (live gags, PRODUCT_RULES, COLOUR_PROFILES) + Printify colours and posts them to /api/amend-sync;
+//  {action:"apply", ops} writes the given Core cells, waits 5 minutes, then starts the listing builder,
+//  which works through every gag flagged with an AMENDMENT_REQUIRED… status, one at a time.
+
+const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
+const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
+const AMEND_STATUS = { text: "AMENDMENT_REQUIRED", mockups: "AMENDMENT_REQUIRED_ARTWORK", reprint: "AMENDMENT_REQUIRED_REPRINT", colours: "AMENDMENT_REQUIRED_COLOURS" };
+const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT" };
+const AMEND_TAG_COLS = ["PRODUCT_TAG_09", "PRODUCT_TAG_10", "PRODUCT_TAG_11", "PRODUCT_TAG_12", "PRODUCT_TAG_13"];
+const amendCell = (table, col, row, value) => ({ url: `${AMEND_XL}/tables/${table}/columns/${col}/dataBodyRange/cell(row=${Number(row)},column=0)`, value: String(value) });
+
+async function amendSync(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const data = await request.json();
+  data.at = Date.now();
+  await env.PENDING.put("amend", JSON.stringify(data));
+  return json({ ok: true });
+}
+
+async function amendHook(env, body) {
+  const url = env.MAKE_TOOL_RANGE_HOOK;
+  if (!url) return json({ error: "MAKE_TOOL_RANGE_HOOK is not set" }, 500);
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return json({ error: "Make didn't accept it (" + res.status + "). Nothing was changed." }, 502);
+  return null;
+}
+
+async function amendRefresh(env) {
+  return (await amendHook(env, { action: "state" })) || json({ ok: true });
+}
+
+async function amendApply(request, env) {
+  const d = await request.json();
+  const S = await env.PENDING.get("amend", "json");
+  if (!S) return json({ error: "The page hasn't read Core yet. Tap Re-read Core and try again in a minute." }, 400);
+  const action = String(d.action || "");
+  if (!AMEND_STATUS[action]) return json({ error: "Unknown update" }, 400);
+  const status = AMEND_STATUS[action];
+  const ops = [];
+  let gags = [];
+  if (d.kind === "gag") {
+    const g = S.gags.find((x) => x.id === String(d.gagId || ""));
+    if (!g) return json({ error: "That gag isn't live" }, 400);
+    const stem = typeof d.stem === "string" ? d.stem.replace(/\s+/g, " ").trim() : null;
+    const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").trim() : null;
+    if (stem !== null && stem !== g.stem) { if (!stem) return json({ error: "The title stem can't be empty" }, 400); ops.push(amendCell("GAGS_TABLE", "TITLE_STEM", g.row, stem)); g.stem = stem; }
+    if (text !== null && text !== g.text) {
+      if (action !== "reprint") return json({ error: "You changed the gag text, so the printed design has to change too. Use Update printed design." }, 400);
+      if (!text) return json({ error: "The gag text can't be empty" }, 400);
+      ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text;
+    }
+    gags = [g];
+  } else if (d.kind === "range" || d.kind === "colours") {
+    const code = String(d.coll || "");
+    const coll = AMEND_COLL[code];
+    if (!coll) return json({ error: "Unknown range" }, 400);
+    gags = S.gags.filter((x) => x.id.startsWith(code + "-"));
+    if (!gags.length) return json({ error: "No live listings in that range" }, 400);
+    const rules = S.rules.filter((r) => r.coll === coll);
+    if (d.kind === "range" && Array.isArray(d.rules)) {
+      if (action !== "text") return json({ error: "Text changes go with Update text" }, 400);
+      for (const e of d.rules) {
+        const r = rules.find((x) => x.row === Number(e.row));
+        if (!r) return json({ error: "Unknown product rule" }, 400);
+        for (const [k, col] of Object.entries(AMEND_RULE_COLS)) {
+          if (typeof e[k] === "string" && e[k] !== String(r[k] ?? "")) { ops.push(amendCell("PRODUCT_RULES", col, r.row, e[k])); r[k] = e[k]; }
+        }
+        if (Array.isArray(e.tags)) {
+          const t = e.tags.map((s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase());
+          if (t.length !== 5 || t.some((s) => !s || s.length > 20)) return json({ error: "Each garment needs 5 product tags, 20 characters max" }, 400);
+          t.forEach((s, i) => { if (s !== String(r.tags[i] ?? "")) ops.push(amendCell("PRODUCT_RULES", AMEND_TAG_COLS[i], r.row, s)); });
+          r.tags = t;
+        }
+      }
+    }
+    if (d.kind === "colours") {
+      if (action !== "colours") return json({ error: "Colour changes go with Update colours" }, 400);
+      const names = [...new Set(rules.map((r) => r.profile))];
+      if (names.length !== 1) return json({ error: "This range's garments use different colour profiles; ask Claude to sort that first." }, 400);
+      const prof = S.profiles.find((p) => p.name === names[0]);
+      if (!prof) return json({ error: "Colour profile " + names[0] + " isn't in COLOUR_PROFILES" }, 400);
+      if (S.rules.some((r) => r.profile === prof.name && r.coll !== coll)) return json({ error: "Another range shares this colour profile; ask Claude to split it first." }, 400);
+      const avail = new Set(Object.values(S.colours || {}).flat());
+      const want = (Array.isArray(d.colours) ? d.colours : []).map(String).filter((c) => avail.has(c));
+      if (!want.length) return json({ error: "Pick at least one colour" }, 400);
+      if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
+    }
+  } else return json({ error: "Unknown request" }, 400);
+  gags.forEach((g) => { ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status; });
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "300", run: "yes" });
+  if (err) return err;
+  await env.PENDING.put("amend", JSON.stringify(S));
+  const log = (await env.PENDING.get("amend-log", "json")) || [];
+  log.unshift({ at: Date.now(), what: action, scope: d.kind === "gag" ? gags[0].id : String(d.coll), n: gags.length });
+  await env.PENDING.put("amend-log", JSON.stringify(log.slice(0, 20)));
+  return json({ ok: true, gags: gags.length });
+}
+
+async function amendPage(env) {
+  const S = (await env.PENDING.get("amend", "json")) || null;
+  const log = (await env.PENDING.get("amend-log", "json")) || [];
+  return shell(`
+<style>
+.rng{margin-bottom:18px}
+.rng h2{margin:0 0 4px;font-size:20px}
+.row2{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.row2 .btn-main{flex:1;min-width:150px}
+.gl{border-top:1px solid var(--line);padding:10px 0}
+.gl .top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.gl .nm{font-size:15px}
+.gl .nm small{display:block;color:var(--muted);font-size:12px}
+.pill{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--field);border:1px solid var(--line)}
+.pill.busy{border-color:var(--accent);color:var(--accent)}
+.ed{display:none;margin-top:8px}
+.ed.open,.box.open{display:block}
+.box{display:none;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:12px}
+.ed label,.box label{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
+.ed input,.ed textarea,.box input,.box textarea,.box select{width:100%;box-sizing:border-box;padding:9px 10px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
+.box textarea,.ed textarea{min-height:70px}
+.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px;margin:6px 0}
+.cols label{display:flex;gap:6px;align-items:center;color:var(--text);margin:0;font-size:14px}
+.cols input{width:auto}
+.note{font-size:13px;color:var(--muted);margin:4px 0}
+.msg{font-size:14px;margin-top:6px}
+</style>
+${brandHeader("Update live listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
+<p class="small" id="readAt"></p>
+<div class="card" style="margin-bottom:16px"><p class="note" style="margin:0">Each button saves to Core straight away, then updates Etsy about 5 minutes later. Gags are done one at a time, so a whole range can take a while; you'll see each gag go back to “Live” when it's finished.<br>
+<b>Update text</b>: titles, descriptions and tags. <b>Update mockups</b>: new mockup photos from Canva. <b>Update printed design</b>: new print file from the gag text, then new mockups and a new video for you to approve. <b>Update colours</b>: adds or removes colours, then new mockups.</p></div>
+<div id="out"></div>
+<div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div></div>
+<script>
+let S = ${JSON.stringify(S).replace(/</g, "\\u003c")};
+const LOG = ${JSON.stringify(log).replace(/</g, "\\u003c")};
+const RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
+const GARM = { "T-SHIRT":"T-shirt", "LONG-SLEEVE":"Long sleeve", "SWEATSHIRT":"Sweatshirt", "HOODIE":"Hoodie" };
+const STAT = { AMENDMENT_REQUIRED:"Updating text", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating printed design", AMENDMENT_REQUIRED_COLOURS:"Updating colours", LIVE_EXISTING:"Live", FAILED:"Failed" };
+const LABEL = { text:"Update text", mockups:"Update mockups", reprint:"Update printed design", colours:"Update colours" };
+const $ = (id) => document.getElementById(id);
+const h = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
+const busy = (s) => /^AMENDMENT_REQUIRED/.test(s);
+function render() {
+  if (!S) { $("out").innerHTML = '<div class="card">The page hasn\\'t read Core yet. Tap <b>Re-read Core</b> and give it a minute.</div>'; return; }
+  $("readAt").textContent = "Core read " + new Date(S.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
+  $("out").innerHTML = RANGES.map(([code, name, coll]) => {
+    const gags = S.gags.filter((g) => g.id.startsWith(code + "-"));
+    if (!gags.length) return "";
+    const rules = S.rules.filter((r) => r.coll === coll);
+    const prof = S.profiles.find((p) => rules[0] && p.name === rules[0].profile);
+    const have = new Set(String(prof ? prof.colours : "").split(",").map((s) => s.trim()).filter(Boolean));
+    const avail = {}; rules.forEach((r) => (S.colours[r.bp] || []).forEach((c) => (avail[c] = avail[c] || []).push(GARM[r.type] || r.type)));
+    const allC = Object.keys(avail).sort((a, b) => (have.has(b) - have.has(a)) || a.localeCompare(b));
+    const nBusy = gags.filter((g) => busy(g.status)).length;
+    return '<div class="card rng" data-coll="' + code + '"><h2>' + h(name) + '</h2><div class="note">' + gags.length + ' live gag' + (gags.length === 1 ? '' : 's') + (nBusy ? ' · <b>' + nBusy + ' being updated</b>' : '') + '</div>' +
+      '<div class="row2"><button class="btn" data-open="edit-' + code + '">✏ Edit all (titles, descriptions, tags)</button><button class="btn" data-open="col-' + code + '">🎨 Colours</button></div>' +
+      '<div class="row2"><button class="btn-main" data-range="text">Update text on all</button><button class="btn-main" data-range="mockups">Update mockups on all</button><button class="btn-main" data-range="reprint">Update printed design on all</button></div>' +
+      '<div class="box" id="edit-' + code + '"><label>Garment</label><select class="rsel">' + rules.map((r) => '<option value="' + r.row + '">' + h(GARM[r.type] || r.type) + '</option>').join("") + '</select><div class="rfields"></div>' +
+        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button></div><div class="note">Saving changes only the garment shown; pick another garment to edit it too (unsaved edits are kept while you switch).</div></div>' +
+      '<div class="box" id="col-' + code + '"><div class="note">Ticked colours are on every listing in this range. Untick a colour to take it off; tick a new one to add it (Printify must sell it for that garment; garments that don\\'t offer it are skipped).</div><div class="cols">' +
+        allC.map((c) => '<label><input type="checkbox" value="' + h(c) + '"' + (have.has(c) ? ' checked' : '') + '>' + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ' only)</small>' : '') + '</label>').join("") + '</div>' +
+        '<div class="note">Main colour for this range: ' + h(rules[0] ? rules[0].primary : "") + (rules[0] && rules[0].secondary ? ', then ' + h(rules[0].secondary) : '') + '. Don\\'t untick those without telling Claude.</div>' +
+        '<div class="row2"><button class="btn-main" data-colsave>Update colours on all ' + gags.length + '</button></div></div>' +
+      '<div class="msg rmsg"></div>' +
+      gags.map((g) => '<div class="gl" data-gag="' + h(g.id) + '"><div class="top"><div class="nm">' + h(g.stem || g.id) + '<small>' + h(g.id) + ' · ' + h(g.live.map((t) => GARM[t] || t).join(", ")) + '</small></div><div><span class="pill' + (busy(g.status) ? ' busy' : '') + '">' + h(STAT[g.status] || g.status || "Live") + '</span> <button class="btn" data-edit>Edit</button></div></div>' +
+        '<div class="ed"><label>Title stem</label><input class="gstem" value="' + h(g.stem) + '"><label>Gag text (changing it needs Update printed design)</label><textarea class="gtext">' + h(g.text) + '</textarea>' +
+        '<div class="row2"><button class="btn-main" data-gag-act="text">Update text</button><button class="btn-main" data-gag-act="mockups">Update mockups</button><button class="btn-main" data-gag-act="reprint">Update printed design</button></div><div class="msg gmsg"></div></div></div>').join("") +
+      '</div>';
+  }).join("");
+  document.querySelectorAll(".rng").forEach(setupRange);
+  $("log").innerHTML = LOG.length ? LOG.map((l) => h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(LABEL[l.what] || l.what) + " · " + h(l.scope) + (l.n > 1 ? " (" + l.n + " gags)" : "")).join("<br>") : "None yet.";
+}
+const drafts = {};
+function ruleFields(box, row) {
+  const r = S.rules.find((x) => x.row === Number(row)); const dft = drafts[row] || {};
+  const v = (k) => h(dft[k] != null ? dft[k] : r[k]);
+  const tags = dft.tags || r.tags;
+  box.querySelector(".rfields").innerHTML =
+    '<label>Title ending (after the stem)</label><input data-k="suffix" value="' + v("suffix") + '"><div class="note tlen"></div>' +
+    '<label>Range intro</label><textarea data-k="intro">' + v("intro") + '</textarea>' +
+    '<label>Product features</label><textarea data-k="features">' + v("features") + '</textarea>' +
+    '<label>Who it\\'s for</label><textarea data-k="audience">' + v("audience") + '</textarea>' +
+    '<label>Closing text</label><textarea data-k="closing">' + v("closing") + '</textarea>' +
+    '<label>Product tags (5, 20 characters max each)</label>' + [0,1,2,3,4].map((i) => '<input data-t="' + i + '" maxlength="20" value="' + h(tags[i]) + '" style="margin-bottom:4px">').join("");
+  const upd = () => { const d = drafts[row] = drafts[row] || {}; box.querySelectorAll("[data-k]").forEach((el) => d[el.dataset.k] = el.value); d.tags = [...box.querySelectorAll("[data-t]")].map((el) => el.value);
+    const longest = Math.max(0, ...S.gags.filter((g) => g.id.startsWith(box.closest(".rng").dataset.coll + "-")).map((g) => (g.stem || "").length));
+    box.querySelector(".tlen").textContent = "Longest title in this range would be " + (longest + 1 + d.suffix.length) + " of Etsy's 140 characters."; };
+  box.querySelectorAll("input,textarea").forEach((el) => el.addEventListener("input", upd)); upd();
+}
+async function send(body, msgEl, what) {
+  if (!confirm(what + "\\n\\nThis saves to Core now and updates Etsy in about 5 minutes.")) return;
+  msgEl.textContent = "Saving to Core…";
+  const r = await fetch("/api/amend-apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  msgEl.textContent = r.ok ? "Saved. Etsy updates start in about 5 minutes (" + j.gags + " gag" + (j.gags === 1 ? "" : "s") + ")." : (j.error || "Something went wrong.");
+  if (r.ok) setTimeout(() => location.reload(), 2500);
+}
+function setupRange(card) {
+  const code = card.dataset.coll, name = card.querySelector("h2").textContent, rmsg = card.querySelector(".rmsg");
+  card.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => $(b.dataset.open).classList.toggle("open")));
+  const eb = $("edit-" + code), sel = eb.querySelector(".rsel");
+  ruleFields(eb, sel.value); sel.addEventListener("change", () => ruleFields(eb, sel.value));
+  eb.querySelector("[data-rsave]").addEventListener("click", () => {
+    const rules = Object.entries(drafts).filter(([row]) => S.rules.some((r) => r.row === Number(row) && r.coll === RANGES.find((x) => x[0] === code)[2])).map(([row, d]) => ({ row: Number(row), ...d }));
+    send({ kind: "range", coll: code, action: "text", rules }, rmsg, "Save the " + name + " text and update text on every " + name + " listing?");
+  });
+  card.querySelector("[data-colsave]").addEventListener("click", () => {
+    const colours = [...$("col-" + code).querySelectorAll("input:checked")].map((i) => i.value);
+    send({ kind: "colours", coll: code, action: "colours", colours }, rmsg, "Set " + name + " colours to: " + colours.join(", ") + "?");
+  });
+  card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => send({ kind: "range", coll: code, action: b.dataset.range }, rmsg, LABEL[b.dataset.range] + " on every " + name + " listing?")));
+  card.querySelectorAll(".gl").forEach((row) => {
+    row.querySelector("[data-edit]").addEventListener("click", () => row.querySelector(".ed").classList.toggle("open"));
+    row.querySelectorAll("[data-gag-act]").forEach((b) => b.addEventListener("click", () => {
+      const act = b.dataset.gagAct;
+      send({ kind: "gag", gagId: row.dataset.gag, action: act, stem: row.querySelector(".gstem").value, text: row.querySelector(".gtext").value }, row.querySelector(".gmsg"), LABEL[act] + " on " + row.dataset.gag + "?");
+    }));
+  });
+}
+$("reread").addEventListener("click", async () => {
+  $("reread").disabled = true; $("reread").textContent = "Reading Core…";
+  const at = S ? S.at : 0; await fetch("/api/amend-refresh", { method: "POST" });
+  const poll = async () => { const r = await fetch("/api/amend-data"); const d = r.ok ? await r.json() : null; if (d && d.at !== at) { location.reload(); return; } setTimeout(poll, 5000); };
+  setTimeout(poll, 8000);
+});
+render();
 </script>`);
 }
 

@@ -107,8 +107,11 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 - Don't send him to dashboards or logins he hasn't used. Find a way that works from what he already has (usually the approvals app).
 - Back up before changing anything live. Test before saying it works, and say plainly when something couldn't be tested.
 
-## Amend tool (planned, Nov 2026)
+## Amend tool (built 11 Nov 2026, page /amend)
 - Replaces "Swap Find Your Range photo" in the app. Lists live listings (LISTING_REGISTRY) by range, with an Edit all per range and an Edit per gag.
 - Core statuses: AMENDMENT_REQUIRED (text), AMENDMENT_REQUIRED_ARTWORK (mockups), AMENDMENT_REQUIRED_REPRINT (new print file, mockups, video), AMENDMENT_REQUIRED_COLOURS (add/remove colours).
 - App buttons use plain names: "Update text", "Update mockups", "Update printed design", "Update colours".
 - First test: the OTS T-shirts, once Barry says his mockup changes are finished.
+- Make "Tool — Amend live listings (app)" (8448188, the old Find Your Range scenario, same hook MAKE_TOOL_RANGE_HOOK): action "state" reads Core + Printify colours into KV `amend`; action "apply" writes the Core cells, waits 5 min, starts the builder.
+- Builder 7896436: REPRINT = new print file per listing (same placement), deletes the Etsy videos, clears VIDEO_STATUS (U:X) so a new video renders, then sets COLOURS. COLOURS = text update that may add/remove colours (Printify PUT with variants + print_areas), then sets ARTWORK. ARTWORK = mockups, then LIVE_EXISTING. Backup before the change: scratchpad amend/backup_7896436_20261111_before_amend.json.
+- Colours are per range: the range's COLOUR_PROFILES.REAL_COLOURS row.
