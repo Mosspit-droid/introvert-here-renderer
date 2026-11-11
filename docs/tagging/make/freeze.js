@@ -51,7 +51,18 @@ for (const { r, row } of rows) {
   const isTest = id.startsWith("IH-999");
   const act = engineOn && !dryRun ? true : dryRun ? isTest : false;
   if (!engineOn && !dryRun) continue;
-  const stem = String(r[c("TAG13")] || "").trim().toLowerCase();
+  let stem = String(r[c("TAG13")] || "").trim().toLowerCase();
+  // Title too long for a tag (Barry, 12 Nov 2026): shorten it automatically. Drop words from the end until it fits
+  // (max ${maxLen} characters, ${maxWords} words), then trim dangling little words. Only the tag changes, never the title.
+  let shortened = "";
+  if (stem && (stem.length > maxLen || stem.split(" ").length > maxWords)) {
+    const small = new Set(["the", "a", "an", "and", "or", "of", "to", "at", "in", "on", "for", "with", "my", "your", "is", "it", "but", "so"]);
+    let w = stem.replace(/[^a-z0-9' -]/g, "").split(" ").filter(Boolean);
+    while (w.length > 1 && (w.join(" ").length > maxLen || w.length > maxWords)) w.pop();
+    while (w.length > 1 && small.has(w[w.length - 1])) w.pop();
+    let s2 = w.join(" "); if (s2.length > maxLen) s2 = s2.slice(0, maxLen).trim();
+    if (s2 && s2 !== stem) { shortened = stem; stem = s2; }
+  }
   const g5 = split(r[c("GAG5_SUGGESTED")]), s2 = split(r[c("SEAS2_SUGGESTED")]);
   if (act && patches.length + 2 > 15) { deferred++; continue; }    // one Graph batch per run; the rest freeze tomorrow
   const why = [];
@@ -78,7 +89,7 @@ for (const { r, row } of rows) {
   g5.forEach((t) => { uses[t] = (uses[t] || 0) + 1; });
   const set = { stem, gag5: g5, seas2: s2 };
   if (act) {
-    patches.push({ address: `N${row}:S${row}`, values: [[true, stem, "|" + g5.join("|") + "|", "|" + s2.join("|") + "|", today, (auto ? "Approved automatically and frozen " : "Frozen ") + today]] });
+    patches.push({ address: `N${row}:S${row}`, values: [[true, stem, "|" + g5.join("|") + "|", "|" + s2.join("|") + "|", today, (auto ? "Approved automatically and frozen " : "Frozen ") + today + (shortened ? " · title tag shortened from \"" + shortened + "\"" : "")]] });
     frozen[id] = set; report.push({ id, result: "frozen" });
   } else { would[id] = set; report.push({ id, result: "would freeze" }); }
 }

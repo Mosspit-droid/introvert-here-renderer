@@ -136,6 +136,7 @@ export default {
       if (pathname === "/api/todo-data" && method === "GET") return json(await todoLoad(env));
       if (pathname === "/api/amend-apply" && method === "POST") return await amendApply(request, env);
       if (pathname === "/api/amend-refresh" && method === "POST") return await amendRefresh(env);
+      if (pathname === "/api/amend-restart" && method === "POST") return await amendRestart(env);
       if (pathname === "/api/amend-data" && method === "GET") return json((await env.PENDING.get("amend", "json")) || null);
       if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
       if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
@@ -1064,6 +1065,7 @@ ${brandHeader("To-do")}
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
 async function dashboardPage(env) {
   const todos = (await todoLoad(env)).filter((t) => !t.done);
+  const watch = (await env.PENDING.get("amend-watch", "json")) || {};
   const [items, alerts, amend, daily, gags, tags, stats, pricing, orders, hist] = await Promise.all([
     loadItems(env), loadAlerts(env), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("gags", "json"),
     env.PENDING.get("tags", "json"), env.PENDING.get("stats", "json"), env.PENDING.get("pricing", "json"), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats-hist", "json")]);
@@ -1121,7 +1123,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
 ${topBar("Dashboard")}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
-need("run", busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
+(watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
 need("warn", tagsDue.length, "Tags to fix", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
 need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (lowRanges.length === 1 ? " runs out" : " run out") + " within a week", "/gags")].join("");
@@ -2489,12 +2491,34 @@ async function amendWatch(env) {
   const log = (await env.PENDING.get("amend-log", "json")) || [];
   const w = (await env.PENDING.get("amend-watch", "json")) || {};
   const now = Date.now();
-  const busy = S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status));
+  const busyIds = S.gags.filter((g) => /^AMENDMENT_REQUIRED/.test(g.status)).map((g) => g.id).sort();
+  const busy = busyIds.length > 0;
   const justSaved = log[0] && now - log[0].at < 20 * 60000;
+  // Stall check: if the list of gags still updating hasn't changed for 40 minutes, the builder's chain has stopped.
+  const sig = busyIds.join(",");
+  if (sig !== w.sig) { w.sig = sig; w.since = now; w.warned = false; }
+  if (busy && !w.warned && now - (w.since || now) > 40 * 60000) {
+    w.warned = true;
+    const alerts = await loadAlerts(env);
+    const title = "Listing updates have stopped at " + busyIds[0];
+    const body = busyIds.length + " gag" + (busyIds.length === 1 ? " is" : "s are") + " still waiting (" + busyIds.slice(0, 6).join(", ") + (busyIds.length > 6 ? "…" : "") + "). Nothing has finished for 40 minutes, so the builder has probably hit an error. Tap Restart updates on the Update listings page. If it stops again on the same gag, ask Claude to look.";
+    alerts.unshift({ id: crypto.randomUUID(), at: now, title, body, link: "https://mosspit-approvals.mosspit.workers.dev/amend", source: "Update listings" });
+    await saveAlerts(env, alerts);
+    await notify(env, "https://mosspit-approvals.mosspit.workers.dev", title, "Tap Restart updates on the Update listings page.", "warning");
+  }
+  await env.PENDING.put("amend-watch", JSON.stringify(w));
   if (!busy && !justSaved) return;
   if (w.last && now - w.last < 9 * 60000) return;
-  await env.PENDING.put("amend-watch", JSON.stringify({ last: now }));
+  w.last = now; await env.PENDING.put("amend-watch", JSON.stringify(w));
   await amendHook(env, { action: "state" });
+}
+
+async function amendRestart(env) {
+  const err = await amendHook(env, { action: "kick" });
+  if (err) return err;
+  const w = (await env.PENDING.get("amend-watch", "json")) || {};
+  w.since = Date.now(); w.warned = false; await env.PENDING.put("amend-watch", JSON.stringify(w));
+  return json({ ok: true });
 }
 
 async function amendRefresh(env) {
@@ -2648,7 +2672,7 @@ async function amendPage(env) {
 .abtn{min-height:52px;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;border-width:2px;border-radius:14px}
 .abtn.go{border-color:var(--go)}
 </style>
-${brandHeader("Update listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
+${brandHeader("Update listings", `<button class="btn" id="restart" type="button"${S && S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status)) ? "" : " hidden"}>${icon("sync")}Restart updates</button><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="aw">
   <div class="steps" id="steps"></div>
   <div class="card" id="view"></div>
@@ -2862,6 +2886,10 @@ setInterval(function () {
     if (!typing) render();
   });
 }, 60000);
+$("restart").onclick = function () {
+  var b = $("restart"); b.disabled = true;
+  fetch("/api/amend-restart", { method: "POST" }).then(function (r) { if (r.ok) toast("Restarted. The next gag starts in a moment."); else toast("Couldn't restart. Try again in a minute.", true); b.disabled = false; });
+};
 $("reread").onclick = function () {
   var b = $("reread"); b.disabled = true; b.textContent = "Syncing…";
   var at = S0 ? S0.at : 0;
