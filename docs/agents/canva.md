@@ -75,4 +75,4 @@ Adding pages moves the page numbers, so every range done must also update Core i
 
 ## IH sweatshirt mockups rebuilt by Barry (11 Nov): Core updated
 - C002 (EAHZzIcSycs) 18 pages. MOCKUP_PAGES IH SWEATSHIRT: pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18; VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_SW_pages.xlsx.
-- Reported to Barry: pages 14/15 (FOLDED) gag-text box runs ~2,600 px below the page (only the top ~23% on the page; page 14 goes to Etsy); page 8 named IH_08_SW_FOLDED_DARK_HEATHER next to CLOSEUP_BLACK (no CLOSEUP_DARK_HEATHER page); page 10 background is an older image ID (MAHZt2bRb08) than the rest.
+- Checked with Barry: pages 14/15 gag-text box extending below the page and page 10's older background are intentional; page 8 renamed IH_08_SW_CLOSEUP_DARK_HEATHER (dark heather collar close-up), verified 11 Nov. All overlays locked.
