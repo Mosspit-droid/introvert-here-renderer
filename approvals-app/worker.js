@@ -700,7 +700,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   const more = NAV_MORE.map(([href, ic, label]) => `<a href="${href}">${icon(ic)}${label}</a>`).join("");
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0b0b0a">
 <link rel="manifest" href="${manifestUrl}">
@@ -1080,9 +1080,9 @@ ${brandHeader("Gags")}
 <form id="form" class="gwrap">
   <div class="gacts o-acts"><a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button></div>
   <div class="gcol gL">
-    <div class="frame g-prev o-prev"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div></div></div>
+    <div class="frame g-prev o-prev"><div class="card"><div class="prevhead"><h3 class="sideh">Preview</h3><span class="lamp" id="lFit">Fits</span><span class="lamp" id="lSpell">Spelling</span></div><div id="stage"><div id="pbox"></div></div></div></div>
     <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="8" required spellcheck="true"></textarea></label></div>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="spell"></div></div>
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
@@ -1121,6 +1121,13 @@ ${brandHeader("Gags")}
     .gacts{justify-content:stretch}.gacts .btn{flex:1}
   }
   .fld>b{display:block;margin-bottom:8px}
+  .prevhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}.prevhead .sideh{margin:0;flex:1}
+  .lamp{display:inline-flex;align-items:center;gap:6px;font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:99px;border:1.5px solid var(--line);color:var(--dim)}
+  .lamp::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--dim)}
+  .lamp.ok{color:var(--ok);border-color:rgba(143,208,171,.5)}.lamp.ok::before{background:var(--ok)}
+  .lamp.bad{color:var(--warn);border-color:var(--warn)}.lamp.bad::before{background:var(--warn)}
+  .lamp.wait::before{background:var(--info)}
+  #pwarn .status.ok,#spell .status.ok{display:none}
   .hid{display:none!important}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{min-height:48px;padding:0 16px;border-radius:12px;border:2px solid var(--line);background:var(--field);color:var(--text);font:700 14px var(--display);letter-spacing:.02em;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
@@ -1158,8 +1165,20 @@ ${brandHeader("Gags")}
 <script>
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}
-${GAG_CHIPS_SCRIPT}</script>`);
+${GAG_CHIPS_SCRIPT}
+${GAG_LAMPS_SCRIPT}</script>`);
 }
+
+// Status lights in the preview header; the full warnings sit under the text box and only show when something's wrong.
+const GAG_LAMPS_SCRIPT = String.raw`(function () {
+  function watch(srcId, lampId) {
+    var src = document.getElementById(srcId), lamp = document.getElementById(lampId);
+    function upd() { var bad = src.querySelector(".bad"), ok = src.querySelector(".ok"), wait = /Checking/.test(src.textContent);
+      lamp.className = "lamp" + (bad ? " bad" : ok ? " ok" : wait ? " wait" : ""); }
+    new MutationObserver(upd).observe(src, { childList: true, subtree: true, characterData: true }); upd();
+  }
+  watch("pwarn", "lFit"); watch("spell", "lSpell");
+})();`;
 
 // Range and category buttons for /gags. The hidden <select>s stay the source of truth for the page script;
 // the buttons set them and fire "change". Categories are grouped by how Core's gags are filed today.
