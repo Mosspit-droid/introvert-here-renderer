@@ -20,6 +20,7 @@ Runs in sessions Barry starts (needs the Canva connector). Every edit is preview
 ## Page naming convention (from Barry's OTS T-shirt brand template EAHajluNhMY, 10 Nov 2026)
 `{RANGE}_{NN}_{GARMENT}_{SCENE}_{COLOUR}`, NN = page position (01, 02...). Each scene is followed by its colour pages (main colour first, e.g. MAROON, FOREST_GREEN, DARK_CHOCOLATE). Story scenes interleave: SETUP_MAROON, PAYOFF_MAROON, SETUP_FOREST_GREEN, PAYOFF_FOREST_GREEN... Single pages without colour: VARIANTS, SIZE_GUIDE, RANGE, AGM.
 T-shirt scenes: THUMBNAIL, GIFT, HANGING, VARIANTS, CLOSEUP, SETUP, PAYOFF, FOLDED, SIZE_GUIDE, RANGE, AGM.
+Sweatshirt (OTS, 11 Nov): THUMBNAIL_MAROON (1 page), GIFT, CLOSEUP, ARMCHAIR, VARIANTS, SETUP/PAYOFF pairs, FLATLAY, SIZE_GUIDE, RANGE, AGM. Lying-flat shots are FLATLAY (Barry).
 
 ## What the Canva API can do for colour pages (tested 10 Nov 2026 on a throwaway copy)
 - Read every page's name and which photo is on it (read-design with a transaction).
