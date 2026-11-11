@@ -636,6 +636,7 @@ video{display:block;width:100%;aspect-ratio:1/1;background:#000;border-radius:12
 .btn svg,.btn-main svg,.btn-alt svg{width:20px;height:20px;flex:none}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 input,textarea,select{font-family:var(--body)}
+.keybox{display:block;width:100%;margin:6px 0 14px;padding:12px;font:500 13px var(--mono);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);resize:vertical}
 input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);margin:10px 0 14px}
 .err{color:var(--warn)}
 /* dashboard */
@@ -1784,7 +1785,7 @@ async function statsPage(env, url) {
 
   const tot = (k) => live.reduce((n, l) => n + (l[k] || 0), 0);
   const totRecent = live.reduce((n, l) => n + (recent(l.code, 0) || 0), 0);
-  const tile = (label, value, sub = "") => `<div class="card tile"><div class="tv">${value}</div><div class="tl">${label}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
+  const tile = (label, value, sub = "") => `<div class="card stile"><div class="tv">${value}</div><div class="tl">${label}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
 
   const group = (keyFn, labelFn) => {
     const m = {};
@@ -1805,7 +1806,7 @@ async function statsPage(env, url) {
     <div class="snum">${g.hasRecent ? (g.recent > 0 ? "+" : "") + g.recent : "–"}<span>${baseDays ? baseDays + " days" : "recent"}</span></div>
     <div class="snum">${g.favs}<span>favs</span></div>
     <div class="snum${g.sales ? " hot" : ""}">${g.sales}<span>sold</span></div></summary>
-  <div class="sub">${g.items.sort((a, b) => b.views - a.views).map((l) => `<div class="srow small2"><div class="sname"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(TYPE_LABEL[l.type] || l.type)}</a>${l.state && l.state !== "active" ? ` <span class="badge">${esc(l.state)}</span>` : ""}</div><div class="snum">${l.views}<span>views</span></div><div class="snum">${recent(l.code, 0) ?? "–"}<span>recent</span></div><div class="snum">${l.favs}<span>favs</span></div><div class="snum">${sold[l.code] || 0}<span>sold</span></div></div>`).join("")}</div>
+  <div class="sub"><div class="srow small2"><div class="sname"><a href="/gag/${encodeURIComponent(g.id)}">Open the gag page →</a></div></div>${g.items.sort((a, b) => b.views - a.views).map((l) => `<div class="srow small2"><div class="sname"><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(TYPE_LABEL[l.type] || l.type)}</a>${l.state && l.state !== "active" ? ` <span class="badge">${esc(l.state)}</span>` : ""}</div><div class="snum">${l.views}<span>views</span></div><div class="snum">${recent(l.code, 0) ?? "–"}<span>recent</span></div><div class="snum">${l.favs}<span>favs</span></div><div class="snum">${sold[l.code] || 0}<span>sold</span></div></div>`).join("")}</div>
 </details>`).join("");
 
   const ordersHtml = (st.orders || []).length ? (st.orders || []).slice().sort((a, b) => (b.date > a.date ? 1 : -1)).map((o) =>
@@ -1814,8 +1815,9 @@ async function statsPage(env, url) {
 
   return shell(`
 <style>
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-.tile{padding:14px 16px}.tv{font-size:28px;font-weight:700}.tl{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:700}
+.stiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.stile{padding:16px 18px}.tv{font:900 32px/1.1 var(--display);font-variant-numeric:tabular-nums}.tl{font:800 11px var(--display);text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin-top:4px}
+.snum{font-family:var(--display)}
 .list{padding:6px 14px}
 .srow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);list-style:none;cursor:default}
 .srow-wrap:last-child>.srow,.list>.srow:last-child{border-bottom:0}
@@ -1830,12 +1832,12 @@ summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 .small2{font-size:14px}.small2 .snum{font-size:15px}
 .btn.on{background:var(--accent);color:#111}
 .sorts{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
-@media (max-width:700px){.snum{width:50px;font-size:15px}.tv{font-size:24px}.tiles{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:700px){.snum{width:50px;font-size:15px}.tv{font-size:24px}.stiles{grid-template-columns:repeat(2,1fr)}}
 </style>
 ${brandHeader("Stats", nav)}
 <div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
 <h2>Shop totals</h2>
-<div class="tiles">
+<div class="stiles">
 ${tile("Listings", live.length)}
 ${tile("Views", tot("views"), baseDays ? `${totRecent >= 0 ? "+" : ""}${totRecent} in the last ${baseDays} days` : "")}
 ${tile("Favourites", tot("favs"))}
@@ -2859,9 +2861,9 @@ ${rows ? `<div class="grid">${rows}</div>` : `<div class="card empty">No shop or
 <div class="card" style="max-width:560px">
 <p class="small">These let the shop take payments and place Printify orders. Paste a key and press Save. You can save one at a time. Each box empties after saving; the key is stored privately and this page only ever shows its last 4 characters.</p>
 <label><b>Stripe secret key</b> <span class="small">${stripeState}</span></label>
-<textarea id="sk" rows="2" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;font-family:monospace;font-size:13px" placeholder="sk_test_… (or sk_live_… when going live)"></textarea>
+<textarea id="sk" rows="2" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="sk_test_… (or sk_live_… when going live)"></textarea>
 <label style="margin-top:12px;display:block"><b>Printify API token</b> <span class="small">${pState}</span></label>
-<textarea id="pt" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;font-family:monospace;font-size:13px" placeholder="Printify token (a long code)"></textarea>
+<textarea id="pt" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="Printify token (a long code)"></textarea>
 <button id="savekeys" class="btn-main" type="button">Save keys</button>
 <p id="keymsg" class="small"></p></div>
 <script>
