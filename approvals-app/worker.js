@@ -71,6 +71,9 @@ export default {
       if (pathname === "/approvals" && method === "GET") {
         return authed ? await page(env) : redirect("/");
       }
+      if (pathname.startsWith("/gag/") && method === "GET") {
+        return authed ? await gagPage(env, decodeURIComponent(pathname.slice(5)).toUpperCase()) : redirect("/");
+      }
       if (pathname === "/alerts" && method === "GET") {
         return authed ? await alertsPage(env) : redirect("/");
       }
@@ -686,6 +689,16 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .sheet .pane{width:100%;background:#141413;border-top:2px solid var(--frame);border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sheet .pane a{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px;border:1.5px solid var(--line);border-radius:14px;text-decoration:none;color:var(--text);font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase}
 .sheet .pane a svg{width:28px;height:28px}
+/* find a gag */
+.find{align-items:flex-start}
+.findpane{display:flex!important;flex-direction:column;gap:12px;max-width:760px;margin:0 auto;border-radius:0 0 20px 20px;border-top:0;border-bottom:2px solid var(--frame);padding-top:calc(16px + env(safe-area-inset-top,0px));max-height:85vh}
+.findbar{display:flex;align-items:center;gap:10px}.findbar svg{width:24px;height:24px;flex:none;color:var(--muted)}
+.findbar input{flex:1;min-width:0;min-height:52px;padding:0 14px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
+.findr{overflow:auto;display:flex;flex-direction:column;gap:6px}
+.sheet .pane a.fr{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:2px 12px;padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--text);background:rgba(255,255,255,.03);text-align:left;text-transform:none;letter-spacing:0;font:400 14px var(--body)}
+.sheet .pane a.fr:hover{border-color:var(--frame)}
+.frid{grid-row:span 2;font:500 12px var(--mono);color:var(--muted);align-self:center}
+.fr b{font:700 15px var(--display)}.frt{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* toast */
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:50;background:var(--frame);color:#0d0d0c;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:14px 20px;border-radius:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100vw - 32px);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -719,6 +732,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-home" viewBox="0 0 32 32"><path d="M5 14L16 5l11 9v11a2 2 0 0 1-2 2h-6v-7h-6v7H7a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></symbol>
 <symbol id="i-more" viewBox="0 0 32 32"><circle cx="8" cy="16" r="2.6" fill="currentColor"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/><circle cx="24" cy="16" r="2.6" fill="currentColor"/></symbol>
 <symbol id="i-sync" viewBox="0 0 32 32"><path d="M26 13.5A10.5 10.5 0 0 0 7.2 9.2M6 18.5a10.5 10.5 0 0 0 18.8 4.3" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M6.5 4v6h6M25.5 28v-6h-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-search" viewBox="0 0 32 32"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="2.8"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
 <symbol id="i-back" viewBox="0 0 32 32"><path d="M19 7l-9 9 9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
@@ -746,6 +760,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <nav class="tabbar" aria-label="Main"><div class="in">${tabs}<a href="#more" id="moreBtn">${icon("more")}More</a></div></nav>
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find a gag: ID, title, any word of the gag" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
   var p = location.pathname, on = null;
@@ -755,6 +770,24 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   document.getElementById("moreBtn").addEventListener("click", function (e) { e.preventDefault(); sh.classList.add("open"); });
   sh.addEventListener("click", function (e) { if (e.target === sh) sh.classList.remove("open"); });
   var n = document.body.dataset.alerts; if (n && Number(n) > 0) { var b = document.querySelector('.tabbar [data-tab="/"]'); }
+  // Find a gag (search button in the top bar)
+  var F = document.getElementById("find"), FQ = document.getElementById("findQ"), FR = document.getElementById("findR"), data = null;
+  function esc2(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function run() {
+    var q = FQ.value.trim().toLowerCase();
+    if (!data) { FR.innerHTML = '<p class="small">Loading…</p>'; return; }
+    var cats = {}; (data.editable || []).forEach(function (e) { cats[e.id] = e.category || ""; });
+    var hits = (data.all || []).filter(function (g) { return !q || (g.id + " " + g.stem + " " + g.text + " " + (cats[g.id] || "")).toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
+    FR.innerHTML = hits.length ? hits.map(function (g) { return '<a class="fr" href="/gag/' + encodeURIComponent(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><b>' + esc2(g.stem || "") + '</b><span class="frt">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span></a>'; }).join("") : '<p class="small">No gags match “' + esc2(FQ.value) + '”.</p>';
+  }
+  var fb = document.getElementById("findBtn");
+  if (fb) fb.addEventListener("click", function () { F.classList.add("open"); setTimeout(function () { FQ.focus(); }, 50);
+    if (!data) fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { data = d || { all: [] }; run(); }); else run(); });
+  document.getElementById("findX").addEventListener("click", function () { F.classList.remove("open"); });
+  F.addEventListener("click", function (e) { if (e.target === F) F.classList.remove("open"); });
+  FQ.addEventListener("input", run);
+  // Errors that used to pop up as browser boxes now show as a red message.
+  window.alert = function (m) { if (window.toast) window.toast(String(m), true); };
   window.toast = function (msg, bad) { var t = document.getElementById("toast"); t.textContent = msg; t.className = "toast show" + (bad ? " bad" : ""); clearTimeout(window.__tt); window.__tt = setTimeout(function () { t.className = "toast"; }, 2600); };
 })();
 </script>
@@ -768,7 +801,7 @@ const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
-<div class="when"><b>Studio</b>${esc(today)}</div><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
+<div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
 function brandHeader(title, actions = "") {
@@ -786,6 +819,77 @@ ${topBar()}
   ${wrong ? `<p class="err">That password didn't match.</p>` : ""}
   <button class="btn-main" type="submit">Sign in</button>
 </div></form>`);
+}
+
+// ---------- one gag, drilled down ----------
+const GAG_STATUS = { LIVE_EXISTING: ["Live", "ok"], READY_FOR_RELEASE: ["Scheduled", "wait"], ETSY_DRAFT_READY_FOR_REVIEW: ["Draft waiting for review", "wait"], AMENDMENT_REQUIRED: ["Updating text", "run"], AMENDMENT_REQUIRED_ARTWORK: ["Updating mockups", "run"], AMENDMENT_REQUIRED_REPRINT: ["Updating printed design", "run"], AMENDMENT_REQUIRED_COLOURS: ["Updating colours", "run"], FAILED: ["Failed", "bad"] };
+const GAG_GARMENTS = [["T-SHIRT", "T-shirt"], ["LONG-SLEEVE", "Long sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
+async function gagPage(env, id) {
+  const [gags, stats, items, tags, amend, daily] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("stats", "json"), loadItems(env), env.PENDING.get("tags", "json"), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json")]);
+  const g = gags && (gags.all || []).find((x) => x.id === id);
+  if (!g) return shell(`${brandHeader("Gag not found")}<div class="card empty">${icon("person")}There's no gag ${esc(id)} in the app's copy of Core. Tap Sync to Core on the Gags page if it's new.</div>`);
+  const ed = (gags.editable || []).find((x) => x.id === id);
+  const coll = collOf(id);
+  const st = GAG_STATUS[g.status] || [g.status || "Not set", "wait"];
+  const am = amend && (amend.gags || []).find((x) => x.id === id);
+  const tg = tags && (tags.items || []).find((x) => x.id === id);
+  const fmtDay = (iso) => iso ? new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "";
+  const vids = Object.values(items);
+  const cards = GAG_GARMENTS.map(([t, label], n) => {
+    const code = id + "-" + t;
+    const l = stats && (stats.listings || []).find((x) => x.code === code);
+    const v = vids.filter((x) => x.product === code).sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    const date = ed && ed.dates ? ed.dates[n] : "";
+    const live = l && l.state === "active";
+    const state = live ? ["Live on Etsy", "ok"] : l ? [l.state === "draft" ? "Draft on Etsy" : "On Etsy (" + l.state + ")", "wait"] : date ? ["Releases " + fmtDay(date), "wait"] : am && am.live.includes(t) ? ["Live on Etsy", "ok"] : ["Not built yet", "wait"];
+    const video = !v ? "" : v.status === "pending" ? `<a class="vlink" href="/approvals">Video waiting for your approval</a>`
+      : v.status === "approved" ? (v.result && v.result.ok ? `<span class="vok">Video live and posted ${esc(when(v.result.at))}</span>` : `<span class="small">Video approved ${esc(when(v.approvedAt || v.updatedAt))}</span>`)
+      : v.status === "rerendering" ? `<span class="small">New video being made</span>` : v.status === "rejected" ? `<span class="small">Video rejected</span>` : "";
+    return `<div class="card gl-card"><div class="glh"><b>${label}</b><span class="pill ${state[1]}">${esc(state[0])}</span></div>
+${l ? `<div class="glstats"><span><b>£${Number(l.price || 0).toFixed(2)}</b>price</span><span><b>${Number(l.views) || 0}</b>views</span><span><b>${Number(l.favs) || 0}</b>favourites</span></div>` : ""}
+${video ? `<div class="glvid">${video}</div>` : ""}
+${l ? `<div class="links"><a href="${esc(l.url)}" target="_blank" rel="noopener">Etsy page</a><a href="https://www.etsy.com/your/shops/me/listing-editor/edit/${esc(l.listingId)}" target="_blank" rel="noopener">Shop Manager</a></div>` : ""}</div>`;
+  }).join("");
+  const tagHtml = tg ? `<div class="chips">${[...(tg.gag5 || []), ...(tg.seas2 || [])].map((t) => `<span class="badge">${esc(t)}</span>`).join(" ")}</div><p class="small" style="margin:8px 0 0">${tg.approved ? "Approved" : "Not approved yet"}${tg.frozen ? " · frozen" : ""} · <a href="/tags">Open Tags</a></p>` : `<p class="small" style="margin:0">No tag row for this gag yet.</p>`;
+  return shell(`
+${brandHeader(esc(g.stem || id))}
+<style>
+.gh{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:820px){.gh{grid-template-columns:1fr}}
+.gprint{background:rgba(0,0,0,.55);border-radius:14px;padding:22px;text-align:right;font:400 clamp(20px,3.6vw,34px)/1.2 "Montserrat",sans-serif;letter-spacing:-.03em;white-space:pre-line;color:#fff}
+.gmeta{display:flex;flex-direction:column;gap:12px}
+.gmeta img{height:44px;width:auto;align-self:flex-start}
+.gmeta .row{display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--line);padding-top:10px;font-size:14px;color:var(--muted)}
+.gmeta .row b{color:var(--text);font:700 14px var(--display);text-align:right}
+.pill{display:inline-block;font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:5px 10px;border-radius:99px;border:1.5px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:rgba(143,208,171,.5)}.pill.run{color:var(--info);border-color:rgba(168,195,230,.5)}.pill.bad{color:var(--warn);border-color:var(--warn)}
+.gls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.gls{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.gls{grid-template-columns:1fr}}
+.gl-card{display:flex;flex-direction:column;gap:10px}
+.glh{display:flex;justify-content:space-between;align-items:center;gap:8px}.glh b{font:800 15px var(--display);letter-spacing:.04em;text-transform:uppercase}
+.glstats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+.glstats span{display:flex;flex-direction:column;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.glstats b{font:800 18px var(--display);color:var(--text);letter-spacing:0;text-transform:none}
+.glvid{font-size:13px}.vok{color:var(--ok)}.vlink{color:var(--frame);font-weight:600}
+.gacts2{display:flex;gap:10px;flex-wrap:wrap}.gacts2 .btn{flex:1 1 200px;min-height:56px}
+</style>
+<div class="gh">
+  <div class="frame"><div class="card"><div class="gprint">${esc(g.text)}</div></div></div>
+  <div class="card gmeta">
+    <img src="/assets/brand-${coll.toLowerCase()}-wide.png?v=2" alt="">
+    <div class="row"><span>Gag</span><b>${esc(id)}</b></div>
+    <div class="row"><span>Status</span><b><span class="pill ${st[1]}">${esc(st[0])}</span></b></div>
+    ${ed && ed.category ? `<div class="row"><span>Category</span><b>${esc(ed.category)}</b></div>` : ""}
+    ${ed && ed.dates ? `<div class="row"><span>Releases</span><b>${esc(fmtDay(ed.dates[0]))}${ed.dates[3] && ed.dates[3] !== ed.dates[0] ? " → " + esc(fmtDay(ed.dates[3])) : ""}</b></div>` : ""}
+    <div class="gacts2">${ed ? `<a class="btn" href="/gags?edit=${encodeURIComponent(id)}">${icon("gags")}Edit gag</a>` : ""}<a class="btn" href="/amend">${icon("update")}Update listings</a></div>
+  </div>
+</div>
+<h2>Listings</h2>
+<div class="gls">${cards}</div>
+<h2>Tags</h2>
+<div class="card">${tagHtml}</div>
+<script>document.body.dataset.coll = ${JSON.stringify(coll)};</script>`);
 }
 
 // ---------- dashboard ----------
@@ -1288,6 +1392,12 @@ const GAG_CHIPS_SCRIPT = String.raw`(function () {
   }, true);
   setInterval(function () { var k = col.value + "|" + cat.value + "|" + col.disabled + "|" + col.options.length + "|" + cat.options.length; if (k !== last) { last = k; draw(); } }, 300);
   draw(); lead();
+  var want = new URLSearchParams(location.search).get("edit");
+  if (want) setTimeout(function () {
+    var tab = document.querySelector('.tab[data-tab="edit"]'); if (tab) tab.click();
+    var sq = $("search"); if (!sq) return; sq.value = want; sq.dispatchEvent(new Event("input", { bubbles: true }));
+    setTimeout(function () { var r = document.querySelector("#results .result"); if (r) r.click(); }, 150);
+  }, 200);
 })();`;
 
 // Page script for /gags, kept verbatim (String.raw) so backslashes like \n survive.
