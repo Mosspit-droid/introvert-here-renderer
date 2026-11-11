@@ -564,8 +564,8 @@ function shell(body) {
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#121211">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/assets/icon2-192.png">
-<link rel="apple-touch-icon" href="/assets/icon2-180.png">
+<link rel="icon" href="/assets/icon3-192.png">
+<link rel="apple-touch-icon" href="/assets/icon3-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 <title>Introvert Here</title><style>${STYLE}</style></head>
@@ -1117,7 +1117,7 @@ function manifest() {
   return new Response(JSON.stringify({
     name: "Introvert Here", short_name: "Introvert Here", start_url: "/", display: "standalone",
     background_color: "#121211", theme_color: "#121211",
-    icons: [{ src: "/assets/icon2-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon2-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+    icons: [{ src: "/assets/icon3-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon3-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
   }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
 }
 
