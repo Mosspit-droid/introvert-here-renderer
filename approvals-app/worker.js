@@ -546,7 +546,10 @@ a{color:inherit}
 .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:calc(12px + env(safe-area-inset-top,0px)) 0 12px;margin-bottom:6px}
 .topbar::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);background:linear-gradient(rgba(8,8,8,.94),rgba(8,8,8,.7));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:-1}
 .topbar .home{display:block;line-height:0}
-.topbar .home img{height:40px;width:auto}
+.topbar .home img{height:50px;width:auto;display:block}
+.topbar .sect{font:900 20px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;padding-left:16px;border-left:2px solid var(--line);margin-left:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pagehead{align-items:center;margin:4px 0 14px}
 .topbar .sp{flex:1}
 .topbar .when{font:600 12px var(--body);color:var(--muted);text-align:right;line-height:1.3}
 .topbar .when b{display:block;color:var(--text);font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase}
@@ -658,7 +661,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 @media (max-width:760px){
   .tabbar{display:block}
   .topbar .when{display:none}
-  .topbar .home img{height:34px}
+  .topbar .home img{height:38px}
+  .topbar .sect{font-size:14px;padding-left:10px}
   .grid{grid-template-columns:1fr}
   .card{padding:15px}
   .actions{width:100%}
@@ -728,15 +732,15 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
 const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
-function topBar() {
+function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png" alt="Introvert Here"></a><div class="sp"></div>
+  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
 <div class="when"><b>Studio</b>${esc(today)}</div><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
 function brandHeader(title, actions = "") {
   const kept = String(actions || "").replace(/<a class="btn" href="(\/[a-z-]*)"[^>]*>[\s\S]*?<\/a>/g, (m, href) => (TOP_PAGES.includes(href) ? "" : m));
-  return `${topBar()}<header class="pagehead"><div class="brand"><a class="back" href="/">${icon("back")}Dashboard</a><h1>${title}</h1></div>${kept.trim() ? `<div class="actions">${kept}</div>` : ""}</header>`;
+  return `${topBar(title)}<header class="pagehead"><div class="brand"><a class="back" href="/">${icon("back")}Dashboard</a><h1 class="vh">${title}</h1></div>${kept.trim() ? `<div class="actions">${kept}</div>` : ""}</header>`;
 }
 
 function loginPage(wrong) {
@@ -784,7 +788,7 @@ async function dashboardPage(env) {
   }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
   return shell(`
-${topBar()}
+${topBar("Dashboard")}
 <h2>Needs you</h2>
 <div class="needs">
   ${need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals")}
@@ -1073,46 +1077,55 @@ async function gagsPage(env) {
   return shell(`
 ${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet. Tap Sync to Core."}</div>
-<div class="gwrap"><div class="gmain">
-<div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
+<div class="tabs" style="display:flex;gap:8px;margin:14px 0 4px">
   <button class="btn tab on" data-tab="new" type="button">New gag</button>
   <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
 </div>
 <div id="pick" class="card" style="display:none;margin-top:10px">
-  <input id="search" placeholder="Search by ID, text or title stem…" style="width:100%;padding:11px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--text)">
+  <input id="search" placeholder="Search by ID, text or title stem…">
   <div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div>
 </div>
-<form id="form" class="card" style="margin-top:10px;display:grid;gap:14px">
-  <label><b>Collection</b><select id="collection" required></select></label>
-  <div id="slot" class="small" style="display:none;margin-top:-6px"></div>
-  <label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="9" required spellcheck="true"></textarea></label>
-  <label><b>Gag category</b><select id="category" required></select></label>
-  <label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
-  <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
-  <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
-  <div><b>Release dates</b>
-    <div class="four">
-      <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
-      <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
-    </div></div>
+<form id="form" class="gwrap">
+  <div class="card g-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+    <textarea id="text" rows="9" required spellcheck="true"></textarea></label></div>
+  <div class="frame g-prev"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div>
+    <p class="small" style="margin:10px 0 0">How the gag sits on the print, at the range's print width.</p></div></div>
+  ${savesHtml ? `<div class="card g-saves">${savesHtml}</div>` : `<div class="g-saves"></div>`}
+  <div class="card g-side">
+    <div class="fld"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
+      <div id="slot" class="small" style="display:none"></div></div>
+    <label class="fld"><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
+    <div class="fld"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
+    <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
+    <div class="fld"><b>Release dates</b>
+      <div class="four">
+        <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
+        <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
+      </div></div>
+    <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
+  </div>
 </form>
-</div>
-<aside class="gside">
-  <div class="frame"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div>
-  <p class="small" style="margin:10px 0 0">How the gag sits on the print, at the range's print width.</p></div></div>
-  ${savesHtml ? `<div class="card" style="margin-top:14px">${savesHtml}</div>` : ""}
-</aside></div>
 <style>
-  .gwrap{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start;margin-top:10px}
-  .gside{position:sticky;top:90px;display:flex;flex-direction:column}
+  .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"text side" "prev side" "saves side";grid-template-rows:auto auto 1fr;gap:16px;align-items:start;margin-top:10px}
+  .g-text{grid-area:text}.g-prev{grid-area:prev}.g-saves{grid-area:saves}
+  .g-side{grid-area:side;display:flex;flex-direction:column;gap:18px;position:sticky;top:96px}
+  .fld>b{display:block;margin-bottom:8px}
+  .hid{display:none!important}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{min-height:48px;padding:0 16px;border-radius:12px;border:2px solid var(--line);background:var(--field);color:var(--text);font:700 14px var(--display);letter-spacing:.02em;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+  .chip:hover{border-color:rgba(242,240,235,.6)}
+  .chip.on{background:var(--frame);border-color:var(--frame);color:#0d0d0c}
+  .chip:disabled{opacity:.45;cursor:not-allowed}
+  .chip i{width:10px;height:10px;border-radius:50%;flex:none}
+  .chip.more{border-style:dashed;color:var(--muted);font-weight:600}
+  #rangeChips .chip{flex:1 1 calc(50% - 8px);justify-content:flex-start}
   .sideh{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
   .saves{display:flex;flex-direction:column;gap:10px}
   .sv{border-top:1px solid var(--line);padding-top:10px}.sv:first-child{border-top:0;padding-top:0}
   .svt{display:flex;justify-content:space-between;gap:8px;font-size:14px}.svt span{color:var(--muted);font-size:12px;white-space:nowrap}
   .sv .status{margin-top:6px;padding:8px 10px;font-size:13px}
   #refresh.busy svg{animation:spin 1s linear infinite}
-  @media (max-width:820px){.gwrap{grid-template-columns:1fr}.gside{position:static;order:-1}}
+  @media (max-width:820px){.gwrap{grid-template-columns:1fr;grid-template-areas:"text" "prev" "side" "saves";grid-template-rows:auto}.g-side{position:static}}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
   .tab.on{background:var(--accent);color:#141413;border-color:var(--accent)}
@@ -1129,17 +1142,47 @@ ${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check f
   #pbox .over{color:#ff9a8a}
   .result{padding:10px;border-top:1px solid var(--line);cursor:pointer}
   .result:hover{background:var(--bg)}
-  .cornerbtn{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:25;width:56px;height:56px;border-radius:16px;border:2px solid var(--frame);background:var(--card);color:var(--text);font-size:26px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.5)}
-  @media (max-width:760px){.cornerbtn{bottom:calc(86px + env(safe-area-inset-bottom,0px))}}
-  .cornerbtn svg{width:28px;height:28px;display:block;margin:auto}
-  .cornerbtn.busy{animation:spin 1s linear infinite;opacity:.7}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <script>
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
-${GAGS_SCRIPT}</script>`);
+${GAGS_SCRIPT}
+${GAG_CHIPS_SCRIPT}</script>`);
 }
+
+// Range and category buttons for /gags. The hidden <select>s stay the source of truth for the page script;
+// the buttons set them and fire "change". Categories are grouped by how Core's gags are filed today.
+const GAG_CHIPS_SCRIPT = String.raw`(function () {
+  var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"] };
+  var CATS = {
+    "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking"],
+    "SHHH.": ["Alternative Communication", "Sensory Issues"],
+    "PER CONTRACT": ["Quiet Quitting", "Corporate Nonsense", "Off The Clock", "Burnout", "Workplace"],
+    "OFF THE SHELF": ["Book Lover", "Escapism"] };
+  var col = $("collection"), cat = $("category"), rc = $("rangeChips"), cc = $("catChips"), showAll = false, last = "";
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function pick(sel, v) { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); draw(); }
+  function draw() {
+    var ranges = Array.prototype.map.call(col.options, function (o) { return o.value; }).filter(Boolean);
+    rc.innerHTML = ranges.map(function (r) { var i = RANGE_INFO[r] || [r, "var(--muted)"]; return '<button type="button" class="chip' + (col.value === r ? " on" : "") + '" data-r="' + esc(r) + '"' + (col.disabled ? " disabled" : "") + '><i style="background:' + i[1] + '"></i>' + esc(i[0]) + "</button>"; }).join("");
+    if (!col.value) { cc.innerHTML = '<span class="small">Choose a range first.</span>'; return; }
+    var all = Array.prototype.map.call(cat.options, function (o) { return o.value; }).filter(Boolean);
+    var mine = (CATS[col.value] || []).filter(function (c) { return all.indexOf(c) >= 0; });
+    if (cat.value && mine.indexOf(cat.value) < 0) mine.push(cat.value);
+    var list = showAll ? all : mine;
+    cc.innerHTML = list.map(function (c) { return '<button type="button" class="chip' + (cat.value === c ? " on" : "") + '" data-c="' + esc(c) + '">' + esc(c) + "</button>"; }).join("") +
+      '<button type="button" class="chip more" data-more="1">' + (showAll ? "Just this range" : "Show all categories") + "</button>";
+  }
+  rc.addEventListener("click", function (e) { var b = e.target.closest("[data-r]"); if (!b || col.disabled) return; if (col.value !== b.dataset.r) { cat.value = ""; showAll = false; } pick(col, b.dataset.r); });
+  cc.addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; if (b.dataset.more) { showAll = !showAll; draw(); return; } pick(cat, b.dataset.c); });
+  $("form").addEventListener("submit", function (e) {
+    var miss = !col.value ? "Choose a range." : !cat.value ? "Choose a gag category." : "";
+    if (miss) { e.preventDefault(); e.stopImmediatePropagation(); if (window.toast) toast(miss, true); else alert(miss); }
+  }, true);
+  setInterval(function () { var k = col.value + "|" + cat.value + "|" + col.disabled + "|" + col.options.length + "|" + cat.options.length; if (k !== last) { last = k; draw(); } }, 300);
+  draw();
+})();`;
 
 // Page script for /gags, kept verbatim (String.raw) so backslashes like \n survive.
 const GAGS_SCRIPT = String.raw`const BOX = { "INTROVERT HERE…": 509, "SHHH.": 505, "PER CONTRACT": 543, "OFF THE SHELF": 509 }; // OTS width is a placeholder until the first OTS print file is measured
@@ -1159,7 +1202,7 @@ const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC"
 function setLook(coll) {
   const c = CODE[coll] || "IH";
   document.body.dataset.coll = c;
-  const logo = document.getElementById("logo"); if (logo) logo.src = "/assets/brand-" + c.toLowerCase() + "-wide.png";
+  const logo = document.getElementById("logo"); if (logo) logo.src = "/assets/brand-" + c.toLowerCase() + "-wide.png?v=2";
 }
 function note(text, cls) { const el = $("slot"); el.style.display = text ? "block" : "none"; el.className = cls || "small"; el.textContent = text || ""; }
 function slotInfo() {
@@ -1666,7 +1709,8 @@ async function pricingPage(env) {
   const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
   return shell(`
 <style>
-.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.pgrid{grid-template-columns:1fr}}
 .pcard h3{margin:0 0 10px;font-size:18px}
 .prow{display:flex;gap:10px;align-items:center;margin:8px 0;flex-wrap:wrap}
 .prow label{flex:1;min-width:120px;font-size:14px;color:var(--muted)}
