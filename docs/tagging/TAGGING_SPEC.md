@@ -376,3 +376,8 @@ Then a **Make dry run**: DryRun=TRUE, DryRunGagId=IH-99901 → the app receives 
 - **U4** Etsy may accept accented letters; we flag them instead.
 - **U5** MAP overlap recalc time at ~640 rows (Gate 1; fallback: Make computes).
 - **U6** The GAG_CATEGORY dropdown rule itself isn't readable with my access; pools use the 13 names in GAG_CATEGORIES.
+
+## Update 12 Nov 2026 (Barry approved)
+- **Auto-approval:** the builder's freeze step (9603, `make/freeze.js`) approves and freezes a gag automatically when its first release is within `AutoApproveDays` (default 2, TAG_SETTINGS) and its OVERLAP_BAND isn't RED. Set `AutoApprove` = OFF in TAG_SETTINGS to go back to manual. Problems (stem too long etc.) still hold the gag; the app's "Tags to fix" card shows them.
+- **SEASON_POOL:** 28 phrases added (42 total). Every holiday has 3–6; new WINTER season (1 Nov – 28 Feb).
+- **Seasonal refresh:** Make scenario 8524736 "Refresh seasonal tags", daily 07:20 (`make/season_refresh.js`). Swaps out-of-season SEASON_POOL tags on live listings for in-season ones (per-gag rotation, evergreen gift phrases as top-up), max 40 listings a day, updates Etsy tags, LISTING_TAGS (source SEASON_REFRESH) and GAG_TAGS SEAS2_FROZEN so later amendments keep the new pair.

@@ -1097,7 +1097,8 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
   // tags: gags releasing within a week whose tags aren't approved yet
   const in7 = new Date(todayMs + 7 * 864e5).toISOString().slice(0, 10);
-  const tagsDue = (tags && tags.items || []).filter((t) => !t.approved && t.due && t.due <= in7);
+  // Tags approve themselves 2 days before release; only real problems (title too long for a tag, clashing tags) need you.
+  const tagsDue = (tags && tags.items || []).filter((t) => !t.approved && t.due && t.due <= in7 && (String(t.band || "").toUpperCase() === "RED" || (t.status && t.status !== "READY" && !/awaiting approval/i.test(t.status))));
   // today strip: today's releases and views since the previous daily read
   const todayIso = (daily && daily.today) || new Date().toISOString().slice(0, 10);
   const todays = (daily && daily.upcoming || []).filter((u) => u.date === todayIso);
@@ -1122,7 +1123,7 @@ ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pendi
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
 need("run", busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
-need("warn", tagsDue.length, "Tags to approve", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
+need("warn", tagsDue.length, "Tags to fix", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
 need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (lowRanges.length === 1 ? " runs out" : " run out") + " within a week", "/gags")].join("");
   return cards ? `<h2>Needs you</h2><div class="needs">${cards}</div>` : `<div class="allclear">${icon("check")}<span><b>All caught up</b>Nothing needs you right now.</span></div>`; })()}
 <h2>Today</h2>

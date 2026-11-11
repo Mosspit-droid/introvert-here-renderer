@@ -12,6 +12,12 @@ const engineOn = yes(S.TagEngine), dryRun = yes(S.DryRun), dryId = String(S.DryR
 const cap = Number(S.TagCap) || 3, maxLen = Number(S.TagMaxLen) || 20, maxWords = Number(S.StemMaxWords) || 4;
 const allowed = String(S.TagAllowed || "abcdefghijklmnopqrstuvwxyz0123456789 '-");
 const today = String(input.today || new Date().toISOString().slice(0, 10)).slice(0, 10);
+// Auto-approval (Barry, 12 Nov 2026): a gag releasing within AutoApproveDays (default 2) is approved automatically,
+// unless its overlap band is RED. Problems (stem too long etc.) still stop it, and show in the app's Needs you.
+const autoDays = S.AutoApproveDays === undefined || S.AutoApproveDays === "" ? 2 : Number(S.AutoApproveDays);
+const autoOff = String(S.AutoApprove || "").toUpperCase() === "OFF" || String(S.AutoApprove || "").toUpperCase() === "FALSE";
+const xlDay = (v) => { const n = Number(v); if (Number.isFinite(n) && n > 20000) return new Date(Date.UTC(1899, 11, 30) + n * 864e5).toISOString().slice(0, 10); const s = String(v || ""); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : ""; };
+const autoBy = new Date(Date.parse(today + "T00:00:00Z") + autoDays * 864e5).toISOString().slice(0, 10);
 
 const T = vals(input.tags), H = T[0] || [], c = (n) => H.indexOf(n);
 const P = vals(input.pool), F = vals(input.prod);
@@ -39,7 +45,9 @@ const rows = T.slice(1).map((r, i) => ({ r, row: i + 2 })).filter((x) => x.r[0] 
 for (const { r, row } of rows) {
   const id = String(r[0]);
   if (String(r[c("GAG5_FROZEN")] || "") !== "") continue;            // already frozen: never rewritten
-  if (r[c("APPROVED")] !== true) continue;                              // only explicit approvals
+  const first = xlDay(r[c("FIRST_RELEASE")]);
+  const auto = r[c("APPROVED")] !== true && !autoOff && first && first <= autoBy && String(r[c("OVERLAP_BAND")] || "").toUpperCase() !== "RED";
+  if (r[c("APPROVED")] !== true && !auto) continue;                     // explicit approval, or automatic close to release
   const isTest = id.startsWith("IH-999");
   const act = engineOn && !dryRun ? true : dryRun ? isTest : false;
   if (!engineOn && !dryRun) continue;
@@ -63,13 +71,14 @@ for (const { r, row } of rows) {
   if (raced.length) why.push(`"${raced.join('", "')}" was just used up by another gag; check the new suggestion and approve again`);
   if (why.length) {
     if (act) patches.push({ address: `N${row}`, values: [[false]] }, { address: `S${row}`, values: [["Not frozen " + today + ": " + why.join("; ")]] });
+    if (act && auto) patches.splice(-2, 1);   // automatic: leave APPROVED alone, just record why
     report.push({ id, result: act ? "rejected" : "would be rejected", why: why.join("; ") });
     continue;
   }
   g5.forEach((t) => { uses[t] = (uses[t] || 0) + 1; });
   const set = { stem, gag5: g5, seas2: s2 };
   if (act) {
-    patches.push({ address: `O${row}:S${row}`, values: [[stem, "|" + g5.join("|") + "|", "|" + s2.join("|") + "|", today, "Frozen " + today]] });
+    patches.push({ address: `N${row}:S${row}`, values: [[true, stem, "|" + g5.join("|") + "|", "|" + s2.join("|") + "|", today, (auto ? "Approved automatically and frozen " : "Frozen ") + today]] });
     frozen[id] = set; report.push({ id, result: "frozen" });
   } else { would[id] = set; report.push({ id, result: "would freeze" }); }
 }
