@@ -29,3 +29,6 @@ Sweatshirt (OTS, 11 Nov): THUMBNAIL_MAROON (1 page), GIFT, CLOSEUP, ARMCHAIR, VA
 - Duplicate a page (merge-designs insert_pages from the same design): wiring and font kept, but the copy keeps the original page's name. Pages can't be renamed afterwards.
 - A gag-text box created from scratch can be wired, but its font can't be set (comes out in Canva's default), so text pages must be duplicates of Barry's wired pages.
 - The listing builder ignores Canva page names; it uses page order plus Core MOCKUP_PAGES (POSITION -> PAGE_NAME).
+
+## Permissions (11 Nov 2026)
+Barry added `.claude/settings.json`: Canva reading, editing, copying, page merging/reordering, uploads, folders and exports run without asking in new sessions. Still asks: publishing a brand template, autofill. Rule stays: work on copies in Claude's folders, never overwrite or delete Barry's originals.
