@@ -115,3 +115,4 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 - Make "Tool — Amend live listings (app)" (8448188, the old Find Your Range scenario, same hook MAKE_TOOL_RANGE_HOOK): action "state" reads Core + Printify colours into KV `amend`; action "apply" writes the Core cells, waits 5 min, starts the builder.
 - Builder 7896436: REPRINT = new print file per listing (same placement), deletes the Etsy videos, clears VIDEO_STATUS (U:X) so a new video renders, then sets COLOURS. COLOURS = text update that may add/remove colours (Printify PUT with variants + print_areas), then sets ARTWORK. ARTWORK = mockups, then LIVE_EXISTING. Backup before the change: scratchpad amend/backup_7896436_20261111_before_amend.json.
 - Colours are per range: the range's COLOUR_PROFILES.REAL_COLOURS row.
+- After a reprint, approving the new video re-posts to Pinterest, Instagram and Facebook (Barry chose this, 11 Nov 2026).
