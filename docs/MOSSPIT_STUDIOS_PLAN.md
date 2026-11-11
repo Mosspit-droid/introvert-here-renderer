@@ -119,3 +119,11 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 - Page redesigned 11 Nov (Barry's spec): 4 steps Where (Everything / By range / By listing drill-down) → What (supplier, print template, mockups, colours, titles, descriptions, tags) → Details → Check, with Start over on every step; nothing ticked by default.
 - Supplier changes: Barry swaps provider/model in Printify (My products › Replace; the API can't change provider on an existing product). The tool then records the new PRINTIFY_BLUEPRINT_ID / PRINTIFY_PROVIDER_ID in PRODUCT_RULES and runs a colours + mockups refresh. The Amend helper only fetches colours for blueprints 6, 80, 49, 77; a new blueprint needs adding there.
 - Update mockups also deletes the Etsy video and clears VIDEO_STATUS, so a new video is rendered for approval (builder modules 9760-9764, 11 Nov).
+
+## Shared to-do list (12 Nov 2026)
+- App page /todo; items in KV `todos`. Claude connects through the remote MCP connector at `/mcp/<key>`, ChatGPT (custom GPT action) and scripts through `/todo-api/<key>` (GET = open items, POST {text, details, source} = add, POST /done {id} = tick off).
+- The key is in the SECRETS KV namespace, key `todo_key` (never commit it). Claude Code sessions can read it with the Cloudflare API and add items. Code word for Barry: "Note it".
+- Setup instructions for Claude and ChatGPT are on the To-do page (Set up panel, signed in only).
+
+## Backlog gags (12 Nov 2026)
+- A gag saved with all four release dates empty sits in the backlog: the builder skips rows without dates. Off The Shelf's 12 prepared rows have no dates until Barry plans its schedule.
