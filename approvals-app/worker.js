@@ -987,6 +987,7 @@ ${handledHtml}
 <style>
 .aq{display:flex;flex-direction:column;gap:18px}
 .ac{position:relative;touch-action:pan-y;transition:transform .25s ease}
+.ac[data-coll=SH]{border-color:var(--sh)}.ac[data-coll=PC]{border-color:var(--pc)}.ac[data-coll=OS]{border-color:var(--os)}
 .ac.dragging{transition:none}
 .ac .in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:18px}
 @media (max-width:820px){.ac .in{grid-template-columns:1fr;padding:14px}}
