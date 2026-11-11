@@ -54,3 +54,8 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - Black -> Dark Heather with `shop/mockups/dark_recolour.py` (GrabCut cut-out + target brightness + synthetic heather speckle): colour looks right, but the hanger got recoloured, edges were ragged and collar/seam detail flattened. Not good enough to publish. Black photos hold too little detail; better routes: Barry's own Dark Heather photos (some exist: IH_08_TS_GREY, IH sweatshirt DARK_HEATHER pages), or an AI image edit of the blank photo (uses Canva's AI limit, ask first).
 - Navy -> Black (PC) not tested: Canva edits on the scratch design were declined at that point, so work stopped.
 - Session safety check prompts Barry on some Canva edits even on renamed copies; overnight unattended Canva work isn't reliable in this kind of session.
+
+## IH T-shirt mockups rebuilt by Barry (11 Nov): Core updated
+- A002 (EAHXKA4EqCs) now 18 pages: thumbnail/gift/hanging/closeup in Black + Dark Heather, variants (9), setup/payoff Black (10, 11) and Dark Heather (12, 13), flatlay Black/DH (14, 15), AGM 16, size guide 17, brand 18.
+- MOCKUP_PAGES IH T-SHIRT: 12 rows, same rule as OTS (both thumbnails, Black of each scene, variants, AGM, size guide, brand): pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18. PRODUCT_RULES IH T-SHIRT VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_TS_pages.xlsx.
+- Canva page-name typos seen (cosmetic; Core uses its own names): page 9 "IH_TS _VARIANTS", pages 14/15 lack "TS" ("IH_14_FLATLAY_BLACK").
