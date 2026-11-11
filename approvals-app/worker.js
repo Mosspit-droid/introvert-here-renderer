@@ -1654,6 +1654,7 @@ async function amendHook(env, body) {
 
 // Re-read Core about every 10 minutes while any gag is still updating, and once more after the last one finishes.
 async function amendWatch(env) {
+  await env.PENDING.put("amend-tick", String(Date.now()));
   const S = await env.PENDING.get("amend", "json");
   if (!S) return;
   const log = (await env.PENDING.get("amend-log", "json")) || [];
@@ -1877,7 +1878,7 @@ function render() {
   $("back").hidden = A.step === 0 || !!A.done;
   $("next").hidden = A.step >= 3;
   $("next").disabled = (A.step === 0 && !n) || (A.step === 1 && !w.length);
-  $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h((l.what || []).join(", ") || l.what) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
+  $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(Array.isArray(l.what) ? l.what.join(", ") : (l.what || "")) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
   $("readAt").textContent = "Core read " + new Date(S0.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
 }
 
