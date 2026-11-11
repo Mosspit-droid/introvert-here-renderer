@@ -61,6 +61,8 @@ export default {
       if (pathname === "/manifest.webmanifest") return manifest();
       if (pathname === "/links.webmanifest") return linksManifest();
       if (pathname === "/api/links-sync" && method === "POST") return await linksSync(request, env);
+      { const m = /^\/mcp\/([A-Za-z0-9_-]{16,})\/?$/.exec(pathname); if (m) return await todoMcp(request, env, m[1]); }
+      { const m = /^\/todo-api\/([A-Za-z0-9_-]{16,})(?:\/(done))?\/?$/.exec(pathname); if (m) return await todoExtApi(request, env, m[1], m[2]); }
       if (pathname === "/login" && method === "POST") return await login(request, env);
       if (pathname === "/logout") return logout();
 
@@ -73,6 +75,9 @@ export default {
       }
       if (pathname.startsWith("/gag/") && method === "GET") {
         return authed ? await gagPage(env, decodeURIComponent(pathname.slice(5)).toUpperCase()) : redirect("/");
+      }
+      if (pathname === "/todo" && method === "GET") {
+        return authed ? await todoPage(env, url.origin) : redirect("/");
       }
       if (pathname === "/alerts" && method === "GET") {
         return authed ? await alertsPage(env) : redirect("/");
@@ -127,6 +132,8 @@ export default {
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
+      if (pathname === "/api/todo" && method === "POST") return await todoAppApi(request, env);
+      if (pathname === "/api/todo-data" && method === "GET") return json(await todoLoad(env));
       if (pathname === "/api/amend-apply" && method === "POST") return await amendApply(request, env);
       if (pathname === "/api/amend-refresh" && method === "POST") return await amendRefresh(env);
       if (pathname === "/api/amend-data" && method === "GET") return json((await env.PENDING.get("amend", "json")) || null);
@@ -679,7 +686,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .rbar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
 .rbar i{display:block;height:100%;border-radius:99px}
 .foot{font:500 12px var(--mono);color:var(--dim);text-align:center;margin:36px 0 0}
-.today{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
+.today{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr);gap:12px}
+.tdcell{text-decoration:none;color:var(--text)}.tdcell:hover{border-color:var(--frame)}
 @media (max-width:620px){.today{grid-template-columns:1fr 1fr}.today .tcell:first-child{grid-column:1/-1}}
 .tcell{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .tcell .tl{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -747,6 +755,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-more" viewBox="0 0 32 32"><circle cx="8" cy="16" r="2.6" fill="currentColor"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/><circle cx="24" cy="16" r="2.6" fill="currentColor"/></symbol>
 <symbol id="i-sync" viewBox="0 0 32 32"><path d="M26 13.5A10.5 10.5 0 0 0 7.2 9.2M6 18.5a10.5 10.5 0 0 0 18.8 4.3" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M6.5 4v6h6M25.5 28v-6h-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-search" viewBox="0 0 32 32"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="2.8"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="i-todo" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M9.5 16.5l4 4 9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-back" viewBox="0 0 32 32"><path d="M19 7l-9 9 9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
@@ -754,7 +763,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
-const NAV_MORE = [["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -811,7 +820,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 }
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
-const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
+const TOP_PAGES = ["/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
@@ -906,9 +915,155 @@ ${brandHeader(esc(g.stem || id))}
 <script>document.body.dataset.coll = ${JSON.stringify(coll)};</script>`);
 }
 
+// ---------- To-do (shared with Claude, ChatGPT and Claude Code) ----------
+// Items live in KV "todos". The app page needs the normal sign-in. AI tools reach it with the private key kept in
+// SECRETS "todo_key": Claude through a remote MCP connector at /mcp/<key>, ChatGPT and scripts through /todo-api/<key>.
+async function todoKeyOk(env, key) { const k = env.SECRETS && (await env.SECRETS.get("todo_key")); return !!k && safeEqual(String(key || ""), k); }
+async function todoLoad(env) { return (await env.PENDING.get("todos", "json")) || []; }
+async function todoSave(env, list) { await env.PENDING.put("todos", JSON.stringify(list.slice(0, 500))); }
+function todoClean(t, n) { return String(t == null ? "" : t).replace(/\s+/g, " ").trim().slice(0, n); }
+async function todoAdd(env, text, details, source) {
+  const t = todoClean(text, 140); if (!t) throw new Error("The to-do needs some text.");
+  const list = await todoLoad(env);
+  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: t, details: todoClean(details, 1000), source: todoClean(source, 30) || "App", at: Date.now(), done: false };
+  list.unshift(item); await todoSave(env, list); return item;
+}
+async function todoSet(env, id, patch) {
+  const list = await todoLoad(env); const it = list.find((x) => x.id === id || x.id === String(id).trim());
+  if (!it) throw new Error("No to-do with that id.");
+  if ("done" in patch) { it.done = !!patch.done; it.doneAt = it.done ? Date.now() : null; }
+  if (patch.remove) list.splice(list.indexOf(it), 1);
+  await todoSave(env, list); return it;
+}
+// App (signed in)
+async function todoAppApi(request, env) {
+  const d = await request.json().catch(() => ({}));
+  try {
+    if (d.action === "add") await todoAdd(env, d.text, d.details, "Barry");
+    else if (d.action === "done" || d.action === "undo") await todoSet(env, d.id, { done: d.action === "done" });
+    else if (d.action === "remove") await todoSet(env, d.id, { remove: true });
+    else return json({ error: "Unknown request" }, 400);
+  } catch (e) { return json({ error: e.message }, 400); }
+  return json({ ok: true, todos: await todoLoad(env) });
+}
+// ChatGPT action / scripts: GET list, POST add, POST done
+async function todoExtApi(request, env, key, sub) {
+  if (!(await todoKeyOk(env, key))) return json({ error: "Not found" }, 404);
+  try {
+    if (request.method === "GET") { const list = await todoLoad(env); return json({ todos: list.filter((x) => !x.done).map(({ id, text, details, source, at }) => ({ id, text, details, source, added: new Date(at).toISOString() })) }); }
+    const d = await request.json().catch(() => ({}));
+    if (sub === "done") return json({ ok: true, todo: await todoSet(env, d.id, { done: true }) });
+    return json({ ok: true, todo: await todoAdd(env, d.text, d.details, d.source || "ChatGPT") });
+  } catch (e) { return json({ error: e.message }, 400); }
+}
+// Claude: minimal remote MCP server (Streamable HTTP, JSON responses, no sessions)
+const TODO_TOOLS = [
+  { name: "add_todo", description: "Add an item to Barry's shared Introvert Here to-do list. Use when Barry says the code word \"Note it\": summarise the idea as a short, clear to-do line (under 120 characters), with any useful context in details.", inputSchema: { type: "object", properties: { text: { type: "string", description: "The to-do, one short line" }, details: { type: "string", description: "Optional extra context" } }, required: ["text"] } },
+  { name: "list_todos", description: "List the open items on Barry's shared Introvert Here to-do list.", inputSchema: { type: "object", properties: {} } },
+  { name: "complete_todo", description: "Tick off an item on the shared to-do list by its id.", inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
+];
+async function todoMcp(request, env, key) {
+  if (!(await todoKeyOk(env, key))) return new Response("Not found", { status: 404 });
+  if (request.method === "GET") return new Response("Method not allowed", { status: 405 });
+  if (request.method === "DELETE") return new Response(null, { status: 204 });
+  let msg; try { msg = await request.json(); } catch (e) { return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, 400); }
+  const handle = async (m) => {
+    if (m.id === undefined || m.id === null) return null; // notification
+    const ok = (result) => ({ jsonrpc: "2.0", id: m.id, result });
+    if (m.method === "initialize") return ok({ protocolVersion: (m.params && m.params.protocolVersion) || "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "introvert-here-todo", version: "1.0.0" }, instructions: "Barry's shared to-do list for Introvert Here. When he says \"Note it\", summarise the idea and call add_todo." });
+    if (m.method === "ping") return ok({});
+    if (m.method === "tools/list") return ok({ tools: TODO_TOOLS });
+    if (m.method === "tools/call") {
+      const a = (m.params && m.params.arguments) || {}, name = m.params && m.params.name;
+      const text = (t) => ok({ content: [{ type: "text", text: t }] });
+      try {
+        if (name === "add_todo") { const it = await todoAdd(env, a.text, a.details, "Claude"); return text("Added to the to-do list: " + it.text); }
+        if (name === "list_todos") { const l = (await todoLoad(env)).filter((x) => !x.done); return text(l.length ? l.map((x) => "- [" + x.id + "] " + x.text + (x.details ? " (" + x.details + ")" : "")).join("\n") : "The to-do list is empty."); }
+        if (name === "complete_todo") { const it = await todoSet(env, a.id, { done: true }); return text("Ticked off: " + it.text); }
+        return { jsonrpc: "2.0", id: m.id, error: { code: -32602, message: "Unknown tool" } };
+      } catch (e) { return ok({ content: [{ type: "text", text: "Couldn't do that: " + e.message }], isError: true }); }
+    }
+    return { jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "Method not found" } };
+  };
+  if (Array.isArray(msg)) { const out = (await Promise.all(msg.map(handle))).filter(Boolean); return out.length ? json(out) : new Response(null, { status: 202 }); }
+  const r = await handle(msg); return r ? json(r) : new Response(null, { status: 202 });
+}
+
+async function todoPage(env, origin) {
+  const list = await todoLoad(env);
+  const key = env.SECRETS && (await env.SECRETS.get("todo_key"));
+  const mcpUrl = key ? origin + "/mcp/" + key : "";
+  const apiUrl = key ? origin + "/todo-api/" + key : "";
+  const schema = key ? JSON.stringify({ openapi: "3.1.0", info: { title: "Introvert Here to-do", version: "1.0.0" }, servers: [{ url: apiUrl }],
+    paths: { "/": { get: { operationId: "listTodos", summary: "List open to-dos", responses: { "200": { description: "OK" } } },
+      post: { operationId: "addTodo", summary: "Add a to-do", requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { text: { type: "string", description: "One short line" }, details: { type: "string" } }, required: ["text"] } } } }, responses: { "200": { description: "OK" } } } },
+      "/done": { post: { operationId: "completeTodo", summary: "Tick off a to-do by id", requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } } } }, responses: { "200": { description: "OK" } } } } } }, null, 2) : "";
+  const gptInstr = "You help Barry run Introvert Here, an Etsy shop of introvert humour clothing. When Barry says \"Note it\", summarise the idea he has just described as one short, clear to-do line (under 120 characters), put any useful context in details, and call addTodo. Confirm in one line. If he asks what's on his list, call listTodos.";
+  const setup = key ? `<details class="card setup"><summary>Set up Claude and ChatGPT</summary>
+  <p class="small">Keep these private: anyone with the link can add to your list.</p>
+  <h4>Claude</h4><ol class="small"><li>In Claude: Settings → Connectors → <b>Add custom connector</b>.</li><li>Name: <b>Introvert Here to-do</b>. URL: the link below. Leave the advanced settings empty, then Add.</li><li>Settings → Profile, in "What personal preferences should Claude consider", add: <i>When I say "Note it", summarise the idea and add it with the Introvert Here to-do connector.</i></li></ol>
+  <div class="cp"><code>${esc(mcpUrl)}</code><button class="btn" type="button" data-copy="${esc(mcpUrl)}">Copy</button></div>
+  <h4>ChatGPT</h4><ol class="small"><li>In ChatGPT: Explore GPTs → <b>Create</b> → Configure. Name it <b>Introvert Here</b>.</li><li>Paste the instructions below into Instructions.</li><li>Create new action → paste the schema below. Authentication: None. Save (Only me).</li><li>Chat in that GPT and say "Note it" when you have an idea.</li></ol>
+  <div class="cp"><code>Instructions</code><button class="btn" type="button" data-copy="${esc(gptInstr)}">Copy instructions</button></div>
+  <div class="cp"><code>Action schema</code><button class="btn" type="button" data-copy="${esc(schema)}">Copy schema</button></div>
+</details>` : "";
+  return shell(`
+${brandHeader("To-do")}
+<style>
+.tdw{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media (max-width:860px){.tdw{grid-template-columns:1fr}}
+.tdadd{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tdadd input{flex:1 1 240px;min-width:0;min-height:52px;padding:0 14px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
+.tdl{display:flex;flex-direction:column;gap:8px}
+.td{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--card);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.td input{width:26px;height:26px;accent-color:var(--go);flex:none;margin-top:1px}
+.td .tx{flex:1;min-width:0}.td .tx b{display:block;font:700 16px var(--display)}.td .tx p{margin:4px 0 0;font-size:14px;color:var(--muted);white-space:pre-wrap}
+.td .meta3{font-size:12px;color:var(--dim);margin-top:6px}
+.td.done .tx b{text-decoration:line-through;color:var(--muted)}
+.td button{flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);font-size:20px;cursor:pointer}
+.src{display:inline-block;font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--line);margin-right:6px}
+.setup{grid-column:2}.setup summary{cursor:pointer;font:800 13px var(--display);letter-spacing:.06em;text-transform:uppercase}
+.setup h4{margin:14px 0 4px;font:800 14px var(--display)}.setup ol{padding-left:18px;margin:4px 0 8px}
+.cp{display:flex;gap:8px;align-items:center;margin:6px 0}.cp code{flex:1;min-width:0;font:500 12px var(--mono);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:860px){.setup{grid-column:auto}}
+.src.Claude{color:#e8a389;border-color:#d97757}.src.ChatGPT{color:#9fd0c3;border-color:#74aa9c}.src.Barry{color:var(--text)}
+</style>
+<div class="tdw">
+  <div>
+    <div class="tdadd"><input id="tdText" placeholder="Add a to-do" enterkeyhint="done"><button class="btn-main" id="tdAdd" type="button" style="width:auto;padding:0 22px">Add</button></div>
+    <div class="tdl" id="open"></div>
+    <h2 id="doneH">Done</h2><div class="tdl" id="done"></div>
+  </div>
+  <div class="card"><h3 style="margin:0 0 8px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)">Add from anywhere</h3>
+    <p class="small" style="margin:0">In Claude or ChatGPT, say <b>Note it</b> and the idea is summarised and added here. Claude Code can add to it too. Ticked items move to Done.</p></div>
+  ${setup}
+</div>
+<script>
+(function () {
+  var L = ${JSON.stringify(list).replace(/</g, "\\u003c")};
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function when(ms) { return new Date(ms).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+  function row(t) { return '<div class="td' + (t.done ? " done" : "") + '"><input type="checkbox" data-id="' + esc(t.id) + '"' + (t.done ? " checked" : "") + ' aria-label="Done"><div class="tx"><b>' + esc(t.text) + '</b>' + (t.details ? "<p>" + esc(t.details) + "</p>" : "") + '<div class="meta3"><span class="src ' + esc(t.source) + '">' + esc(t.source) + '</span>' + when(t.done ? t.doneAt : t.at) + '</div></div><button type="button" data-rm="' + esc(t.id) + '" aria-label="Delete">×</button></div>'; }
+  function draw() { var o = L.filter(function (t) { return !t.done; }), d = L.filter(function (t) { return t.done; }).slice(0, 30);
+    document.getElementById("open").innerHTML = o.length ? o.map(row).join("") : '<div class="card empty">Nothing on the list. Say “Note it” to Claude or ChatGPT, or add one above.</div>';
+    document.getElementById("done").innerHTML = d.map(row).join(""); document.getElementById("doneH").hidden = !d.length; }
+  async function send(b) { var r = await fetch("/api/todo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }); var j = await r.json().catch(function () { return {}; }); if (!r.ok) throw new Error(j.error || "Couldn't save"); L = j.todos; draw(); }
+  function add() { var i = document.getElementById("tdText"); if (!i.value.trim()) return; send({ action: "add", text: i.value }).then(function () { i.value = ""; toast("Added"); }).catch(function (e) { toast(e.message, true); }); }
+  document.getElementById("tdAdd").onclick = add;
+  document.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () { navigator.clipboard.writeText(b.dataset.copy).then(function () { toast("Copied"); }).catch(function () { toast("Couldn't copy. Long-press to select instead.", true); }); }); });
+  document.getElementById("tdText").addEventListener("keydown", function (e) { if (e.key === "Enter") add(); });
+  document.addEventListener("change", function (e) { var id = e.target.dataset && e.target.dataset.id; if (id) send({ action: e.target.checked ? "done" : "undo", id: id }).catch(function (er) { toast(er.message, true); }); });
+  document.addEventListener("click", function (e) { var b = e.target.closest("[data-rm]"); if (b) send({ action: "remove", id: b.dataset.rm }).then(function () { toast("Deleted"); }).catch(function (er) { toast(er.message, true); }); });
+  draw();
+  setInterval(function () { fetch("/api/todo-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d && JSON.stringify(d) !== JSON.stringify(L) && !document.activeElement.matches("input#tdText")) { L = d; draw(); } }); }, 30000);
+})();
+</script>`);
+}
+
 // ---------- dashboard ----------
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
 async function dashboardPage(env) {
+  const todos = (await todoLoad(env)).filter((t) => !t.done);
   const [items, alerts, amend, daily, gags, tags, stats, pricing, orders, hist] = await Promise.all([
     loadItems(env), loadAlerts(env), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("gags", "json"),
     env.PENDING.get("tags", "json"), env.PENDING.get("stats", "json"), env.PENDING.get("pricing", "json"), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats-hist", "json")]);
@@ -953,6 +1108,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   <div class="tcell"><span class="tl">Releasing today</span>${todays.length ? todays.map((u) => `<a href="/gag/${encodeURIComponent(u.gag)}"><b>${esc(u.title || u.gag)}</b> ${esc(TYPE_NAMES[u.type] || u.type)} ${u.built ? '<span class="tok">✓ built</span>' : '<span class="tno">not built yet</span>'}</a>`).join("") : "<span>Nothing today</span>"}</div>
   <div class="tcell"><span class="tl">Views, last day</span><b class="tbig">${viewsDelta === null ? "—" : (viewsDelta >= 0 ? "+" : "") + viewsDelta}</b></div>
   <div class="tcell"><span class="tl">Items sold (Etsy)</span><b class="tbig">${stats && stats.orderTotal != null ? esc(String(stats.orderTotal)) : "—"}</b></div>
+  <a class="tcell tdcell" href="/todo"><span class="tl">To-do</span><b class="tbig">${todos.length}</b><span class="small">${todos.length ? esc(todos[0].text).slice(0, 50) : "Nothing on the list"}</span></a>
 </div>`;
   const lowRanges = DASH_RANGES.filter(([code, coll]) => {
     const r = (daily && daily.runway || []).find((x) => x.collection === coll);
