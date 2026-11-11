@@ -679,6 +679,13 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .rbar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden}
 .rbar i{display:block;height:100%;border-radius:99px}
 .foot{font:500 12px var(--mono);color:var(--dim);text-align:center;margin:36px 0 0}
+.today{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media (max-width:620px){.today{grid-template-columns:1fr 1fr}.today .tcell:first-child{grid-column:1/-1}}
+.tcell{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.tcell .tl{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.tcell a{color:var(--text);text-decoration:none;font-size:14px}.tcell a b{font-family:var(--display)}
+.tbig{font:900 30px/1 var(--display);font-variant-numeric:tabular-nums}
+.tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
@@ -902,9 +909,9 @@ ${brandHeader(esc(g.stem || id))}
 // ---------- dashboard ----------
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
 async function dashboardPage(env) {
-  const [items, alerts, amend, daily, gags, tags, stats, pricing, orders] = await Promise.all([
+  const [items, alerts, amend, daily, gags, tags, stats, pricing, orders, hist] = await Promise.all([
     loadItems(env), loadAlerts(env), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("gags", "json"),
-    env.PENDING.get("tags", "json"), env.PENDING.get("stats", "json"), env.PENDING.get("pricing", "json"), env.PENDING.get("shop:orders", "json")]);
+    env.PENDING.get("tags", "json"), env.PENDING.get("stats", "json"), env.PENDING.get("pricing", "json"), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats-hist", "json")]);
   const pending = Object.values(items).filter((i) => i.status === "pending");
   const oldest = pending.reduce((a, i) => Math.min(a, i.receivedAt || Infinity), Infinity);
   const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 60 ? m + " min" : m < 2880 ? Math.round(m / 60) + " hours" : Math.round(m / 1440) + " days"; };
@@ -924,20 +931,46 @@ async function dashboardPage(env) {
     const r = (daily && daily.runway || []).find((x) => x.collection === coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const pct = left === null ? 0 : Math.max(3, Math.min(100, Math.round(left / 28 * 100)));
-    const low = left !== null && left < 7;
+    const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
+    const firstSlot = left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0];
+    const low = (left !== null && left < 7) || !!firstSlot;
     return `<a class="rng" href="/gags"><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
-<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div></a>`;
+${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
   }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
+  // tags: gags releasing within a week whose tags aren't approved yet
+  const in7 = new Date(todayMs + 7 * 864e5).toISOString().slice(0, 10);
+  const tagsDue = (tags && tags.items || []).filter((t) => !t.approved && t.due && t.due <= in7);
+  // today strip: today's releases and views since the previous daily read
+  const todayIso = (daily && daily.today) || new Date().toISOString().slice(0, 10);
+  const todays = (daily && daily.upcoming || []).filter((u) => u.date === todayIso);
+  const days = Object.keys(hist || {}).sort();
+  const sumDay = (d) => Object.values((hist || {})[d] || {}).reduce((a, v) => a + (Number(v[0]) || 0), 0);
+  const viewsDelta = days.length >= 2 ? sumDay(days[days.length - 1]) - sumDay(days[days.length - 2]) : null;
+  const todayStrip = `<div class="today">
+  <div class="tcell"><span class="tl">Releasing today</span>${todays.length ? todays.map((u) => `<a href="/gag/${encodeURIComponent(u.gag)}"><b>${esc(u.title || u.gag)}</b> ${esc(TYPE_NAMES[u.type] || u.type)} ${u.built ? '<span class="tok">✓ built</span>' : '<span class="tno">not built yet</span>'}</a>`).join("") : "<span>Nothing today</span>"}</div>
+  <div class="tcell"><span class="tl">Views, last day</span><b class="tbig">${viewsDelta === null ? "—" : (viewsDelta >= 0 ? "+" : "") + viewsDelta}</b></div>
+  <div class="tcell"><span class="tl">Items sold (Etsy)</span><b class="tbig">${stats && stats.orderTotal != null ? esc(String(stats.orderTotal)) : "—"}</b></div>
+</div>`;
+  const lowRanges = DASH_RANGES.filter(([code, coll]) => {
+    const r = (daily && daily.runway || []).find((x) => x.collection === coll);
+    const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
+    const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
+    return (left !== null && left < 7) || (left === null && slot && slot.mode === "fill");
+  }).map((x) => x[2]);
   return shell(`
 ${topBar("Dashboard")}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
 need("run", busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
-need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders")].join("");
+need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
+need("warn", tagsDue.length, "Tags to approve", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
+need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (lowRanges.length === 1 ? " runs out" : " run out") + " within a week", "/gags")].join("");
   return cards ? `<h2>Needs you</h2><div class="needs">${cards}</div>` : `<div class="allclear">${icon("check")}<span><b>All caught up</b>Nothing needs you right now.</span></div>`; })()}
+<h2>Today</h2>
+${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
@@ -1868,6 +1901,27 @@ async function statsPage(env, url) {
 
   const tot = (k) => live.reduce((n, l) => n + (l[k] || 0), 0);
   const totRecent = live.reduce((n, l) => n + (recent(l.code, 0) || 0), 0);
+  // 30-day trend: new views per day (stacked by range) and items sold per day.
+  const trend = (() => {
+    const ds = days.slice(-31);
+    if (ds.length < 3) return `<div class="card small">The trend chart appears once a few days of history have built up (one reading a day at 12:00).</div>`;
+    const R = [["IH", "var(--ih)"], ["SH", "var(--sh)"], ["PC", "var(--pc)"], ["OS", "var(--os)"]];
+    const per = (d) => { const o = { IH: 0, SH: 0, PC: 0, OS: 0 }; for (const [code, v] of Object.entries(hist[d] || {})) { const c = collOf(code); o[c] = (o[c] || 0) + (Number(v[0]) || 0); } return o; };
+    const rows = ds.slice(1).map((d, i) => { const a = per(ds[i]), b = per(d); const o = { d }; R.forEach(([c]) => { o[c] = Math.max(0, (b[c] || 0) - (a[c] || 0)); }); o.sold = (st.orders || []).filter((x) => x.date === d).reduce((n, x) => n + (Number(x.qty) || 0), 0); return o; });
+    const max = Math.max(4, ...rows.map((r) => R.reduce((n, [c]) => n + r[c], 0)));
+    const nice = Math.ceil(max / 4) * 4, W = 720, H = 220, L = 34, B = 26, T = 12, bw = (W - L - 8) / rows.length;
+    const y = (v) => T + (H - T - B) * (1 - v / nice);
+    let svg = "";
+    for (let k = 0; k <= 4; k++) { const v = nice * k / 4; svg += `<line x1="${L}" x2="${W - 4}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`; }
+    rows.forEach((r, i) => {
+      let acc = 0; const x = L + i * bw + bw * 0.15, w = bw * 0.7;
+      R.forEach(([c, col]) => { if (!r[c]) return; svg += `<rect x="${x}" y="${y(acc + r[c])}" width="${w}" height="${y(acc) - y(acc + r[c])}" fill="${col}" rx="1.5"><title>${r.d} · ${COLL_LABEL[c]}: ${r[c]} views</title></rect>`; acc += r[c]; });
+      if (r.sold) svg += `<circle cx="${x + w / 2}" cy="${y(acc) - 9}" r="5" fill="var(--go)"><title>${r.d}: ${r.sold} sold</title></circle>`;
+      if (i % Math.ceil(rows.length / 6) === 0 || i === rows.length - 1) svg += `<text x="${x + w / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="var(--muted)">${new Date(r.d + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}</text>`;
+    });
+    const key = R.map(([c, col]) => `<span><i style="background:${col}"></i>${COLL_LABEL[c]}</span>`).join("") + `<span><i style="background:var(--go);border-radius:50%"></i>Sold</span>`;
+    return `<div class="card"><div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:520px;height:auto;display:block" role="img" aria-label="New views per day by range, with sales">${svg}</svg></div><div class="tkey">${key}</div></div>`;
+  })();
   const tile = (label, value, sub = "") => `<div class="card stile"><div class="tv">${value}</div><div class="tl">${label}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
 
   const group = (keyFn, labelFn) => {
@@ -1927,6 +1981,9 @@ ${tile("Favourites", tot("favs"))}
 ${tile("Items sold", units)}
 ${tile("Sales", money(revenue))}
 </div>
+<h2>Last 30 days</h2>
+${trend}
+<style>.tkey{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}.tkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}</style>
 ${plannerStatsHtml(planner, tile)}
 <h2>By gag</h2>
 <div class="sorts">${sortBtn("views", "Most views")}${sortBtn("recent", "Most views lately")}${sortBtn("favs", "Most favourites")}${sortBtn("sales", "Most sold")}</div>
@@ -2140,8 +2197,7 @@ render();
 // on the gag list the Gags sync keeps in KV.
 
 const TOOLS = {
-  print:   { hook: "MAKE_TOOL_PRINT_HOOK",   name: "Refresh print files" },
-  reprice: { hook: "MAKE_TOOL_REPRICE_HOOK", name: "Re-price listings" },
+  reprice: { hook: "MAKE_TOOL_REPRICE_HOOK", name: "Re-price listings" }, // also called by the Pricing scenario (8451335) when "update live listings" is ticked
 };
 async function toolRun(request, env) {
   const d = await request.json();

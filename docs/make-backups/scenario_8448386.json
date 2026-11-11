@@ -1,0 +1,742 @@
+{
+ "flow": [
+  {
+   "id": 100,
+   "mapper": {},
+   "module": "gateway:CustomWebHook",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": -300,
+     "y": 0,
+     "name": "Started from the app (Tools page)"
+    }
+   },
+   "parameters": {
+    "hook": 4064869
+   }
+  },
+  {
+   "id": 1,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "values"
+     },
+     {
+      "key": "$top",
+      "value": "2000"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/LISTING_REGISTRY_TABLE/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Read LISTING_REGISTRY_TABLE"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "object": "{{1.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "values"
+     },
+     {
+      "key": "$top",
+      "value": "2000"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/GAGS_TABLE/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 150,
+     "y": 0,
+     "name": "Read GAGS_TABLE"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 4,
+   "mapper": {
+    "object": "{{3.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 150,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 5,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "values"
+     },
+     {
+      "key": "$top",
+      "value": "2000"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/PRODUCT_RULES/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Read PRODUCT_RULES"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 6,
+   "mapper": {
+    "object": "{{5.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 7,
+   "mapper": {
+    "input": [
+     {
+      "name": "reg",
+      "value": "{{2.json}}"
+     },
+     {
+      "name": "gags",
+      "value": "{{4.json}}"
+     },
+     {
+      "name": "rules",
+      "value": "{{6.json}}"
+     },
+     {
+      "name": "only",
+      "value": "{{100.only}}"
+     },
+     {
+      "name": "collections",
+      "value": "{{ifempty(100.collections; \"IH,SH,PC\")}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "// Listings whose print file should be remade from the current print template.\nconst reg = JSON.parse(input.reg).value.map(r => r.values[0]);\nconst gags = JSON.parse(input.gags).value.map(r => r.values[0]);\nconst rules = JSON.parse(input.rules).value.map(r => r.values[0]);\nconst only = String(input.only || \"\").split(\",\").map(s => s.trim()).filter(Boolean);\nconst want = String(input.collections || \"IH,SH,PC\").split(\",\");\nconst gagById = {}; gags.forEach(g => { gagById[String(g[0] || \"\").trim()] = g; });\nconst list = [], skipped = [];\nreg.forEach(v => {\n  const code = String(v[0] || \"\").trim(), coll = String(v[1] || \"\").trim(), type = String(v[2] || \"\").trim();\n  const productId = String(v[8] || \"\").trim(), listingId = String(v[6] || \"\").trim();\n  if (!code || !productId || !listingId) return;\n  if (!want.includes(code.slice(0, 2))) return;\n  if (only.length && !only.includes(code)) return;\n  const gagId = code.split(\"-\").slice(0, 2).join(\"-\");\n  const g = gagById[gagId]; const rule = rules.find(r => String(r[0]).trim() === coll && String(r[1]).trim() === type);\n  const templateId = rule ? String(rule[45] || \"\").trim() : \"\";\n  if (!g || !templateId) { skipped.push(code); return; }\n  list.push({ code, productId, gagId, gagText: String(g[1] || \"\"), templateId });\n});\nreturn { list, count: list.length, skipped: skipped.join(\",\") };\n"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 450,
+     "y": 0,
+     "name": "Listings to refresh (set 'only' to test)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 8,
+   "mapper": {
+    "array": "{{7.result.list}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Each listing"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 30,
+   "mapper": {
+    "title": "PRINT REFRESH {{8.code}}",
+    "select": "map",
+    "dataset": [
+     {
+      "key": "GAG_ID",
+      "value": {
+       "text": "{{8.gagId}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_TEXT",
+      "value": {
+       "text": "{{8.gagText}}",
+       "type": "text"
+      }
+     }
+    ],
+    "brandTemplateId": "{{8.templateId}}"
+   },
+   "module": "canva:autofillDesign",
+   "onerror": [
+    {
+     "id": 130,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 750,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 750,
+     "y": 0,
+     "name": "Canva: fill the current print template"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 31,
+   "mapper": {
+    "url": "/v1/exports",
+    "body": "{\"design_id\":\"{{30.id}}\",\"format\":{\"type\":\"png\",\"transparent_background\":true,\"width\":3000}}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 900,
+     "y": 0,
+     "name": "Export print art (transparent PNG)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 32,
+   "mapper": {
+    "duration": "15"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1050,
+     "y": 0,
+     "name": "Wait for Canva (only if not ready)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 33,
+   "mapper": {
+    "url": "/v1/exports/{{31.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1200,
+     "y": 0,
+     "name": "Check export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 34,
+   "mapper": {
+    "duration": "{{if(33.body.job.status = \"success\"; 1; 15)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1350,
+     "y": 0,
+     "name": "Wait for Canva (only if not ready)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 35,
+   "mapper": {
+    "url": "/v1/exports/{{31.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1500,
+     "y": 0,
+     "name": "Check export again"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 36,
+   "mapper": {
+    "duration": "{{if(35.body.job.status = \"success\"; 1; 25)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1650,
+     "y": 0,
+     "name": "Wait for Canva (only if not ready)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 37,
+   "mapper": {
+    "url": "/v1/exports/{{31.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "Check export again"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 38,
+   "mapper": {
+    "input": [
+     {
+      "name": "checks",
+      "value": "{{add(emptyarray; 33.body.job; 35.body.job; 37.body.job)}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "const c=(input.checks||[]).find(j=>j&&j.status===\"success\"&&Array.isArray(j.urls)&&j.urls.length);\nif(!c) throw new Error(\"Canva export did not finish\");\nreturn { front: c.urls[0], back: c.urls[1] || c.urls[0], pages: c.urls.length };"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1950,
+     "y": 0,
+     "name": "Pick the finished export"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 40,
+   "mapper": {
+    "url": "{{38.result.front}}",
+    "type": "url",
+    "fileName": "{{8.code}}_PRINT_2026.png"
+   },
+   "module": "printify:uploadAnImage",
+   "onerror": [
+    {
+     "id": 140,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 2100,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Upload new front print to Printify"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 41,
+   "mapper": {
+    "url": "{{38.result.back}}",
+    "type": "url",
+    "fileName": "{{8.code}}_{{if(38.result.pages >= 2; \"BACK\"; \"PRINT\")}}_2026.png"
+   },
+   "module": "printify:uploadAnImage",
+   "onerror": [
+    {
+     "id": 141,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 2250,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2250,
+     "y": 0,
+     "name": "Upload new back print (hoodies)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 42,
+   "mapper": {
+    "url": "/v1/shops/27154106/products/{{8.productId}}.json",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "printify:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2400,
+     "y": 0,
+     "name": "Get the Printify product"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 43,
+   "mapper": {
+    "object": "{{42.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2400,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 44,
+   "mapper": {
+    "input": [
+     {
+      "name": "product",
+      "value": "{{43.json}}"
+     },
+     {
+      "name": "front",
+      "value": "{{40.id}}"
+     },
+     {
+      "name": "back",
+      "value": "{{41.id}}"
+     },
+     {
+      "name": "pages",
+      "value": "{{38.result.pages}}"
+     },
+     {
+      "name": "code",
+      "value": "{{8.code}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "// New print_areas: same areas, variants and placement; only the image ids change\n// (front = page 1 of the print template, back = page 2 when the template has one).\nconst p = JSON.parse(input.product);\nconst front = String(input.front || \"\"), back = String(input.back || \"\");\nconst hasBack = Number(input.pages) >= 2;\nlet changed = 0;\nconst areas = (p.print_areas || []).map(a => ({\n  variant_ids: a.variant_ids,\n  placeholders: (a.placeholders || []).filter(ph => (ph.images || []).length).map(ph => ({  // Printify rejects empty positions\n    position: ph.position,\n    images: (ph.images || []).map(im => {\n      let id = im.id;\n      if (ph.position === \"front\" && front) { id = front; changed++; }\n      else if (ph.position === \"back\" && hasBack && back) { id = back; changed++; }\n      return { id, x: im.x, y: im.y, scale: im.scale, angle: im.angle };\n    })\n  }))\n}));\nif (!changed) throw new Error(\"No print image found to replace on \" + input.code);\nreturn { body: JSON.stringify({ print_areas: areas }), changed };\n"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2550,
+     "y": 0,
+     "name": "Same placement, new images"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 45,
+   "mapper": {
+    "url": "/v1/shops/27154106/products/{{8.productId}}.json",
+    "body": "{{44.result.body}}",
+    "method": "PUT",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "printify:makeApiCall",
+   "onerror": [
+    {
+     "id": 145,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 2700,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2700,
+     "y": 0,
+     "name": "Save the new print on the product"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 50,
+   "mapper": {
+    "value": "{{8.code}}"
+   },
+   "module": "util:TextAggregator",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2850,
+     "y": 0
+    }
+   },
+   "parameters": {
+    "feeder": 8,
+    "rowSeparator": "other",
+    "otherRowSeparator": ","
+   }
+  },
+  {
+   "id": 51,
+   "mapper": {
+    "input": [
+     {
+      "name": "t",
+      "value": "{{50.text}}"
+     },
+     {
+      "name": "n",
+      "value": "{{7.result.count}}"
+     },
+     {
+      "name": "s",
+      "value": "{{7.result.skipped}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "const ok=String(input.t||\"\").split(\",\").filter(Boolean).length;\nreturn {alert: JSON.stringify({title:\"Print files refreshed on \"+ok+\" of \"+input.n+\" listings\", body: (ok<Number(input.n)?\"Some listings failed; run the tool again for those, or tell Claude. \":\"\")+(input.s?\"Skipped (no gag or template): \"+input.s:\"\"), source:\"Tools\"})};"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3000,
+     "y": 0
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 52,
+   "mapper": {
+    "url": "https://mosspit-approvals.mosspit.workers.dev/api/alert",
+    "method": "post",
+    "headers": [
+     {
+      "name": "X-Ingest-Secret",
+      "value": "bsE2mNFGdDitEVobSZjdqLdScul6uz5V"
+     }
+    ],
+    "timeout": 30,
+    "contentType": "json",
+    "inputMethod": "jsonString",
+    "shareCookies": false,
+    "parseResponse": true,
+    "allowRedirects": true,
+    "stopOnHttpError": false,
+    "jsonStringBodyContent": "{{51.result.alert}}",
+    "requestCompressedContent": true
+   },
+   "module": "http:MakeRequest",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 3150,
+     "y": 0,
+     "name": "Tell the app it's done"
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  },
+  {
+   "id": 60,
+   "mapper": {
+    "duration": "300"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3450,
+     "y": 0,
+     "name": "Give Printify 5 minutes to sync to Etsy"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 61,
+   "mapper": {
+    "qs": [],
+    "url": "/v2/scenarios/8146216/run",
+    "body": "{\"responsive\":false}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "make:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3750,
+     "y": 0,
+     "name": "Run the free-postage check (Printify resets postage when it syncs)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 12549534
+   }
+  }
+ ],
+ "name": "Introvert Here: Tool \u2014 Refresh print art on existing listings",
+ "metadata": {
+  "instant": true,
+  "version": 1,
+  "scenario": {
+   "dlq": false,
+   "roundtrips": 1
+  }
+ }
+}
