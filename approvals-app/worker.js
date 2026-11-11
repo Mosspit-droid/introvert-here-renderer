@@ -86,7 +86,7 @@ export default {
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
-      if (pathname === "/tools" && method === "GET") {
+      if ((pathname === "/tools" || pathname === "/check") && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
       }
       if (pathname === "/pricing" && method === "GET") {
@@ -594,12 +594,15 @@ video{display:block;width:100%;aspect-ratio:1/1;background:#000;border-radius:12
 .small{font-size:14px;color:var(--muted)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 16px;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;text-decoration:none;cursor:pointer;backdrop-filter:blur(6px)}
 .btn:hover{border-color:var(--frame)}
+.btn svg,.btn-main svg,.btn-alt svg{width:20px;height:20px;flex:none}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 input,textarea,select{font-family:var(--body)}
 input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);margin:10px 0 14px}
 .err{color:var(--warn)}
 /* dashboard */
-.needs{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.needs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.needs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.needs{grid-template-columns:1fr}}
 .need{display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--r);background:var(--card2);border:1px solid var(--line);text-decoration:none;color:var(--text);min-height:86px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .need .big{font:900 34px/1 var(--display);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 .need .t{display:block;font:700 15px var(--display);letter-spacing:.02em}
@@ -608,7 +611,10 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .need.warn .big{color:var(--warn)}
 .need.run .big{color:var(--info)}
 .need.quiet .big{color:var(--dim)}
-.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.tiles .tile{grid-column:span 1}.tiles .tile.primary{grid-column:span 3}
+@media (max-width:900px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.tiles .tile.primary{grid-column:span 3}}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles .tile.primary{grid-column:span 2}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
 .tile .ic{width:48px;height:48px;border-radius:13px;background:var(--frame);color:#0d0d0c;display:grid;place-items:center}
@@ -618,8 +624,11 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile .st b{color:var(--text);font-weight:600}
 .tile .dots{position:absolute;right:14px;top:16px;display:flex;gap:5px;padding:5px 8px;border:1.5px solid rgba(242,240,235,.4);border-radius:99px}
 .tile .dots i{width:5px;height:5px;border-radius:50%;background:rgba(242,240,235,.55)}
-.tile.primary{grid-column:span 2;border-color:var(--frame);border-width:2.5px}
-.ranges{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.tile.primary{border-color:var(--frame);border-width:2.5px;min-height:170px}
+.tile.primary .nm{font-size:18px}
+.ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.ranges{grid-template-columns:1fr}}
 .rng{padding:16px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;text-decoration:none;color:var(--text);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .rng img{width:100%;max-width:240px;height:auto;display:block}
 .rng .row{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
@@ -652,7 +661,6 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
   .topbar .home img{height:34px}
   .grid{grid-template-columns:1fr}
   .card{padding:15px}
-  .tile.primary{grid-column:1/-1}
   .actions{width:100%}
   .actions .btn{flex:1}
 }
@@ -673,6 +681,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-bell" viewBox="0 0 32 32"><path d="M8 22V14a8 8 0 0 1 16 0v8l2.5 3h-21z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M13 28h6" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
 <symbol id="i-home" viewBox="0 0 32 32"><path d="M5 14L16 5l11 9v11a2 2 0 0 1-2 2h-6v-7h-6v7H7a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></symbol>
 <symbol id="i-more" viewBox="0 0 32 32"><circle cx="8" cy="16" r="2.6" fill="currentColor"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/><circle cx="24" cy="16" r="2.6" fill="currentColor"/></symbol>
+<symbol id="i-sync" viewBox="0 0 32 32"><path d="M26 13.5A10.5 10.5 0 0 0 7.2 9.2M6 18.5a10.5 10.5 0 0 0 18.8 4.3" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/><path d="M6.5 4v6h6M25.5 28v-6h-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-back" viewBox="0 0 32 32"><path d="M19 7l-9 9 9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
@@ -680,7 +689,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
-const NAV_MORE = [["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/pricing", "price", "Pricing"], ["/tools", "tools", "Tools"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -718,7 +727,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 }
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
-const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/links", "/alerts"];
+const TOP_PAGES = ["/", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar() {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png" alt="Introvert Here"></a><div class="sp"></div>
@@ -786,13 +795,12 @@ ${topBar()}
 <h2>Studio</h2>
 <div class="tiles">
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
-  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""}`)}
+  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
   ${tile("/amend", "update", "Update listings", `<b>${liveListings || "—"}</b> live listings`)}
   ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
   ${tile("/pricing", "price", "Pricing", tee ? `T-shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
-  ${tile("/tools", "tools", "Tools", "Checks and fixes")}
   ${tile("/links", "links", "Links", "Key addresses")}
 </div>
 <h2>Ranges</h2>
@@ -1063,8 +1071,8 @@ async function gagsPage(env) {
     return `<div class="card"><div class="code" style="font-size:16px">${esc(x.stem || "")}</div><div class="meta">${esc(when(x.at))}</div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-${brandHeader("Gags", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a>`)}
-<button class="cornerbtn" id="refresh" type="button" title="Get the latest from Core" aria-label="Get the latest from Core">⟳</button>
+${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check for problems</a>`)}
+<button class="cornerbtn" id="refresh" type="button" title="Sync to Core" aria-label="Sync to Core">${icon("sync")}</button>
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet - tap ⟳ (top right)."}</div>
 <div class="tabs" style="display:flex;gap:8px;margin:16px 0 4px">
   <button class="btn tab on" data-tab="new" type="button">New gag</button>
@@ -1113,6 +1121,7 @@ ${savesHtml}
   .result:hover{background:var(--bg)}
   .cornerbtn{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:25;width:56px;height:56px;border-radius:16px;border:2px solid var(--frame);background:var(--card);color:var(--text);font-size:26px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.5)}
   @media (max-width:760px){.cornerbtn{bottom:calc(86px + env(safe-area-inset-bottom,0px))}}
+  .cornerbtn svg{width:28px;height:28px;display:block;margin:auto}
   .cornerbtn.busy{animation:spin 1s linear infinite;opacity:.7}
   @keyframes spin{to{transform:rotate(360deg)}}
   header{padding-right:56px}
@@ -1367,22 +1376,45 @@ async function linksSync(request, env) {
   await env.PENDING.put("links", JSON.stringify({ at: Date.now(), rows }));
   return json({ ok: true, rows: rows.length });
 }
+// Quick buttons: each service's own mark, drawn in the app's white, chunky style, with its brand colour as a strip.
+const BRAND_LINKS = [
+  ["Etsy", "https://www.etsy.com/your/shops/me/dashboard", "#F1641E", '<path d="M9.5 6.5h13l.5 5h-1.6c-.6-2.2-1.4-3-3.6-3h-3.6v7h3.2c1.5 0 2-.6 2.3-2.2h1.5v6.3h-1.5c-.3-1.7-.8-2.3-2.3-2.3h-3.2v6.4c0 1.4.5 2 2.1 2h2.3c2 0 3.1-1 4-3.6h1.5l-.6 5.4H9.5v-1.4c1.6-.2 2-.6 2-2.2V10c0-1.6-.4-2-2-2.2z" fill="currentColor"/>'],
+  ["Printify", "https://printify.com/app/store/products", "#39B75D", '<path d="M9 27V8.5c0-1.4 1.1-2.5 2.5-2.5H17a7.5 7.5 0 0 1 0 15h-3.6V27z" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/>'],
+  ["Canva", "https://www.canva.com/projects", "#7D2AE8", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M20.5 12.2c-.7-1.4-2-2.2-3.6-2.2-3.2 0-5.4 2.8-5.4 6.2 0 3 1.8 5.3 4.6 5.3 1.9 0 3.4-.9 4.4-2.4" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>'],
+  ["Make", "https://eu1.make.com/2110125/scenarios", "#6D00CC", '<rect x="5" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/><rect x="13" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/><rect x="21" y="8" width="4.6" height="17" rx="1.6" transform="skewX(-14)" fill="currentColor"/>'],
+  ["Facebook", "https://www.facebook.com/1396268276895585", "#1877F2", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M17.6 28.5V18h3.2l.5-3.6h-3.7v-2.3c0-1 .4-1.8 1.9-1.8h1.9V7.2a24 24 0 0 0-2.8-.2c-2.8 0-4.6 1.7-4.6 4.8v2.6h-3V18h3v10.5" fill="currentColor"/>'],
+  ["Instagram", "https://www.instagram.com/", "#E1306C", '<rect x="4.5" y="4.5" width="23" height="23" rx="7" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="16" cy="16" r="5.4" fill="none" stroke="currentColor" stroke-width="2.8"/><circle cx="22.6" cy="9.4" r="1.7" fill="currentColor"/>'],
+  ["Pinterest", "https://www.pinterest.com/", "#E60023", '<circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M14.2 27.6l2.4-9.4M13.6 19.4c-1.4-.7-2-2.2-2-3.8 0-3 2.4-5.4 5.6-5.4 2.9 0 4.8 2 4.8 4.6 0 3.2-1.8 5.6-4.3 5.6-1.3 0-2.2-1-1.9-2.2l1-3.8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
+];
 async function linksPage(env) {
   const d = (await env.PENDING.get("links", "json")) || { rows: [] };
   const list = d.rows.length ? d.rows.map((r) => `<a class="lk" href="${esc(r.address)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b><span>${esc(r.what)}</span><small>${esc(r.address.replace(/^https?:\/\//, ""))}</small></a>`).join("")
     : `<p class="small">No links yet.</p>`;
+  const quick = BRAND_LINKS.map(([name, url, colour, svg]) => `<a class="qk" href="${url}" target="_blank" rel="noopener" style="--b:${colour}"><svg viewBox="0 0 32 32" aria-hidden="true">${svg}</svg><span>${name}</span></a>`).join("");
   return shell(`
 <style>
-.lks{display:grid;gap:12px;max-width:640px}
-.lk{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);text-decoration:none}
-.lk b{display:block;font-size:18px;margin-bottom:4px}
+.lwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.lks{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.lk{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.lk:hover{border-color:var(--frame)}
+.lk b{display:block;font:800 17px var(--display);margin-bottom:4px}
 .lk span{display:block;font-size:14px;color:var(--muted)}
-.lk small{display:block;margin-top:6px;font-size:12px;color:var(--muted);word-break:break-all}
-.lk:active{transform:scale(.99)}
+.lk small{display:block;margin-top:8px;font:500 12px var(--mono);color:var(--muted);word-break:break-all}
+.qside{position:sticky;top:90px}
+.qside h3{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.qks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:104px;padding:14px 8px 18px;border:2px solid rgba(242,240,235,.5);border-radius:16px;background:var(--card);color:var(--text);text-decoration:none;font:800 12px var(--display);letter-spacing:.1em;text-transform:uppercase;overflow:hidden}
+.qk:hover{border-color:var(--frame)}
+.qk svg{width:38px;height:38px}
+.qk::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--b)}
+@media (max-width:860px){.lwrap{grid-template-columns:1fr}.qside{position:static;order:-1}.qks{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:480px){.qks{grid-template-columns:repeat(3,1fr)}}
 </style>
-${brandHeader("Links", `<a class="btn" href="/">← Approvals</a>`)}
-<div class="lks">${list}</div>
-<p class="small" style="margin-top:14px">From the LINKS tab in Core${d.at ? " · updated " + esc(when(d.at)) : ""}.</p>`, "/links.webmanifest");
+${brandHeader("Links")}
+<div class="lwrap">
+  <div><div class="lks">${list}</div><p class="small" style="margin-top:14px">From the LINKS tab in Core${d.at ? " · updated " + esc(when(d.at)) : ""}.</p></div>
+  <aside class="qside frame"><div class="card"><h3>Open</h3><div class="qks">${quick}</div></div></aside>
+</div>`, "/links.webmanifest");
 }
 
 // ---------- spelling & grammar (LanguageTool, British English) ----------
@@ -1602,9 +1634,27 @@ async function pricingSave(request, env) {
   return json({ ok: true });
 }
 
+// Live exchange rates for the Pricing page calculator (free daily feed, kept for 6 hours).
+async function fxRates(env) {
+  const c = await env.PENDING.get("fx", "json");
+  if (c && Date.now() - c.at < 6 * 3600e3) return c;
+  try {
+    const r = await fetch("https://open.er-api.com/v6/latest/GBP");
+    const j = await r.json();
+    if (j && j.result === "success" && j.rates) {
+      const keep = ["GBP", "USD", "EUR", "CAD", "AUD"];
+      const out = { at: Date.now(), updated: j.time_last_update_utc || "", rates: Object.fromEntries(keep.map((k) => [k, j.rates[k]])) };
+      await env.PENDING.put("fx", JSON.stringify(out));
+      return out;
+    }
+  } catch (e) {}
+  return c || null;
+}
+
 async function pricingPage(env) {
+  const fx = await fxRates(env);
   const data = await env.PENDING.get("pricing", "json");
-  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`;
+  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
   return shell(`
 <style>
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
@@ -1620,6 +1670,33 @@ table.pt td{padding:7px 4px;text-align:right;border-top:1px solid var(--line);fo
 .small2{font-size:13px;color:var(--muted)}
 </style>
 ${brandHeader("Pricing", nav)}
+<div class="frame" style="margin-bottom:18px"><div class="card">
+  <h3 style="margin:0 0 4px;font:800 16px var(--display);letter-spacing:.06em;text-transform:uppercase">Currency calculator</h3>
+  <p class="small" style="margin:0 0 12px">Type an amount in any box and the others work it out.${fx ? " Rates from " + esc(new Date(fx.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })) + "." : " Rates aren't available right now."}</p>
+  <div class="fxg">${[["GBP", "£", "UK"], ["USD", "$", "US"], ["EUR", "€", "Europe"], ["CAD", "C$", "Canada"], ["AUD", "A$", "Australia"]].map(([c, sym, where]) => `<label class="fx"><span>${c} <small>${where}</small></span><div><b>${sym}</b><input inputmode="decimal" data-cur="${c}" placeholder="0.00"></div></label>`).join("")}</div>
+</div></div>
+<style>
+.fxg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.fx{display:flex;flex-direction:column;gap:6px;font:800 12px var(--display);letter-spacing:.1em;color:var(--muted)}
+.fx small{font:500 11px var(--body);letter-spacing:0;color:var(--dim)}
+.fx div{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:12px;background:var(--field);padding:0 12px;min-height:56px}
+.fx div:focus-within{border-color:var(--frame)}
+.fx b{font:700 16px var(--display);color:var(--muted)}
+.fx input{flex:1;min-width:0;border:0;background:none;color:var(--text);font:700 20px var(--display);outline:none;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.fxg{grid-template-columns:repeat(2,minmax(0,1fr))}.fxg label:first-child{grid-column:1/-1}}
+</style>
+<script>
+(function () {
+  var R = ${JSON.stringify(fx ? fx.rates : null)};
+  var boxes = document.querySelectorAll("[data-cur]");
+  if (!R) { boxes.forEach(function (b) { b.disabled = true; }); return; }
+  boxes.forEach(function (b) { b.addEventListener("input", function () {
+    var v = parseFloat(String(b.value).replace(/[^0-9.]/g, ""));
+    var gbp = isFinite(v) ? v / R[b.dataset.cur] : NaN;
+    boxes.forEach(function (o) { if (o !== b) o.value = isFinite(gbp) ? (gbp * R[o.dataset.cur]).toFixed(2) : ""; });
+  }); });
+})();
+</script>
 <div class="small" id="synced"></div>
 <div id="app"></div>
 <script>
@@ -1629,7 +1706,7 @@ const TYPES = [["T-SHIRT","T-shirt"],["LONG-SLEEVE","Long-sleeve"],["SWEATSHIRT"
 const money = (n) => (n < 0 ? "−£" : "£") + Math.abs(n).toFixed(2);
 function cls(p, target){ return p >= target - 0.005 ? "good" : (p >= target / 2 ? "meh" : "bad"); }
 function render() {
-  if (!D || !D.garments) { $("app").innerHTML = '<div class="card empty">No pricing data yet. Tap “Refresh from Core”.</div>'; return; }
+  if (!D || !D.garments) { $("app").innerHTML = '<div class="card empty">No pricing data yet. Tap “Sync to Core”.</div>'; return; }
   const s = D.settings;
   $("synced").textContent = "Core read " + new Date(D.receivedAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) + (D.pendingSave ? " · saving…" : "") + (D.lastSave ? " · last saved " + D.lastSave : "");
   let html = '<div class="card" style="margin:14px 0"><h3 style="margin:0 0 6px">Settings</h3>' +
@@ -1698,7 +1775,7 @@ async function save() {
   if (r.ok) setTimeout(poll, 8000);
 }
 async function poll() { const r = await fetch("/api/pricing-state"); if (r.ok) { const d = await r.json(); if (d && (!D || d.receivedAt !== D.receivedAt)) { D = d; render(); return; } } setTimeout(poll, 8000); }
-$("refresh").addEventListener("click", async () => { $("refresh").disabled = true; $("refresh").textContent = "Reading Core…"; await fetch("/api/pricing-refresh", { method: "POST" }); setTimeout(poll, 6000); });
+$("refresh").addEventListener("click", async () => { $("refresh").disabled = true; $("refresh").textContent = "Syncing…"; await fetch("/api/pricing-refresh", { method: "POST" }); setTimeout(poll, 6000); });
 render();
 </script>`);
 }
@@ -1745,34 +1822,13 @@ async function toolsPage(env) {
 .issue{border-top:1px solid var(--line);padding:9px 0;font-size:14px;white-space:pre-wrap}
 .issue b{display:block;font-size:13px;color:var(--accent);margin-bottom:2px}
 </style>
-${brandHeader("Tools", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a>`)}
-<div class="tgrid">
- <div class="card tcard" style="grid-column:1/-1">
-  <h3>Check Core for problems</h3>
+${brandHeader("Check Core", `<button class="btn" id="scanRefresh" type="button">${icon("sync")}Sync to Core</button>`)}
+<div class="frame" style="max-width:860px"><div class="card tcard">
+  <h3>Check the gags for problems</h3>
   <p>Looks through every written gag for duplicates, very similar gags, title stems with stray spaces or line breaks, gags missing the opening "...", and custom tags over Etsy's 20 characters. Instant and free.</p>
-  <button class="btn-main" id="scan" type="button">Check now</button>
-  <button class="link-btn" id="scanRefresh" type="button">Re-read Core first (takes about a minute)</button>
-  <div id="scanOut" class="small" style="margin-top:10px"></div>
- </div>
- <div class="card tcard" data-tool="print">
-  <h3>Refresh print files</h3>
-  <p>Remakes each listing's print file from the current print template (new logo, current gag text) and puts it on the Printify product. About 40 seconds per listing, roughly 15 credits each.</p>
-  ${scope("print")}
-  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("print")}</div>
- </div>
- <div class="card tcard">
-  <h3>Update live listings</h3>
-  <p>Change titles, descriptions, tags, mockups, the printed design or colours on live listings, one gag or a whole range at a time. Replaces the old Find Your Range photo swap: change the page in Canva, then use Update mockups.</p>
-  <a class="btn-main" href="/amend" style="display:inline-block;text-align:center;text-decoration:none">Open</a>
- </div>
- <div class="card tcard" data-tool="reprice">
-  <h3>Re-price listings</h3>
-  <p>Puts the prices from the Pricing page onto live listings (keeps each listing's colours and sizes). A few seconds per listing, about 6 credits each.</p>
-  <div class="prow"><label>Just these product codes (optional; blank = all)</label><input class="tonly" data-k="reprice" placeholder="e.g. SH-00002-T-SHIRT"></div>
-  <button class="btn-main trun" type="button">Run</button><div class="small tmsg">${last("reprice")}</div>
- </div>
-</div>
-<p class="small" style="margin-top:20px">Each tool sends an alert to the Approvals page when it finishes.</p>
+  <button class="btn-main" id="scan" type="button">${icon("check")}Check now</button>
+  <div id="scanOut" class="small" style="margin-top:12px"></div>
+</div></div>
 <script>
 const $ = (id) => document.getElementById(id);
 document.querySelectorAll(".trun").forEach((b) => b.addEventListener("click", async () => {
@@ -1793,7 +1849,7 @@ function dice(a, b) { let inter = 0, na = 0, nb = 0; a.forEach((v) => na += v); 
 async function scan() {
   const out = $("scanOut"); out.textContent = "Checking…";
   const r = await fetch("/api/gags-data"); const g = r.ok ? await r.json() : null;
-  if (!g || !g.all) { out.innerHTML = "The app hasn't got the full gag list yet. Tap “Re-read Core first”, wait a minute, then check again."; return; }
+  if (!g || !g.all) { out.innerHTML = "The app hasn't got the full gag list yet. Tap “Sync to Core”, wait a minute, then check again."; return; }
   const all = g.all, issues = [];
   const by = (f) => { const m = {}; all.forEach((x) => { const k = f(x); if (k) (m[k] = m[k] || []).push(x.id); }); return Object.entries(m).filter(([, v]) => v.length > 1); };
   by((x) => x.id).forEach(([k, v]) => issues.push(["Same gag ID used twice", k + " (" + v.length + " rows)"]));
@@ -1819,7 +1875,7 @@ async function scan() {
   out.innerHTML = issues.length ? head + issues.length + " thing" + (issues.length === 1 ? "" : "s") + " to look at:" + issues.map(([t, d]) => '<div class="issue"><b>' + t + '</b>' + d.replace(/[<&]/g, (c) => c === "<" ? "&lt;" : "&amp;") + '</div>').join("") : head + "No problems found. ✓";
 }
 $("scan").addEventListener("click", scan);
-$("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Re-reading Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); });
+$("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Syncing to Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); toast("Syncing to Core"); });
 </script>`);
 }
 
@@ -1884,7 +1940,7 @@ async function amendApply(request, env) {
 async function amendApply2(request, env) {
   const d = await request.json();
   const S = await env.PENDING.get("amend", "json");
-  if (!S) throw new Error("The page hasn't read Core yet. Tap Re-read Core and try again in a minute.");
+  if (!S) throw new Error("The page hasn't read Core yet. Tap Sync to Core and try again in a minute.");
   const what = new Set((Array.isArray(d.what) ? d.what : []).filter((w) => AMEND_WHAT.includes(w)));
   if (!what.size) throw new Error("Pick what to change.");
   // listings -> gags with garment lists
@@ -1892,7 +1948,7 @@ async function amendApply2(request, env) {
   for (const l of Array.isArray(d.listings) ? d.listings : []) {
     const g = S.gags.find((x) => x.id === String(l.gag || ""));
     const t = String(l.garment || "");
-    if (!g || !g.live.includes(t)) throw new Error("One of the picked listings isn't live any more. Re-read Core and try again.");
+    if (!g || !g.live.includes(t)) throw new Error("One of the picked listings isn't live any more. Sync to Core and try again.");
     (byGag[g.id] = byGag[g.id] || new Set()).add(t);
   }
   const gagIds = Object.keys(byGag);
@@ -2025,7 +2081,7 @@ async function amendPage(env) {
 .abtn{min-height:52px;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;border-width:2px;border-radius:14px}
 .abtn.go{border-color:var(--go)}
 </style>
-${brandHeader("Update listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
+${brandHeader("Update listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="aw">
   <div class="steps" id="steps"></div>
   <div class="card" id="view"></div>
@@ -2079,7 +2135,7 @@ function whatOn() { return WHAT.filter(function (w) { return A.what[w[0]]; }).ma
 
 var STEPS = ["Where", "What", "Details", "Check"];
 function render() {
-  if (!S0) { $("view").innerHTML = "The page hasn't read Core yet. Tap <b>Re-read Core</b> and give it a minute."; $("count").textContent = ""; return; }
+  if (!S0) { $("view").innerHTML = "The page hasn't read Core yet. Tap <b>Sync to Core</b> and give it a minute."; $("count").textContent = ""; return; }
   $("steps").innerHTML = STEPS.map(function (s, i) { return '<span class="' + (i === A.step ? "on" : i < A.step ? "done" : "") + '">' + (i + 1) + ". " + s + "</span>"; }).join("");
   [where, what, details, check][A.step]();
   Array.prototype.forEach.call(document.querySelectorAll("input[data-mixed]"), function (i) { i.indeterminate = true; });
@@ -2240,7 +2296,7 @@ setInterval(function () {
   });
 }, 60000);
 $("reread").onclick = function () {
-  var b = $("reread"); b.disabled = true; b.textContent = "Reading Core…";
+  var b = $("reread"); b.disabled = true; b.textContent = "Syncing…";
   var at = S0 ? S0.at : 0;
   fetch("/api/amend-refresh", { method: "POST" }).then(function () {
     (function poll() { fetch("/api/amend-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d && d.at !== at) location.reload(); else setTimeout(poll, 5000); }); })();
@@ -2280,7 +2336,7 @@ async function tagsSave(request, env) {
 }
 
 async function tagsPage(env) {
-  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a><button class="btn" id="refresh" type="button">Refresh from Core</button>`;
+  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/gags">✍ Gags</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
   return shell(`
 ${brandHeader("Tags", nav)}
 <style>
@@ -2379,7 +2435,7 @@ function validate(c) {
   return !bad;
 }
 function render() {
-  if (!D) { $('synced').textContent = 'Not read from Core yet. Tap Refresh from Core (takes about a minute).'; return; }
+  if (!D) { $('synced').textContent = 'Not read from Core yet. Tap Sync to Core (takes about a minute).'; return; }
   $('synced').textContent = 'Core read ' + new Date(D.at).toLocaleString('en-GB', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
   const n = {need:0, ready:0, problem:0}; D.items.forEach(it => n[kind(it)]++);
   $('counts').innerHTML = [['need','Needs you'],['problem','Problem'],['ready','Ready'],['all','All']].map(([k, l]) => '<div class="tcount' + (filter === k ? ' on' : '') + '" data-f="' + k + '"><b>' + (k === 'all' ? D.items.length : n[k]) + '</b>' + l + '</div>').join('');
@@ -2397,7 +2453,7 @@ async function waitForSync(since, note) {
     const r = await fetch('/api/tags-data'); const d = r.ok ? await r.json() : null;
     if (d && d.receivedAt > since) { waiting--; D = d; render(); $('msg').textContent = d.msg ? '✓ ' + d.msg : '✓ Up to date'; return; }
   }
-  waiting--; $('msg').textContent = 'Core is taking a while. Tap Refresh from Core in a minute.';
+  waiting--; $('msg').textContent = 'Core is taking a while. Tap Sync to Core in a minute.';
 }
 async function send(body, note) {
   const since = D ? D.receivedAt || 0 : 0;
