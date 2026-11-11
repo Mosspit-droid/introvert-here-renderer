@@ -1664,6 +1664,10 @@ async function linksPage(env) {
   const list = d.rows.length ? d.rows.map((r) => `<a class="lk" href="${esc(r.address)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b><span>${esc(r.what)}</span><small>${esc(r.address.replace(/^https?:\/\//, ""))}</small></a>`).join("")
     : `<p class="small">No links yet.</p>`;
   const quick = BRAND_LINKS.map(([name, url, colour, svg]) => `<a class="qk" href="${url}" target="_blank" rel="noopener" style="--b:${colour}"><svg viewBox="0 0 32 32" aria-hidden="true">${svg}</svg><span>${name}</span></a>`).join("");
+  // Facebook opens in the browser, not the Facebook app, so it turns with the tablet. On Android a normal facebook.com link
+  // is grabbed by the app, so we hand it to Chrome directly (falling back to the plain link if Chrome isn't there).
+  const fbScript = `<script>(function () { if (!/Android/i.test(navigator.userAgent)) return; var a = document.querySelector('.qk[data-fb]'); if (!a) return;
+    var u = a.href.replace(/^https:\\/\\//, ""); a.href = "intent://" + u + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(a.href) + ";end"; a.removeAttribute("target"); })();</script>`;
   return shell(`
 <style>
 .lwrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
@@ -1686,8 +1690,8 @@ async function linksPage(env) {
 ${brandHeader("Links")}
 <div class="lwrap">
   <div><div class="lks">${list}</div><p class="small" style="margin-top:14px">From the LINKS tab in Core${d.at ? " · updated " + esc(when(d.at)) : ""}.</p></div>
-  <aside class="qside frame"><div class="card"><h3>Open</h3><div class="qks">${quick}</div></div></aside>
-</div>`, "/links.webmanifest");
+  <aside class="qside frame"><div class="card"><h3>Open</h3><div class="qks">${quick.replace('href="https://www.facebook.com/', 'data-fb href="https://www.facebook.com/')}</div></div></aside>
+</div>${fbScript}`, "/links.webmanifest");
 }
 
 // ---------- spelling & grammar (LanguageTool, British English) ----------
