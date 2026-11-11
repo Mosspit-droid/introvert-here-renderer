@@ -1738,7 +1738,7 @@ async function amendPage(env) {
 </style>
 ${brandHeader("Update live listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
 <p class="small" id="readAt"></p>
-<div class="card" style="margin-bottom:16px"><p class="note" style="margin:0">Each button saves to Core straight away, then updates Etsy about 5 minutes later. Gags are done one at a time, so a whole range can take a while; you'll see each gag go back to “Live” when it's finished.<br>
+<div class="card" style="margin-bottom:16px"><p class="note" style="margin:0">Opening Edit or Colours changes nothing; only the Update/Save buttons do, and they ask first. Cancel closes without saving.<br>Each button saves to Core straight away, then updates Etsy about 5 minutes later. Gags are done one at a time, so a whole range can take a while; you'll see each gag go back to “Live” when it's finished.<br>
 <b>Update text</b>: titles, descriptions and tags. <b>Update mockups</b>: new mockup photos from Canva. <b>Update printed design</b>: new print file from the gag text, then new mockups and a new video for you to approve. <b>Update colours</b>: adds or removes colours, then new mockups.</p></div>
 <div id="out"></div>
 <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div></div>
@@ -1768,15 +1768,15 @@ function render() {
       '<div class="row2"><button class="btn" data-open="edit-' + code + '">✏ Edit all (titles, descriptions, tags)</button><button class="btn" data-open="col-' + code + '">🎨 Colours</button></div>' +
       '<div class="row2"><button class="btn-main" data-range="text">Update text on all</button><button class="btn-main" data-range="mockups">Update mockups on all</button><button class="btn-main" data-range="reprint">Update printed design on all</button></div>' +
       '<div class="box" id="edit-' + code + '"><label>Garment</label><select class="rsel">' + rules.map((r) => '<option value="' + r.row + '">' + h(GARM[r.type] || r.type) + '</option>').join("") + '</select><div class="rfields"></div>' +
-        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button></div><div class="note">Saving changes only the garment shown; pick another garment to edit it too (unsaved edits are kept while you switch).</div></div>' +
+        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div><div class="note">Saving changes only the garment shown; pick another garment to edit it too (unsaved edits are kept while you switch).</div></div>' +
       '<div class="box" id="col-' + code + '"><div class="note">Ticked colours are on every listing in this range. Untick a colour to take it off; tick a new one to add it (Printify must sell it for that garment; garments that don\\'t offer it are skipped).</div><div class="cols">' +
         allC.map((c) => '<label><input type="checkbox" value="' + h(c) + '"' + (have.has(c) ? ' checked' : '') + '>' + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ' only)</small>' : '') + '</label>').join("") + '</div>' +
         '<div class="note">Main colour for this range: ' + h(rules[0] ? rules[0].primary : "") + (rules[0] && rules[0].secondary ? ', then ' + h(rules[0].secondary) : '') + '. Don\\'t untick those without telling Claude.</div>' +
-        '<div class="row2"><button class="btn-main" data-colsave>Update colours on all ' + gags.length + '</button></div></div>' +
+        '<div class="row2"><button class="btn-main" data-colsave>Update colours on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div></div>' +
       '<div class="msg rmsg"></div>' +
       gags.map((g) => '<div class="gl" data-gag="' + h(g.id) + '"><div class="top"><div class="nm">' + h(g.stem || g.id) + '<small>' + h(g.id) + ' · ' + h(g.live.map((t) => GARM[t] || t).join(", ")) + '</small></div><div><span class="pill' + (busy(g.status) ? ' busy' : '') + '">' + h(STAT[g.status] || g.status || "Live") + '</span> <button class="btn" data-edit>Edit</button></div></div>' +
         '<div class="ed"><label>Title stem</label><input class="gstem" value="' + h(g.stem) + '"><label>Gag text (changing it needs Update printed design)</label><textarea class="gtext">' + h(g.text) + '</textarea>' +
-        '<div class="row2"><button class="btn-main" data-gag-act="text">Update text</button><button class="btn-main" data-gag-act="mockups">Update mockups</button><button class="btn-main" data-gag-act="reprint">Update printed design</button></div><div class="msg gmsg"></div></div></div>').join("") +
+        '<div class="row2"><button class="btn-main" data-gag-act="text">Update text</button><button class="btn-main" data-gag-act="mockups">Update mockups</button><button class="btn-main" data-gag-act="reprint">Update printed design</button><button class="btn" data-cancel>Cancel</button></div><div class="msg gmsg"></div></div></div>').join("") +
       '</div>';
   }).join("");
   document.querySelectorAll(".rng").forEach(setupRange);
@@ -1810,8 +1810,13 @@ async function send(body, msgEl, what) {
 function setupRange(card) {
   const code = card.dataset.coll, name = card.querySelector("h2").textContent, rmsg = card.querySelector(".rmsg");
   card.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => $(b.dataset.open).classList.toggle("open")));
-  const eb = $("edit-" + code), sel = eb.querySelector(".rsel");
+  const eb = $("edit-" + code), sel = eb.querySelector(".rsel"), cb = $("col-" + code);
   ruleFields(eb, sel.value); sel.addEventListener("change", () => ruleFields(eb, sel.value));
+  eb.querySelector("[data-cancel]").addEventListener("click", () => {   // throw away edits, close, nothing saved
+    [...sel.options].forEach((o) => delete drafts[o.value]); ruleFields(eb, sel.value); eb.classList.remove("open"); rmsg.textContent = "";
+  });
+  const ticks = [...cb.querySelectorAll("input")].map((i) => i.checked);
+  cb.querySelector("[data-cancel]").addEventListener("click", () => { cb.querySelectorAll("input").forEach((i, k) => i.checked = ticks[k]); cb.classList.remove("open"); rmsg.textContent = ""; });
   eb.querySelector("[data-rsave]").addEventListener("click", () => {
     const rules = Object.entries(drafts).filter(([row]) => S.rules.some((r) => r.row === Number(row) && r.coll === RANGES.find((x) => x[0] === code)[2])).map(([row, d]) => ({ row: Number(row), ...d }));
     send({ kind: "range", coll: code, action: "text", rules }, rmsg, "Save the " + name + " text and update text on every " + name + " listing?");
@@ -1823,6 +1828,8 @@ function setupRange(card) {
   card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => send({ kind: "range", coll: code, action: b.dataset.range }, rmsg, LABEL[b.dataset.range] + " on every " + name + " listing?")));
   card.querySelectorAll(".gl").forEach((row) => {
     row.querySelector("[data-edit]").addEventListener("click", () => row.querySelector(".ed").classList.toggle("open"));
+    const g0 = S.gags.find((x) => x.id === row.dataset.gag);
+    row.querySelector("[data-cancel]").addEventListener("click", () => { row.querySelector(".gstem").value = g0.stem; row.querySelector(".gtext").value = g0.text; row.querySelector(".ed").classList.remove("open"); row.querySelector(".gmsg").textContent = ""; });
     row.querySelectorAll("[data-gag-act]").forEach((b) => b.addEventListener("click", () => {
       const act = b.dataset.gagAct;
       send({ kind: "gag", gagId: row.dataset.gag, action: act, stem: row.querySelector(".gstem").value, text: row.querySelector(".gtext").value }, row.querySelector(".gmsg"), LABEL[act] + " on " + row.dataset.gag + "?");
