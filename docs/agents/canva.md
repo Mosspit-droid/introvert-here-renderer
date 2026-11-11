@@ -76,3 +76,7 @@ Adding pages moves the page numbers, so every range done must also update Core i
 ## IH sweatshirt mockups rebuilt by Barry (11 Nov): Core updated
 - C002 (EAHZzIcSycs) 18 pages. MOCKUP_PAGES IH SWEATSHIRT: pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18; VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_SW_pages.xlsx.
 - Checked with Barry: pages 14/15 gag-text box extending below the page and page 10's older background are intentional; page 8 renamed IH_08_SW_CLOSEUP_DARK_HEATHER (dark heather collar close-up), verified 11 Nov. All overlays locked.
+
+## IH hoodie mockups rebuilt by Barry (11 Nov): Core updated (pages 12-14 pending)
+- D002 (EAHVuIUaE1M) 23 pages. MOCKUP_PAGES IH HOODIE (13 rows): pages 1, 2, 3, 5 (hanging back), 7 (hanging front), 9, 11 (variants), 15, 16 (setup/payoff Black with gag text), 19, 21, 22, 23; VIDEO_SLOT1/2 = 9, 10. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_HD_pages.xlsx.
+- Asked Barry: pages 12-14 (IH_12_HD_SETUP_BLACK, IH_13_HD_SETUP_DARK_HEATHER, IH_14 titled "IH_07_HD_PAYOFF") have no gag text and duplicate the setup names of 15/17; left off Etsy until he says what they are. Also flagged: small logo hidden under the photo on gift pages 3/4 (page 3 is on Etsy) and on 5/6; logo hidden under the photo on page 17; ~2.5 px white strip on page 6's right edge.
