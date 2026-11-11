@@ -38,4 +38,6 @@ Published H001-K001; IDs and details in `docs/canva/OTS_BRAND_TEMPLATES.md`.
 - How: copy the IH template, Barry unlocks the logo (padlock), swap the picture (update_fill), make the box taller (resize + position), then crop_media back to the IH image box so the logo sits exactly where IH's does.
 - API limits found: a locked layer can't have its picture replaced, moved, resized or deleted; template pages are locked against adding layers; uploads to canva.com are blocked from the sandbox (use assets already in Canva). OTS logos in Canva: wide MAHaUanyvaU, stacked MAHaUa_Csv8.
 - Barry wants alignment exact, however slight the difference. Barry has said to go ahead without per-edit approval on this job; publishing still prompts him.
-- Throwaway copies, safe to delete: DAHakQL4H1E (PC tee), DAHakTwFHys, DAHakRlfNUE, DAHakSSBck0 (OTS mockup copies), DAHakfzcxeA (PC hoodie).
+- Throwaway copies, safe to delete: DAHakQL4H1E (PC tee), DAHakTwFHys, DAHakRlfNUE, DAHakSSBck0, DAHakYngobQ, DAHakWrnWmg, DAHaka3i6yI, DAHakp-exhg, DAHakgv6_r8 (OTS mockup copies), DAHakfzcxeA (PC hoodie).
+
+- Check page names against a fresh copy of the template before writing MOCKUP_PAGES; Barry edits templates and a stale read put the T-shirt rows one page out (fixed 11 Nov).
