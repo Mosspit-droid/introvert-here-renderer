@@ -2,6 +2,11 @@
 
 Keeps the storefront consistent. Report only; changes go through Barry.
 
+## Etsy limits (current, set by Etsy ~Sep 2026)
+- **20 photos and 2 videos per listing.** Don't quote the old 10-photo / 1-video limits.
+- Videos can be deleted via the API: `DELETE /v3/application/shops/{shop_id}/listings/{listing_id}/videos/{video_id}` (deleteListingVideo, 204 on success). Use it to replace a video after a reprint.
+- Barry isn't building only for Etsy any more, so Canva projects may hold more pages than Etsy shows.
+
 ## Access
 - Shop IntrovertHereShop, id 65435151. Etsy is blocked from the sandbox; use the Make tool scenario 7705176 ("Tool — Etsy Lookup/Update"), e.g. `path: /shops/65435151/listings/active`, `method: GET`.
 - Listing data in Core: LISTING_REGISTRY_TABLE, LISTING_TAGS (Core via Make tool scenario 7446858, `graph:` path).

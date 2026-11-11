@@ -106,3 +106,9 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 - Plain English, no jargon, short steps. He is not a developer.
 - Don't send him to dashboards or logins he hasn't used. Find a way that works from what he already has (usually the approvals app).
 - Back up before changing anything live. Test before saying it works, and say plainly when something couldn't be tested.
+
+## Amend tool (planned, Nov 2026)
+- Replaces "Swap Find Your Range photo" in the app. Lists live listings (LISTING_REGISTRY) by range, with an Edit all per range and an Edit per gag.
+- Core statuses: AMENDMENT_REQUIRED (text), AMENDMENT_REQUIRED_ARTWORK (mockups), AMENDMENT_REQUIRED_REPRINT (new print file, mockups, video), AMENDMENT_REQUIRED_COLOURS (add/remove colours).
+- App buttons use plain names: "Update text", "Update mockups", "Update printed design", "Update colours".
+- First test: the OTS T-shirts, once Barry says his mockup changes are finished.

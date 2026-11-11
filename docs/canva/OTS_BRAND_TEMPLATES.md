@@ -36,7 +36,7 @@ Done 11 Nov (Barry approved the photo choice and the Make changes):
 Background (how it works):
 - How the builder (Make 7896436) uses them: exports every page of the mockup template, uploads only the MOCKUP_PAGES positions, POSITION = Canva page number, Etsy rank = 1 for position 1, else position + 1 (one plain Printify shot always at rank 2). Every existing range lists pages 1..N with no gaps.
 - Video (Make 7696096) reads Etsy image number VIDEO_SLOT (1-based) = the SERIOUS/SETUP and FUNNY/PAYOFF page position + 1.
-- OTS templates have 25 pages; Etsy takes 20 photos, so at most 19 pages per listing. Choosing a spread (not 1..19) needs the builder to rank by list order instead of page number.
+- OTS templates have 25 pages; Etsy takes 20 photos and 2 videos, so at most 19 pages per listing. Choosing a spread (not 1..19) needs the builder to rank by list order instead of page number.
 - Video background: already done. `backgrounds/OS.jpg` is in the repo (built by `brand-logos/video-backgrounds/build-off-the-shelf.py`); `render-once.js` picks `backgrounds/<code>.jpg` from the collection code Make sends (first 2 letters of the product code), so the OneDrive background URL is ignored when a repo file exists. Check the repo, not just OneDrive.
 - Template notes: all four mockup templates have 25 pages (T-shirt: size guide 23, range 24, AGM 25; an early read wrongly showed a duplicate page 23). PAYOFF pages show the model's back, so no GAG_TEXT on them is correct (Barry).
 - GAGS OS-00001..OS-00012 are placeholders (no text/status), dated from 14 Nov 2026 weekly.
