@@ -41,3 +41,9 @@ Published H001-K001; IDs and details in `docs/canva/OTS_BRAND_TEMPLATES.md`.
 - Throwaway copies, safe to delete: DAHakQL4H1E (PC tee), DAHakTwFHys, DAHakRlfNUE, DAHakSSBck0, DAHakYngobQ, DAHakWrnWmg, DAHaka3i6yI, DAHakp-exhg, DAHakgv6_r8 (OTS mockup copies), DAHakfzcxeA (PC hoodie).
 
 - Check page names against a fresh copy of the template before writing MOCKUP_PAGES; Barry edits templates and a stale read put the T-shirt rows one page out (fixed 11 Nov).
+
+## Adding colour pages to IH, SHHH. and PER CONTRACT mockup templates (future job, Barry 11 Nov)
+Adding pages moves the page numbers, so every range done must also update Core in the same sitting:
+- MOCKUP_PAGES: POSITION = the live Canva page number of each page sent to Etsy (re-read a fresh copy of the template first; max 19 pages per listing, plus the Printify shot).
+- PRODUCT_RULES VIDEO_SLOT1/2_POSITION: the Etsy image numbers of the serious/setup and funny/payoff pages (= their place in the MOCKUP_PAGES list + 1, since the Printify shot is image 2).
+- Do the template republish and the Core update together, between daily builds (the builder runs about 08:00), otherwise the next listing gets the wrong photos. Back up Core first.
