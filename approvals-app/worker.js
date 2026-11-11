@@ -53,6 +53,8 @@ export default {
 
       if (pathname.startsWith("/assets/") && method === "GET") return await asset(env, pathname.slice(8));
       if (pathname === "/manifest.webmanifest") return manifest();
+      if (pathname === "/links.webmanifest") return linksManifest();
+      if (pathname === "/api/links-sync" && method === "POST") return await linksSync(request, env);
       if (pathname === "/login" && method === "POST") return await login(request, env);
       if (pathname === "/logout") return logout();
 
@@ -62,6 +64,9 @@ export default {
       }
       if (pathname === "/orders" && method === "GET") {
         return authed ? await ordersPage(env) : redirect("/");
+      }
+      if (pathname === "/links" && method === "GET") {
+        return authed ? await linksPage(env) : loginPage(false);
       }
       if (pathname === "/tools" && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
@@ -557,13 +562,13 @@ input[type=password]{width:100%;padding:13px;font:17px 'Montserrat',sans-serif;b
 }
 `;
 
-function shell(body) {
+function shell(body, manifestUrl = "/manifest.webmanifest") {
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#121211">
-<link rel="manifest" href="/manifest.webmanifest">
+<link rel="manifest" href="${manifestUrl}">
 <link rel="icon" href="/assets/icon3-192.png">
 <link rel="apple-touch-icon" href="/assets/icon3-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -604,7 +609,7 @@ async function page(env) {
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
 
   return shell(`
-${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/">Refresh</a>`)}
+${brandHeader("Waiting for review" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/links">🔗 Links</a><a class="btn" href="/">Refresh</a>`)}
 ${pendingHtml}
 ${alertsHtml}
 ${comingHtml}
@@ -1118,7 +1123,45 @@ function manifest() {
     name: "Introvert Here", short_name: "Introvert Here", start_url: "/", display: "standalone",
     background_color: "#121211", theme_color: "#121211",
     icons: [{ src: "/assets/icon3-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon3-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+    shortcuts: [{ name: "Links", short_name: "Links", url: "/links", icons: [{ src: "/assets/icon3-192.png", sizes: "192x192" }] }],
   }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
+}
+
+// ---------- Links (Core sheet LINKS, table LINKS_TABLE) ----------
+// A copy of the table is kept in KV "links" ({at, rows:[{name,address,what}]}), sent by
+// tools/sync_links.py (or any Make scenario) to /api/links-sync with the app secret.
+// The page has its own manifest so it can sit on the home screen as a separate "IH Links" icon.
+function linksManifest() {
+  return new Response(JSON.stringify({
+    id: "/links", name: "IH Links", short_name: "IH Links", start_url: "/links", scope: "/links", display: "standalone",
+    background_color: "#121211", theme_color: "#121211",
+    icons: [{ src: "/assets/icon3-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/icon3-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }],
+  }), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "public, max-age=3600" } });
+}
+async function linksSync(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = (await request.json()) || {};
+  const rows = (Array.isArray(d.rows) ? d.rows : []).map((r) => ({ name: str(r.name), address: str(r.address), what: str(r.what) }))
+    .filter((r) => r.name && /^https?:\/\//.test(r.address)).slice(0, 100);
+  await env.PENDING.put("links", JSON.stringify({ at: Date.now(), rows }));
+  return json({ ok: true, rows: rows.length });
+}
+async function linksPage(env) {
+  const d = (await env.PENDING.get("links", "json")) || { rows: [] };
+  const list = d.rows.length ? d.rows.map((r) => `<a class="lk" href="${esc(r.address)}" target="_blank" rel="noopener"><b>${esc(r.name)}</b><span>${esc(r.what)}</span><small>${esc(r.address.replace(/^https?:\/\//, ""))}</small></a>`).join("")
+    : `<p class="small">No links yet.</p>`;
+  return shell(`
+<style>
+.lks{display:grid;gap:12px;max-width:640px}
+.lk{display:block;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);text-decoration:none}
+.lk b{display:block;font-size:18px;margin-bottom:4px}
+.lk span{display:block;font-size:14px;color:var(--muted)}
+.lk small{display:block;margin-top:6px;font-size:12px;color:var(--muted);word-break:break-all}
+.lk:active{transform:scale(.99)}
+</style>
+${brandHeader("Links", `<a class="btn" href="/">← Approvals</a>`)}
+<div class="lks">${list}</div>
+<p class="small" style="margin-top:14px">From the LINKS tab in Core${d.at ? " · updated " + esc(when(d.at)) : ""}.</p>`, "/links.webmanifest");
 }
 
 // ---------- spelling & grammar (LanguageTool, British English) ----------
