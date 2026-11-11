@@ -69,6 +69,9 @@ export default {
       if (pathname === "/links" && method === "GET") {
         return authed ? await linksPage(env) : loginPage(false);
       }
+      if (pathname === "/amend.js" && method === "GET") {
+        return authed ? new Response(AMEND_JS, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
+      }
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
@@ -1613,12 +1616,18 @@ $("scanRefresh").addEventListener("click", async () => { $("scanOut").textConten
 // Make "Tool — Amend live listings (app)" (MAKE_TOOL_RANGE_HOOK) does two jobs:
 //  {action:"state"}  reads Core (live gags, PRODUCT_RULES, COLOUR_PROFILES) + Printify colours and posts them to /api/amend-sync;
 //  {action:"apply", ops} writes the given Core cells, waits 5 minutes, then starts the listing builder,
-//  which works through every gag flagged with an AMENDMENT_REQUIRED… status, one at a time.
+//  which works through every gag flagged with an AMENDMENT_REQUIRED… status, one gag at a time.
+// The page is a 4-step flow: Where (listings) → What → Details → Check. Every pick maps to ONE gag status:
+//   print → REPRINT (new print, then text+colours, then mockups, then a new video)
+//   supplier / colours / text+mockups → COLOURS (text + colours, then mockups)
+//   text only → AMEND;  mockups only → ARTWORK
+// AMEND_ONLY (GAGS column N) limits a gag's update to the ticked garments; the builder clears it when done.
 
 const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
 const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
-const AMEND_STATUS = { text: "AMENDMENT_REQUIRED", mockups: "AMENDMENT_REQUIRED_ARTWORK", reprint: "AMENDMENT_REQUIRED_REPRINT", colours: "AMENDMENT_REQUIRED_COLOURS" };
-const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT" };
+const AMEND_GARMENTS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags"];
+const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID" };
 const AMEND_TAG_COLS = ["PRODUCT_TAG_09", "PRODUCT_TAG_10", "PRODUCT_TAG_11", "PRODUCT_TAG_12", "PRODUCT_TAG_13"];
 const amendCell = (table, col, row, value) => ({ url: `${AMEND_XL}/tables/${table}/columns/${col}/dataBodyRange/cell(row=${Number(row)},column=0)`, value: String(value) });
 
@@ -1648,221 +1657,355 @@ async function amendApply(request, env) {
 async function amendApply2(request, env) {
   const d = await request.json();
   const S = await env.PENDING.get("amend", "json");
-  if (!S) return json({ error: "The page hasn't read Core yet. Tap Re-read Core and try again in a minute." }, 400);
-  const action = String(d.action || "");
-  if (!AMEND_STATUS[action]) return json({ error: "Unknown update" }, 400);
-  const status = AMEND_STATUS[action];
+  if (!S) throw new Error("The page hasn't read Core yet. Tap Re-read Core and try again in a minute.");
+  const what = new Set((Array.isArray(d.what) ? d.what : []).filter((w) => AMEND_WHAT.includes(w)));
+  if (!what.size) throw new Error("Pick what to change.");
+  // listings -> gags with garment lists
+  const byGag = {};
+  for (const l of Array.isArray(d.listings) ? d.listings : []) {
+    const g = S.gags.find((x) => x.id === String(l.gag || ""));
+    const t = String(l.garment || "");
+    if (!g || !g.live.includes(t)) throw new Error("One of the picked listings isn't live any more. Re-read Core and try again.");
+    (byGag[g.id] = byGag[g.id] || new Set()).add(t);
+  }
+  const gagIds = Object.keys(byGag);
+  if (!gagIds.length) throw new Error("Pick at least one listing.");
+  const combos = new Set();                                   // "IH|T-SHIRT" pairs covered by the pick
+  gagIds.forEach((id) => byGag[id].forEach((t) => combos.add(id.slice(0, 2) + "|" + t)));
   const ops = [];
-  let gags = [];
-  const pick = (Array.isArray(d.garments) ? d.garments : []).map(String).filter((t) => ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"].includes(t));
-  if (d.kind === "gag") {
-    const g = S.gags.find((x) => x.id === String(d.gagId || ""));
-    if (!g) return json({ error: "That gag isn't live" }, 400);
-    const stem = typeof d.stem === "string" ? d.stem.replace(/\s+/g, " ").trim() : null;
-    const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").trim() : null;
-    if (stem !== null && stem !== g.stem) { if (!stem) return json({ error: "The title stem can't be empty" }, 400); ops.push(amendCell("GAGS_TABLE", "TITLE_STEM", g.row, stem)); g.stem = stem; }
-    if (text !== null && text !== g.text) {
-      if (action !== "reprint") return json({ error: "You changed the gag text, so the printed design has to change too. Use Update printed design." }, 400);
-      if (!text) return json({ error: "The gag text can't be empty" }, 400);
-      ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text;
+  // single-gag fields
+  if (typeof d.stem === "string" || typeof d.text === "string") {
+    if (gagIds.length !== 1) throw new Error("The title stem and gag text can only be changed on one gag at a time.");
+    const g = S.gags.find((x) => x.id === gagIds[0]);
+    const stem = typeof d.stem === "string" ? d.stem.replace(/\s+/g, " ").trim() : g.stem;
+    const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").trim() : g.text;
+    if (stem !== g.stem) { if (!what.has("titles")) throw new Error("Tick Titles to change the title stem."); if (!stem) throw new Error("The title stem can't be empty."); ops.push(amendCell("GAGS_TABLE", "TITLE_STEM", g.row, stem)); g.stem = stem; }
+    if (text !== g.text) { if (!what.has("print")) throw new Error("Changing the gag text changes the print, so tick Print template too."); if (!text) throw new Error("The gag text can't be empty."); ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text; }
+  }
+  // range + garment text, tags, supplier
+  for (const [rowStr, e] of Object.entries(d.rules || {})) {
+    const r = S.rules.find((x) => x.row === Number(rowStr));
+    const code = r && Object.keys(AMEND_COLL).find((k) => AMEND_COLL[k] === r.coll);
+    if (!r || !combos.has(code + "|" + r.type)) throw new Error("A text change was for a range or garment you didn't pick.");
+    const allow = { suffix: "titles", intro: "descriptions", features: "descriptions", audience: "descriptions", closing: "descriptions", bp: "supplier", provider: "supplier" };
+    for (const [k, col] of Object.entries(AMEND_RULE_COLS)) {
+      if (typeof e[k] !== "string" || !what.has(allow[k])) continue;
+      const v = e[k].trim();
+      if ((k === "bp" || k === "provider") && !/^\d+$/.test(v)) throw new Error("Blueprint and provider must be Printify ID numbers.");
+      if (v !== String(r[k] ?? "")) { ops.push(amendCell("PRODUCT_RULES", col, r.row, v)); r[k] = v; }
     }
-    gags = [g];
-    if (pick.length && !pick.some((t) => g.live.includes(t))) return json({ error: "Pick at least one garment" }, 400);
-  } else if (d.kind === "range" || d.kind === "colours") {
-    const code = String(d.coll || "");
-    const coll = AMEND_COLL[code];
-    if (!coll) return json({ error: "Unknown range" }, 400);
-    gags = S.gags.filter((x) => x.id.startsWith(code + "-") && (!pick.length || pick.some((t) => x.live.includes(t))));
-    if (!gags.length) return json({ error: "No live listings in that range" + (pick.length ? " for that garment" : "") }, 400);
-    const rules = S.rules.filter((r) => r.coll === coll);
-    if (d.kind === "range" && Array.isArray(d.rules)) {
-      if (action !== "text") return json({ error: "Text changes go with Update text" }, 400);
-      for (const e of d.rules) {
-        const r = rules.find((x) => x.row === Number(e.row));
-        if (!r) return json({ error: "Unknown product rule" }, 400);
-        for (const [k, col] of Object.entries(AMEND_RULE_COLS)) {
-          if (typeof e[k] === "string" && e[k] !== String(r[k] ?? "")) { ops.push(amendCell("PRODUCT_RULES", col, r.row, e[k])); r[k] = e[k]; }
-        }
-        if (Array.isArray(e.tags)) {
-          const t = e.tags.map((s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase());
-          if (t.length !== 5 || t.some((s) => !s || s.length > 20)) return json({ error: "Each garment needs 5 product tags, 20 characters max" }, 400);
-          t.forEach((s, i) => { if (s !== String(r.tags[i] ?? "")) ops.push(amendCell("PRODUCT_RULES", AMEND_TAG_COLS[i], r.row, s)); });
-          r.tags = t;
-        }
-      }
+    if (Array.isArray(e.tags) && what.has("tags")) {
+      const t = e.tags.map((s) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase());
+      if (t.length !== 5 || t.some((s) => !s || s.length > 20)) throw new Error("Each garment needs 5 product tags, 20 characters max.");
+      t.forEach((s, i) => { if (s !== String(r.tags[i] ?? "")) ops.push(amendCell("PRODUCT_RULES", AMEND_TAG_COLS[i], r.row, s)); });
+      r.tags = t;
     }
-    if (d.kind === "colours") {
-      if (action !== "colours") return json({ error: "Colour changes go with Update colours" }, 400);
-      const names = [...new Set(rules.map((r) => r.profile))];
-      if (names.length !== 1) return json({ error: "This range's garments use different colour profiles; ask Claude to sort that first." }, 400);
+  }
+  // colours per range
+  if (what.has("colours")) {
+    const avail = new Set(Object.values(S.colours || {}).flat());
+    for (const [code, list] of Object.entries(d.colours || {})) {
+      const coll = AMEND_COLL[code];
+      if (!coll || ![...combos].some((c) => c.startsWith(code + "|"))) throw new Error("A colour change was for a range you didn't pick.");
+      const names = [...new Set(S.rules.filter((r) => r.coll === coll).map((r) => r.profile))];
+      if (names.length !== 1) throw new Error("This range's garments use different colour profiles; ask Claude to sort that first.");
       const prof = S.profiles.find((p) => p.name === names[0]);
-      if (!prof) return json({ error: "Colour profile " + names[0] + " isn't in COLOUR_PROFILES" }, 400);
-      if (S.rules.some((r) => r.profile === prof.name && r.coll !== coll)) return json({ error: "Another range shares this colour profile; ask Claude to split it first." }, 400);
-      const avail = new Set(Object.values(S.colours || {}).flat());
-      const want = (Array.isArray(d.colours) ? d.colours : []).map(String).filter((c) => avail.has(c));
-      if (!want.length) return json({ error: "Pick at least one colour" }, 400);
+      if (!prof) throw new Error("Colour profile " + names[0] + " isn't in COLOUR_PROFILES.");
+      if (S.rules.some((r) => r.profile === prof.name && r.coll !== coll)) throw new Error("Another range shares this colour profile; ask Claude to split it first.");
+      const want = (Array.isArray(list) ? list : []).map(String).filter((c) => avail.has(c));
+      if (!want.length) throw new Error("Pick at least one colour for each range.");
       if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
     }
-  } else return json({ error: "Unknown request" }, 400);
-  gags.forEach((g) => {
-    const only = pick.length && g.live.some((t) => !pick.includes(t)) ? pick.filter((t) => g.live.includes(t)).join("|") : "";
-    if (only && !S.hasOnly) throw new Error("Core's GAGS table has no AMEND_ONLY column yet, so it can only update all garments.");
+  }
+  const text = what.has("titles") || what.has("descriptions") || what.has("tags");
+  const status = what.has("print") ? "AMENDMENT_REQUIRED_REPRINT"
+    : what.has("supplier") || what.has("colours") || (text && what.has("mockups")) ? "AMENDMENT_REQUIRED_COLOURS"
+    : text ? "AMENDMENT_REQUIRED" : "AMENDMENT_REQUIRED_ARTWORK";
+  for (const id of gagIds) {
+    const g = S.gags.find((x) => x.id === id);
+    const pick = byGag[id];
+    const only = g.live.every((t) => pick.has(t)) ? "" : AMEND_GARMENTS.filter((t) => pick.has(t)).join("|");
+    if (only && !S.hasOnly) throw new Error("Core's GAGS table has no AMEND_ONLY column, so it can only update all garments of a gag.");
     if (S.hasOnly && (only || g.only)) { ops.push(amendCell("GAGS_TABLE", "AMEND_ONLY", g.row, only)); g.only = only; }
     ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status;
-  });
+  }
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "300", run: "yes" });
   if (err) return err;
   await env.PENDING.put("amend", JSON.stringify(S));
+  const n = gagIds.reduce((a, id) => a + byGag[id].size, 0);
   const log = (await env.PENDING.get("amend-log", "json")) || [];
-  log.unshift({ at: Date.now(), what: action, scope: (d.kind === "gag" ? gags[0].id : String(d.coll)) + (pick.length ? " (" + pick.map((t) => t.toLowerCase()).join(", ") + ")" : ""), n: gags.length });
+  log.unshift({ at: Date.now(), what: [...what], listings: n, gags: gagIds });
   await env.PENDING.put("amend-log", JSON.stringify(log.slice(0, 20)));
-  return json({ ok: true, gags: gags.length });
+  return json({ ok: true, gags: gagIds.length, listings: n });
 }
 
 async function amendPage(env) {
   const S = (await env.PENDING.get("amend", "json")) || null;
   const log = (await env.PENDING.get("amend-log", "json")) || [];
+  const data = JSON.stringify({ S, log }).replace(/</g, "\\u003c");
   return shell(`
 <style>
-.rng{margin-bottom:18px}
-.rng h2{margin:0 0 4px;font-size:20px}
-.row2{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
-.row2 .btn-main{flex:1;min-width:150px}
-.gl{border-top:1px solid var(--line);padding:10px 0}
-.gl .top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-.gl .nm{font-size:15px}
-.gl .nm small{display:block;color:var(--muted);font-size:12px}
-.pill{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--field);border:1px solid var(--line)}
-.pill.busy{border-color:var(--accent);color:var(--accent)}
-.ed{display:none;margin-top:8px}
-.ed.open,.box.open{display:block}
-.box{display:none;margin:8px 0;padding:10px;border:1px solid var(--line);border-radius:12px}
-.ed label,.box label{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
-.ed input,.ed textarea,.box input,.box textarea,.box select{width:100%;box-sizing:border-box;padding:9px 10px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
-.box textarea,.ed textarea{min-height:70px}
-.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px;margin:6px 0}
-.cols label{display:flex;gap:6px;align-items:center;color:var(--text);margin:0;font-size:14px}
-.cols input{width:auto}
-.note{font-size:13px;color:var(--muted);margin:4px 0}
-.prow2{display:flex;gap:8px;align-items:center;margin:8px 0}.prow2 select{flex:1;padding:8px 10px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
-.msg{font-size:14px;margin-top:6px}
+.aw{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:110px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps span{font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.steps span.on{background:var(--accent);color:#141413;border-color:var(--accent);font-weight:600}
+.steps span.done{color:var(--text)}
+.q{font-size:18px;font-weight:600;margin:0 0 4px}
+.hint{color:var(--muted);font-size:13px;margin:4px 0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.seg button{font:600 15px Montserrat;padding:14px 8px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);cursor:pointer}
+.seg button small{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:3px}
+.seg button.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tick{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--field);cursor:pointer;min-width:0}
+.tick input,.li input,.rt input{width:20px;height:20px;accent-color:var(--go);flex:none}
+.tick .lbl,.li .lbl{flex:1;min-width:0}
+.tick small,.li small{display:block;color:var(--muted);font-size:12px}
+.g2{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px}
+.col{display:flex;flex-direction:column;gap:8px}
+.rt{overflow-x:auto}.rt table{border-collapse:collapse;width:100%;min-width:520px}
+.rt th,.rt td{padding:10px 6px;border-bottom:1px solid var(--line);text-align:center;font-size:14px}
+.rt th:first-child,.rt td:first-child{text-align:left}
+.rt th button{background:none;border:0;color:var(--muted);font:600 12px Montserrat;text-transform:uppercase;letter-spacing:.06em;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.crumbs{display:flex;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--muted);margin:6px 0}
+.crumbs button{background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.li{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--line);background:var(--field)}
+.li:last-child{border-bottom:0}
+.drill{background:none;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:7px 12px;font:600 13px Montserrat;cursor:pointer;white-space:nowrap}
+.pill{font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--accent);color:var(--accent);margin-left:6px;white-space:nowrap}
+.inp,.f input,.f textarea,.f select{width:100%;box-sizing:border-box;padding:10px 12px;font:15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text)}
+.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);margin:6px 0}
+.f textarea{min-height:72px;resize:vertical}
+.copy{align-self:flex-start;background:none;border:0;color:var(--accent);font:13px Montserrat;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.sw label{display:flex;align-items:center;gap:8px;font-size:14px;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--field);color:var(--text)}
+.sec{border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+.sec h3{margin:0 0 4px;font-size:15px}
+.sum{font-size:16px;line-height:1.5}.sum b{color:var(--accent)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chips span{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--field);border:1px solid var(--line)}
+.okbox{border:1px solid var(--go);border-radius:12px;padding:14px;background:var(--ok-bg)}
+.errbox{border:1px solid var(--warn);border-radius:12px;padding:12px;background:var(--warn-bg)}
+.abar{position:fixed;left:0;right:0;bottom:0;z-index:5;background:rgba(18,18,17,.96);border-top:1px solid var(--line);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.abar .in{max-width:780px;margin:0 auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.abar .count{flex:1;min-width:140px;font-size:14px;color:var(--muted)}.abar .count b{color:var(--text);font-size:16px}
+.abtn{padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--text);font:600 15px Montserrat;cursor:pointer}
+.abtn.go{background:var(--go);color:var(--go-text);border-color:var(--go)}
+.abtn:disabled{opacity:.4;cursor:not-allowed}
+.abtn.ghost{background:none}
+@media (max-width:480px){.seg{grid-template-columns:1fr}}
 </style>
-${brandHeader("Update live listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
-<p class="small" id="readAt"></p>
-<div class="card" style="margin-bottom:16px"><p class="note" style="margin:0">Opening Edit or Colours changes nothing; only the Update/Save buttons do, and they ask first. Cancel closes without saving.<br>Each button saves to Core straight away, then updates Etsy about 5 minutes later. Gags are done one at a time, so a whole range can take a while; you'll see each gag go back to “Live” when it's finished.<br>
-<b>Update text</b>: titles, descriptions and tags. <b>Update mockups</b>: new mockup photos from Canva. <b>Update printed design</b>: new print file from the gag text, then new mockups and a new video for you to approve. <b>Update colours</b>: adds or removes colours, then new mockups.</p></div>
-<div id="out"></div>
-<div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div></div>
-<script>
-let S = ${JSON.stringify(S).replace(/</g, "\\u003c")};
-const LOG = ${JSON.stringify(log).replace(/</g, "\\u003c")};
-const RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
-const GARM = { "T-SHIRT":"T-shirt", "LONG-SLEEVE":"Long sleeve", "SWEATSHIRT":"Sweatshirt", "HOODIE":"Hoodie" };
-const STAT = { AMENDMENT_REQUIRED:"Updating text", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating printed design", AMENDMENT_REQUIRED_COLOURS:"Updating colours", LIVE_EXISTING:"Live", FAILED:"Failed" };
-const LABEL = { text:"Update text", mockups:"Update mockups", reprint:"Update printed design", colours:"Update colours" };
-const $ = (id) => document.getElementById(id);
-const h = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]);
-const busy = (s) => /^AMENDMENT_REQUIRED/.test(s);
+${brandHeader("Update listings", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/tools">🛠 Tools</a><button class="btn" id="reread" type="button">Re-read Core</button>`)}
+<div class="aw">
+  <div class="steps" id="steps"></div>
+  <div class="card" id="view"></div>
+  <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div><p class="small" id="readAt" style="margin:8px 0 0"></p></div>
+</div>
+<div class="abar"><div class="in">
+  <div class="count" id="count"></div>
+  <button class="abtn ghost" id="reset" type="button">Start over</button>
+  <button class="abtn" id="back" type="button">Back</button>
+  <button class="abtn go" id="next" type="button">Next</button>
+</div></div>
+<script id="amend-data" type="application/json">${data}</script>
+<script src="/amend.js"></script>`);
+}
+
+const AMEND_JS = String.raw`
+var D = JSON.parse(document.getElementById("amend-data").textContent);
+var S0 = D.S, LOG = D.log || [];
+var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
+var GARM = [["T-SHIRT","T-shirt","T-shirts"],["LONG-SLEEVE","Long sleeve","Long sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
+var WHAT = [
+  ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace), then refresh colours and mockups"],
+  ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video"],
+  ["mockups","Mockup photos","Re-export the Canva mockup pages onto the listings"],
+  ["colours","Colours","Add or take away colours"],
+  ["titles","Titles","The title ending for a range and garment, or one gag's title stem"],
+  ["descriptions","Descriptions","Intro, features, who it's for, closing text"],
+  ["tags","Product tags","The 5 product tags for a range and garment"]];
+var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
+function gName(t) { for (var i = 0; i < GARM.length; i++) if (GARM[i][0] === t) return GARM[i][1]; return t; }
+function rName(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][1]; return c; }
+function rColl(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][2]; return c; }
+function $(id) { return document.getElementById(id); }
+function h(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+var A;  // all choices; Start over resets it
+function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, done:null, err:"" }; }
+fresh();
+var ALL = [];
+if (S0) S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
+function keys(f) { return ALL.filter(f); }
+function selKeys() { return Object.keys(A.sel); }
+function setMany(ks, on) { ks.forEach(function (k) { if (on) A.sel[k] = 1; else delete A.sel[k]; }); }
+function st(ks) { var n = 0; ks.forEach(function (k) { if (A.sel[k]) n++; }); return !ks.length ? "na" : n === 0 ? "none" : n === ks.length ? "all" : "some"; }
+function box(ks, tag) { var s = st(ks); return '<input type="checkbox" data-k="' + h(tag) + '"' + (s === "all" ? " checked" : "") + (s === "some" ? ' data-mixed="1"' : "") + (s === "na" ? " disabled" : "") + '>'; }
+function gagOf(id) { for (var i = 0; i < S0.gags.length; i++) if (S0.gags[i].id === id) return S0.gags[i]; }
+function busy(g) { return /^AMENDMENT_REQUIRED/.test(g.status) ? '<span class="pill">' + (STAT[g.status] || "Updating") + "</span>" : ""; }
+function combos() { var m = {}; selKeys().forEach(function (k) { var p = k.split("|"); m[p[0].slice(0, 2) + "|" + p[1]] = 1; }); return Object.keys(m).sort(); }
+function ruleFor(code, t) { var c = rColl(code); for (var i = 0; i < S0.rules.length; i++) if (S0.rules[i].coll === c && S0.rules[i].type === t) return S0.rules[i]; }
+function single() { var g = {}; selKeys().forEach(function (k) { g[k.split("|")[0]] = 1; }); var ids = Object.keys(g); return ids.length === 1 ? gagOf(ids[0]) : null; }
+function whatOn() { return WHAT.filter(function (w) { return A.what[w[0]]; }).map(function (w) { return w[0]; }); }
+
+var STEPS = ["Where", "What", "Details", "Check"];
 function render() {
-  if (!S) { $("out").innerHTML = '<div class="card">The page hasn\\'t read Core yet. Tap <b>Re-read Core</b> and give it a minute.</div>'; return; }
-  $("readAt").textContent = "Core read " + new Date(S.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
-  $("out").innerHTML = RANGES.map(([code, name, coll]) => {
-    const gags = S.gags.filter((g) => g.id.startsWith(code + "-"));
-    if (!gags.length) return "";
-    const rules = S.rules.filter((r) => r.coll === coll);
-    const prof = S.profiles.find((p) => rules[0] && p.name === rules[0].profile);
-    const have = new Set(String(prof ? prof.colours : "").split(",").map((s) => s.trim()).filter(Boolean));
-    const avail = {}; rules.forEach((r) => (S.colours[r.bp] || []).forEach((c) => (avail[c] = avail[c] || []).push(GARM[r.type] || r.type)));
-    const allC = Object.keys(avail).sort((a, b) => (have.has(b) - have.has(a)) || a.localeCompare(b));
-    const nBusy = gags.filter((g) => busy(g.status)).length;
-    return '<div class="card rng" data-coll="' + code + '"><h2>' + h(name) + '</h2><div class="note">' + gags.length + ' live gag' + (gags.length === 1 ? '' : 's') + (nBusy ? ' · <b>' + nBusy + ' being updated</b>' : '') + '</div>' +
-      '<div class="row2"><button class="btn" data-open="edit-' + code + '">✏ Edit all (titles, descriptions, tags)</button><button class="btn" data-open="col-' + code + '">🎨 Colours</button></div>' +
-      '<div class="prow2"><label class="note">Which garments</label><select class="gsel"><option value="">All garments</option>' + rules.map((r) => '<option value="' + r.type + '">' + h(GARM[r.type] || r.type) + 's only</option>').join("") + '</select></div>' +
-      '<div class="row2"><button class="btn-main" data-range="text">Update text on all</button><button class="btn-main" data-range="mockups">Update mockups on all</button><button class="btn-main" data-range="reprint">Update printed design on all</button></div>' +
-      '<div class="box" id="edit-' + code + '"><label>Garment</label><select class="rsel">' + rules.map((r) => '<option value="' + r.row + '">' + h(GARM[r.type] || r.type) + '</option>').join("") + '</select><div class="rfields"></div>' +
-        '<div class="row2"><button class="btn-main" data-rsave>Save and update text on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div><div class="note">Saving changes the text for the garment shown here; pick another garment to edit that too (unsaved edits are kept while you switch). The garment choice above says which listings get updated.</div></div>' +
-      '<div class="box" id="col-' + code + '"><div class="note">Ticked colours are on every listing in this range. Untick a colour to take it off; tick a new one to add it (Printify must sell it for that garment; garments that don\\'t offer it are skipped).</div><div class="cols">' +
-        allC.map((c) => '<label><input type="checkbox" value="' + h(c) + '"' + (have.has(c) ? ' checked' : '') + '>' + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ' only)</small>' : '') + '</label>').join("") + '</div>' +
-        '<div class="note">Main colour for this range: ' + h(rules[0] ? rules[0].primary : "") + (rules[0] && rules[0].secondary ? ', then ' + h(rules[0].secondary) : '') + '. Don\\'t untick those without telling Claude.</div>' +
-        '<div class="row2"><button class="btn-main" data-colsave>Update colours on all ' + gags.length + '</button><button class="btn" data-cancel>Cancel</button></div></div>' +
-      '<div class="msg rmsg"></div>' +
-      gags.map((g) => '<div class="gl" data-gag="' + h(g.id) + '"><div class="top"><div class="nm">' + h(g.stem || g.id) + '<small>' + h(g.id) + ' · ' + h(g.live.map((t) => GARM[t] || t).join(", ")) + '</small></div><div><span class="pill' + (busy(g.status) ? ' busy' : '') + '">' + h(STAT[g.status] || g.status || "Live") + '</span> <button class="btn" data-edit>Edit</button></div></div>' +
-        '<div class="ed"><label>Garments to update</label><div class="cols gcols">' + g.live.map((t) => '<label><input type="checkbox" value="' + t + '" checked>' + h(GARM[t] || t) + '</label>').join("") + '</div><label>Title stem</label><input class="gstem" value="' + h(g.stem) + '"><label>Gag text (changing it needs Update printed design)</label><textarea class="gtext">' + h(g.text) + '</textarea>' +
-        '<div class="row2"><button class="btn-main" data-gag-act="text">Update text</button><button class="btn-main" data-gag-act="mockups">Update mockups</button><button class="btn-main" data-gag-act="reprint">Update printed design</button><button class="btn" data-cancel>Cancel</button></div><div class="msg gmsg"></div></div></div>').join("") +
-      '</div>';
-  }).join("");
-  document.querySelectorAll(".rng").forEach(setupRange);
-  $("log").innerHTML = LOG.length ? LOG.map((l) => h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(LABEL[l.what] || l.what) + " · " + h(l.scope) + (l.n > 1 ? " (" + l.n + " gags)" : "")).join("<br>") : "None yet.";
+  if (!S0) { $("view").innerHTML = "The page hasn't read Core yet. Tap <b>Re-read Core</b> and give it a minute."; $("count").textContent = ""; return; }
+  $("steps").innerHTML = STEPS.map(function (s, i) { return '<span class="' + (i === A.step ? "on" : i < A.step ? "done" : "") + '">' + (i + 1) + ". " + s + "</span>"; }).join("");
+  [where, what, details, check][A.step]();
+  Array.prototype.forEach.call(document.querySelectorAll("input[data-mixed]"), function (i) { i.indeterminate = true; });
+  var n = selKeys().length, w = whatOn();
+  $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
+  $("back").hidden = A.step === 0 || !!A.done;
+  $("next").hidden = A.step >= 3;
+  $("next").disabled = (A.step === 0 && !n) || (A.step === 1 && !w.length);
+  $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h((l.what || []).join(", ") || l.what) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
+  $("readAt").textContent = "Core read " + new Date(S0.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
 }
-const drafts = {};
-function ruleFields(box, row) {
-  const r = S.rules.find((x) => x.row === Number(row)); const dft = drafts[row] || {};
-  const v = (k) => h(dft[k] != null ? dft[k] : r[k]);
-  const tags = dft.tags || r.tags;
-  box.querySelector(".rfields").innerHTML =
-    '<label>Title ending (after the stem)</label><input data-k="suffix" value="' + v("suffix") + '"><div class="note tlen"></div>' +
-    '<label>Range intro</label><textarea data-k="intro">' + v("intro") + '</textarea>' +
-    '<label>Product features</label><textarea data-k="features">' + v("features") + '</textarea>' +
-    '<label>Who it\\'s for</label><textarea data-k="audience">' + v("audience") + '</textarea>' +
-    '<label>Closing text</label><textarea data-k="closing">' + v("closing") + '</textarea>' +
-    '<label>Product tags (5, 20 characters max each)</label>' + [0,1,2,3,4].map((i) => '<input data-t="' + i + '" maxlength="20" value="' + h(tags[i]) + '" style="margin-bottom:4px">').join("");
-  const upd = () => { const d = drafts[row] = drafts[row] || {}; box.querySelectorAll("[data-k]").forEach((el) => d[el.dataset.k] = el.value); d.tags = [...box.querySelectorAll("[data-t]")].map((el) => el.value);
-    const longest = Math.max(0, ...S.gags.filter((g) => g.id.startsWith(box.closest(".rng").dataset.coll + "-")).map((g) => (g.stem || "").length));
-    box.querySelector(".tlen").textContent = "Longest title in this range would be " + (longest + 1 + d.suffix.length) + " of Etsy's 140 characters."; };
-  box.querySelectorAll("input,textarea").forEach((el) => el.addEventListener("input", upd)); upd();
+
+function where() {
+  var b = '<p class="q">Which listings?</p><div class="seg">' + [["global","Everything","Every range"],["range","By range","Ranges and garments"],["listing","By listing","Drill down to a gag"]].map(function (x) { return '<button type="button" data-scope="' + x[0] + '" class="' + (A.scope === x[0] ? "on" : "") + '">' + x[1] + "<small>" + x[2] + "</small></button>"; }).join("") + "</div>";
+  if (!A.scope) b += '<p class="hint">Pick one to start. Nothing is ticked until you tick it.</p>';
+  if (A.scope === "global") b += '<p class="hint">Every live listing in every range, for the garments you tick.</p><div class="g2">' + GARM.map(function (g) { var ks = keys(function (k) { return k.split("|")[1] === g[0]; }); return '<label class="tick">' + box(ks, "garm:" + g[0]) + '<span class="lbl">All ' + g[2] + "<small>" + ks.length + " listings</small></span></label>"; }).join("") + "</div>";
+  if (A.scope === "range") b += '<p class="hint">Tick a box for one range and garment, a range name for the whole range, or a column heading for that garment in every range.</p><div class="rt"><table><thead><tr><th></th>' + GARM.map(function (g) { return '<th><button type="button" data-colpick="' + g[0] + '">' + g[2] + "</button></th>"; }).join("") + "</tr></thead><tbody>" +
+    RANGES.map(function (r) { var rk = keys(function (k) { return k.indexOf(r[0] + "-") === 0; });
+      return '<tr><td><label style="display:flex;align-items:center;gap:8px">' + box(rk, "range:" + r[0]) + h(r[1]) + (rk.length ? "" : ' <span class="small">(none live)</span>') + "</label></td>" + GARM.map(function (g) { return "<td>" + box(rk.filter(function (k) { return k.split("|")[1] === g[0]; }), "rg:" + r[0] + ":" + g[0]) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>";
+  if (A.scope === "listing") b += drill();
+  $("view").innerHTML = b;
 }
-async function send(body, msgEl, what) {
-  if (!confirm(what + "\\n\\nThis saves to Core now and updates Etsy in about 5 minutes.")) return;
-  msgEl.textContent = "Saving to Core…";
-  const r = await fetch("/api/amend-apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json().catch(() => ({}));
-  msgEl.textContent = r.ok ? "Saved. Etsy updates start in about 5 minutes (" + j.gags + " gag" + (j.gags === 1 ? "" : "s") + ")." : (j.error || "Something went wrong.");
-  if (r.ok) setTimeout(() => location.reload(), 2500);
+function drill() {
+  var r = A.drill[0], gid = A.drill[1];
+  var c = '<div class="crumbs"><button type="button" data-crumb="0">All ranges</button>' + (r ? " › " + (gid ? '<button type="button" data-crumb="1">' + h(rName(r)) + "</button>" : h(rName(r))) : "") + (gid ? " › " + h(gagOf(gid).stem) : "") + "</div>";
+  if (!r) return c + '<div class="list">' + RANGES.map(function (x) { var ks = keys(function (k) { return k.indexOf(x[0] + "-") === 0; }); var n = S0.gags.filter(function (g) { return g.id.indexOf(x[0] + "-") === 0; }).length;
+    return '<div class="li">' + box(ks, "range:" + x[0]) + '<span class="lbl">' + h(x[1]) + "<small>" + n + " gags · " + ks.length + " listings</small></span>" + (n ? '<button class="drill" type="button" data-drill="' + x[0] + '">Open ›</button>' : "") + "</div>"; }).join("") + "</div>";
+  if (!gid) { var gs = S0.gags.filter(function (g) { return g.id.indexOf(r + "-") === 0 && (!A.q || (g.stem + " " + g.id).toLowerCase().indexOf(A.q.toLowerCase()) >= 0); });
+    return c + '<input class="inp" id="q" placeholder="Search gags" value="' + h(A.q) + '"><div class="list" style="margin-top:8px">' + gs.map(function (g) { return '<div class="li">' + box(g.live.map(function (t) { return g.id + "|" + t; }), "gag:" + g.id) + '<span class="lbl">' + h(g.stem) + busy(g) + "<small>" + g.id + " · " + g.live.map(gName).join(", ") + '</small></span><button class="drill" type="button" data-drill="' + g.id + '">Edit ›</button></div>'; }).join("") + "</div>"; }
+  var g = gagOf(gid);
+  return c + '<p class="hint">Tick the listings to update. You can change the title stem and gag text in step 3.</p><div class="g2">' + g.live.map(function (t) { return '<label class="tick">' + box([g.id + "|" + t], "one:" + g.id + "|" + t) + '<span class="lbl">' + gName(t) + "<small>" + g.id + "-" + t + "</small></span></label>"; }).join("") + "</div>";
 }
-function setupRange(card) {
-  const code = card.dataset.coll, name = card.querySelector("h2").textContent, rmsg = card.querySelector(".rmsg");
-  card.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => $(b.dataset.open).classList.toggle("open")));
-  const eb = $("edit-" + code), sel = eb.querySelector(".rsel"), cb = $("col-" + code);
-  ruleFields(eb, sel.value); sel.addEventListener("change", () => ruleFields(eb, sel.value));
-  eb.querySelector("[data-cancel]").addEventListener("click", () => {   // throw away edits, close, nothing saved
-    [...sel.options].forEach((o) => delete drafts[o.value]); ruleFields(eb, sel.value); eb.classList.remove("open"); rmsg.textContent = "";
-  });
-  const ticks = [...cb.querySelectorAll("input")].map((i) => i.checked);
-  cb.querySelector("[data-cancel]").addEventListener("click", () => { cb.querySelectorAll("input").forEach((i, k) => i.checked = ticks[k]); cb.classList.remove("open"); rmsg.textContent = ""; });
-  eb.querySelector("[data-rsave]").addEventListener("click", () => {
-    const rules = Object.entries(drafts).filter(([row]) => S.rules.some((r) => r.row === Number(row) && r.coll === RANGES.find((x) => x[0] === code)[2])).map(([row, d]) => ({ row: Number(row), ...d }));
-    send({ kind: "range", coll: code, action: "text", rules, garments: gpick() }, rmsg, "Save the " + name + " text and update text on every " + name + " listing?");
-  });
-  card.querySelector("[data-colsave]").addEventListener("click", () => {
-    const colours = [...$("col-" + code).querySelectorAll("input:checked")].map((i) => i.value);
-    send({ kind: "colours", coll: code, action: "colours", colours, garments: gpick() }, rmsg, "Set " + name + " colours to: " + colours.join(", ") + "?");
-  });
-  const gsel = card.querySelector(".gsel");
-  const gpick = () => gsel.value ? [gsel.value] : [];
-  const gname = () => gsel.value ? name + " " + gsel.options[gsel.selectedIndex].text.replace(" only", "") : "every " + name + " listing";
-  card.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => send({ kind: "range", coll: code, action: b.dataset.range, garments: gpick() }, rmsg, LABEL[b.dataset.range] + " on " + gname() + "?")));
-  card.querySelectorAll(".gl").forEach((row) => {
-    row.querySelector("[data-edit]").addEventListener("click", () => row.querySelector(".ed").classList.toggle("open"));
-    const g0 = S.gags.find((x) => x.id === row.dataset.gag);
-    row.querySelector("[data-cancel]").addEventListener("click", () => { row.querySelectorAll(".gcols input").forEach((i) => i.checked = true); row.querySelector(".gstem").value = g0.stem; row.querySelector(".gtext").value = g0.text; row.querySelector(".ed").classList.remove("open"); row.querySelector(".gmsg").textContent = ""; });
-    row.querySelectorAll("[data-gag-act]").forEach((b) => b.addEventListener("click", () => {
-      const act = b.dataset.gagAct;
-      const all = [...row.querySelectorAll(".gcols input")], on = all.filter((i) => i.checked).map((i) => i.value);
-      if (!on.length) { row.querySelector(".gmsg").textContent = "Tick at least one garment."; return; }
-      const garments = on.length === all.length ? [] : on;
-      send({ kind: "gag", gagId: row.dataset.gag, action: act, stem: row.querySelector(".gstem").value, text: row.querySelector(".gtext").value, garments }, row.querySelector(".gmsg"), LABEL[act] + " on " + row.dataset.gag + " (" + (garments.length ? on.map((t) => GARM[t] || t).join(", ") : "all garments") + ")?");
-    }));
-  });
+
+function what() {
+  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">Tick as many as you like. They run together, in the right order.</p><div class="col">' +
+    WHAT.map(function (w) { return '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>"; }).join("") + "</div>";
 }
-$("reread").addEventListener("click", async () => {
-  $("reread").disabled = true; $("reread").textContent = "Reading Core…";
-  const at = S ? S.at : 0; await fetch("/api/amend-refresh", { method: "POST" });
-  const poll = async () => { const r = await fetch("/api/amend-data"); const d = r.ok ? await r.json() : null; if (d && d.at !== at) { location.reload(); return; } setTimeout(poll, 5000); };
-  setTimeout(poll, 8000);
+
+function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected id
+  if (!A.cur[kind] || list.indexOf(A.cur[kind]) < 0) A.cur[kind] = list[0];
+  if (list.length < 2) return "";
+  return '<label class="f">' + label + '<select data-cur="' + kind + '">' + list.map(function (id) { var p = id.split("|"); return '<option value="' + id + '"' + (id === A.cur[kind] ? " selected" : "") + ">" + h(rName(p[0]) + (p[1] ? " · " + gName(p[1]) : "")) + "</option>"; }).join("") + "</select></label>";
+}
+function rv(row, k, def) { var d = A.rules[row]; return d && d[k] != null ? d[k] : def; }
+function details() {
+  var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
+  function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
+  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text">' + h(A.text != null ? A.text : one.text) + "</textarea></label>" : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
+  if (A.what.mockups) sec("Mockup photos", '<p class="hint">Re-exported from the current Canva mockup templates. Nothing to fill in.</p>');
+  if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
+  var ruleKinds = [];
+  if (A.what.titles && !one) ruleKinds.push("titles");
+  if (A.what.descriptions) ruleKinds.push("descriptions");
+  if (A.what.tags) ruleKinds.push("tags");
+  if (A.what.supplier) ruleKinds.push("supplier");
+  if (ruleKinds.length) {
+    var b = pickerFor("rule", cb, "Editing the text for") ;
+    var p = A.cur.rule.split("|"), r = ruleFor(p[0], p[1]);
+    if (one && (A.what.descriptions || A.what.tags)) b += '<p class="hint">Descriptions and product tags are shared by every ' + h(rName(p[0])) + " " + h(gName(p[1]).toLowerCase()) + ' listing, so this changes those too, but only the listings you picked are updated now.</p>';
+    function fld(k, label, ta) { var v = rv(r.row, k, r[k]); return '<label class="f">' + label + (ta ? '<textarea data-rule="' + r.row + '" data-rk="' + k + '">' + h(v) + "</textarea>" : '<input data-rule="' + r.row + '" data-rk="' + k + '" value="' + h(v) + '">') + "</label>" + (cb.length > 1 ? '<button class="copy" type="button" data-copy="' + k + '">Use this for all ' + cb.length + " picked range/garment combinations</button>" : ""); }
+    if (ruleKinds.indexOf("titles") >= 0) b += fld("suffix", "Title ending (after the stem)");
+    if (ruleKinds.indexOf("descriptions") >= 0) b += fld("intro", "Range intro", 1) + fld("features", "Product features", 1) + fld("audience", "Who it's for", 1) + fld("closing", "Closing text (put legal or compliance wording here)", 1);
+    if (ruleKinds.indexOf("tags") >= 0) { var tg = rv(r.row, "tags", r.tags); b += '<label class="f">Product tags (5, 20 characters max)</label><div class="g2">' + [0,1,2,3,4].map(function (i) { return '<input class="inp" maxlength="20" data-rule="' + r.row + '" data-tag="' + i + '" value="' + h(tg[i]) + '">'; }).join("") + "</div>" + (cb.length > 1 ? '<button class="copy" type="button" data-copy="tags">Use these tags for all ' + cb.length + " picked combinations</button>" : ""); }
+    if (ruleKinds.indexOf("supplier") >= 0) b += '<p class="hint">Do the swap in Printify first (My products › Replace), then record the new IDs here. Now: ' + h(r.bpName || "blueprint") + " (blueprint " + h(r.bp) + ", provider " + h(r.provider) + ").</p>" + fld("bp", "Printify blueprint ID (garment model)") + fld("provider", "Printify provider ID");
+    sec(ruleKinds.length === 1 && ruleKinds[0] === "supplier" ? "Supplier" : "Range text", b);
+  }
+  if (A.what.colours) {
+    var rs = []; cb.forEach(function (c) { var x = c.split("|")[0]; if (rs.indexOf(x) < 0) rs.push(x); });
+    var cb2 = pickerFor("col", rs, "Colours for");
+    var code = A.cur.col, rules = S0.rules.filter(function (r) { return r.coll === rColl(code); });
+    var prof = S0.profiles.filter(function (p) { return rules[0] && p.name === rules[0].profile; })[0];
+    var have = A.colours[code] || String(prof ? prof.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    var avail = {}; rules.forEach(function (r) { (S0.colours[r.bp] || []).forEach(function (c) { (avail[c] = avail[c] || []).push(gName(r.type)); }); });
+    var list = Object.keys(avail).sort(function (a, b) { return (have.indexOf(b) >= 0) - (have.indexOf(a) >= 0) || a.localeCompare(b); });
+    cb2 += '<p class="hint">Ticked colours are on every ' + h(rName(code)) + ' listing. Untick to remove, tick to add. Garments that don\'t offer a colour are skipped. Main colour: ' + h(rules[0] ? rules[0].primary : "") + ".</p><div class=\"sw\">" +
+      list.map(function (c) { return '<label><input type="checkbox" data-colour="' + h(c) + '"' + (have.indexOf(c) >= 0 ? " checked" : "") + ">" + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ")</small>" : "") + "</label>"; }).join("") + "</div>";
+    sec("Colours", cb2);
+  }
+  if (!any) out += '<p class="hint">Nothing to fill in. Tap Next.</p>';
+  $("view").innerHTML = out;
+}
+
+function check() {
+  var ks = selKeys(), gs = {}, rs = {}, ts = {};
+  ks.forEach(function (k) { var p = k.split("|"); gs[p[0]] = 1; rs[rName(p[0].slice(0, 2))] = 1; ts[gName(p[1])] = 1; });
+  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[1].toLowerCase(); });
+  var n = ks.length, ng = Object.keys(gs).length;
+  var per = A.what.print ? 2.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
+  var mins = Math.max(5, Math.round(n * per) + 5);
+  if (A.done) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">Etsy starts updating in about 5 minutes: ' + A.done.listings + " listing" + (A.done.listings === 1 ? "" : "s") + " across " + A.done.gags + " gag" + (A.done.gags === 1 ? "" : "s") + ". Each gag shows as updating in the By listing view until it's finished. You'll get an alert if anything fails.</p></div>"; return; }
+  $("view").innerHTML = '<p class="q">Check and confirm</p><p class="sum">Change <b>' + h(w.join(", ")) + "</b> on <b>" + n + " listing" + (n === 1 ? "" : "s") + "</b> (" + ng + " gag" + (ng === 1 ? "" : "s") + ") in " + h(Object.keys(rs).join(", ")) + '.</p><div class="chips">' + Object.keys(ts).map(function (t) { return "<span>" + h(t) + "</span>"; }).join("") + "</div>" +
+    '<p class="hint">Saved to Core straight away. Etsy starts updating 5 minutes later and takes roughly ' + (mins >= 90 ? Math.round(mins / 6) / 10 + " hours" : mins + " minutes") + ". Listings stay live throughout." + (A.what.print ? " New videos come to the Approvals page for you to approve; approving re-posts them to social." : "") + "</p>" +
+    (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") +
+    '<div class="okbox" style="margin-top:10px"><b>Ready?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="abtn go" type="button" id="go">Confirm and start</button></div></div>';
+  $("go").onclick = submit;
+}
+function submit() {
+  var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn(), rules: A.rules, colours: {} };
+  var one = single();
+  if (one && A.stem != null) body.stem = A.stem;
+  if (one && A.text != null) body.text = A.text;
+  if (A.what.colours) { var rs = {}; combos().forEach(function (c) { rs[c.split("|")[0]] = 1; }); Object.keys(rs).forEach(function (code) { if (A.colours[code]) body.colours[code] = A.colours[code]; else { var rules = S0.rules.filter(function (r) { return r.coll === rColl(code); }); var p = S0.profiles.filter(function (x) { return rules[0] && x.name === rules[0].profile; })[0]; body.colours[code] = String(p ? p.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean); } }); }
+  $("go").disabled = true; $("go").textContent = "Saving…";
+  fetch("/api/amend-apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { return [r.ok, j]; }); }).then(function (x) {
+    if (x[0]) { A.done = x[1]; A.err = ""; } else A.err = x[1].error || "Something went wrong.";
+    render();
+  }).catch(function () { A.err = "Couldn't reach the app. Check your connection and try again."; render(); });
+}
+
+document.addEventListener("click", function (e) {
+  var t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.scope) { A.scope = t.dataset.scope; A.drill = []; render(); }
+  if (t.dataset.colpick) { var ks = keys(function (k) { return k.split("|")[1] === t.dataset.colpick; }); setMany(ks, st(ks) !== "all"); render(); }
+  if (t.dataset.drill) { A.drill.push(t.dataset.drill); A.q = ""; render(); }
+  if (t.dataset.crumb) { A.drill = A.drill.slice(0, Number(t.dataset.crumb)); render(); }
+  if (t.dataset.copy) {
+    var p = A.cur.rule.split("|"), src = ruleFor(p[0], p[1]), k = t.dataset.copy;
+    var v = rv(src.row, k, src[k]);
+    combos().forEach(function (c) { var q = c.split("|"), r = ruleFor(q[0], q[1]); if (r) { A.rules[r.row] = A.rules[r.row] || {}; A.rules[r.row][k] = Array.isArray(v) ? v.slice() : v; } });
+    t.textContent = "Copied to all " + combos().length + " ✓";
+  }
 });
+document.addEventListener("change", function (e) {
+  var el = e.target;
+  if (el.dataset.k) {
+    var p = el.dataset.k.split(":"), kind = p[0], a = p[1], b = p[2], ks;
+    if (kind === "garm") ks = keys(function (k) { return k.split("|")[1] === a; });
+    else if (kind === "range") ks = keys(function (k) { return k.indexOf(a + "-") === 0; });
+    else if (kind === "rg") ks = keys(function (k) { return k.indexOf(a + "-") === 0 && k.split("|")[1] === b; });
+    else if (kind === "gag") ks = keys(function (k) { return k.indexOf(a + "|") === 0; });
+    else ks = [el.dataset.k.slice(4)];
+    setMany(ks, el.checked); render();
+  }
+  if (el.dataset.what) { if (el.checked) A.what[el.dataset.what] = 1; else delete A.what[el.dataset.what]; render(); }
+  if (el.dataset.cur) { A.cur[el.dataset.cur] = el.value; render(); }
+  if (el.dataset.colour) { A.colours[A.cur.col] = Array.prototype.map.call(document.querySelectorAll("[data-colour]:checked"), function (i) { return i.dataset.colour; }); }
+});
+document.addEventListener("input", function (e) {
+  var el = e.target;
+  if (el.id === "q") { A.q = el.value; var pos = el.selectionStart; render(); var q = $("q"); q.focus(); q.setSelectionRange(pos, pos); return; }
+  if (el.dataset.one) A[el.dataset.one] = el.value;
+  if (el.dataset.rule) { var row = el.dataset.rule; A.rules[row] = A.rules[row] || {};
+    if (el.dataset.rk) A.rules[row][el.dataset.rk] = el.value;
+    if (el.dataset.tag != null) { var r = S0.rules.filter(function (x) { return String(x.row) === row; })[0]; var tg = (A.rules[row].tags || r.tags).slice(); tg[Number(el.dataset.tag)] = el.value; A.rules[row].tags = tg; } }
+});
+$("next").onclick = function () { A.step++; A.err = ""; render(); window.scrollTo(0, 0); };
+$("back").onclick = function () { A.step--; A.err = ""; render(); window.scrollTo(0, 0); };
+$("reset").onclick = function () { fresh(); render(); window.scrollTo(0, 0); };
+$("reread").onclick = function () {
+  var b = $("reread"); b.disabled = true; b.textContent = "Reading Core…";
+  var at = S0 ? S0.at : 0;
+  fetch("/api/amend-refresh", { method: "POST" }).then(function () {
+    (function poll() { fetch("/api/amend-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d && d.at !== at) location.reload(); else setTimeout(poll, 5000); }); })();
+  });
+};
 render();
-</script>`);
-}
+`;
 
 // ---------- Tags ----------
 // Make "Approvals App: Gags Sync" (action "tags-…") reads Core's GAG_TAGS and posts a short summary to /api/tags-sync.
