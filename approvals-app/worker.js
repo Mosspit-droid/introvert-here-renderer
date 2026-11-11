@@ -106,6 +106,8 @@ export default {
       if (pathname.startsWith("/video/") && method === "GET") return await video(request, env, pathname);
       if (pathname === "/api/state" && method === "GET") return await state(env);
       if (pathname === "/api/mark" && method === "POST") return await mark(request, env);
+      if (pathname === "/api/approve" && method === "POST") return await approveItem(request, env);
+      if (pathname === "/api/remake" && method === "POST") return await remakeItem(request, env, ctx);
       if (pathname === "/api/reject" && method === "POST") return await makeAction(request, env, "reject");
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
@@ -375,6 +377,37 @@ async function mark(request, env) {
     item.updatedAt = Date.now();
     await saveItems(env, items);
   }
+  return json({ ok: true });
+}
+
+// Approve from the app: calls the same Make approval link the old Approve button opened, then marks the item approved.
+async function approveItem(request, env) {
+  const data = await readBody(request);
+  const items = await loadItems(env);
+  const item = items[str(data.row)];
+  if (!item || item.code !== str(data.code)) return json({ error: "That item has changed. Refresh the page." }, 409);
+  if (item.status !== "pending") return json({ error: "This one has already been handled." }, 409);
+  const res = await fetch(approveUrl(item), { method: "GET" });
+  if (!res.ok) return json({ error: "Make didn't accept the approval (" + res.status + "). Nothing was changed." }, 502);
+  item.status = "approved"; item.approvedAt = Date.now(); item.updatedAt = Date.now();
+  await saveItems(env, items);
+  return json({ ok: true });
+}
+
+// Remake = reject, then ask for a new video once Make has marked the row REJECTED.
+async function remakeItem(request, env, ctx) {
+  if (!env.MAKE_ACTION_HOOK) return json({ error: "MAKE_ACTION_HOOK is not set" }, 500);
+  const data = await readBody(request);
+  const items = await loadItems(env);
+  const item = items[str(data.row)];
+  if (!item || item.code !== str(data.code)) return json({ error: "That item has changed. Refresh the page." }, 409);
+  if (item.status !== "pending") return json({ error: "Only videos waiting for review can be remade." }, 409);
+  const call = (action) => { const h = new URL(env.MAKE_ACTION_HOOK); h.searchParams.set("action", action); h.searchParams.set("row", item.row); h.searchParams.set("product", item.product); h.searchParams.set("code", item.code); return fetch(h.toString()); };
+  const res = await call("reject");
+  if (!res.ok) return json({ error: "Make didn't accept the request (" + res.status + "). Nothing was changed." }, 502);
+  item.status = "rerendering"; item.updatedAt = Date.now();
+  await saveItems(env, items);
+  ctx.waitUntil(new Promise((r) => setTimeout(r, 20000)).then(() => call("rerender")).catch(() => {}));
   return json({ ok: true });
 }
 
@@ -829,71 +862,106 @@ if (all) all.addEventListener("click", async function () { all.disabled = true; 
 
 async function page(env) {
   const items = Object.values(await loadItems(env));
-  const alerts = await loadAlerts(env);
-  const pending = items.filter((i) => i.status === "pending").sort((a, b) => b.receivedAt - a.receivedAt);
+  const pending = items.filter((i) => i.status === "pending").sort((a, b) => a.receivedAt - b.receivedAt);
   const handled = items.filter((i) => i.status !== "pending").sort((a, b) => b.updatedAt - a.updatedAt);
-
+  const alerts = await loadAlerts(env);
   const pendingHtml = pending.length
-    ? `<div class="grid">${pending.map(pendingCard).join("")}</div>`
+    ? `<div class="aq">${pending.map(pendingCard).join("")}</div>`
     : `<div class="card empty">${icon("approve")}Nothing waiting for review. New videos appear here.</div>`;
-  const alertsHtml = alerts.length ? `<h2>Alerts</h2><div class="grid">${alerts.map(alertCard).join("")}</div>` : "";
   const comingHtml = comingUp(await env.PENDING.get("daily", "json"));
-  const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid">${handled.map(handledCard).join("")}</div>` : "";
-
+  const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid" id="handled">${handled.map((h, n) => n < 6 ? handledCard(h) : handledCard(h).replace('<div class="card', '<div hidden class="card')).join("")}</div>${handled.length > 6 ? `<button class="btn" id="showAll" type="button" style="margin-top:12px" onclick="document.querySelectorAll('#handled [hidden]').forEach(function(e){e.hidden=false});this.remove()">Show all ${handled.length}</button>` : ""}` : "";
   return shell(`
-${brandHeader("Approvals" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/gags">✍ Gags</a><a class="btn" href="/tags">🏷 Tags</a><a class="btn" href="/stats">📈 Stats</a><a class="btn" href="/pricing">£ Pricing</a><a class="btn" href="/orders">🛒 Orders</a><a class="btn" href="/amend">✏ Update listings</a><a class="btn" href="/tools">🛠 Tools</a><a class="btn" href="/links">🔗 Links</a><a class="btn" href="/approvals">Refresh</a>`)}
+${brandHeader("Approvals" + (pending.length ? ` (${pending.length})` : ""), `<a class="btn" href="/approvals">${icon("sync")}Refresh</a>`)}
+${alerts.length ? `<a class="need warn" href="/alerts" style="margin-bottom:14px"><span class="big">${alerts.length}</span><span><span class="t">Alert${alerts.length === 1 ? "" : "s"} to look at</span><span class="s">${esc(alerts[0].title).slice(0, 80)}</span></span></a>` : ""}
+${pending.length ? `<p class="small" style="margin:0 0 12px">Watch the video, then tap Approve to put the listing live and post it to Pinterest, Instagram and Facebook. On a phone or tablet you can also swipe a card: right to approve, left to remake.</p>` : ""}
 ${pendingHtml}
-${alertsHtml}
 ${comingHtml}
 ${handledHtml}
-<p class="small" style="margin-top:32px">Handled items and alerts are cleared after ${KEEP_HANDLED_DAYS} days. <a href="/logout" style="color:inherit">Sign out</a></p>
+<p class="small" style="margin-top:32px">Handled items and alerts are cleared after ${KEEP_HANDLED_DAYS} days.</p>
+<div class="sheet" id="ask"><div class="pane askpane"><div class="askt" id="askT"></div><div class="small" id="askB"></div><div class="askbtns"><button class="btn-main" id="askGo" type="button"></button><button class="btn" id="askNo" type="button">Cancel</button></div></div></div>
+<style>
+.aq{display:flex;flex-direction:column;gap:18px}
+.ac{position:relative;touch-action:pan-y;transition:transform .25s ease}
+.ac.dragging{transition:none}
+.ac .in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;padding:18px}
+@media (max-width:820px){.ac .in{grid-template-columns:1fr;padding:14px}}
+.ac .vwrap{position:relative}
+.ac video{margin:0;border-radius:14px;border:1px solid var(--line)}
+.fsbtn{position:absolute;right:10px;top:10px;min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.5);background:rgba(0,0,0,.6);color:#fff;font:800 11px var(--display);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.ac .meta2{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ac .rlogo{height:30px;width:auto;align-self:flex-start}
+.ac .code{color:var(--muted)}
+.ac .title{font-size:22px}
+.abig{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
+.abig .btn-main,.abig .btn{min-height:64px;font-size:16px;width:100%}
+.abig .btn{border-color:var(--frame)}
+.asmall{display:flex;gap:14px;flex-wrap:wrap}
+.swipehint{position:absolute;top:50%;transform:translateY(-50%);font:900 18px var(--display);letter-spacing:.12em;text-transform:uppercase;opacity:0;pointer-events:none;padding:12px 16px;border-radius:14px}
+.swipehint.l{left:16px;color:var(--go-text);background:var(--go)}
+.swipehint.r{right:16px;color:#0d0d0c;background:var(--frame)}
+.askpane{display:flex!important;flex-direction:column;gap:12px;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0}
+.askt{font:800 18px var(--display)}
+.askbtns{display:grid;grid-template-columns:2fr 1fr;gap:10px}
+.askbtns .btn-main,.askbtns .btn{min-height:58px}
+</style>
 <script>
-async function post(path, data){
-  const res = await fetch(path, {method:'POST', body:new URLSearchParams(data), keepalive:true});
-  let out = {}; try { out = await res.json(); } catch(e) {}
-  if (!res.ok) throw new Error(out.error || ('Error ' + res.status));
+const $ = (id) => document.getElementById(id);
+async function post(path, data) {
+  const res = await fetch(path, { method: "POST", body: new URLSearchParams(data) });
+  let out = {}; try { out = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(out.error || ("Error " + res.status));
   return out;
 }
-const cardData = el => { const c = el.closest('.card'); return {card:c, row:c.dataset.row, code:c.dataset.code, product:c.dataset.product}; };
-
-document.querySelectorAll('[data-approve]').forEach(a => a.addEventListener('click', e => {
-  const d = cardData(a);
-  if (!confirm('Approve ' + d.product + '?\\n\\nThis attaches the video, publishes the listing live and posts to Pinterest, Instagram and Facebook.')) { e.preventDefault(); return; }
-  post('/api/mark', {row:d.row, code:d.code, status:'approved'}).catch(()=>{});
-  d.card.classList.add('done');
-  a.outerHTML = '<div class="status wait">Approval sent. The result will appear here.</div>';
-}));
-document.querySelectorAll('[data-reject]').forEach(b => b.addEventListener('click', async () => {
-  const d = cardData(b);
-  if (!confirm('Reject ' + d.product + '?\\n\\nThe approval link stops working and the row is marked REJECTED in Core, so no new video is made until you tap "Make new video".')) return;
-  b.disabled = true; b.textContent = 'Rejecting…';
-  try { await post('/api/reject', d); location.reload(); } catch (err) { alert(err.message); b.disabled = false; b.textContent = 'Reject'; }
-}));
-document.querySelectorAll('[data-rerender]').forEach(b => b.addEventListener('click', async () => {
-  const d = cardData(b);
-  if (!confirm('Make a new video for ' + d.product + ' now?\\n\\nIt uses whatever is in Core and on the Etsy listing right now.')) return;
-  b.disabled = true; b.textContent = 'Starting…';
-  try { await post('/api/rerender', d); location.reload(); } catch (err) { alert(err.message); b.disabled = false; b.textContent = 'Make new video'; }
-}));
-document.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', async () => {
-  const d = cardData(b);
-  if (!confirm('Hide ' + d.product + ' from this list? Nothing changes in Core or on Etsy.')) return;
-  await post('/api/mark', {row:d.row, code:d.code, status:'removed'}).catch(()=>{});
-  location.reload();
-}));
-document.querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', async () => {
-  await post('/api/dismiss-alert', {id: b.dataset.dismiss}).catch(()=>{});
-  b.closest('.card').remove();
-}));
-
-// Refresh by itself when something changes, unless a video is playing.
+function cardOf(el) { const c = el.closest(".ac"); return { card: c, row: c.dataset.row, code: c.dataset.code, product: c.dataset.product }; }
+let pendingAsk = null;
+function ask(title, body, goText, fn) { $("askT").textContent = title; $("askB").textContent = body; $("askGo").textContent = goText; pendingAsk = fn; $("ask").classList.add("open"); }
+$("askNo").onclick = () => { $("ask").classList.remove("open"); pendingAsk = null; document.querySelectorAll(".ac").forEach((c) => c.style.transform = ""); };
+$("ask").addEventListener("click", (e) => { if (e.target.id === "ask") $("askNo").onclick(); });
+$("askGo").onclick = async () => { const f = pendingAsk; $("ask").classList.remove("open"); pendingAsk = null; if (f) await f(); };
+function approve(d) {
+  ask("Approve " + d.product + "?", "This attaches the video, puts the listing live and posts it to Pinterest, Instagram and Facebook.", "Approve", async () => {
+    d.card.style.opacity = ".5";
+    try { await post("/api/approve", { row: d.row, code: d.code }); toast("Approved: going live"); setTimeout(() => location.reload(), 1200); }
+    catch (err) { d.card.style.opacity = ""; d.card.style.transform = ""; toast(err.message, true); }
+  });
+}
+function remake(d) {
+  ask("Remake the video for " + d.product + "?", "This video is rejected and a new one is made from what's in Core and on the Etsy listing now. It'll appear here in a few minutes.", "Remake", async () => {
+    d.card.style.opacity = ".5";
+    try { await post("/api/remake", { row: d.row, code: d.code }); toast("New video on its way"); setTimeout(() => location.reload(), 1200); }
+    catch (err) { d.card.style.opacity = ""; d.card.style.transform = ""; toast(err.message, true); }
+  });
+}
+document.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", () => approve(cardOf(b))));
+document.querySelectorAll("[data-remake]").forEach((b) => b.addEventListener("click", () => remake(cardOf(b))));
+document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { const d = cardOf(b);
+  ask("Reject " + d.product + " without a new video?", "It's marked REJECTED in Core and no new video is made until you tap Make new video.", "Reject", async () => {
+    try { await post("/api/reject", d); toast("Rejected"); setTimeout(() => location.reload(), 900); } catch (err) { toast(err.message, true); } }); }));
+document.querySelectorAll("[data-remove]").forEach((b) => b.addEventListener("click", async () => { const d = cardOf(b); await post("/api/mark", { row: d.row, code: d.code, status: "removed" }).catch(() => {}); toast("Hidden"); setTimeout(() => location.reload(), 700); }));
+document.querySelectorAll("[data-rerender]").forEach((b) => b.addEventListener("click", async () => { const c = b.closest(".card");
+  b.disabled = true; try { await post("/api/rerender", { row: c.dataset.row, code: c.dataset.code, product: c.dataset.product }); toast("New video requested"); setTimeout(() => location.reload(), 900); } catch (err) { toast(err.message, true); b.disabled = false; } }));
+document.querySelectorAll("[data-fs]").forEach((b) => b.addEventListener("click", () => { const v = b.parentNode.querySelector("video"); if (!v) return;
+  if (v.requestFullscreen) v.requestFullscreen().then(() => v.play()).catch(() => {}); else if (v.webkitEnterFullscreen) { v.webkitEnterFullscreen(); v.play(); } }));
+// Swipe a card: right = approve, left = remake. Starts only on the card itself, not the video or buttons.
+document.querySelectorAll(".ac").forEach((c) => {
+  let x0 = null, y0 = 0, dx = 0, locked = false;
+  const hl = c.querySelector(".swipehint.l"), hr = c.querySelector(".swipehint.r");
+  c.addEventListener("touchstart", (e) => { if (e.target.closest("video,button,a,.fsbtn")) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; locked = false; }, { passive: true });
+  c.addEventListener("touchmove", (e) => { if (x0 === null) return; const t = e.touches[0]; dx = t.clientX - x0;
+    if (!locked) { if (Math.abs(t.clientY - y0) > Math.abs(dx)) { x0 = null; return; } locked = Math.abs(dx) > 10; }
+    if (locked) { c.classList.add("dragging"); c.style.transform = "translateX(" + dx + "px) rotate(" + dx / 40 + "deg)"; hl.style.opacity = Math.max(0, Math.min(1, dx / 120)); hr.style.opacity = Math.max(0, Math.min(1, -dx / 120)); } }, { passive: true });
+  c.addEventListener("touchend", () => { if (x0 === null) return; x0 = null; c.classList.remove("dragging"); hl.style.opacity = 0; hr.style.opacity = 0;
+    const d = cardOf(c);
+    if (dx > 120) { c.style.transform = "translateX(40px)"; approve(d); } else if (dx < -120) { c.style.transform = "translateX(-40px)"; remake(d); } else c.style.transform = ""; });
+});
+// Refresh by itself when something changes, unless a video is playing or a question is open.
 let sig = null;
 setInterval(async () => {
   try {
-    const s = (await (await fetch('/api/state')).json()).sig;
+    const s = (await (await fetch("/api/state")).json()).sig;
     if (sig === null) { sig = s; return; }
-    const playing = [...document.querySelectorAll('video')].some(v => !v.paused);
-    if (s !== sig && !playing) location.reload();
+    const playing = [...document.querySelectorAll("video")].some((v) => !v.paused);
+    if (s !== sig && !playing && !$("ask").classList.contains("open")) location.reload();
   } catch (e) {}
 }, 20000);
 </script>`);
@@ -908,24 +976,27 @@ function pendingCard(i) {
   const listingId = (/\/listing\/(\d+)/.exec(String(i.listingUrl || "")) || [])[1];
   const listing = listingId ? `https://www.etsy.com/your/shops/me/listing-editor/edit/${listingId}` : safeUrl(i.listingUrl);
   const oneDrive = safeUrl(i.videoUrl);
+  const coll = collOf(i.product);
   const player = i.hasVideo
-    ? `<video controls playsinline preload="metadata" src="/video/${encodeURIComponent(i.row)}/${encodeURIComponent(i.code)}"></video>`
-    : "";
+    ? `<div class="vwrap"><video controls playsinline preload="metadata" src="/video/${encodeURIComponent(i.row)}/${encodeURIComponent(i.code)}"></video><button class="fsbtn" data-fs type="button">Full screen</button></div>`
+    : `<div class="card empty" style="margin:0">${icon("approve")}${oneDrive ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">Watch the video in OneDrive</a>` : "No video attached"}</div>`;
   return `
-<div class="card" data-coll="${collOf(i.product)}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}">
-  <div class="code">${esc(i.product)}</div>
-  ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
-  <div class="meta">Rendered ${esc(when(i.receivedAt))}</div>
+<div class="frame ac" data-coll="${coll}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}"><div class="card in">
+  <span class="swipehint l">Approve</span><span class="swipehint r">Remake</span>
   ${player}
-  ${captionBlock(i)}
-  <div class="links">
-    ${listing ? `<a href="${esc(listing)}" target="_blank" rel="noopener">${listingId ? "Edit in Shop Manager" : "Open listing"}</a>` : ""}
-    ${oneDrive ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">${i.hasVideo ? "Video in OneDrive" : "▶ Watch video"}</a>` : ""}
+  <div class="meta2">
+    <img class="rlogo" src="/assets/brand-${coll.toLowerCase()}-wide.png?v=2" alt="">
+    <span class="code">${esc(i.product)} · rendered ${esc(when(i.receivedAt))}</span>
+    ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
+    ${captionBlock(i)}
+    <div class="links">
+      ${listing ? `<a href="${esc(listing)}" target="_blank" rel="noopener">${listingId ? "Edit in Shop Manager" : "Open listing"}</a>` : ""}
+      ${oneDrive && i.hasVideo ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">Video in OneDrive</a>` : ""}
+    </div>
+    <div class="abig"><button class="btn-main" data-approve type="button">${icon("check")}Approve</button><button class="btn" data-remake type="button">${icon("sync")}Remake</button></div>
+    <div class="asmall"><button class="link-btn" data-reject type="button">Reject without a new video</button><button class="link-btn" data-remove type="button">Hide from list</button></div>
   </div>
-  <a class="btn-main" data-approve href="${esc(approveUrl(i))}" target="_blank" rel="noopener">Approve</a>
-  <button class="btn-alt" data-reject type="button">Reject</button>
-  <button class="link-btn" data-remove type="button">Hide from list</button>
-</div>`;
+</div></div>`;
 }
 
 function handledCard(i) {
