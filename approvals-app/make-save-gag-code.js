@@ -34,7 +34,8 @@ if (!text) return fail("The gag text is empty.");
 if (!collection) return fail("No collection chosen.");
 if (!category) return fail("No category chosen.");
 if (!stem) return fail("No title stem.");
-if (dates.some((d) => !d)) return fail("Every product needs a valid release date.");
+// All four dates blank = backlog (saved, never released until dates are added). Otherwise all four are needed.
+if (dates.some((d) => !d) && !dates.every((d) => !d)) return fail("Fill in all four release dates, or leave all four empty to keep the gag in the backlog.");
 const fields = [text, collection, category, str(req.tag12), str(req.tag13), stem];
 // ELLIPSIS_CHECK (column M): every gag should start with "..." or "…"
 const ellipsis = /^\s*(\.\.\.|…)/.test(text) ? "OK" : "MISSING";

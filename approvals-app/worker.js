@@ -932,7 +932,7 @@ async function dashboardPage(env) {
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const pct = left === null ? 0 : Math.max(3, Math.min(100, Math.round(left / 28 * 100)));
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
-    const firstSlot = left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0];
+    const firstSlot = left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0] ? slot.dates[0] : "";
     const low = (left !== null && left < 7) || !!firstSlot;
     return `<a class="rng" href="/gags"><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
@@ -958,7 +958,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
     const r = (daily && daily.runway || []).find((x) => x.collection === coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
-    return (left !== null && left < 7) || (left === null && slot && slot.mode === "fill");
+    return (left !== null && left < 7) || (left === null && slot && slot.mode === "fill" && slot.dates && !!slot.dates[0]);
   }).map((x) => x[2]);
   return shell(`
 ${topBar("Dashboard")}
@@ -1310,9 +1310,9 @@ ${brandHeader("Gags")}
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-dates"><b>Release dates</b>
         <div class="four">
-          <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
-          <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
-        </div></div>
+          <label>T-shirt<input type="date" id="d1"></label><label>Long-sleeve<input type="date" id="d2"></label>
+          <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
+        </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
       <div class="fld o-save" style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
     </div>
   </div>
