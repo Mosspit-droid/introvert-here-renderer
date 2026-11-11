@@ -641,9 +641,9 @@ input,textarea,select{font-family:var(--body)}
 input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);margin:10px 0 14px}
 .err{color:var(--warn)}
 /* dashboard */
-.needs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-@media (max-width:900px){.needs{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:480px){.needs{grid-template-columns:1fr}}
+.needs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.allclear{display:flex;align-items:center;gap:14px;margin:22px 0 4px;padding:14px 18px;border-radius:var(--r);border:1px solid rgba(143,208,171,.35);background:var(--ok-bg);color:var(--ok)}
+.allclear svg{width:28px;height:28px;flex:none}.allclear b{display:block;font:800 15px var(--display);color:var(--text)}.allclear span{font-size:13px}
 .need{display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--r);background:var(--card2);border:1px solid var(--line);text-decoration:none;color:var(--text);min-height:86px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .need .big{font:900 34px/1 var(--display);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
 .need .t{display:block;font:700 15px var(--display);letter-spacing:.02em}
@@ -915,7 +915,7 @@ async function dashboardPage(env) {
   const next = (daily && daily.upcoming || []).find((u) => !u.built);
   const thisYear = new Date().getUTCFullYear();
   const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: Number(iso.slice(0, 4)) !== thisYear ? "numeric" : undefined, timeZone: "UTC" });
-  const need = (cls, n, t, s, href) => `<a class="need ${n ? cls : "quiet"}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span></a>`;
+  const need = (cls, n, t, s, href) => n ? `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span></a>` : "";
   const tile = (href, ic, nm, st, primary) => `<a class="tile${primary ? " primary" : ""}" href="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`;
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
   const ranges = DASH_RANGES.map(([code, coll, name, colour]) => {
@@ -932,13 +932,11 @@ async function dashboardPage(env) {
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
   return shell(`
 ${topBar("Dashboard")}
-<h2>Needs you</h2>
-<div class="needs">
-  ${need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals")}
-  ${need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts")}
-  ${need("run", busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend")}
-  ${need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders")}
-</div>
+${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
+need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
+need("run", busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
+need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders")].join("");
+  return cards ? `<h2>Needs you</h2><div class="needs">${cards}</div>` : `<div class="allclear">${icon("check")}<span><b>All caught up</b>Nothing needs you right now.</span></div>`; })()}
 <h2>Studio</h2>
 <div class="tiles">
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
