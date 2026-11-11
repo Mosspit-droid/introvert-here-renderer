@@ -71,4 +71,4 @@ Adding pages moves the page numbers, so every range done must also update Core i
 
 ## IH long-sleeve mockups rebuilt by Barry (11 Nov): Core updated
 - B002 (EAHZzRX2MUY) 18 pages, same layout as the IH T-shirt. MOCKUP_PAGES IH LONG-SLEEVE: pages 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18; VIDEO_SLOT1/2 = 8, 9. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-11_before_IH_LS_pages.xlsx.
-- Canva discrepancies reported to Barry: page 4 named IH_03_LS_GIFT_DARK_HEATHER; page 15 IH_15_LS_FLATLAY (no colour); pages 16-18 still numbered 10/08/09 (AGM, SIZE_GUIDE, BRAND); page 14 has a second gag-text group sitting mostly off the bottom of the page.
+- Canva discrepancies (page 4 and 15-18 names, stray off-page gag text on page 14) fixed by Barry 11 Nov and re-checked: names now match Core.
