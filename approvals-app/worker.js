@@ -1075,40 +1075,51 @@ async function gagsPage(env) {
     return `<div class="sv"><div class="svt"><b>${esc(x.stem || "")}</b><span>${esc(when(x.at))}</span></div><div class="status ${cls}">${label}</div></div>`;
   }).join("")}</div>` : "";
   return shell(`
-${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`)}
+${brandHeader("Gags")}
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet. Tap Sync to Core."}</div>
-<div class="tabs" style="display:flex;gap:8px;margin:14px 0 4px">
-  <button class="btn tab on" data-tab="new" type="button">New gag</button>
-  <button class="btn tab" data-tab="edit" type="button">Edit unreleased</button>
-</div>
-<div id="pick" class="card" style="display:none;margin-top:10px">
-  <input id="search" placeholder="Search by ID, text or title stem…">
-  <div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div>
-</div>
 <form id="form" class="gwrap">
-  <div class="card g-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-    <textarea id="text" rows="9" required spellcheck="true"></textarea></label></div>
-  <div class="frame g-prev"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div>
-    <p class="small" style="margin:10px 0 0">How the gag sits on the print, at the range's print width.</p></div></div>
-  ${savesHtml ? `<div class="card g-saves">${savesHtml}</div>` : `<div class="g-saves"></div>`}
-  <div class="card g-side">
-    <div class="fld"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
-      <div id="slot" class="small" style="display:none"></div></div>
-    <label class="fld"><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div>
-    <div class="fld"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
-    <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
-    <div class="fld"><b>Release dates</b>
-      <div class="four">
-        <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
-        <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
-      </div></div>
-    <div style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
+  <div class="gacts o-acts"><a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button></div>
+  <div class="gcol gL">
+    <div class="frame g-prev o-prev"><div class="card"><h3 class="sideh">Preview</h3><div id="stage"><div id="pbox"></div></div><div id="pwarn"></div><div id="spell"></div></div></div>
+    <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label></div>
+    ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
+  </div>
+  <div class="gcol gR">
+    <div class="tabs o-tabs"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
+    <div id="pick" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
+    <div class="card g-side">
+      <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
+        <div id="slot" class="small" style="display:none"></div></div>
+      <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div></div>
+      <div class="fld o-cat"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
+      <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
+      <div class="fld o-dates"><b>Release dates</b>
+        <div class="four">
+          <label>T-shirt<input type="date" id="d1" required></label><label>Long-sleeve<input type="date" id="d2" required></label>
+          <label>Sweatshirt<input type="date" id="d3" required></label><label>Hoodie<input type="date" id="d4" required></label>
+        </div></div>
+      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
+    </div>
   </div>
 </form>
 <style>
-  .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"text side" "prev side" "saves side";grid-template-rows:auto auto 1fr;gap:16px;align-items:start;margin-top:10px}
-  .g-text{grid-area:text}.g-prev{grid-area:prev}.g-saves{grid-area:saves}
-  .g-side{grid-area:side;display:flex;flex-direction:column;gap:18px;position:sticky;top:96px}
+  .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"L R" "L acts";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
+  .gacts{grid-area:acts;display:flex;gap:8px;flex-wrap:wrap}.gacts .btn{flex:1}
+  .gL{grid-area:L}.gR{grid-area:R}
+  .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
+  .g-side{display:flex;flex-direction:column;gap:18px}
+  @media (max-width:820px){
+    .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+    .gcol,.g-side{display:contents}
+    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .gL .g-prev{position:sticky;top:calc(62px + env(safe-area-inset-top,0px));z-index:15;background:rgba(10,10,9,.96);box-shadow:0 10px 24px rgba(0,0,0,.6)}
+    .g-prev .card{padding:12px}
+    .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+    .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
+    .gacts{justify-content:stretch}.gacts .btn{flex:1}
+  }
   .fld>b{display:block;margin-bottom:8px}
   .hid{display:none!important}
   .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -1125,7 +1136,6 @@ ${brandHeader("Gags", `<a class="btn link" href="/check">${icon("check")}Check f
   .svt{display:flex;justify-content:space-between;gap:8px;font-size:14px}.svt span{color:var(--muted);font-size:12px;white-space:nowrap}
   .sv .status{margin-top:6px;padding:8px 10px;font-size:13px}
   #refresh.busy svg{animation:spin 1s linear infinite}
-  @media (max-width:820px){.gwrap{grid-template-columns:1fr;grid-template-areas:"text" "prev" "side" "saves";grid-template-rows:auto}.g-side{position:static}}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
   .tab.on{background:var(--accent);color:#141413;border-color:var(--accent)}
