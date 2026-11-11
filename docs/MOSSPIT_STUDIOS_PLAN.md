@@ -96,6 +96,8 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 
 ## Introvert Here work in progress
 
+- **Off The Shelf Canva brand templates (11 Nov):** mockups H002-K002 (Barry) and print templates H001 T-shirt EAHakTLlfyQ, I001 long sleeve EAHakS-GeT8, J001 sweatshirt EAHakcZs6r0, K001 hoodie EAHakQiSTgE (logo placed exactly where the IH logo sits). Details in `docs/canva/OTS_BRAND_TEMPLATES.md`. Next, with Barry's OK: wire them into Core.
+
 - **New tag system:** switched ON 10 Nov 2026 at 12:46 (`TagEngine` in Core's TAG_SETTINGS). First freeze at the 11 Nov 08:00 build. After about a week of good new builds, back-date existing listings in small batches (about 5 gags a week) after Barry approves fresh suggestions on the Tags page.
 - **Deferred:** sales/profit reconciliation tracker (early December, after November's statement), and the social-content rotation tracker.
 
