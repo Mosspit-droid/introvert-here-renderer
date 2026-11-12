@@ -31,6 +31,7 @@ export default {
   // Every 5 minutes: while listing updates are running (or just saved), re-read Core so the Update listings page stays current.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(amendWatch(env));
+    ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
   },
 
   async fetch(request, env, ctx) {
@@ -42,6 +43,7 @@ export default {
       // Called by Make
       if (pathname === "/api/pending" && method === "POST") return await ingest(request, env, ctx, url);
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
+      if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
@@ -75,6 +77,9 @@ export default {
       }
       if (pathname.startsWith("/gag/") && method === "GET") {
         return authed ? await gagPage(env, decodeURIComponent(pathname.slice(5)).toUpperCase()) : redirect("/");
+      }
+      if (pathname === "/credits" && method === "GET") {
+        return authed ? await creditsPage(env) : redirect("/");
       }
       if (pathname === "/todo" && method === "GET") {
         return authed ? await todoPage(env, url.origin) : redirect("/");
@@ -133,6 +138,8 @@ export default {
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
       if (pathname === "/api/todo" && method === "POST") return await todoAppApi(request, env);
+      if (pathname === "/api/credits-key" && method === "POST") return await creditsKey(request, env);
+      if (pathname === "/api/credits-refresh" && method === "POST") { const out = await creditsCheck(env, true); return json(out.error ? { error: out.error } : { ok: true }); }
       if (pathname === "/api/todo-data" && method === "GET") return json(await todoLoad(env));
       if (pathname === "/api/amend-apply" && method === "POST") return await amendApply(request, env);
       if (pathname === "/api/amend-refresh" && method === "POST") return await amendRefresh(env);
@@ -169,6 +176,36 @@ const saveAlerts = (env, alerts) => env.PENDING.put(ALERTS_KEY, JSON.stringify(a
 const videoKey = (row, code) => `video:${row}:${code}`;
 
 // ---------- Make → worker ----------
+
+// One-at-a-time lock for self-chaining scenarios (the builder).
+// take: ok unless another run holds a fresh, un-passed lock.
+// pass: called just before the run starts its successor, so the successor can take it.
+// free: release outright. A held lock goes stale after ttl minutes (a crashed run never blocks for long).
+async function lockOp(request, env) {
+  if (!checkSecret(request, env)) return new Response("Unauthorized", { status: 401 });
+  const ct = request.headers.get("content-type") || "";
+  const b = ct.includes("json") ? await request.json() : Object.fromEntries(await request.formData());
+  const name = String(b.name || "builder").replace(/[^a-z0-9-]/gi, "").slice(0, 40);
+  const id = String(b.id || ""), action = String(b.action || "take");
+  const ttl = Math.min(Math.max(Number(b.ttl) || 20, 1), 180) * 60e3;
+  const key = "lock:" + name, now = Date.now();
+  const cur = await env.PENDING.get(key, "json");
+  if (action === "take") {
+    if (cur && cur.id !== id && !cur.passed && now - cur.at < ttl) {
+      const blocked = (await env.PENDING.get(key + ":blocked", "json")) || [];
+      blocked.unshift({ id, at: now, holder: cur.id });
+      await env.PENDING.put(key + ":blocked", JSON.stringify(blocked.slice(0, 20)));
+      return json({ ok: false, reason: "already running", holder: cur.id, since: cur.at });
+    }
+    await env.PENDING.put(key, JSON.stringify({ id, at: now }));
+    return json({ ok: true });
+  }
+  if (action === "pass" || action === "free") {
+    if (cur && (cur.id === id || !id)) await env.PENDING.put(key, JSON.stringify({ ...cur, passed: true, at: now }));
+    return json({ ok: true });
+  }
+  return json({ ok: false, reason: "unknown action" }, 400);
+}
 
 function checkSecret(request, env) {
   return !!env.INGEST_SECRET && safeEqual(request.headers.get("X-Ingest-Secret") || "", env.INGEST_SECRET);
@@ -758,13 +795,14 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-search" viewBox="0 0 32 32"><circle cx="14" cy="14" r="9" fill="none" stroke="currentColor" stroke-width="2.8"/><path d="M21 21l7 7" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
 <symbol id="i-todo" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M9.5 16.5l4 4 9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-back" viewBox="0 0 32 32"><path d="M19 7l-9 9 9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-credits" viewBox="0 0 32 32"><path d="M5 22a11 11 0 1 1 22 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M16 22l6-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="22" r="2.4" fill="currentColor"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
 </defs></svg>`;
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
-const NAV_MORE = [["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -821,7 +859,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 }
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
-const TOP_PAGES = ["/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
+const TOP_PAGES = ["/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/credits", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
@@ -988,6 +1026,193 @@ async function todoMcp(request, env, key) {
   };
   if (Array.isArray(msg)) { const out = (await Promise.all(msg.map(handle))).filter(Boolean); return out.length ? json(out) : new Response(null, { status: 202 }); }
   const r = await handle(msg); return r ? json(r) : new Response(null, { status: 202 });
+}
+
+// ---------- Credits (software usage tracker) ----------
+// Hourly (from the 5-minute cron) the app reads Make with Barry's own Make API token (saved write-only in SECRETS
+// "make_token"): each scenario's credits this period, on/off/paused state and parked runs, plus 30 days of daily use.
+// It raises alerts when Make pauses the account, switches a scenario off, parks runs, or usage passes 80% / 95%.
+const MAKE_API = "https://eu1.make.com/api/v2";
+const MAKE_ORG = 8311421, MAKE_TEAM = 2110125;
+
+async function makeGet(token, path) {
+  const r = await fetch(MAKE_API + path, { headers: { Authorization: "Token " + token } });
+  const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
+  return { ok: r.ok, status: r.status, j, t: t.slice(0, 300) };
+}
+const ddmmyyyy = (s) => { const [d, m, y] = String(s).split("-"); return y + "-" + m + "-" + d; };
+
+async function creditsCheck(env, force) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token"));
+  if (!token) return { error: "No Make token saved yet." };
+  const prev = (await env.PENDING.get("credits", "json")) || {};
+  if (!force && prev.at && Date.now() - prev.at < 55 * 60000) return prev;
+  const settings = (await env.PENDING.get("credits-settings", "json")) || {};
+  const sc = await makeGet(token, `/scenarios?teamId=${MAKE_TEAM}&pg%5Blimit%5D=200`);
+  if (!sc.ok || !sc.j || !Array.isArray(sc.j.scenarios)) {
+    const out = { ...prev, error: "Make said " + sc.status + ": " + ((sc.j && (sc.j.detail || sc.j.message)) || sc.t), errorAt: Date.now() };
+    await env.PENDING.put("credits", JSON.stringify(out)); return out;
+  }
+  const scenarios = sc.j.scenarios.map((s) => ({ id: s.id, name: String(s.name || "").replace(/^(Introvert Here|Mosspit Studios):\s*/, ""), active: !!s.isActive, paused: !!s.isPaused,
+    dlq: Number(s.dlqCount) || 0, ops: Number(s.operations) || 0, credits: (Number(s.centicredits) || 0) / 100 }));
+  // Organisation allowance (needs the organizations:read scope; falls back to Barry's own figure).
+  let org = null;
+  const o = await makeGet(token, `/organizations/${MAKE_ORG}`);
+  if (o.ok && o.j && o.j.organization) {
+    const g = o.j.organization, lic = g.license || {};
+    const num = (...xs) => { for (const x of xs) { const n = Number(x); if (isFinite(n) && n > 0) return n; } return 0; };
+    org = { plan: g.productName || lic.productName || "", limit: num(lic.credits, lic.operations, g.credits, g.operationsLimit),
+      used: num(g.consumedCredits, g.consumedOperations, g.operations), nextReset: g.nextReset || lic.nextReset || g.resetDate || "" };
+  }
+  // Daily totals for 30 days: organisation usage if allowed, else the sum of every scenario's usage.
+  let daily = {};
+  const ou = await makeGet(token, `/organizations/${MAKE_ORG}/usage`);
+  if (ou.ok && ou.j && Array.isArray(ou.j.data)) ou.j.data.forEach((d) => { daily[ddmmyyyy(d.date)] = (Number(d.centicredits) || 0) / 100; });
+  else {
+    const per = await Promise.all(scenarios.map((s) => makeGet(token, `/scenarios/${s.id}/usage`)));
+    per.forEach((p, i) => { if (p.ok && p.j && Array.isArray(p.j.data)) p.j.data.forEach((d) => { const k = ddmmyyyy(d.date), c = (Number(d.centicredits) || 0) / 100; daily[k] = (daily[k] || 0) + c; scenarios[i].d7 = scenarios[i].d7 || 0; if (Date.now() - Date.parse(k) < 7 * 864e5) scenarios[i].d7 += c; }); });
+  }
+  const used = (org && org.used) || scenarios.reduce((a, s) => a + s.credits, 0);
+  const limit = (org && org.limit) || Number(settings.allowance) || 0;
+  const out = { at: Date.now(), scenarios, daily, org, used, limit, error: "" };
+  await env.PENDING.put("credits", JSON.stringify(out));
+  await creditsAlerts(env, out, prev);
+  return out;
+}
+
+async function creditsAlerts(env, cur, prev) {
+  const st = (await env.PENDING.get("credits-state", "json")) || {};
+  const fresh = [];
+  const link = "https://mosspit-approvals.mosspit.workers.dev/credits";
+  const makeLink = MAKE_TEAM_URL;
+  const pausedNow = cur.scenarios.some((s) => s.paused);
+  if (pausedNow && !st.paused) fresh.push({ title: "Make has paused your account", body: "Make has stopped every scenario, usually because this month's credits have run out. Nothing will build, render or go live until it's sorted. In Make: Billing, then buy extra credits or wait for the monthly reset. Tell Claude once it's running again.", link: makeLink });
+  st.paused = pausedNow;
+  const before = {}; (prev.scenarios || []).forEach((s) => { before[s.id] = s; });
+  cur.scenarios.forEach((s) => {
+    const b = before[s.id];
+    if (b && b.active && !s.active && !pausedNow) fresh.push({ title: "Make switched off: " + s.name, body: "This scenario was on an hour ago and is now off. Make does this after an error. Anything sent to it waits in its queue until it's switched back on. Ask Claude to look.", link: makeLink + "/scenarios/" + s.id });
+    if (b && s.dlq > b.dlq) fresh.push({ title: s.name + ": " + s.dlq + " run" + (s.dlq === 1 ? "" : "s") + " parked", body: "A run hit an error and Make parked it (incomplete executions). The chain behind it has stopped. Ask Claude to look, or open it in Make.", link: makeLink + "/scenarios/" + s.id });
+  });
+  if (cur.limit > 0) {
+    const pct = (cur.used / cur.limit) * 100, period = String(cur.limit) + ":" + new Date().toISOString().slice(0, 7);
+    for (const lvl of [95, 80]) {
+      if (pct >= lvl && st["pct" + lvl] !== period) {
+        st["pct" + lvl] = period; if (lvl === 80) st.pct80 = period;
+        fresh.push({ title: "Make credits " + Math.round(pct) + "% used", body: Math.round(cur.used).toLocaleString("en-GB") + " of " + cur.limit.toLocaleString("en-GB") + " credits used this period. If they run out, Make pauses everything. The Credits page shows what's using them.", link });
+        break;
+      }
+    }
+  }
+  await env.PENDING.put("credits-state", JSON.stringify(st));
+  if (!fresh.length) return;
+  const alerts = await loadAlerts(env);
+  for (const f of fresh) alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "Credits", ...f });
+  await saveAlerts(env, alerts);
+  for (const f of fresh) await notify(env, "https://mosspit-approvals.mosspit.workers.dev", f.title, f.body.slice(0, 200), "warning");
+}
+
+async function creditsKey(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const saved = [];
+  const t = str(d.make_token).replace(/\s+/g, "");
+  if (t) {
+    if (!/^[0-9a-f-]{30,}$/i.test(t)) return json({ error: "That doesn't look like a Make API token (letters, numbers and dashes, about 36 characters)." }, 400);
+    const test = await makeGet(t, `/scenarios?teamId=${MAKE_TEAM}&pg%5Blimit%5D=1`);
+    if (!test.ok) return json({ error: "Make didn't accept that token (" + test.status + "). Check it has the scenarios:read scope." }, 400);
+    await env.SECRETS.put("make_token", t); saved.push("Make token");
+  }
+  const s = (await env.PENDING.get("credits-settings", "json")) || {};
+  if (d.allowance !== undefined && d.allowance !== "") { const n = Number(String(d.allowance).replace(/[, ]/g, "")); if (!(n > 0)) return json({ error: "Monthly allowance should be a number." }, 400); s.allowance = n; saved.push("allowance"); }
+  if (d.resetDay !== undefined && d.resetDay !== "") { const n = Number(d.resetDay); if (!(n >= 1 && n <= 31)) return json({ error: "Reset day should be 1 to 31." }, 400); s.resetDay = n; saved.push("reset day"); }
+  await env.PENDING.put("credits-settings", JSON.stringify(s));
+  if (!saved.length) return json({ error: "Nothing to save." }, 400);
+  const out = await creditsCheck(env, true);
+  return json({ ok: true, saved, error: out.error || "" });
+}
+
+function nextResetDate(day, iso) {
+  if (iso && !isNaN(Date.parse(iso))) return new Date(iso);
+  if (!day) return null;
+  const n = new Date(); let r = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), day));
+  if (r <= n) r = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + 1, day));
+  return r;
+}
+
+async function creditsPage(env) {
+  const [c, settings, lock] = await Promise.all([env.PENDING.get("credits", "json"), env.PENDING.get("credits-settings", "json"), env.PENDING.get("lock:builder:blocked", "json")]);
+  const s = settings || {};
+  const tok = env.SECRETS && (await env.SECRETS.get("make_token"));
+  const n0 = (x) => Math.round(x || 0).toLocaleString("en-GB");
+  let body = "";
+  if (!c || !c.scenarios) {
+    body = `<div class="card empty">${tok ? "Reading Make… tap Refresh in a moment." : "Save your Make API token below and this page fills in."}</div>`;
+  } else {
+    const limit = c.limit || 0, used = c.used || 0, pct = limit ? Math.min(100, (used / limit) * 100) : 0;
+    const days = Object.keys(c.daily || {}).sort().slice(-30);
+    const last7 = days.slice(-8, -1).reduce((a, k) => a + c.daily[k], 0) / 7 || 0;
+    const reset = nextResetDate(s.resetDay, c.org && c.org.nextReset);
+    const daysLeft = reset ? Math.max(0, Math.ceil((reset - Date.now()) / 864e5)) : null;
+    const projected = daysLeft != null ? used + last7 * daysLeft : null;
+    let forecast = "";
+    if (limit && last7 > 0) {
+      const runOut = (limit - used) / last7;
+      forecast = used >= limit ? `<b class="bad">Out of credits.</b> Make will pause everything until the reset${reset ? " on " + reset.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : ""} or until you buy more.`
+        : daysLeft != null && runOut < daysLeft ? `<b class="bad">At this rate you'll run out on ${new Date(Date.now() + runOut * 864e5).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</b>, ${Math.ceil(daysLeft - runOut)} days before the reset.`
+        : `At this rate you'll use about <b>${n0(projected)}</b> by the reset. That's fine.`;
+    }
+    const tone = pct >= 95 ? "var(--warn)" : pct >= 80 ? "#e6b450" : "var(--go)";
+    const maxDay = Math.max(1, ...days.map((k) => c.daily[k]));
+    const bars = days.map((k) => `<div class="cb" title="${esc(k)}: ${n0(c.daily[k])}"><i style="height:${Math.max(2, (c.daily[k] / maxDay) * 100)}%"></i></div>`).join("");
+    const sorted = c.scenarios.slice().sort((a, b) => b.credits - a.credits);
+    const top = Math.max(1, sorted[0] ? sorted[0].credits : 1);
+    const rows = sorted.map((x) => `<div class="cr"><div class="cn">${esc(x.name)}${x.paused ? ' <span class="pill bad">paused</span>' : !x.active ? ' <span class="pill bad">off</span>' : ""}${x.dlq ? ` <span class="pill warn">${x.dlq} parked</span>` : ""}</div>
+<div class="cv"><span class="cbar"><i style="width:${(x.credits / top) * 100}%"></i></span><b>${n0(x.credits)}</b>${used ? `<small>${Math.round((x.credits / used) * 100)}%</small>` : ""}</div></div>`).join("");
+    const paused = c.scenarios.some((x) => x.paused);
+    body = `${paused ? `<div class="card warnc"><b>Make has paused your account.</b> Nothing runs until credits are topped up or the month resets.</div>` : ""}
+${c.error ? `<div class="card warnc small">Last check failed: ${esc(c.error)}</div>` : ""}
+<div class="cgrid">
+<div class="card"><div class="lbl2">Make credits this period</div>
+  <div class="big2">${n0(used)}${limit ? `<small> / ${n0(limit)}</small>` : ""}</div>
+  ${limit ? `<div class="gauge"><i style="width:${pct}%;background:${tone}"></i></div><div class="small">${Math.round(pct)}% used${reset ? ` · resets ${reset.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} (${daysLeft} day${daysLeft === 1 ? "" : "s"})` : ""}</div>` : `<div class="small">Add your monthly allowance below to see how close you are.</div>`}
+  ${forecast ? `<p class="small" style="margin:10px 0 0">${forecast}</p>` : ""}
+  <div class="small" style="margin-top:6px">Last 7 days: about ${n0(last7)} a day.</div></div>
+<div class="card"><div class="lbl2">Daily use, last 30 days</div><div class="cbars">${bars}</div><div class="small">Checked ${esc(when(c.at))}</div></div>
+</div>
+<div class="card"><div class="lbl2">What's using them</div>${rows}</div>
+${lock && lock.length ? `<div class="card small"><b>Builder lock:</b> stopped ${lock.length} extra cop${lock.length === 1 ? "y" : "ies"} from running side by side, most recently ${esc(when(lock[0].at))}.</div>` : ""}`;
+  }
+  const settingsCard = `<details class="card" ${tok ? "" : "open"}><summary class="lbl2" style="cursor:pointer">Settings</summary>
+<p class="small">Make token: <b>${tok ? "saved ✓ (…" + esc(tok.slice(-4)) + ")" : "not saved yet"}</b>. To make one: Make → your profile picture → Profile → <b>API access</b> → Add token. Name it <i>Approvals app</i>, tick <b>scenarios:read</b> and <b>organizations:read</b>, then paste it here. It's stored privately and never shown again.</p>
+<div class="kf"><input id="mt" placeholder="Make API token" autocomplete="off" spellcheck="false"><input id="al" inputmode="numeric" placeholder="Monthly credits, e.g. 40000" value="${esc(s.allowance || "")}"><input id="rd" inputmode="numeric" placeholder="Reset day of month, e.g. 4" value="${esc(s.resetDay || "")}"><button class="btn-main" id="ks" type="button">Save</button></div>
+</details>`;
+  return shell(`
+${brandHeader("Credits", `<button class="btn" id="cr" type="button"><svg class="ic"><use href="#i-sync"/></svg> Refresh</button>`)}
+<style>
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}@media (max-width:760px){.cgrid{grid-template-columns:1fr}}
+.lbl2{font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.big2{font:800 34px var(--display)}.big2 small{font-size:18px;color:var(--muted)}
+.gauge{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0 6px}.gauge i{display:block;height:100%;border-radius:99px}
+.cbars{display:flex;align-items:flex-end;gap:3px;height:120px;margin:6px 0 8px}.cb{flex:1;height:100%;display:flex;align-items:flex-end}.cb i{display:block;width:100%;background:var(--go);border-radius:3px 3px 0 0;opacity:.85}
+.cr{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}.cr:first-of-type{border-top:0}
+.cn{flex:1;min-width:0;font-size:14px}.cv{display:flex;align-items:center;gap:8px;flex:none}.cv b{font:700 14px var(--display);min-width:56px;text-align:right}.cv small{color:var(--muted);min-width:34px;text-align:right}
+.cbar{width:110px;height:8px;border-radius:99px;background:var(--line);overflow:hidden}.cbar i{display:block;height:100%;background:var(--go)}
+@media (max-width:520px){.cbar{width:60px}}
+.pill{font:700 10px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:99px;border:1px solid}.pill.bad{color:var(--warn);border-color:var(--warn)}.pill.warn{color:#e6b450;border-color:#e6b450}
+.warnc{border-color:var(--warn)}.bad{color:var(--warn)}
+.kf{display:flex;flex-wrap:wrap;gap:8px}.kf input{flex:1 1 200px;min-width:0;min-height:48px;padding:0 12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}.kf .btn-main{width:auto;padding:0 22px}
+.card{margin-bottom:14px}
+</style>
+${body}
+${settingsCard}
+<script>
+(function () {
+  function go(url, b) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) }).then(function (r) { return r.json().then(function (j) { if (!r.ok || j.error) throw new Error(j.error || "Couldn't do that"); return j; }); }); }
+  document.getElementById("cr").onclick = function () { this.disabled = true; go("/api/credits-refresh").then(function () { location.reload(); }).catch(function (e) { toast(e.message, true); document.getElementById("cr").disabled = false; }); };
+  document.getElementById("ks").onclick = function () { var b = { make_token: document.getElementById("mt").value, allowance: document.getElementById("al").value, resetDay: document.getElementById("rd").value };
+    go("/api/credits-key", b).then(function (j) { toast("Saved " + j.saved.join(", ")); setTimeout(function () { location.reload(); }, 700); }).catch(function (e) { toast(e.message, true); }); };
+})();
+</script>`);
 }
 
 async function todoPage(env, origin) {
