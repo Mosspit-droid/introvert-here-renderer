@@ -96,10 +96,10 @@ export default {
         return authed ? await linksPage(env) : loginPage(false);
       }
       if (pathname === "/gagcheck.js" && method === "GET") {
-        return authed ? new Response("var gagIssues = " + gagIssuesFn.toString() + ";", { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
+        return authed ? new Response(BROWSER_SHIM + "var gagIssues = " + gagIssuesFn.toString() + ";", { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
       }
       if (pathname === "/amend.js" && method === "GET") {
-        return authed ? new Response(AMEND_JS + "\n" + photoPlan.toString(), { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
+        return authed ? new Response(BROWSER_SHIM + AMEND_JS + "\n" + photoPlan.toString(), { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
       }
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
@@ -3647,6 +3647,8 @@ $("reread").onclick = function () {
 };
 render();
 `;
+// Cloudflare's bundler adds __name(...) calls inside functions; code sent to the browser via fn.toString() needs this stand-in.
+const BROWSER_SHIM = "var __name = window.__name || function (f) { return f; };\n";
 const AMEND_VER = (() => { let h = 0; const t = AMEND_JS + photoPlan.toString(); for (let k = 0; k < t.length; k++) h = (h * 31 + t.charCodeAt(k)) | 0; return (h >>> 0).toString(36); })();
 
 // ---------- Tags ----------
