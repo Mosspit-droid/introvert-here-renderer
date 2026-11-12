@@ -740,6 +740,10 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tbig{font:900 30px/1 var(--display);font-variant-numeric:tabular-nums}
 .tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
+.fhome{position:fixed;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:29;display:flex;align-items:center;gap:10px;min-height:56px;padding:0 20px 0 16px;border-radius:99px;border:2px solid rgba(242,240,235,.6);background:rgba(8,8,8,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--text);text-decoration:none;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.fhome svg{width:24px;height:24px}
+body.on-home .fhome{display:none}
+@media (max-width:760px){.fhome{display:none}}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
 .tabbar a{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;min-height:58px;border-radius:12px;color:var(--muted);font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
@@ -826,6 +830,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <title>Introvert Here Studio</title><style>${STYLE}</style></head>
 <body data-coll="IH">${ICONS}<main>${body}</main>
+<a class="fhome" id="fhome" href="/" aria-label="Back to the dashboard">${icon("home")}<span>Dashboard</span></a>
 <nav class="tabbar" aria-label="Main"><div class="in">${tabs}<a href="#more" id="moreBtn">${icon("more")}More</a></div></nav>
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -833,6 +838,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <script>
 (function () {
   var p = location.pathname, on = null;
+  if (p === "/") document.body.classList.add("on-home");
   document.querySelectorAll(".tabbar [data-tab]").forEach(function (a) { var t = a.dataset.tab; if (t === p || (t !== "/" && p.indexOf(t) === 0)) on = a; });
   if (on) on.classList.add("on"); else if (p !== "/") document.getElementById("moreBtn").classList.add("on");
   var sh = document.getElementById("sheet");
