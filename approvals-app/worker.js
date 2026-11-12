@@ -1036,7 +1036,7 @@ ${brandHeader("To-do")}
     <h2 id="doneH">Done</h2><div class="tdl" id="done"></div>
   </div>
   <div class="card"><h3 style="margin:0 0 8px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)">Add from anywhere</h3>
-    <p class="small" style="margin:0">In Claude or ChatGPT, say <b>Note it</b>, <b>add that to the list</b>, <b>jot that down</b> or similar, and the idea is summarised and added here. Claude Code can add to it too. Ticked items move to Done.</p></div>
+    <p class="small" style="margin:0">In Claude, say <b>Note it</b>, <b>add that to the list</b>, <b>jot that down</b> or similar, and the idea is summarised and added here. From ChatGPT (or anywhere) on your phone or tablet: long-press a message → Share → <b>Introvert Here</b>. Claude Code can add to it too. Ticked items move to Done.</p></div>
   ${setup}
 </div>
 <script>
@@ -1930,7 +1930,7 @@ ${brandHeader("Links")}
       <div class="tadd"><input placeholder="Paste a Claude chat link" data-url><input placeholder="Name it (optional)" data-title><button class="btn" type="button" data-add>Add</button></div></div>
     <div class="card tbox" data-list="chatgpt"><h3><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11.5" fill="none" stroke="#74aa9c" stroke-width="2.8"/><path d="M16 9.5v13M10.4 12.8l11.2 6.4M10.4 19.2l11.2-6.4" stroke="#74aa9c" stroke-width="2.6" stroke-linecap="round"/></svg>ChatGPT</h3><div class="tlist"></div>
       <div class="tadd"><input placeholder="Paste a ChatGPT chat link" data-url><input placeholder="Name it (optional)" data-title><button class="btn" type="button" data-add>Add</button></div></div>
-    <p class="small" style="margin:0">Neither Claude nor ChatGPT lets other apps read your chat list, so save the threads you use here. Paste a link, or on your phone or tablet use Share in the Claude or ChatGPT app and pick Introvert Here. The one you open most recently goes to the top.</p>
+    <p class="small" style="margin:0">Neither Claude nor ChatGPT lets other apps read your chat list, so save the threads you use here. Paste a link, or on your phone or tablet share a chat link to Introvert Here. Share any other text (a ChatGPT answer, a note) to Introvert Here and it goes on your To-do list instead. The one you open most recently goes to the top.</p>
   </div>
   <aside class="qside frame"><div class="card"><h3>Ours</h3><div class="qks">${own}</div><h3 class="second">Tools</h3><div class="qks">${quick}</div></div></aside>
 </div>${fbScript}
@@ -1956,7 +1956,15 @@ ${brandHeader("Links")}
   // Shared into the app from Claude or ChatGPT: save it straight away.
   var q = new URLSearchParams(location.search), text = (q.get("url") || "") + " " + (q.get("text") || "");
   var m = text.match(/https?:\\/\\/[^\\s]+/);
-  if (m) { send({ action: "add", url: m[0], title: q.get("title") || "" }).then(function () { toast("Thread saved"); history.replaceState(null, "", "/links"); }).catch(function (err) { toast(err.message, true); }); }
+  var shared = ((q.get("title") || "") + "\\n" + (q.get("text") || "")).trim(), isThread = m && /(^|\\.)(claude\\.ai|chatgpt\\.com|chat\\.openai\\.com)\\//i.test(m[0].replace(/^https?:\\/\\//, "") + "/");
+  var bare = shared.replace(m ? m[0] : "", "").replace(/\\s+/g, " ").trim();
+  if (isThread && bare.length < 120) { send({ action: "add", url: m[0], title: q.get("title") || "" }).then(function () { toast("Thread saved"); history.replaceState(null, "", "/links"); }).catch(function (err) { toast(err.message, true); }); }
+  else if (shared) {
+    // Anything else shared into the app (a ChatGPT answer, a note, a web page) goes on the to-do list.
+    var line = bare || shared, first = line.split(/(?<=[.!?])\\s/)[0];
+    var body = { action: "add", text: (first.length > 130 ? first.slice(0, 127) + "…" : first), details: line.length > first.length ? line.slice(0, 1000) : "" };
+    fetch("/api/todo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { if (!r.ok) throw new Error("Couldn't save"); toast("Added to your to-do list"); history.replaceState(null, "", "/links"); }).catch(function (err) { toast(err.message, true); });
+  }
 })();
 </script>`, "/links.webmanifest");
 }
