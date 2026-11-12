@@ -44,6 +44,7 @@ export default {
       if (pathname === "/api/pending" && method === "POST") return await ingest(request, env, ctx, url);
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
+      if (pathname === "/api/photo-job" && method === "GET") return checkSecret(request, env) ? json((await env.PENDING.get("photo-job", "json")) || {}) : json({ error: "bad secret" }, 403);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
       if (pathname === "/api/gags-sync" && method === "POST") return await gagsSync(request, env);
@@ -97,7 +98,7 @@ export default {
         return authed ? new Response("var gagIssues = " + gagIssuesFn.toString() + ";", { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
       }
       if (pathname === "/amend.js" && method === "GET") {
-        return authed ? new Response(AMEND_JS, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
+        return authed ? new Response(AMEND_JS + "\n" + photoPlan.toString(), { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
       }
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
@@ -898,7 +899,7 @@ ${topBar()}
 }
 
 // ---------- one gag, drilled down ----------
-const GAG_STATUS = { LIVE_EXISTING: ["Live", "ok"], READY_FOR_RELEASE: ["Scheduled", "wait"], ETSY_DRAFT_READY_FOR_REVIEW: ["Draft waiting for review", "wait"], AMENDMENT_REQUIRED: ["Updating text", "run"], AMENDMENT_REQUIRED_ARTWORK: ["Updating mockups", "run"], AMENDMENT_REQUIRED_REPRINT: ["Updating printed design", "run"], AMENDMENT_REQUIRED_COLOURS: ["Updating colours", "run"], FAILED: ["Failed", "bad"] };
+const GAG_STATUS = { LIVE_EXISTING: ["Live", "ok"], READY_FOR_RELEASE: ["Scheduled", "wait"], ETSY_DRAFT_READY_FOR_REVIEW: ["Draft waiting for review", "wait"], AMENDMENT_REQUIRED: ["Updating text", "run"], AMENDMENT_REQUIRED_ARTWORK: ["Updating mockups", "run"], AMENDMENT_REQUIRED_REPRINT: ["Updating printed design", "run"], AMENDMENT_REQUIRED_COLOURS: ["Updating colours", "run"], AMENDMENT_REQUIRED_PHOTO: ["Updating one photo", "run"], FAILED: ["Failed", "bad"] };
 const GAG_GARMENTS = [["T-SHIRT", "T-shirt"], ["LONG-SLEEVE", "Long sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
 async function gagPage(env, id) {
   const [gags, stats, items, tags, amend, daily] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("stats", "json"), loadItems(env), env.PENDING.get("tags", "json"), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json")]);
@@ -2951,8 +2952,41 @@ async function amendApply2(request, env) {
       if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
     }
   }
+  // One photo (replace or add): mockups only, one job at a time; the builder reads the job from /api/photo-job.
+  let photoJob = null;
+  if (d.photo && (d.photo.mode === "one" || d.photo.mode === "add")) {
+    if ([...what].some((w) => w !== "mockups")) throw new Error("A one-photo change can't be combined with other changes. Untick the others, or pick All photos.");
+    const running = S.gags.some((g) => g.status === "AMENDMENT_REQUIRED_PHOTO");
+    if (running) throw new Error("Another one-photo change is still running. Wait for it to finish (watch the dashboard), then try again.");
+    const pagesOf = (coll, type) => (S.pages || []).filter((x) => x.coll === coll && x.type === type);
+    const combosPicked = new Set();
+    gagIds.forEach((id) => { const g = S.gags.find((x) => x.id === id); byGag[id].forEach((t) => combosPicked.add(g.coll + "|" + t)); });
+    if (d.photo.mode === "one") {
+      const key = String(d.photo.key || "");
+      if (!/^[A-Z_]+#\d+$/.test(key) || /^THUMBNAIL/.test(key)) throw new Error("Pick which photo to swap.");
+      photoJob = { action: "replace", key, at: Date.now() };
+    } else {
+      const name = String(d.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "");
+      if (!/^[A-Z][A-Z_]{1,23}$/.test(name)) throw new Error("Give the new photo a name, letters only (e.g. BEACH).");
+      for (const combo of combosPicked) {
+        const [coll, type] = combo.split("|"), pg = pagesOf(coll, type);
+        if (!pg.length) throw new Error("Core has no mockup pages for " + coll + " " + type + ".");
+        const plan = photoPlan(pg, "BLACK");
+        if (plan.some((x) => x.key === name + "#1")) throw new Error("There's already a photo called " + name + " for " + type + ". Pick Just one photo to swap it, or use another name.");
+        const thumbs = pg.filter((x) => /THUMBNAIL_/.test(x.name)).sort((a, b) => a.pos - b.pos).map((x) => x.name.toUpperCase().split("THUMBNAIL_")[1]);
+        const cols = d.photo.each && thumbs.length ? thumbs : [""];
+        if (plan.length + 1 > 20) throw new Error("Etsy allows 20 photos and " + coll + " " + type + " listings are already full.");
+        const parts = pg.slice().sort((a, b) => a.pos - b.pos)[0].name.toUpperCase().split("_"), pre = parts[0], ab = parts[2];
+        const maxPos = Math.max(...pg.map((x) => Number(x.pos) || 0));
+        const rows = cols.map((c, i) => { const pos = maxPos + 1 + i; return [coll, type, pos, pre + "_" + String(pos).padStart(2, "0") + "_" + ab + "_" + name + (c ? "_" + c : "")]; });
+        ops.push({ url: `${AMEND_XL}/tables/MOCKUP_PAGES/rows`, method: "POST", values: rows });
+        rows.forEach((r) => S.pages.push({ coll: r[0], type: r[1], pos: r[2], name: r[3] }));
+      }
+      photoJob = { action: "add", key: name + "#1", at: Date.now() };
+    }
+  }
   const text = what.has("titles") || what.has("descriptions") || what.has("tags");
-  const status = what.has("print") ? "AMENDMENT_REQUIRED_REPRINT"
+  const status = photoJob ? "AMENDMENT_REQUIRED_PHOTO" : what.has("print") ? "AMENDMENT_REQUIRED_REPRINT"
     : what.has("supplier") || what.has("colours") || (text && what.has("mockups")) ? "AMENDMENT_REQUIRED_COLOURS"
     : text ? "AMENDMENT_REQUIRED" : "AMENDMENT_REQUIRED_ARTWORK";
   for (const id of gagIds) {
@@ -2963,6 +2997,7 @@ async function amendApply2(request, env) {
     if (S.hasOnly && (only || g.only)) { ops.push(amendCell("GAGS_TABLE", "AMEND_ONLY", g.row, only)); g.only = only; }
     ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status;
   }
+  if (photoJob) await env.PENDING.put("photo-job", JSON.stringify(photoJob));
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "300", run: "yes" });
   if (err) return err;
   await env.PENDING.put("amend", JSON.stringify(S));
@@ -3048,6 +3083,43 @@ ${brandHeader("Update listings", `<button class="btn" id="restart" type="button"
 <script src="/amend.js"></script>`);
 }
 
+// One listing's photos in Etsy order, for a template (pages = [{pos, name}]) and a lead colour.
+// Same rules as the builder (docs/tagging/make/mockup_rank.js): one colour of each picture (lead colour, else Black),
+// lead thumbnail first, one Printify mockup at rank 2. Each photo gets a stable key like "SETUP#2" that means the
+// same picture whatever the colour or garment, so "replace just this photo" can be asked across a whole range.
+function photoPlan(pages, hero) {
+  hero = String(hero || "").toUpperCase().replace(/\s+/g, "_");
+  var nm = function (p) { return String(p.name || "").toUpperCase(); };
+  var sorted = pages.slice().sort(function (a, b) { return Number(a.pos) - Number(b.pos); });
+  var thumbs = sorted.filter(function (p) { return /THUMBNAIL/.test(nm(p)); });
+  var colours = thumbs.map(function (p) { var m = nm(p).match(/THUMBNAIL_(.+)$/); return m ? m[1] : ""; }).filter(Boolean).sort(function (a, b) { return b.length - a.length; });
+  var colourOf = function (p) { var n = nm(p); for (var i = 0; i < colours.length; i++) if (n.slice(-(colours[i].length + 1)) === "_" + colours[i]) return colours[i]; return ""; };
+  var baseOf = function (p) { var c = colourOf(p), n = nm(p).replace(/^[A-Z]+_\d+_/, "").replace(/^(TS|LS|SW|HD)_/, ""); return c ? n.slice(0, -(c.length + 1)) : n; };
+  var groups = {};
+  sorted.forEach(function (p) { if (/THUMBNAIL/.test(nm(p)) || !colourOf(p)) return; var b = baseOf(p), c = colourOf(p); groups[b] = groups[b] || {}; (groups[b][c] = groups[b][c] || []).push(p); });
+  var swap = [], drop = [];
+  Object.keys(groups).forEach(function (b) {
+    var g = groups[b], want = g[hero] ? hero : (g.BLACK ? "BLACK" : Object.keys(g)[0]);
+    var n = Math.max.apply(null, Object.keys(g).map(function (c) { return g[c].length; }));
+    for (var k = 0; k < n; k++) {
+      var copies = Object.keys(g).map(function (c) { return g[c][k]; }).filter(Boolean).sort(function (a, b) { return Number(a.pos) - Number(b.pos); });
+      var keep = (g[want] && g[want][k]) || copies[0];
+      copies.forEach(function (p) { if (p !== copies[0]) drop.push(p); });
+      swap.push([copies[0], keep]);
+    }
+  });
+  var order = sorted.filter(function (p) { return drop.indexOf(p) < 0; }).map(function (p) { for (var i = 0; i < swap.length; i++) if (swap[i][0] === p) return swap[i][1]; return p; });
+  var lead = null; for (var j = 0; j < thumbs.length; j++) if (hero && nm(thumbs[j]).slice(-(hero.length + 1)) === "_" + hero) lead = thumbs[j];
+  if (lead && thumbs.length > 1 && lead !== thumbs[0]) { var at = order.indexOf(thumbs[0]); order = order.filter(function (p) { return p !== lead; }); order.splice(at, 0, lead); }
+  var seen = {};
+  return order.map(function (p, i) {
+    var thumb = /THUMBNAIL/.test(nm(p)), b = thumb ? "THUMBNAIL" : baseOf(p);
+    seen[b] = (seen[b] || 0) + 1;
+    var label = b.toLowerCase().replace(/_/g, " "); label = label.charAt(0).toUpperCase() + label.slice(1);
+    return { pos: Number(p.pos), name: p.name, key: b + "#" + seen[b], label: label + (seen[b] > 1 ? " " + seen[b] : ""), thumb: thumb, rank: i === 0 ? 1 : i + 2 };
+  });
+}
+
 const AMEND_JS = String.raw`
 var D = JSON.parse(document.getElementById("amend-data").textContent);
 var S0 = D.S, LOG = D.log || [];
@@ -3061,14 +3133,14 @@ var WHAT = [
   ["titles","Titles","The title ending for a range and garment, or one gag's title stem"],
   ["descriptions","Descriptions","Intro, features, who it's for, closing text"],
   ["tags","Product tags","The 5 product tags for a range and garment"]];
-var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
+var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_PHOTO:"Updating one photo", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
 function gName(t) { for (var i = 0; i < GARM.length; i++) if (GARM[i][0] === t) return GARM[i][1]; return t; }
 function rName(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][1]; return c; }
 function rColl(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][2]; return c; }
 function $(id) { return document.getElementById(id); }
 function h(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 var A;  // all choices; Start over resets it
-function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, done:null, err:"" }; }
+function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", key:"", name:"", each:true }, done:null, err:"" }; }
 fresh();
 var ALL = [];
 if (S0) S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
@@ -3130,12 +3202,38 @@ function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected
   if (list.length < 2) return "";
   return '<label class="f">' + label + '<select data-cur="' + kind + '">' + list.map(function (id) { var p = id.split("|"); return '<option value="' + id + '"' + (id === A.cur[kind] ? " selected" : "") + ">" + h(rName(p[0]) + (p[1] ? " · " + gName(p[1]) : "")) + "</option>"; }).join("") + "</select></label>";
 }
+// Mockups: all photos, just one photo, or add a new one (all three work per listing, per range or globally).
+function pagesFor(combo) { var p = combo.split("|"); return (S0.pages || []).filter(function (x) { return x.coll === rColl(p[0]) && x.type === p[1]; }); }
+function photoChoice(cb) {
+  var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Just one photo","Swap one photo on each listing. About 10 credits a listing."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template."]];
+  var out = '<div class="col">' + opts.map(function (o) { return '<label class="tick"><input type="radio" name="pmode" data-pmode="' + o[0] + '"' + (P.mode === o[0] ? " checked" : "") + '><span class="lbl">' + o[1] + "<small>" + o[2] + "</small></span></label>"; }).join("") + "</div>";
+  if (!S0.pages) return out + '<p class="hint">Tap Sync to Core first so the app knows your mockup pages.</p>';
+  if (P.mode === "one") {
+    var keys = {}, order = [];
+    cb.forEach(function (c) { var rule = ruleFor(c.split("|")[0], c.split("|")[1]) || {};
+      photoPlan(pagesFor(c), "BLACK").forEach(function (x) { if (x.thumb) return; if (!keys[x.key]) { keys[x.key] = { label: x.label, n: 0, video: false }; order.push(x.key); }
+        keys[x.key].n++; if (x.rank === rule.slot1 || x.rank === rule.slot2) keys[x.key].video = true; }); });
+    if (!P.key || !keys[P.key]) P.key = order[0] || "";
+    out += '<label class="f">Which photo<select data-pkey="1">' + order.map(function (k) { return '<option value="' + h(k) + '"' + (k === P.key ? " selected" : "") + ">" + h(keys[k].label) + (keys[k].n < cb.length ? " (not every garment)" : "") + "</option>"; }).join("") + "</select></label>";
+    if (P.key && keys[P.key] && keys[P.key].video) out += '<p class="hint">This photo is used in the video, so each listing also gets a new video to approve.</p>';
+    out += '<p class="hint">Thumbnails aren\'t on this list: they\'re linked to the colour choices, so use All photos for those. Each listing gets its lead colour\'s version of the photo.</p>';
+  }
+  if (P.mode === "add") {
+    out += '<p class="hint"><b>First</b>, in Canva, add the new page at the <b>end</b> of the mockup template for each garment you picked. Then name it here.</p>' +
+      '<label class="f">Photo name (letters only, e.g. BEACH)<input data-pname="1" maxlength="24" value="' + h(P.name) + '"></label>' +
+      '<label class="tick"><input type="checkbox" data-peach="1"' + (P.each ? " checked" : "") + '><span class="lbl">One page for each colour<small>Ticked: you added a Black page and then a Dark Heather page (same order as the thumbnails). Unticked: you added one page that suits every colour.</small></span></label>';
+    var over = [];
+    cb.forEach(function (c) { var n = photoPlan(pagesFor(c), "BLACK").length + 1; if (n >= 20) over.push(rName(c.split("|")[0]) + " " + gName(c.split("|")[1])); });
+    if (over.length) out += '<div class="errbox">Etsy allows 20 photos. These are already full: ' + h(over.join(", ")) + ".</div>";
+  }
+  return out;
+}
 function rv(row, k, def) { var d = A.rules[row]; return d && d[k] != null ? d[k] : def; }
 function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
   if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text">' + h(A.text != null ? A.text : one.text) + "</textarea></label>" : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
-  if (A.what.mockups) sec("Mockup photos", '<p class="hint">Re-exported from the current Canva mockup templates. Nothing to fill in.</p>');
+  if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
   var ruleKinds = [];
   if (A.what.titles && !one) ruleKinds.push("titles");
@@ -3172,9 +3270,9 @@ function details() {
 function check() {
   var ks = selKeys(), gs = {}, rs = {}, ts = {};
   ks.forEach(function (k) { var p = k.split("|"); gs[p[0]] = 1; rs[rName(p[0].slice(0, 2))] = 1; ts[gName(p[1])] = 1; });
-  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[1].toLowerCase(); });
+  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "one mockup photo" : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
   var n = ks.length, ng = Object.keys(gs).length;
-  var per = A.what.print ? 2.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
+  var per = A.what.print ? 2.5 : (A.what.mockups && A.photo.mode !== "all" && !A.what.colours && !A.what.supplier) ? 0.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
   var mins = Math.max(5, Math.round(n * per) + 5);
   if (A.done) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">Etsy starts updating in about 5 minutes: ' + A.done.listings + " listing" + (A.done.listings === 1 ? "" : "s") + " across " + A.done.gags + " gag" + (A.done.gags === 1 ? "" : "s") + ". Each gag shows as updating in the By listing view until it's finished. You'll get an alert if anything fails.</p></div>"; return; }
   $("view").innerHTML = '<p class="q">Check and confirm</p><p class="sum">Change <b>' + h(w.join(", ")) + "</b> on <b>" + n + " listing" + (n === 1 ? "" : "s") + "</b> (" + ng + " gag" + (ng === 1 ? "" : "s") + ") in " + h(Object.keys(rs).join(", ")) + '.</p><div class="chips">' + Object.keys(ts).map(function (t) { return "<span>" + h(t) + "</span>"; }).join("") + "</div>" +
@@ -3186,6 +3284,7 @@ function check() {
 function submit() {
   var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn(), rules: A.rules, colours: {} };
   var one = single();
+  if (A.what.mockups && A.photo.mode !== "all") body.photo = A.photo;
   if (one && A.stem != null) body.stem = A.stem;
   if (one && A.text != null) body.text = A.text;
   if (A.what.colours) { var rs = {}; combos().forEach(function (c) { rs[c.split("|")[0]] = 1; }); Object.keys(rs).forEach(function (code) { if (A.colours[code]) body.colours[code] = A.colours[code]; else { var rules = S0.rules.filter(function (r) { return r.coll === rColl(code); }); var p = S0.profiles.filter(function (x) { return rules[0] && x.name === rules[0].profile; })[0]; body.colours[code] = String(p ? p.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean); } }); }
@@ -3222,12 +3321,16 @@ document.addEventListener("change", function (e) {
   }
   if (el.dataset.what) { if (el.checked) A.what[el.dataset.what] = 1; else delete A.what[el.dataset.what]; render(); }
   if (el.dataset.cur) { A.cur[el.dataset.cur] = el.value; render(); }
+  if (el.dataset.pmode) { A.photo.mode = el.dataset.pmode; render(); }
+  if (el.dataset.pkey) { A.photo.key = el.value; render(); }
+  if (el.dataset.peach) { A.photo.each = el.checked; }
   if (el.dataset.colour) { A.colours[A.cur.col] = Array.prototype.map.call(document.querySelectorAll("[data-colour]:checked"), function (i) { return i.dataset.colour; }); }
 });
 document.addEventListener("input", function (e) {
   var el = e.target;
   if (el.id === "q") { A.q = el.value; var pos = el.selectionStart; render(); var q = $("q"); q.focus(); q.setSelectionRange(pos, pos); return; }
   if (el.dataset.one) A[el.dataset.one] = el.value;
+  if (el.dataset.pname) A.photo.name = el.value.toUpperCase().replace(/[^A-Z_ ]/g, "").replace(/ +/g, "_");
   if (el.dataset.rule) { var row = el.dataset.rule; A.rules[row] = A.rules[row] || {};
     if (el.dataset.rk) A.rules[row][el.dataset.rk] = el.value;
     if (el.dataset.tag != null) { var r = S0.rules.filter(function (x) { return String(x.row) === row; })[0]; var tg = (A.rules[row].tags || r.tags).slice(); tg[Number(el.dataset.tag)] = el.value; A.rules[row].tags = tg; } }
