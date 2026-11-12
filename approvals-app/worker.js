@@ -324,6 +324,7 @@ const SCENARIO_PLAIN = {
   "8451335": ["Pricing", "saves prices and updates live listings", "some listings may still have old prices", "Open Pricing and save again, or ask Claude."],
   "8438720": ["Save gag", "saves gags you write in the app", "a gag you saved may not be in Core", "Open Gags and check it's there; save it again if not."],
   "8438719": ["Gags sync", "copies your gags into the app", "the app's gag list may be out of date", "Tap Sync to Core on the Gags page."],
+  "8535839": ["Nightly backup", "copies Core into the CORE_BACKUPS folder each night", "last night's backup of Core may be missing", "Nothing urgent. If it happens two nights running, ask Claude."],
   "7705176": ["Etsy tool", "a helper Claude uses to look at Etsy", "usually nothing: these are almost always Claude's own checks", "Nothing to do unless it keeps happening."],
   "7446858": ["Core tool", "a helper Claude uses to read and write Core", "usually nothing: these are almost always Claude's own checks", "Nothing to do unless it keeps happening."],
 };
@@ -1123,10 +1124,29 @@ async function creditsCheck(env, force) {
   const extras = Number(settings.extras) || 0;
   const limit = (Number(settings.allowance) || 0) + extras;
   const used = scenUsed + (Number(settings.otherUsed) || 0);
-  const out = { at: Date.now(), scenarios, daily, org, used, limit, periodStart: startKey, error: "" };
+  const cf = await cloudflareUsage(env);
+  const out = { at: Date.now(), scenarios, daily, org, used, limit, periodStart: startKey, error: "", cf };
   await env.PENDING.put("credits", JSON.stringify(out));
   await creditsAlerts(env, out, prev);
   return out;
+}
+
+// Cloudflare free plan: KV writes/deletes/lists 1,000 a day each, reads 100,000; Worker requests 100,000. Resets 00:00 UTC.
+const CF_LIMITS = { write: 1000, delete: 1000, list: 1000, read: 100000, requests: 100000 };
+async function cloudflareUsage(env) {
+  const tok = env.SECRETS && (await env.SECRETS.get("cf_token"));
+  if (!tok) return null;
+  const d = new Date().toISOString().slice(0, 10);
+  const q = `query { viewer { accounts(filter:{accountTag:"82725ced954062d2cb0d30912fbd923c"}) { kvOperationsAdaptiveGroups(limit:20, filter:{date_geq:"${d}", date_leq:"${d}"}) { sum { requests } dimensions { actionType } } workersInvocationsAdaptive(limit:20, filter:{date_geq:"${d}", date_leq:"${d}"}) { sum { requests } } } } }`;
+  try {
+    const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify({ query: q }) });
+    const j = await r.json(); const a = j && j.data && j.data.viewer && j.data.viewer.accounts && j.data.viewer.accounts[0];
+    if (!a) return { error: "Cloudflare said " + r.status + ((j && j.errors && j.errors[0] && ": " + j.errors[0].message) || "") };
+    const u = { day: d };
+    (a.kvOperationsAdaptiveGroups || []).forEach((g) => { u[g.dimensions.actionType] = (u[g.dimensions.actionType] || 0) + (g.sum.requests || 0); });
+    u.requests = (a.workersInvocationsAdaptive || []).reduce((x, g) => x + (g.sum.requests || 0), 0);
+    return u;
+  } catch (e) { return { error: String(e.message || e) }; }
 }
 
 async function creditsAlerts(env, cur, prev) {
@@ -1154,6 +1174,15 @@ async function creditsAlerts(env, cur, prev) {
       }
     }
   }
+  if (cur.cf && !cur.cf.error) {
+    const worst = Object.keys(CF_LIMITS).map((k) => [k, (cur.cf[k] || 0) / CF_LIMITS[k]]).sort((a, b) => b[1] - a[1])[0];
+    const tag = cur.cf.day + ":" + worst[0];
+    if (worst[1] >= 0.8 && st.cf !== tag) {
+      st.cf = tag;
+      const nice = { write: "saves", delete: "deletes", list: "lookups", read: "reads", requests: "page visits" }[worst[0]];
+      fresh.push({ title: "Cloudflare: " + Math.round(worst[1] * 100) + "% of today's " + nice + " used", body: "The app has used " + (cur.cf[worst[0]] || 0).toLocaleString("en-GB") + " of its " + CF_LIMITS[worst[0]].toLocaleString("en-GB") + " free " + nice + " today. If it runs out, new videos can't be saved until midnight (UTC). It resets by itself. If this keeps happening, Cloudflare's paid plan ($5 a month) removes the limit.", link: "https://mosspit-approvals.mosspit.workers.dev/credits" });
+    }
+  }
   if (JSON.stringify(st) !== st0) await env.PENDING.put("credits-state", JSON.stringify(st));
   if (!fresh.length) return;
   const alerts = await loadAlerts(env);
@@ -1172,7 +1201,17 @@ async function creditsKey(request, env) {
     if (!test.ok) return json({ error: "Make didn't accept that token (" + test.status + "). Check it has the scenarios:read scope." }, 400);
     await env.SECRETS.put("make_token", t); saved.push("Make token");
   }
+  const cft = str(d.cf_token).replace(/\s+/g, "");
+  if (cft) {
+    if (cft.length < 30) return json({ error: "That doesn't look like a Cloudflare API token." }, 400);
+    await env.SECRETS.put("cf_token", cft); const t = await cloudflareUsage(env);
+    if (!t || t.error) { await env.SECRETS.delete("cf_token"); return json({ error: "Cloudflare didn't accept that token. Make sure it has Account Analytics: Read. " + ((t && t.error) || "") }, 400); }
+    saved.push("Cloudflare token");
+  }
   const s = (await env.PENDING.get("credits-settings", "json")) || {};
+  for (const k of ["claudePlan", "claudeCost", "claudeRenew", "gptPlan", "gptCost", "gptRenew", "makeCost"]) {
+    if (d[k] !== undefined && String(d[k]) !== String(s[k] || "")) { s[k] = str(d[k]).slice(0, 40); saved.push(k.replace(/^claude/, "Claude ").replace(/^gpt/, "ChatGPT ").replace(/^make/, "Make ").toLowerCase()); }
+  }
   if (d.allowance !== undefined && d.allowance !== "") { const n = Number(String(d.allowance).replace(/[, ]/g, "")); if (!(n > 0)) return json({ error: "Monthly allowance should be a number." }, 400); s.allowance = n; saved.push("allowance"); }
   if (d.extras !== undefined) { const n = Number(String(d.extras || 0).replace(/[, ]/g, "")); if (!(n >= 0)) return json({ error: "Extra credits should be a number." }, 400); if (n !== (s.extras || 0)) { s.extras = n; saved.push("extra credits"); } }
   if (d.resetDay !== undefined && d.resetDay !== "") { const n = Number(d.resetDay); if (!(n >= 1 && n <= 31)) return json({ error: "Reset day should be 1 to 31." }, 400); s.resetDay = n; saved.push("reset day"); }
@@ -1182,6 +1221,7 @@ async function creditsKey(request, env) {
   return json({ ok: true, saved, error: out.error || "" });
 }
 
+function ordinal(n) { n = Number(n); const v = n % 100; return v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"; }
 function nextResetDate(day, iso) {
   if (iso && !isNaN(Date.parse(iso))) return new Date(iso);
   if (!day) return null;
@@ -1233,10 +1273,26 @@ ${c.error ? `<div class="card warnc small">Last check failed: ${esc(c.error)}</d
 <div class="card"><div class="lbl2">What's using them</div>${rows}</div>
 ${lock && lock.length ? `<div class="card small"><b>Builder lock:</b> stopped ${lock.length} extra cop${lock.length === 1 ? "y" : "ies"} from running side by side, most recently ${esc(when(lock[0].at))}.</div>` : ""}`;
   }
+  // Other services: Cloudflare (live, with its own token), Claude and ChatGPT (plan cards: neither shares usage with apps).
+  const cfTok = env.SECRETS && (await env.SECRETS.get("cf_token"));
+  const cfU = c && c.cf;
+  const bar2 = (n, of) => { const pct = Math.min(100, (n / of) * 100); return `<div class="gauge"><i style="width:${Math.max(2, pct)}%;background:${pct >= 95 ? "var(--warn)" : pct >= 80 ? "#e6b450" : "var(--go)"}"></i></div>`; };
+  const cfCard = `<div class="card"><div class="lbl2">Cloudflare (runs this app) · free plan</div>${!cfTok ? `<p class="small">Add a Cloudflare token in Settings below to see today's use here.</p>` : !cfU ? `<p class="small">Reading Cloudflare… tap Refresh in a moment.</p>` : cfU.error ? `<p class="small">Couldn't read Cloudflare: ${esc(cfU.error)}</p>` :
+    `<div class="big2">${n0(cfU.write || 0)}<small> / 1,000 saves today</small></div>${bar2(cfU.write || 0, 1000)}<div class="small">Reads ${n0(cfU.read || 0)} of 100,000 · page visits ${n0(cfU.requests || 0)} of 100,000 · resets overnight at midnight UTC</div>`}</div>`;
+  const ai = (nm, plan, cost, renew, url) => `<div class="card"><div class="lbl2">${nm}</div><div class="big2" style="font-size:24px">${esc(plan || "Plan not set")}</div><div class="small">${cost ? esc(cost) + " a month" : ""}${renew ? (cost ? " · " : "") + "renews on the " + esc(renew) + ordinal(renew) : ""}</div><p class="small" style="margin:8px 0">${nm} doesn't let other apps see your usage, so tap to check it there.</p><a class="btn" href="${url}" target="_blank" rel="noopener">Check ${nm} usage</a></div>`;
+  const aiCards = `<div class="cgrid">${ai("Claude", s.claudePlan, s.claudeCost, s.claudeRenew, "https://claude.ai/settings/usage")}${ai("ChatGPT", s.gptPlan, s.gptCost, s.gptRenew, "https://chatgpt.com/#settings/Account")}</div>`;
+  const costs = [["Make", s.makeCost], ["Cloudflare", "Free"], ["Claude", s.claudeCost], ["ChatGPT", s.gptCost]].filter((x) => x[1]);
+  const costCard = costs.length ? `<div class="card"><div class="lbl2">Monthly costs</div>${costs.map((x) => `<div class="cr"><div class="cn">${x[0]}</div><div class="cv"><b>${esc(x[1])}</b></div></div>`).join("")}</div>` : "";
+  body += cfCard + aiCards + costCard;
   const settingsCard = `<details class="card" ${tok ? "" : "open"}><summary class="lbl2" style="cursor:pointer">Settings</summary>
 <p class="small">Monthly credits = your plan's credits (Make → Subscription → Current plan). Add any extras you buy in the extra-credits box; set it back to 0 after the reset.</p>
 <p class="small">Make token: <b>${tok ? "saved ✓ (…" + esc(tok.slice(-4)) + ")" : "not saved yet"}</b>. To make one: Make → your profile picture → Profile → <b>API access</b> → Add token. Name it <i>Approvals app</i>, tick <b>scenarios:read</b> and <b>organizations:read</b>, then paste it here. It's stored privately and never shown again.</p>
-<div class="kf"><input id="mt" placeholder="Make API token" autocomplete="off" spellcheck="false"><input id="al" inputmode="numeric" placeholder="Monthly credits, e.g. 40000" value="${esc(s.allowance || "")}"><input id="rd" inputmode="numeric" placeholder="Reset day of month, e.g. 4" value="${esc(s.resetDay || "")}"><input id="ex" inputmode="numeric" placeholder="Extra credits bought this month (0 if none)" value="${esc(s.extras || "")}"><button class="btn-main" id="ks" type="button">Save</button></div>
+<div class="kf"><input id="mt" placeholder="Make API token" autocomplete="off" spellcheck="false"><input id="al" inputmode="numeric" placeholder="Monthly credits, e.g. 40000" value="${esc(s.allowance || "")}"><input id="rd" inputmode="numeric" placeholder="Reset day of month, e.g. 4" value="${esc(s.resetDay || "")}"><input id="ex" inputmode="numeric" placeholder="Extra credits bought this month (0 if none)" value="${esc(s.extras || "")}"><input id="mc" placeholder="Make monthly cost, e.g. $34.12" value="${esc(s.makeCost || "")}">
+<p class="small" style="flex-basis:100%;margin:10px 0 0"><b>Cloudflare:</b> token ${cfTok ? "saved ✓" : "not saved yet"}. To make one: dash.cloudflare.com → your profile icon → My Profile → API Tokens → Create Token → Create Custom Token. Name it <i>Approvals app</i>. Permissions: Account → Account Analytics → Read. Continue → Create, then copy it here.</p>
+<input id="cft" placeholder="Cloudflare API token" autocomplete="off" spellcheck="false">
+<p class="small" style="flex-basis:100%;margin:10px 0 0"><b>Claude and ChatGPT</b> (for the cards above):</p>
+<input id="cp" placeholder="Claude plan, e.g. Max" value="${esc(s.claudePlan || "")}"><input id="cc" placeholder="Claude cost, e.g. £90" value="${esc(s.claudeCost || "")}"><input id="cr2" inputmode="numeric" placeholder="Claude renews on day…" value="${esc(s.claudeRenew || "")}">
+<input id="gp" placeholder="ChatGPT plan, e.g. Plus" value="${esc(s.gptPlan || "")}"><input id="gc" placeholder="ChatGPT cost, e.g. £20" value="${esc(s.gptCost || "")}"><input id="gr" inputmode="numeric" placeholder="ChatGPT renews on day…" value="${esc(s.gptRenew || "")}"><button class="btn-main" id="ks" type="button">Save</button></div>
 </details>`;
   return shell(`
 ${brandHeader("Credits", `<button class="btn" id="cr" type="button"><svg class="ic"><use href="#i-sync"/></svg> Refresh</button>`)}
@@ -1261,7 +1317,8 @@ ${settingsCard}
 (function () {
   function go(url, b) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) }).then(function (r) { return r.json().then(function (j) { if (!r.ok || j.error) throw new Error(j.error || "Couldn't do that"); return j; }); }); }
   document.getElementById("cr").onclick = function () { this.disabled = true; go("/api/credits-refresh").then(function () { location.reload(); }).catch(function (e) { toast(e.message, true); document.getElementById("cr").disabled = false; }); };
-  document.getElementById("ks").onclick = function () { var b = { make_token: document.getElementById("mt").value, allowance: document.getElementById("al").value, resetDay: document.getElementById("rd").value, extras: document.getElementById("ex").value };
+  document.getElementById("ks").onclick = function () { var b = { make_token: document.getElementById("mt").value, allowance: document.getElementById("al").value, resetDay: document.getElementById("rd").value, extras: document.getElementById("ex").value, makeCost: document.getElementById("mc").value, cf_token: document.getElementById("cft").value,
+      claudePlan: document.getElementById("cp").value, claudeCost: document.getElementById("cc").value, claudeRenew: document.getElementById("cr2").value, gptPlan: document.getElementById("gp").value, gptCost: document.getElementById("gc").value, gptRenew: document.getElementById("gr").value };
     go("/api/credits-key", b).then(function (j) { toast("Saved " + j.saved.join(", ")); setTimeout(function () { location.reload(); }, 700); }).catch(function (e) { toast(e.message, true); }); };
 })();
 </script>`);

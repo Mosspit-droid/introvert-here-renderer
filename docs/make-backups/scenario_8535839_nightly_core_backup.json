@@ -1,0 +1,139 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "mapper": {
+    "qs": [
+     {
+      "key": "@microsoft.graph.conflictBehavior",
+      "value": "replace"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/copy",
+    "body": "{\"parentReference\":{\"driveId\":\"b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6\",\"id\":\"01R3POCZGVFIVC2ML2V5E2W63R4ZN5PT3T\"},\"name\":\"CORE_{{formatDate(now; \\\"YYYY-MM-DD\\\"; \\\"Europe/London\\\")}}.xlsx\"}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Copy Core into CORE_BACKUPS (dated)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10467846
+   }
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGVFIVC2ML2V5E2W63R4ZN5PT3T/children?$select=id,name,createdDateTime&$top=200",
+    "method": "GET",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "List the backups"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10467846
+   }
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "array": "{{2.body.value}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Each backup"
+    }
+   }
+  },
+  {
+   "id": 4,
+   "filter": {
+    "name": "A dated backup older than 35 days",
+    "conditions": [
+     [
+      {
+       "a": "{{3.name}}",
+       "b": "CORE_20",
+       "o": "text:startswith"
+      },
+      {
+       "a": "{{parseDate(substring(3.name; 5; 15); \"YYYY-MM-DD\")}}",
+       "b": "{{addDays(now; -35)}}",
+       "o": "date:less"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/{{3.id}}",
+    "method": "DELETE",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 900,
+     "y": 0,
+     "name": "Delete backups older than 35 days"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10467846
+   }
+  }
+ ],
+ "name": "Introvert Here: Maintenance \u2014 Nightly Core backup",
+ "metadata": {
+  "instant": false,
+  "version": 1,
+  "designer": {
+   "orphans": []
+  },
+  "scenario": {
+   "dlq": false,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": false,
+   "confidential": false,
+   "freshVariables": false,
+   "autoCommitTriggerLast": true
+  }
+ }
+}
