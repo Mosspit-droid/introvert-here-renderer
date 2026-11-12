@@ -314,6 +314,22 @@ async function result(request, env, ctx, url) {
 // Make sends raw facts; this works out what's new and raises alerts.
 const MAKE_TEAM_URL = "https://eu1.make.com/2110125";
 
+// Plain-English meaning of each Make scenario for alerts: what it does, what a failure means, what to do.
+const SCENARIO_PLAIN = {
+  "7896436": ["The listing builder", "builds new listings and does your updates", "the listing it was working on may be half-done, and anything queued behind it waits", "Open Alerts again tomorrow; if it repeats, ask Claude to look."],
+  "7696096": ["Video start", "starts new videos rendering", "a listing may be waiting for its video", "Usually sorts itself out on the next run. If no new videos arrive, ask Claude."],
+  "7687522": ["Video finish", "sends finished videos to Approvals", "a finished video may not have reached Approvals", "Check Approvals; if a video is missing, tap Remake on it, or ask Claude."],
+  "7783647": ["Approve", "puts approved listings live and posts them", "an approved listing may not be live or posted yet", "Look at the listing on Etsy. If it isn't live, approve it again or ask Claude."],
+  "8448188": ["Update listings helper", "reads Core for the app and saves your updates", "an update you saved may not have reached Core", "Open Update listings, tap Sync to Core and check your change is there."],
+  "8451335": ["Pricing", "saves prices and updates live listings", "some listings may still have old prices", "Open Pricing and save again, or ask Claude."],
+  "8438720": ["Save gag", "saves gags you write in the app", "a gag you saved may not be in Core", "Open Gags and check it's there; save it again if not."],
+  "8438719": ["Gags sync", "copies your gags into the app", "the app's gag list may be out of date", "Tap Sync to Core on the Gags page."],
+  "7705176": ["Etsy tool", "a helper Claude uses to look at Etsy", "usually nothing: these are almost always Claude's own checks", "Nothing to do unless it keeps happening."],
+  "7446858": ["Core tool", "a helper Claude uses to read and write Core", "usually nothing: these are almost always Claude's own checks", "Nothing to do unless it keeps happening."],
+};
+function whatPart(P) { return !P[1] ? "" : /^a helper/.test(P[1]) ? "This is " + P[1] + "." : "This is the part that " + P[1] + "."; }
+function plainScenario(s) { const p = SCENARIO_PLAIN[String(s.id)]; return p || [String(s.name || "A Make scenario").replace(/^(Introvert Here|Mosspit Studios):\s*/, ""), "", "something may not have finished", "Open it in Make, or ask Claude to look."]; }
+
 async function daily(request, env, ctx, url) {
   if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
   const data = (await request.json()) || {};
@@ -336,7 +352,7 @@ async function daily(request, env, ctx, url) {
     st.sent[key] = today;
     const when = new Date(exp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
     fresh.push({
-      title: daysLeft >= 0 ? `Make connection expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}: ${c.label || "connection"}` : `Make connection has EXPIRED: ${c.label || "connection"}`,
+      title: daysLeft >= 0 ? `Make's login to ${c.label || "a service"} runs out in ${daysLeft} day${daysLeft === 1 ? "" : "s"}` : `Make's login to ${c.label || "a service"} has run out`,
       body: `"${c.name}" (connection ID ${c.id}) ${daysLeft >= 0 ? "expires" : "expired"} on ${when}.` +
         (Array.isArray(c.usedBy) && c.usedBy.length ? `\nUsed by: ${c.usedBy.join(", ")}.` : "") +
         `\nOpen the link, find this connection by name and tap Reauthorize - or ask Claude to renew it for you.`,
@@ -354,9 +370,10 @@ async function daily(request, env, ctx, url) {
     const prevErr = st.errors[id];
     if (!firstRun && prevErr !== undefined && errors > prevErr) {
       const n = errors - prevErr;
+      const P = plainScenario(s);
       fresh.push({
-        title: `Make scenario failed ${n} time${n === 1 ? "" : "s"}: ${s.name}`,
-        body: `"${s.name}" has had ${n} failed run${n === 1 ? "" : "s"} since the last daily check. Open it to see what went wrong.`,
+        title: `${P[0]} hit ${n === 1 ? "a problem" : n + " problems"} since yesterday`,
+        body: `${whatPart(P)} What it means: ${P[2]}.\nWhat to do: ${P[3]}`.trim(),
         link: `${MAKE_TEAM_URL}/scenarios/${id}/logs`,
         source: "Daily check",
       });
@@ -364,8 +381,8 @@ async function daily(request, env, ctx, url) {
     const prevDlq = st.dlq[id];
     if (dlq > 0 && (prevDlq === undefined || dlq > prevDlq)) {
       fresh.push({
-        title: `${dlq} stuck run${dlq === 1 ? "" : "s"} in: ${s.name}`,
-        body: `Make is holding ${dlq} run${dlq === 1 ? "" : "s"} of "${s.name}" that failed part-way and were never finished (incomplete executions). They may need retrying or deleting.`,
+        title: `${plainScenario(s)[0]}: ${dlq} run${dlq === 1 ? "" : "s"} stuck half-way`,
+        body: `Make stopped ${dlq === 1 ? "a run" : dlq + " runs"} part-way and is holding ${dlq === 1 ? "it" : "them"}. ${whatPart(plainScenario(s))}\nWhat to do: ask Claude to check what ${dlq === 1 ? "it was" : "they were"} doing. If it's nothing important, open the link, tap Incomplete executions, tick them and Delete.`,
         link: `${MAKE_TEAM_URL}/scenarios/${id}`,
         source: "Daily check",
       });
