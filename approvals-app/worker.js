@@ -1065,9 +1065,9 @@ async function creditsCheck(env, force) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token"));
   if (!token) return { error: "No Make token saved yet." };
   const prev = (await env.PENDING.get("credits", "json")) || {};
-  const forced = force || !!(await env.PENDING.get("credits-force"));
+  const flag = !!(await env.PENDING.get("credits-force")), forced = force || flag;
   if (!forced && prev.at && Date.now() - prev.at < 55 * 60000) return prev;
-  await env.PENDING.delete("credits-force");
+  if (flag) await env.PENDING.delete("credits-force");
   const settings = (await env.PENDING.get("credits-settings", "json")) || {};
   const sc = await makeGet(token, `/scenarios?teamId=${MAKE_TEAM}&pg%5Blimit%5D=200`);
   if (!sc.ok || !sc.j || !Array.isArray(sc.j.scenarios)) {
@@ -1109,6 +1109,7 @@ async function creditsCheck(env, force) {
 
 async function creditsAlerts(env, cur, prev) {
   const st = (await env.PENDING.get("credits-state", "json")) || {};
+  const st0 = JSON.stringify(st);
   const fresh = [];
   const link = "https://mosspit-approvals.mosspit.workers.dev/credits";
   const makeLink = MAKE_TEAM_URL;
@@ -1131,7 +1132,7 @@ async function creditsAlerts(env, cur, prev) {
       }
     }
   }
-  await env.PENDING.put("credits-state", JSON.stringify(st));
+  if (JSON.stringify(st) !== st0) await env.PENDING.put("credits-state", JSON.stringify(st));
   if (!fresh.length) return;
   const alerts = await loadAlerts(env);
   for (const f of fresh) alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "Credits", ...f });
@@ -2840,11 +2841,11 @@ async function amendHook(env, body) {
 
 // Re-read Core about every 10 minutes while any gag is still updating, and once more after the last one finishes.
 async function amendWatch(env) {
-  await env.PENDING.put("amend-tick", String(Date.now()));
   const S = await env.PENDING.get("amend", "json");
   if (!S) return;
   const log = (await env.PENDING.get("amend-log", "json")) || [];
   const w = (await env.PENDING.get("amend-watch", "json")) || {};
+  const w0 = JSON.stringify(w);   // only save when something changed (Cloudflare's free plan allows ~1,000 saves a day)
   const now = Date.now();
   const busyIds = S.gags.filter((g) => /^AMENDMENT_REQUIRED/.test(g.status)).map((g) => g.id).sort();
   const busy = busyIds.length > 0;
@@ -2871,7 +2872,7 @@ async function amendWatch(env) {
     w.batch = b;
   } else if (w.batch && !w.batch.doneAt) w.batch.doneAt = now;
   if (w.batch && w.batch.doneAt && now - w.batch.doneAt > 24 * 3600e3) delete w.batch;
-  await env.PENDING.put("amend-watch", JSON.stringify(w));
+  if (JSON.stringify(w) !== w0) await env.PENDING.put("amend-watch", JSON.stringify(w));
   if (!busy && !justSaved) return;
   if (w.last && now - w.last < 9 * 60000) return;
   w.last = now; await env.PENDING.put("amend-watch", JSON.stringify(w));
