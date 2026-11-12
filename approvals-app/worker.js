@@ -1392,7 +1392,7 @@ async function page(env) {
   const handled = items.filter((i) => i.status !== "pending").sort((a, b) => b.updatedAt - a.updatedAt);
   const alerts = await loadAlerts(env);
   const pendingHtml = pending.length
-    ? `<div class="aq">${pending.map(pendingCard).join("")}</div>`
+    ? `${pending.length > 1 ? `<div class="bulkbar" id="bulkbar"><label class="bulk"><input type="checkbox" id="pickAll"><span>Select all</span></label><button class="btn-main" id="bulkGo" type="button" disabled>${icon("check")}<span id="bulkTxt">Approve ticked</span></button></div>` : ""}<div class="aq">${pending.map(pendingCard).join("")}</div>`
     : `<div class="card empty">${icon("approve")}Nothing waiting for review. New videos appear here.</div>`;
   const comingHtml = comingUp(await env.PENDING.get("daily", "json"));
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid" id="handled">${handled.map((h, n) => n < 6 ? handledCard(h) : handledCard(h).replace('<div class="card', '<div hidden class="card')).join("")}</div>${handled.length > 6 ? `<button class="btn" id="showAll" type="button" style="margin-top:12px" onclick="document.querySelectorAll('#handled [hidden]').forEach(function(e){e.hidden=false});this.remove()">Show all ${handled.length}</button>` : ""}` : "";
@@ -1417,6 +1417,13 @@ ${handledHtml}
 .fsbtn{position:absolute;right:10px;top:10px;min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid rgba(255,255,255,.5);background:rgba(0,0,0,.6);color:#fff;font:800 11px var(--display);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
 .ac .meta2{display:flex;flex-direction:column;gap:12px;min-width:0}
 .ac .rlogo{height:30px;width:auto;align-self:flex-start}
+.ahead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.bulk{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);min-height:44px;padding:0 6px}
+.bulk input{width:28px;height:28px;accent-color:var(--go);margin:0}
+.bulkbar{position:sticky;top:var(--topbar,76px);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;margin:0 0 14px;border:1px solid var(--line);border-radius:16px;background:rgba(13,13,12,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.bulkbar .btn-main{width:auto;min-height:52px;padding:0 22px}
+.bulkbar .btn-main[disabled]{opacity:.45}
+.ac.picked{box-shadow:0 0 0 3px var(--go)}
 .ac .code{color:var(--muted)}
 .ac .title{font-size:22px}
 .abig{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
@@ -1460,6 +1467,21 @@ function remake(d) {
   });
 }
 document.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", () => approve(cardOf(b))));
+// Bulk approve: tick cards, then approve them all. Make's Approve scenario runs one at a time, so they queue safely.
+const picks = () => [...document.querySelectorAll("[data-pick]")];
+function bulkSync() { const n = picks().filter((x) => x.checked).length; if (!$("bulkGo")) return;
+  $("bulkGo").disabled = !n; $("bulkTxt").textContent = n ? "Approve " + n + " ticked" : "Approve ticked";
+  $("pickAll").checked = n && n === picks().length; picks().forEach((x) => x.closest(".ac").classList.toggle("picked", x.checked)); }
+picks().forEach((x) => x.addEventListener("change", bulkSync));
+if ($("pickAll")) $("pickAll").addEventListener("change", (e) => { picks().forEach((x) => { x.checked = e.target.checked; }); bulkSync(); });
+if ($("bulkGo")) $("bulkGo").onclick = () => { const ds = picks().filter((x) => x.checked).map((x) => cardOf(x));
+  ask("Approve " + ds.length + " video" + (ds.length === 1 ? "" : "s") + "?", "Each listing gets its video, goes live and is posted to Pinterest, Instagram and Facebook. Make does them one at a time, about 2 minutes each, so the last one finishes in roughly " + Math.max(2, ds.length * 2) + " minutes.", "Approve " + ds.length, async () => {
+    $("bulkGo").disabled = true; let ok = 0, bad = [];
+    for (const d of ds) { d.card.style.opacity = ".5"; $("bulkTxt").textContent = "Approving " + (ok + bad.length + 1) + " of " + ds.length + "…";
+      try { await post("/api/approve", { row: d.row, code: d.code }); ok++; } catch (err) { d.card.style.opacity = ""; bad.push(d.product + ": " + err.message); } }
+    toast(ok + " approved" + (bad.length ? ", " + bad.length + " didn't go: " + bad[0] : ": going live"), !!bad.length);
+    setTimeout(() => location.reload(), bad.length ? 4000 : 1500); });
+};
 document.querySelectorAll("[data-remake]").forEach((b) => b.addEventListener("click", () => remake(cardOf(b))));
 document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { const d = cardOf(b);
   ask("Reject " + d.product + " without a new video?", "It's marked REJECTED in Core and no new video is made until you tap Make new video.", "Reject", async () => {
@@ -1473,7 +1495,7 @@ document.querySelectorAll("[data-fs]").forEach((b) => b.addEventListener("click"
 document.querySelectorAll(".ac").forEach((c) => {
   let x0 = null, y0 = 0, dx = 0, locked = false;
   const hl = c.querySelector(".swipehint.l"), hr = c.querySelector(".swipehint.r");
-  c.addEventListener("touchstart", (e) => { if (e.target.closest("video,button,a,.fsbtn")) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; locked = false; }, { passive: true });
+  c.addEventListener("touchstart", (e) => { if (e.target.closest("video,button,a,.fsbtn,label,input")) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; dx = 0; locked = false; }, { passive: true });
   c.addEventListener("touchmove", (e) => { if (x0 === null) return; const t = e.touches[0]; dx = t.clientX - x0;
     if (!locked) { if (Math.abs(t.clientY - y0) > Math.abs(dx)) { x0 = null; return; } locked = Math.abs(dx) > 10; }
     if (locked) { c.classList.add("dragging"); c.style.transform = "translateX(" + dx + "px) rotate(" + dx / 40 + "deg)"; hl.style.opacity = Math.max(0, Math.min(1, dx / 120)); hr.style.opacity = Math.max(0, Math.min(1, -dx / 120)); } }, { passive: true });
@@ -1512,7 +1534,7 @@ function pendingCard(i) {
   <span class="swipehint l">Approve</span><span class="swipehint r">Remake</span>
   ${player}
   <div class="meta2">
-    <img class="rlogo" src="/assets/brand-${coll.toLowerCase()}-wide.png?v=2" alt="">
+    <div class="ahead"><img class="rlogo" src="/assets/brand-${coll.toLowerCase()}-wide.png?v=2" alt=""><label class="bulk"><input type="checkbox" data-pick aria-label="Tick to approve in bulk"><span>Tick</span></label></div>
     <span class="code">${esc(i.product)} · rendered ${esc(when(i.receivedAt))}</span>
     ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
     ${captionBlock(i)}
@@ -2086,6 +2108,7 @@ const OWN_LINKS = [
   ["Introvert Here", /^(own shop|introvert here)/i, "https://introvert-here-shop.mosspit.workers.dev", "#f2f0eb", '<rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="16" cy="10" r="2.6" fill="currentColor"/><rect x="13.2" y="13.6" width="5.6" height="6.6" rx="1.8" fill="currentColor"/><rect x="13.2" y="18" width="2.4" height="6.5" rx="1.2" fill="currentColor"/><rect x="16.4" y="18" width="2.4" height="6.5" rx="1.2" fill="currentColor"/>'],
   ["Tag Checker", /^tag checker/i, "https://tag-checker.mosspit.workers.dev", "#c9a434", '<path d="M4 6v9.5L17.5 29 29 17.5 15.5 4H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><circle cx="10.5" cy="10.5" r="2.4" fill="currentColor"/><path d="M14 18.5l3 3 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'],
   ["Mosspit Studios", /^(studio site|mosspit)/i, "https://mosspit-draft.mosspit.workers.dev", "#f08a4b", '<path d="M16 9.5c-2-2.6-6.2-2.8-8.6-.3-2.8 2.9-2.6 8.6.4 12.8 2.2 3.1 5.4 5 8.2 5s6-1.9 8.2-5c3-4.2 3.2-9.9.4-12.8-2.4-2.5-6.6-2.3-8.6.3z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M16 9.5c.6 4.2.4 9.8-1.2 16.6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M16.4 8.6c1.2-3 3.8-4.6 7.4-4.4-1 3.4-3.8 5-7.4 4.4z" fill="currentColor"/><path d="M15.6 9c-.2-1.8-.8-3.2-1.8-4.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>'],
+  ["Core", /^core\b/i, "https://mosspitstudios-my.sharepoint.com/personal/admin_mosspit_org/_layouts/15/Doc.aspx?sourcedoc=%7BEA717AD9-320A-4722-B604-03270C9D7310%7D&file=001A_INTROVERT_HERE_CORE.xlsx&action=default&mobileredirect=true", "#33c481", '<rect x="4" y="5" width="24" height="22" rx="3" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M4 12h24M4 19h24M13 5v22" fill="none" stroke="currentColor" stroke-width="2.2"/>'],
   ["GitHub", /^code/i, "https://github.com/Mosspit-droid/introvert-here-renderer", "#8b949e", '<path d="M16 4a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 16 4z" fill="currentColor"/>'],
 ];
 
