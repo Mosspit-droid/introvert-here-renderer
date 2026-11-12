@@ -3129,7 +3129,7 @@ async function amendApply2(request, env, given) {
     if (await env.PENDING.get("amend-trial")) throw new Error("A trial listing is waiting for you to check. Tap Carry on or Stop at the top of this page first.");
     d.comboListings = d.listings.slice();
     const rest = { ...d, trial: false, listings: d.listings.slice(1), comboListings: undefined };
-    if (rest.photo && rest.photo.mode === "add") rest.photo = { mode: "one", key: String(rest.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "") + "#1" };
+    if (rest.photo && rest.photo.mode === "add") rest.photo = { mode: "one", keys: [String(rest.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "") + "#1"] };
     trialRest = { first: d.listings[0], rest, at: Date.now() };
     d.listings = [d.listings[0]];
   }
@@ -3206,9 +3206,9 @@ async function amendApply2(request, env, given) {
     // A trial adds the new page to Core for every garment picked, not just the trial listing's.
     (d.comboListings || []).forEach((l) => { const g = S.gags.find((x) => x.id === String(l.gag || "")); if (g) combosPicked.add(g.coll + "|" + String(l.garment || "")); });
     if (d.photo.mode === "one") {
-      const key = String(d.photo.key || "");
-      if (!/^[A-Z_]+#\d+$/.test(key) || /^THUMBNAIL/.test(key)) throw new Error("Pick which photo to swap.");
-      photoJob = { action: "replace", key, at: Date.now() };
+      const keys = (Array.isArray(d.photo.keys) ? d.photo.keys : d.photo.key ? [d.photo.key] : []).map(String).filter((k) => /^[A-Z_]+#\d+$/.test(k) && !/^THUMBNAIL/.test(k));
+      if (!keys.length) throw new Error("Tick at least one photo to refresh.");
+      photoJob = { action: "replace", keys, key: keys[0], at: Date.now() };
     } else {
       const name = String(d.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "");
       if (!/^[A-Z][A-Z_]{1,23}$/.test(name)) throw new Error("Give the new photo a name, letters only (e.g. BEACH).");
@@ -3386,7 +3386,7 @@ function photoPlan(pages, hero) {
   return order.map(function (p, i) {
     var thumb = /THUMBNAIL/.test(nm(p)), b = thumb ? "THUMBNAIL" : baseOf(p);
     seen[b] = (seen[b] || 0) + 1;
-    var label = b.toLowerCase().replace(/_/g, " "); label = label.charAt(0).toUpperCase() + label.slice(1);
+    var label = b.toLowerCase().replace(/_/g, " "); label = /^(agm)$/.test(label) ? label.toUpperCase() : label.charAt(0).toUpperCase() + label.slice(1);
     return { pos: Number(p.pos), name: p.name, key: b + "#" + seen[b], label: label + (seen[b] > 1 ? " " + seen[b] : ""), thumb: thumb, rank: i === 0 ? 1 : i + 2 };
   });
 }
@@ -3411,7 +3411,7 @@ function rColl(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] ===
 function $(id) { return document.getElementById(id); }
 function h(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 var A;  // all choices; Start over resets it
-function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", key:"", name:"", each:true }, trial:true, done:null, err:"" }; }
+function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", keys:{}, name:"", each:true }, trial:true, done:null, err:"" }; }
 fresh();
 var ALL = [];
 if (S0) S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
@@ -3437,7 +3437,7 @@ function render() {
   $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
   $("back").hidden = A.step === 0 || !!A.done;
   $("next").hidden = A.step >= 3;
-  $("next").disabled = (A.step === 0 && !n) || (A.step === 1 && !w.length);
+  $("next").disabled = (A.step === 0 && !n) || (A.step === 1 && !w.length) || (A.step === 2 && A.what.mockups && A.photo.mode === "one" && !Object.keys(A.photo.keys).length) || (A.step === 2 && A.what.mockups && A.photo.mode === "add" && !A.photo.name);
   $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(Array.isArray(l.what) ? l.what.join(", ") : (l.what || "")) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
   $("readAt").textContent = "Core read " + new Date(S0.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
 }
@@ -3476,18 +3476,20 @@ function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected
 // Mockups: all photos, just one photo, or add a new one (all three work per listing, per range or globally).
 function pagesFor(combo) { var p = combo.split("|"); return (S0.pages || []).filter(function (x) { return x.coll === rColl(p[0]) && x.type === p[1]; }); }
 function photoChoice(cb) {
-  var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Just one photo","Swap one photo on each listing (pick which one below). About 25 credits a listing."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template. About 25 credits a listing."]];
+  var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Choose photos","Tick just the photos to refresh. About 25 credits a listing, however many you tick."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template. About 25 credits a listing."]];
   var out = '<div class="col">' + opts.map(function (o) { return '<label class="tick"><input type="radio" name="pmode" data-pmode="' + o[0] + '"' + (P.mode === o[0] ? " checked" : "") + '><span class="lbl">' + o[1] + "<small>" + o[2] + "</small></span></label>"; }).join("") + "</div>";
-  if (!S0.pages) return out + '<p class="hint">Tap Sync to Core first so the app knows your mockup pages.</p>';
+  if (!S0.pages) return out + '<div class="errbox">The app doesn\'t have your mockup page list yet. <button class="abtn" type="button" id="readPages" style="margin-left:8px">Read it from Core</button> (takes about a minute, then this page reloads).</div>';
   if (P.mode === "one") {
     var keys = {}, order = [];
     cb.forEach(function (c) { var rule = ruleFor(c.split("|")[0], c.split("|")[1]) || {};
       photoPlan(pagesFor(c), "BLACK").forEach(function (x) { if (x.thumb) return; if (!keys[x.key]) { keys[x.key] = { label: x.label, n: 0, video: false }; order.push(x.key); }
         keys[x.key].n++; if (x.rank === rule.slot1 || x.rank === rule.slot2) keys[x.key].video = true; }); });
-    if (!P.key || !keys[P.key]) P.key = order[0] || "";
-    out += '<label class="f"><b>Which photo?</b><select data-pkey="1">' + order.map(function (k) { return '<option value="' + h(k) + '"' + (k === P.key ? " selected" : "") + ">" + h(keys[k].label) + (keys[k].n < cb.length ? " (not every garment)" : "") + "</option>"; }).join("") + "</select></label>";
-    if (P.key && keys[P.key] && keys[P.key].video) out += '<p class="hint">This photo is used in the video, so each listing also gets a new video to approve.</p>';
-    out += '<p class="hint">Thumbnails aren\'t on this list: they\'re linked to the colour choices, so use All photos for those. Each listing gets its lead colour\'s version of the photo.</p>';
+    Object.keys(P.keys).forEach(function (k) { if (!keys[k]) delete P.keys[k]; });
+    out += '<p class="q" style="margin-top:12px">Which photos?</p><p class="hint">Tick the ones to refresh. Each listing gets its lead colour\'s version.</p><div class="g2">' + order.map(function (k) {
+      return '<label class="tick"><input type="checkbox" data-pkeytick="' + h(k) + '"' + (P.keys[k] ? " checked" : "") + '><span class="lbl">' + h(keys[k].label) + "<small>" + (keys[k].video ? "In the video" : "") + (keys[k].n < cb.length ? (keys[k].video ? " · " : "") + "not every garment" : "") + "</small></span></label>"; }).join("") + "</div>";
+    var vid = Object.keys(P.keys).some(function (k) { return keys[k] && keys[k].video; });
+    if (vid) out += '<p class="hint">You\'ve ticked a photo that\'s in the video, so each listing also gets a new video to approve.</p>';
+    out += '<p class="hint">Thumbnails aren\'t on this list: they\'re linked to the colour choices, so use All photos for those.</p>';
   }
   if (P.mode === "add") {
     out += '<p class="hint"><b>First</b>, in Canva, add the new page at the <b>end</b> of the mockup template for each garment you picked. Then name it here.</p>' +
@@ -3541,7 +3543,7 @@ function details() {
 function check() {
   var ks = selKeys(), gs = {}, rs = {}, ts = {};
   ks.forEach(function (k) { var p = k.split("|"); gs[p[0]] = 1; rs[rName(p[0].slice(0, 2))] = 1; ts[gName(p[1])] = 1; });
-  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "the " + (A.photo.key ? A.photo.key.split("#")[0].toLowerCase().replace(/_/g, " ") + (A.photo.key.split("#")[1] !== "1" ? " " + A.photo.key.split("#")[1] : "") : "chosen") + " photo" : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
+  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "the " + Object.keys(A.photo.keys).map(function (k) { var p = k.split("#"); return p[0].toLowerCase().replace(/_/g, " ") + (p[1] !== "1" ? " " + p[1] : ""); }).join(" and ") + " photo" + (Object.keys(A.photo.keys).length === 1 ? "" : "s") : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
   var n = ks.length, ng = Object.keys(gs).length;
   var per = A.what.print ? 2.5 : (A.what.mockups && A.photo.mode !== "all" && !A.what.colours && !A.what.supplier) ? 0.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
   var mins = Math.max(5, Math.round(n * per) + 5);
@@ -3557,7 +3559,7 @@ function check() {
 function submit() {
   var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn(), rules: A.rules, colours: {} };
   var one = single();
-  if (A.what.mockups && A.photo.mode !== "all") body.photo = A.photo;
+  if (A.what.mockups && A.photo.mode !== "all") body.photo = A.photo.mode === "one" ? { mode: "one", keys: Object.keys(A.photo.keys) } : A.photo;
   if (A.trial && body.listings.length > 1) body.trial = true;
   if (one && A.stem != null) body.stem = A.stem;
   if (one && A.text != null) body.text = A.text;
@@ -3571,6 +3573,7 @@ function submit() {
 
 document.addEventListener("click", function (e) {
   var t = e.target.closest("button"); if (!t) return;
+  if (t.id === "readPages") { t.disabled = true; t.textContent = "Reading…"; fetch("/api/amend-refresh", { method: "POST" }); setTimeout(function () { location.reload(); }, 50000); return; }
   if (t.dataset.scope) { A.scope = t.dataset.scope; A.drill = []; render(); }
   if (t.dataset.colpick) { var ks = keys(function (k) { return k.split("|")[1] === t.dataset.colpick; }); setMany(ks, st(ks) !== "all"); render(); }
   if (t.dataset.drill) { A.drill.push(t.dataset.drill); A.q = ""; render(); }
@@ -3597,7 +3600,7 @@ document.addEventListener("change", function (e) {
   if (el.dataset.cur) { A.cur[el.dataset.cur] = el.value; render(); }
   if (el.dataset.pmode) { A.photo.mode = el.dataset.pmode; render(); }
   if (el.dataset.trialtick) { A.trial = el.checked; }
-  if (el.dataset.pkey) { A.photo.key = el.value; render(); }
+  if (el.dataset.pkeytick) { if (el.checked) A.photo.keys[el.dataset.pkeytick] = 1; else delete A.photo.keys[el.dataset.pkeytick]; render(); }
   if (el.dataset.peach) { A.photo.each = el.checked; }
   if (el.dataset.colour) { A.colours[A.cur.col] = Array.prototype.map.call(document.querySelectorAll("[data-colour]:checked"), function (i) { return i.dataset.colour; }); }
 });
