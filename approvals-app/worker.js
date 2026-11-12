@@ -142,6 +142,7 @@ export default {
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
       if (pathname === "/api/todo" && method === "POST") return await todoAppApi(request, env);
+      if (pathname === "/api/amend-trial" && method === "POST") return await amendTrial(request, env);
       if (pathname === "/api/credits-key" && method === "POST") return await creditsKey(request, env);
       if (pathname === "/api/credits-refresh" && method === "POST") { const out = await creditsCheck(env, true); return json(out.error ? { error: out.error } : { ok: true }); }
       if (pathname === "/api/todo-data" && method === "GET") return json(await todoLoad(env));
@@ -747,6 +748,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tbig{font:900 30px/1 var(--display);font-variant-numeric:tabular-nums}
 .tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
+.trialc{border:2px solid #e6b450!important}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
 .tabbar a{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;min-height:58px;border-radius:12px;color:var(--muted);font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
@@ -1321,6 +1323,7 @@ const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH
 async function dashboardPage(env) {
   const todos = (await todoLoad(env)).filter((t) => !t.done);
   const credits = await env.PENDING.get("credits", "json");
+  const trial = await env.PENDING.get("amend-trial", "json");
   const watch = (await env.PENDING.get("amend-watch", "json")) || {};
   const [items, alerts, amend, daily, gags, tags, stats, pricing, orders, hist] = await Promise.all([
     loadItems(env), loadAlerts(env), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("gags", "json"),
@@ -1399,6 +1402,7 @@ ${topBar("Dashboard")}
 <style>.progc{display:flex;flex-direction:column;gap:16px;margin-bottom:8px}.prow2{display:block;color:var(--text);text-decoration:none}
 .pt{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}.pt b{font:800 13px var(--display);letter-spacing:.14em;text-transform:uppercase}.pt span{color:var(--muted);font-size:14px}.pt em{font-style:normal;color:#e6b450;font-weight:600}
 .pbar{height:12px;border-radius:99px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;border-radius:99px;transition:width .4s}</style>
+${trial ? `<h2>Waiting for you</h2>${trialCard(trial, amend)}` : ""}
 ${prog}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
@@ -2894,8 +2898,18 @@ async function amendRefresh(env) {
 async function amendApply(request, env) {
   try { return await amendApply2(request, env); } catch (e) { return json({ error: String(e.message || e) }, 400); }
 }
-async function amendApply2(request, env) {
-  const d = await request.json();
+async function amendApply2(request, env, given) {
+  const d = given || await request.json();
+  // "Try it on one listing first": send only the first listing now, keep the rest until Barry taps Carry on.
+  let trialRest = null;
+  if (d.trial && Array.isArray(d.listings) && d.listings.length > 1) {
+    if (await env.PENDING.get("amend-trial")) throw new Error("A trial listing is waiting for you to check. Tap Carry on or Stop at the top of this page first.");
+    d.comboListings = d.listings.slice();
+    const rest = { ...d, trial: false, listings: d.listings.slice(1), comboListings: undefined };
+    if (rest.photo && rest.photo.mode === "add") rest.photo = { mode: "one", key: String(rest.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "") + "#1" };
+    trialRest = { first: d.listings[0], rest, at: Date.now() };
+    d.listings = [d.listings[0]];
+  }
   const S = await env.PENDING.get("amend", "json");
   if (!S) throw new Error("The page hasn't read Core yet. Tap Sync to Core and try again in a minute.");
   const what = new Set((Array.isArray(d.what) ? d.what : []).filter((w) => AMEND_WHAT.includes(w)));
@@ -2966,6 +2980,8 @@ async function amendApply2(request, env) {
     const pagesOf = (coll, type) => (S.pages || []).filter((x) => x.coll === coll && x.type === type);
     const combosPicked = new Set();
     gagIds.forEach((id) => { const g = S.gags.find((x) => x.id === id); byGag[id].forEach((t) => combosPicked.add(g.coll + "|" + t)); });
+    // A trial adds the new page to Core for every garment picked, not just the trial listing's.
+    (d.comboListings || []).forEach((l) => { const g = S.gags.find((x) => x.id === String(l.gag || "")); if (g) combosPicked.add(g.coll + "|" + String(l.garment || "")); });
     if (d.photo.mode === "one") {
       const key = String(d.photo.key || "");
       if (!/^[A-Z_]+#\d+$/.test(key) || /^THUMBNAIL/.test(key)) throw new Error("Pick which photo to swap.");
@@ -3010,11 +3026,37 @@ async function amendApply2(request, env) {
   const log = (await env.PENDING.get("amend-log", "json")) || [];
   log.unshift({ at: Date.now(), what: [...what], listings: n, gags: gagIds });
   await env.PENDING.put("amend-log", JSON.stringify(log.slice(0, 20)));
+  if (trialRest) { await env.PENDING.put("amend-trial", JSON.stringify(trialRest)); return json({ ok: true, gags: 1, listings: 1, trial: true, rest: trialRest.rest.listings.length, first: trialRest.first }); }
   return json({ ok: true, gags: gagIds.length, listings: n });
+}
+
+async function amendTrial(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const t = await env.PENDING.get("amend-trial", "json");
+  if (!t) return json({ error: "There's no trial waiting." }, 400);
+  await env.PENDING.delete("amend-trial");
+  if (d.action !== "carry") return json({ ok: true, stopped: true });
+  try { return await amendApply2(null, env, t.rest); }
+  catch (e) { await env.PENDING.put("amend-trial", JSON.stringify(t)); return json({ error: String(e.message || e) }, 400); }
+}
+
+// The trial card (Update listings page and dashboard): updating, or ready to check.
+function trialCard(t, S, where) {
+  if (!t) return "";
+  const g = S && S.gags ? S.gags.find((x) => x.id === t.first.gag) : null;
+  const busy = g && /^AMENDMENT_REQUIRED/.test(g.status);
+  const name = esc(t.first.gag + " " + t.first.garment.toLowerCase().replace("-", " "));
+  const n = t.rest.listings.length;
+  return `<div class="card trialc"><b>${busy ? "Trying it on one listing first" : "Trial done: check it"}</b>
+<p class="small" style="margin:6px 0 10px">${busy ? `Updating ${name} now. When it's done, check it on Etsy, then carry on with the other ${n}.` : `Look at ${name} on Etsy. If it's right, carry on with the other ${n} listing${n === 1 ? "" : "s"}. If not, stop and nothing else changes.`}</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/gag/${encodeURIComponent(t.first.gag)}">Open ${esc(t.first.gag)}</a>${busy ? "" : `<button class="btn-main" type="button" data-trial="carry" style="width:auto;padding:0 20px">Carry on with ${n}</button>`}<button class="btn" type="button" data-trial="stop">Stop</button></div></div>
+<script>document.querySelectorAll("[data-trial]").forEach(function (b) { b.onclick = function () { var a = b.dataset.trial; if (a === "stop" && !confirm("Stop here? The other listings won't be changed.")) return; b.disabled = true;
+  fetch("/api/amend-trial", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: a }) }).then(function (r) { return r.json(); }).then(function (j) { if (j.error) { toast(j.error, true); b.disabled = false; } else { toast(a === "carry" ? "Carrying on with the rest" : "Stopped"); setTimeout(function () { location.reload(); }, 900); } }); }; });</script>`;
 }
 
 async function amendPage(env) {
   const S = (await env.PENDING.get("amend", "json")) || null;
+  const trial = await env.PENDING.get("amend-trial", "json");
   const log = (await env.PENDING.get("amend-log", "json")) || [];
   const data = JSON.stringify({ S, log }).replace(/</g, "\\u003c");
   return shell(`
@@ -3074,6 +3116,7 @@ async function amendPage(env) {
 </style>
 ${brandHeader("Update listings", `<button class="btn" id="restart" type="button"${S && S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status)) ? "" : " hidden"}>${icon("sync")}Restart updates</button><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="aw">
+  ${trialCard(trial, S)}
   <div class="steps" id="steps"></div>
   <div class="card" id="view"></div>
   <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div><p class="small" id="readAt" style="margin:8px 0 0"></p></div>
@@ -3145,7 +3188,7 @@ function rColl(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] ===
 function $(id) { return document.getElementById(id); }
 function h(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 var A;  // all choices; Start over resets it
-function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", key:"", name:"", each:true }, done:null, err:"" }; }
+function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", key:"", name:"", each:true }, trial:true, done:null, err:"" }; }
 fresh();
 var ALL = [];
 if (S0) S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
@@ -3279,10 +3322,12 @@ function check() {
   var n = ks.length, ng = Object.keys(gs).length;
   var per = A.what.print ? 2.5 : (A.what.mockups && A.photo.mode !== "all" && !A.what.colours && !A.what.supplier) ? 0.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
   var mins = Math.max(5, Math.round(n * per) + 5);
+  if (A.done && A.done.trial) { $("view").innerHTML = '<div class="okbox"><p class="q">Trying it on one listing first</p><p class="hint" style="color:var(--text)">' + h(A.done.first.gag + " " + A.done.first.garment.toLowerCase()) + " starts updating in about 5 minutes. When it's done, a yellow box appears at the top of this page and on the dashboard: check the listing on Etsy, then tap Carry on for the other " + A.done.rest + ", or Stop.</p></div>"; return; }
   if (A.done) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">Etsy starts updating in about 5 minutes: ' + A.done.listings + " listing" + (A.done.listings === 1 ? "" : "s") + " across " + A.done.gags + " gag" + (A.done.gags === 1 ? "" : "s") + ". Each gag shows as updating in the By listing view until it's finished. You'll get an alert if anything fails.</p></div>"; return; }
   $("view").innerHTML = '<p class="q">Check and confirm</p><p class="sum">Change <b>' + h(w.join(", ")) + "</b> on <b>" + n + " listing" + (n === 1 ? "" : "s") + "</b> (" + ng + " gag" + (ng === 1 ? "" : "s") + ") in " + h(Object.keys(rs).join(", ")) + '.</p><div class="chips">' + Object.keys(ts).map(function (t) { return "<span>" + h(t) + "</span>"; }).join("") + "</div>" +
     '<p class="hint">Saved to Core straight away. Etsy starts updating 5 minutes later and takes roughly ' + (mins >= 90 ? Math.round(mins / 6) / 10 + " hours" : mins + " minutes") + ". Listings stay live throughout." + (A.what.print ? " New videos come to the Approvals page for you to approve; approving re-posts them to social." : "") + "</p>" +
     (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") +
+    (n > 1 ? '<label class="tick" style="margin-top:10px"><input type="checkbox" data-trialtick="1"' + (A.trial ? " checked" : "") + '><span class="lbl">Try it on one listing first<small>Updates ' + h(ks[0].replace("|", " ").toLowerCase()) + ' only. You check it on Etsy, then tap Carry on for the other ' + (n - 1) + '. Recommended.</small></span></label>' : "") +
     '<div class="okbox" style="margin-top:10px"><b>Ready?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="abtn go" type="button" id="go">Confirm and start</button></div></div>';
   $("go").onclick = submit;
 }
@@ -3290,6 +3335,7 @@ function submit() {
   var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn(), rules: A.rules, colours: {} };
   var one = single();
   if (A.what.mockups && A.photo.mode !== "all") body.photo = A.photo;
+  if (A.trial && body.listings.length > 1) body.trial = true;
   if (one && A.stem != null) body.stem = A.stem;
   if (one && A.text != null) body.text = A.text;
   if (A.what.colours) { var rs = {}; combos().forEach(function (c) { rs[c.split("|")[0]] = 1; }); Object.keys(rs).forEach(function (code) { if (A.colours[code]) body.colours[code] = A.colours[code]; else { var rules = S0.rules.filter(function (r) { return r.coll === rColl(code); }); var p = S0.profiles.filter(function (x) { return rules[0] && x.name === rules[0].profile; })[0]; body.colours[code] = String(p ? p.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean); } }); }
@@ -3327,6 +3373,7 @@ document.addEventListener("change", function (e) {
   if (el.dataset.what) { if (el.checked) A.what[el.dataset.what] = 1; else delete A.what[el.dataset.what]; render(); }
   if (el.dataset.cur) { A.cur[el.dataset.cur] = el.value; render(); }
   if (el.dataset.pmode) { A.photo.mode = el.dataset.pmode; render(); }
+  if (el.dataset.trialtick) { A.trial = el.checked; }
   if (el.dataset.pkey) { A.photo.key = el.value; render(); }
   if (el.dataset.peach) { A.photo.each = el.checked; }
   if (el.dataset.colour) { A.colours[A.cur.col] = Array.prototype.map.call(document.querySelectorAll("[data-colour]:checked"), function (i) { return i.dataset.colour; }); }
