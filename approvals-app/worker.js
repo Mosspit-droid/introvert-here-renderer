@@ -44,6 +44,7 @@ export default {
       if (pathname === "/api/pending" && method === "POST") return await ingest(request, env, ctx, url);
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
+      if (pathname === "/api/template-result" && method === "POST") return await templateResult(request, env);
       if (pathname === "/api/photo-job" && method === "GET") return checkSecret(request, env) ? json((await env.PENDING.get("photo-job", "json")) || {}) : json({ error: "bad secret" }, 403);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
@@ -142,6 +143,8 @@ export default {
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
       if (pathname === "/api/todo" && method === "POST") return await todoAppApi(request, env);
+      if (pathname === "/api/template-check" && method === "POST") return await templateCheck(request, env);
+      if (pathname === "/api/template-checks" && method === "GET") return json((await env.PENDING.get("tpl-checks", "json")) || {});
       if (pathname === "/api/amend-trial" && method === "POST") return await amendTrial(request, env);
       if (pathname === "/api/credits-key" && method === "POST") return await creditsKey(request, env);
       if (pathname === "/api/credits-refresh" && method === "POST") { const out = await creditsCheck(env, true); return json(out.error ? { error: out.error } : { ok: true }); }
@@ -2751,8 +2754,57 @@ function gagIssuesFn(g) {
   return issues;
 }
 
+
+// ---------- Mockup template check ----------
+// Make (helper scenario, action "template") makes a throwaway copy of the published Canva template and reports
+// its page count; the app compares that with Core's MOCKUP_PAGES rows for the range and garment.
+function templateIssues(S, coll, type, pagesInCanva) {
+  const pg = (S && S.pages || []).filter((x) => x.coll === coll && x.type === type).sort((a, b) => a.pos - b.pos);
+  const out = [], n = Number(pagesInCanva) || 0;
+  if (!pg.length) return [["bad", "Core has no mockup pages listed for this range and garment."]];
+  const maxPos = Math.max(...pg.map((x) => x.pos));
+  if (n && n < maxPos) out.push(["bad", `Core lists page ${maxPos}, but the published Canva template only has ${n} pages. The builder will fail on these listings. Publish the template with all its pages, or ask Claude to remove the extra rows from Core.`]);
+  if (n > maxPos) out.push(["warn", `The published Canva template has ${n} pages, but Core only goes up to page ${maxPos}. ${n === maxPos + 1 ? `Page ${n} is` : `Pages ${maxPos + 1}–${n} are`} never used. If they're new photos, use Update listings → Add a new photo; if not, delete them in Canva.`]);
+  const listed = new Set(pg.map((x) => x.pos)), gaps = [];
+  for (let i = 1; i <= Math.min(n || maxPos, maxPos); i++) if (!listed.has(i)) gaps.push(i);
+  if (gaps.length) out.push(["warn", `Canva page${gaps.length === 1 ? "" : "s"} ${gaps.join(", ")} ${gaps.length === 1 ? "isn't" : "aren't"} in Core, so ${gaps.length === 1 ? "it's" : "they're"} never uploaded. Fine if that's on purpose.`]);
+  const dup = pg.filter((x, i) => pg.findIndex((y) => y.pos === x.pos) !== i).map((x) => x.pos);
+  if (dup.length) out.push(["bad", `Core lists page ${[...new Set(dup)].join(", ")} more than once.`]);
+  const badName = pg.filter((x) => { const m = /^[A-Z]+_(\d+)_[A-Z]{2}_/.exec(String(x.name).toUpperCase()); return !m || Number(m[1]) !== x.pos; });
+  if (badName.length) out.push(["warn", `${badName.length} page name${badName.length === 1 ? " doesn't" : "s don't"} match the pattern RANGE_NN_GARMENT_NAME with the right page number: ${badName.slice(0, 4).map((x) => x.name + " (page " + x.pos + ")").join(", ")}.`]);
+  if (!pg.some((x) => /THUMBNAIL/i.test(x.name))) out.push(["warn", "No THUMBNAIL page, so listings won't have a proper first photo."]);
+  const photos = photoPlan(pg, "BLACK").length + 1;
+  if (photos > 20) out.push(["bad", `That's ${photos} photos per listing, and Etsy allows 20.`]);
+  if (!out.length) out.push(["ok", `All good: ${n} pages in Canva, all listed in Core with proper names. ${photos} photos per listing.`]);
+  return out;
+}
+async function templateCheck(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const S = await env.PENDING.get("amend", "json");
+  const r = S && (S.rules || []).find((x) => x.coll === d.coll && x.type === d.type);
+  if (!r || !r.tpl) return json({ error: "The app doesn't know that template yet. Tap Sync to Core on Update listings, wait a minute, and try again." }, 400);
+  const err = await amendHook(env, { action: "template", ops: JSON.stringify({ tpl: r.tpl, coll: d.coll, type: d.type }) });
+  if (err) return err;
+  const all = (await env.PENDING.get("tpl-checks", "json")) || {};
+  all[d.coll + "|" + d.type] = { running: true, at: Date.now() };
+  await env.PENDING.put("tpl-checks", JSON.stringify(all));
+  return json({ ok: true });
+}
+async function templateResult(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await request.json().catch(() => ({}));
+  const S = await env.PENDING.get("amend", "json");
+  const all = (await env.PENDING.get("tpl-checks", "json")) || {};
+  all[d.coll + "|" + d.type] = { at: Date.now(), pages: Number(d.pages) || 0, issues: templateIssues(S, d.coll, d.type, d.pages) };
+  await env.PENDING.put("tpl-checks", JSON.stringify(all));
+  return json({ ok: true });
+}
+
 async function toolsPage(env) {
   const runs = (await env.PENDING.get("tool-runs", "json")) || {};
+  const SA = await env.PENDING.get("amend", "json");
+  const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const tplOpts = ((SA && SA.rules) || []).map((r) => `<option value="${esc(r.coll + "|" + r.type)}">${esc((RN[r.coll] || r.coll) + " · " + r.type.toLowerCase().replace("-", " "))}</option>`).join("");
   const last = (k) => runs[k] ? "Last started " + esc(when(runs[k].at)) + " (" + esc(runs[k].scope) + ")" : "Not run from the app yet";
   const scope = (k, withOS) => `<div class="prow"><label>Which listings</label><select class="tsel" data-k="${k}">
     <option value="">All collections</option><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option><option value="OS">Off The Shelf</option></select></div>
@@ -2771,6 +2823,13 @@ async function toolsPage(env) {
 .gchip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid var(--frame);border-radius:12px;color:var(--text);text-decoration:none;font:700 13px var(--display);letter-spacing:.06em}
 </style>
 ${brandHeader("Check Core", `<button class="btn" id="scanRefresh" type="button">${icon("sync")}Sync to Core</button>`)}
+<div class="frame" style="max-width:860px;margin-bottom:16px"><div class="card tcard">
+  <h3>Check a mockup template</h3>
+  <p>Run this after you publish a Canva mockup template. It compares the template with Core's page list and tells you if anything doesn't match, before you update any listings. About 3 Make credits. It leaves a copy called "TEMPLATE CHECK (safe to delete)" in Canva.</p>
+  <div class="prow"><label>Range and garment</label><select id="tplPick">${tplOpts}</select></div>
+  <button class="btn-main" id="tplGo" type="button">${icon("check")}Check this template</button>
+  <div id="tplOut" class="small" style="margin-top:12px"></div>
+</div></div>
 <div class="frame" style="max-width:860px"><div class="card tcard">
   <h3>Check the gags for problems</h3>
   <p>Runs by itself whenever you open this page or the dashboard. Looks through every written gag for duplicates, very similar gags, title stems with stray spaces or line breaks, gags missing the opening "...", and custom tags over Etsy's 20 characters. Instant and free.</p>
@@ -2802,6 +2861,21 @@ async function scan() {
   out.innerHTML = issues.length ? head + issues.length + " thing" + (issues.length === 1 ? "" : "s") + " to look at. Tap a gag to open it and fix it:" + issues.map((x) =>
     '<div class="issue"><b>' + esc2(x.t) + '</b>' + (x.d ? esc2(x.d) + "<br>" : "") + '<span class="gchips">' + x.ids.map((id) => '<a class="gchip" href="/gag/' + encodeURIComponent(id) + '">' + esc2(id) + " ›</a>").join("") + "</span></div>").join("") : head + "No problems found. ✓";
 }
+async function tplShow() {
+  const k = $("tplPick").value; const all = await (await fetch("/api/template-checks")).json(); const c = all[k];
+  if (!c) { $("tplOut").textContent = ""; return false; }
+  if (c.running) { $("tplOut").textContent = "Checking… (about a minute)"; return Date.now() - c.at < 5 * 60e3; }
+  const icon = { ok: "✓", warn: "!", bad: "✕" };
+  $("tplOut").innerHTML = "Checked " + new Date(c.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + ":" + c.issues.map((x) => '<div class="issue"><b>' + icon[x[0]] + " " + (x[0] === "ok" ? "Looks right" : x[0] === "bad" ? "Needs fixing" : "Worth a look") + "</b>" + esc2(x[1]) + "</div>").join("");
+  return false;
+}
+let tplTimer = null;
+async function tplPoll() { clearTimeout(tplTimer); if (await tplShow()) tplTimer = setTimeout(tplPoll, 8000); }
+$("tplPick").addEventListener("change", tplPoll);
+$("tplGo").addEventListener("click", async () => { $("tplGo").disabled = true; const [coll, type] = $("tplPick").value.split("|");
+  const r = await fetch("/api/template-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ coll, type }) }); const j = await r.json().catch(() => ({}));
+  $("tplGo").disabled = false; if (!r.ok) { $("tplOut").textContent = j.error || "Couldn't start the check."; return; } tplPoll(); });
+tplPoll();
 $("scan").addEventListener("click", scan);
 scan();
 $("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Syncing to Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); toast("Syncing to Core"); });
