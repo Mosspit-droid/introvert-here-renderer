@@ -698,9 +698,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .need.warn .big{color:var(--warn)}
 .need.run .big{color:var(--info)}
 .need.quiet .big{color:var(--dim)}
-.tiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
-.tiles .tile{grid-column:span 1}.tiles .tile.primary{grid-column:span 3}
-@media (max-width:900px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}.tiles .tile.primary{grid-column:span 3}}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.tiles .tile{grid-column:span 1}.tiles .tile.primary{grid-column:span 2}
 @media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles .tile.primary{grid-column:span 2}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
@@ -1290,6 +1289,7 @@ ${brandHeader("To-do")}
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
 async function dashboardPage(env) {
   const todos = (await todoLoad(env)).filter((t) => !t.done);
+  const credits = await env.PENDING.get("credits", "json");
   const watch = (await env.PENDING.get("amend-watch", "json")) || {};
   const [items, alerts, amend, daily, gags, tags, stats, pricing, orders, hist] = await Promise.all([
     loadItems(env), loadAlerts(env), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("gags", "json"),
@@ -1365,6 +1365,8 @@ ${todayStrip}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
   ${tile("/pricing", "price", "Pricing", tee ? `T-shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
   ${tile("/links", "links", "Links", "Key addresses")}
+  ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
+  ${tile("/check", "check", "Check Core", "Core checks and tools")}
 </div>
 <h2>Ranges</h2>
 <div class="ranges">${ranges}</div>
