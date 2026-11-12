@@ -1480,7 +1480,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   const todayStrip = `<div class="today">
   <div class="tcell"><span class="tl">Releasing today</span>${todays.length ? todays.map((u) => `<a href="/gag/${encodeURIComponent(u.gag)}"><b>${esc(u.title || u.gag)}</b> ${esc(TYPE_NAMES[u.type] || u.type)} ${u.built ? '<span class="tok">✓ built</span>' : '<span class="tno">not built yet</span>'}</a>`).join("") : "<span>Nothing today</span>"}</div>
   <div class="tcell"><span class="tl">Views, last day</span><b class="tbig">${viewsDelta === null ? "—" : (viewsDelta >= 0 ? "+" : "") + viewsDelta}</b></div>
-  <div class="tcell"><span class="tl">Items sold (Etsy)</span><b class="tbig">${stats && stats.orderTotal != null ? esc(String(stats.orderTotal)) : "—"}</b></div>
+  <div class="tcell"><span class="tl">Items sold (Etsy)</span><b class="tbig">${stats && Array.isArray(stats.orders) ? stats.orders.filter((o) => !/cancel/i.test(String(o.status || ""))).reduce((n, o) => n + (Number(o.qty) || 0), 0) : "—"}</b></div>
   <a class="tcell tdcell" href="/todo"><span class="tl">To-do</span><b class="tbig">${todos.length}</b><span class="small">${todos.length ? esc(todos[0].text).slice(0, 50) : "Nothing on the list"}</span></a>
 </div>`;
   const lowRanges = DASH_RANGES.filter(([code, coll]) => {
