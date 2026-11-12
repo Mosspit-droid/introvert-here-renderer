@@ -2856,9 +2856,14 @@ async function templateCheck(request, env) {
   const d = await request.json().catch(() => ({}));
   const S = await env.PENDING.get("amend", "json");
   const r = S && (S.rules || []).find((x) => x.coll === d.coll && x.type === d.type);
-  if (!r || !r.tpl) return json({ error: "The app doesn't know that template yet. Tap Sync to Core on Update listings, wait a minute, and try again." }, 400);
-  const err = await amendHook(env, { action: "template", ops: JSON.stringify({ tpl: r.tpl, coll: d.coll, type: d.type }) });
-  if (err) return err;
+  if (!r || !r.tpl) {
+    // The app's copy of Core is too old to know the template: refresh it, and run the check as soon as it arrives.
+    await env.PENDING.put("tpl-pending", JSON.stringify({ coll: d.coll, type: d.type, at: Date.now() }));
+    const e2 = await amendHook(env, { action: "state" }); if (e2) return e2;
+  } else {
+    const err = await amendHook(env, { action: "template", ops: JSON.stringify({ tpl: r.tpl, coll: d.coll, type: d.type }) });
+    if (err) return err;
+  }
   const all = (await env.PENDING.get("tpl-checks", "json")) || {};
   all[d.coll + "|" + d.type] = { running: true, at: Date.now() };
   await env.PENDING.put("tpl-checks", JSON.stringify(all));
@@ -2952,7 +2957,7 @@ $("tplGo").addEventListener("click", async () => { $("tplGo").disabled = true; c
 tplPoll();
 $("scan").addEventListener("click", scan);
 scan();
-$("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Syncing to Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); toast("Syncing to Core"); });
+$("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Syncing to Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); fetch("/api/amend-refresh", { method: "POST" }); toast("Syncing to Core"); });
 </script>`);
 }
 
@@ -2980,6 +2985,12 @@ async function amendSync(request, env) {
   const data = await request.json();
   data.at = Date.now();
   await env.PENDING.put("amend", JSON.stringify(data));
+  const pend = await env.PENDING.get("tpl-pending", "json");
+  if (pend) {
+    await env.PENDING.delete("tpl-pending");
+    const r = (data.rules || []).find((x) => x.coll === pend.coll && x.type === pend.type);
+    if (r && r.tpl) await amendHook(env, { action: "template", ops: JSON.stringify({ tpl: r.tpl, coll: pend.coll, type: pend.type }) });
+  }
   return json({ ok: true });
 }
 
