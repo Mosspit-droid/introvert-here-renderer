@@ -107,3 +107,7 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - Core MOCKUP_PAGES PC T-SHIRT (rows 97–109, same rule as IH: all thumbnails, Navy of each scene, variants, AGM, size guide, brand): pages 1, 2, 3, 4, 7, 10, 11, 14, 15, 20, 23, 24, 25. VIDEO_SLOT1/2 = 9, 10 (PRODUCT_RULES AU10:AV10). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_TS_pages.xlsx.
 - Reported: page names 2/3 say PC_02_PC_/PC_03_PC_ (Core uses _TS_), page 21 "DARK HEATHER" has a space; gag text unlocked on 21, 22; payoff overlay looks ~10% big next to setup by eye; Charcoal -> Dark Heather change vs the earlier tee rule.
 - 12 Nov: Barry fixed names and locks and unlocked the payoffs. Made the payoff groups (pages 15, 17, 19) 9% smaller (top and centre kept, wrap unchanged), so they match the setups by eye. Published, ID unchanged. Barry re-locks.
+
+### PER CONTRACT long-sleeve rebuild (12 Nov 2026)
+- Template EAHZzusW5X8 (M002_PC_LONG-SLEEVE_MOCKUPS), 25 pages, same layout as the PC tee (Navy/Dark Heather/Black). Core MOCKUP_PAGES PC LONG-SLEEVE rows 110–122: pages 1, 2, 3, 4, 7, 10, 11, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU11:AV11). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_LS_pages.xlsx.
+- Setup/payoff (station in the rain) use the same overlay size and position, and he's framed the same in both, so no change was needed (draft opened, then cancelled). Reported: overlay groups unlocked on pages 1–3, 14, 16, 18, 19, 20, 21; the size guide logo uses a different image (MAHZTmLLC_0) from the PC tee's.
