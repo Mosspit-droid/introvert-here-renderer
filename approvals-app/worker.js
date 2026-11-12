@@ -1657,7 +1657,9 @@ function remake(d) {
     catch (err) { d.card.style.opacity = ""; d.card.style.transform = ""; toast(err.message, true); }
   });
 }
-document.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", () => approve(cardOf(b))));
+// If this card is ticked along with others, the card's buttons act on every ticked video (same as the top bar).
+const tickedWith = (b) => { const c = b.closest(".ac"), t = c && c.querySelector("[data-pick]"); return t && t.checked && document.querySelectorAll("[data-pick]:checked").length > 1; };
+document.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("click", () => tickedWith(b) && $("bulkGo") ? $("bulkGo").onclick() : approve(cardOf(b))));
 // Bulk approve: tick cards, then approve them all. Make's Approve scenario runs one at a time, so they queue safely.
 const picks = () => [...document.querySelectorAll("[data-pick]")];
 function bulkSync() { const n = picks().filter((x) => x.checked).length; if (!$("bulkGo")) return;
@@ -1685,7 +1687,7 @@ if ($("bulkRej")) $("bulkRej").onclick = () => { const ds = picks().filter((x) =
     setTimeout(() => location.reload(), bad.length ? 4000 : 1200); });
 };
 document.querySelectorAll("[data-remake]").forEach((b) => b.addEventListener("click", () => remake(cardOf(b))));
-document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { const d = cardOf(b);
+document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { if (tickedWith(b) && $("bulkRej")) return $("bulkRej").onclick(); const d = cardOf(b);
   ask("Reject " + d.product + " without a new video?", "It's marked REJECTED in Core and no new video is made until you tap Make new video.", "Reject", async () => {
     try { await post("/api/reject", d); toast("Rejected"); setTimeout(() => location.reload(), 900); } catch (err) { toast(err.message, true); } }); }));
 document.querySelectorAll("[data-remove]").forEach((b) => b.addEventListener("click", async () => { const d = cardOf(b); await post("/api/mark", { row: d.row, code: d.code, status: "removed" }).catch(() => {}); toast("Hidden"); setTimeout(() => location.reload(), 700); }));
