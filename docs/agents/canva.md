@@ -112,3 +112,8 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - Template EAHZzusW5X8 (M002_PC_LONG-SLEEVE_MOCKUPS), 25 pages, same layout as the PC tee (Navy/Dark Heather/Black). Core MOCKUP_PAGES PC LONG-SLEEVE rows 110–122: pages 1, 2, 3, 4, 7, 10, 11, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU11:AV11). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_LS_pages.xlsx.
 - Setup/payoff (station in the rain) use the same overlay size and position, and he's framed the same in both, so no change was needed (draft opened, then cancelled). Reported: overlay groups unlocked on pages 1–3, 14, 16, 18, 19, 20, 21; the size guide logo uses a different image (MAHZTmLLC_0) from the PC tee's.
 - Barry 12 Nov: unlocked overlays aren't a concern (stop reporting them); the PC long-sleeve size guide logo is intentional.
+
+### PER CONTRACT sweatshirt rebuild (12 Nov 2026)
+- Template EAHZzoT13dY (N002_PC_SWEATSHIRT_MOCKUPS), 25 pages: thumbnail 1–3, gift 4–6, hanging 7–9, closeup 10–12 (Navy/DH/Black), RANGE 13, setup/payoff 14–19, flatlay 20–22, AGM 23, size guide 24, brand 25. Core MOCKUP_PAGES PC SWEATSHIRT rows 123–135: pages 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU12:AV12). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_SW_pages.xlsx.
+- Payoff groups (pages 15, 17, 19) made 7% smaller (top and centre kept) to match the setups by eye; published, ID unchanged. Barry's earlier draft DAHausrGsps vanished mid-session (probably published by him), so I used a fresh draft.
+- Canva page 1 is named PC_01_SW_THUMBNAIL (no _NAVY); Core has PC_01_SW_THUMBNAIL_NAVY. Page names can't be changed through the API.
