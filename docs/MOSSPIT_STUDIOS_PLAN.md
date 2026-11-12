@@ -127,3 +127,10 @@ Playbooks in `docs/agents/` (start with `README.md` and `STANDING_RULES.md`). Co
 
 ## Backlog gags (12 Nov 2026)
 - A gag saved with all four release dates empty sits in the backlog: the builder skips rows without dates. Off The Shelf's 12 prepared rows have no dates until Barry plans its schedule.
+
+## 12 Nov 2026: builder and approvals changes
+- Builder (7896436): one-at-a-time lock (module 9900 takes, 9901-9904 hand on; app `/api/lock`, KV `lock:builder`).
+- Mockup pages: non-thumbnail pages use the listing's lead colour (`docs/tagging/make/mockup_rank.js`); Dark Heather pages added to Core MOCKUP_PAGES for all four IH garments.
+- Canva export wait trimmed: first wait 30s, three checks (was 20s, four checks). Saves 2 credits per listing.
+- Approve (7783647): router 400 skips Pinterest/Instagram/Facebook when the app sends `social=no` (replacement videos default to video-only).
+- App: Credits page and alerts, bulk Approve/Reject ticked, automatic gag checks, Core link on Links.
