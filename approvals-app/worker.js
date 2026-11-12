@@ -886,8 +886,10 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     btn.onclick = function () {
       var o = document.getElementById("stopOpts"); o.innerHTML = "";
       if (btn.dataset.on) {
-        document.getElementById("stopT").textContent = "Resume?"; document.getElementById("stopB").textContent = "The builder starts again and carries on with anything still queued.";
-        o.appendChild(opt("", "Resume", "Start the builder again.", function () { post("/api/resume").then(function (j) { close(); toast(j.queued ? "Resumed: carrying on with " + j.queued + " queued gag" + (j.queued === 1 ? "" : "s") : "Resumed"); show({}); }); }));
+        document.getElementById("stopT").textContent = "Stopped";
+        document.getElementById("stopB").textContent = "Carry on with what was queued, or throw it away. Either way the builder starts working again.";
+        o.appendChild(opt("", "Resume", "Carry on with anything still queued.", function () { post("/api/resume").then(function (j) { close(); toast(j.queued ? "Resumed: carrying on with " + j.queued + " queued gag" + (j.queued === 1 ? "" : "s") : "Resumed"); show({}); }); }));
+        o.appendChild(opt("red", "Cancel the queued updates, then resume", "Throw away whatever was waiting so it never happens, then switch the builder back on for normal work (like tomorrow's new listings).", function () { post("/api/stop", { mode: "cancel" }).then(function (j) { return post("/api/resume").then(function () { close(); toast("Cancelled" + (j.cleared ? " " + j.cleared + " queued gag" + (j.cleared === 1 ? "" : "s") : "") + ". Builder back on."); show({}); }); }); }));
       } else {
         document.getElementById("stopT").textContent = "Emergency stop"; document.getElementById("stopB").textContent = "Stops the listing builder before it starts anything new. If it's halfway through a gag, it finishes that one gag (up to 8 minutes) and then stops.";
         o.appendChild(opt("", "Pause", "Stop for now. Anything queued waits until you tap Resume.", function () { post("/api/stop", { mode: "pause" }).then(function () { close(); toast("Stopped. Tap Resume when you're ready."); show({ at: 1 }); }); }));
@@ -3351,7 +3353,7 @@ ${brandHeader("Update listings", `<button class="btn" id="restart" type="button"
   <button class="abtn go" id="next" type="button">Next</button>
 </div></div>
 <script id="amend-data" type="application/json">${data}</script>
-<script src="/amend.js"></script>`);
+<script src="/amend.js?v=${AMEND_VER}"></script>`);
 }
 
 // One listing's photos in Etsy order, for a template (pages = [{pos, name}]) and a lead colour.
@@ -3476,6 +3478,11 @@ function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected
 // Mockups: all photos, just one photo, or add a new one (all three work per listing, per range or globally).
 function pagesFor(combo) { var p = combo.split("|"); return (S0.pages || []).filter(function (x) { return x.coll === rColl(p[0]) && x.type === p[1]; }); }
 function photoChoice(cb) {
+  try { return photoChoice2(cb); } catch (e) { return '<div class="errbox">Something went wrong drawing the photo list (' + h(e.message) + '). Pull down to reload the page and try again; if it keeps happening, tell Claude.</div>'; }
+}
+function photoChoice2(cb) {
+  if (!A.photo || typeof A.photo !== "object") A.photo = { mode: "all", keys: {}, name: "", each: true };
+  if (!A.photo.keys || typeof A.photo.keys !== "object") A.photo.keys = {};
   var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Choose photos","Tick just the photos to refresh. About 25 credits a listing, however many you tick."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template. About 25 credits a listing."]];
   var out = '<div class="col">' + opts.map(function (o) { return '<label class="tick"><input type="radio" name="pmode" data-pmode="' + o[0] + '"' + (P.mode === o[0] ? " checked" : "") + '><span class="lbl">' + o[1] + "<small>" + o[2] + "</small></span></label>"; }).join("") + "</div>";
   if (!S0.pages) return out + '<div class="errbox">The app doesn\'t have your mockup page list yet. <button class="abtn" type="button" id="readPages" style="margin-left:8px">Read it from Core</button> (takes about a minute, then this page reloads).</div>';
@@ -3640,6 +3647,7 @@ $("reread").onclick = function () {
 };
 render();
 `;
+const AMEND_VER = (() => { let h = 0; const t = AMEND_JS + photoPlan.toString(); for (let k = 0; k < t.length; k++) h = (h * 31 + t.charCodeAt(k)) | 0; return (h >>> 0).toString(36); })();
 
 // ---------- Tags ----------
 // Make "Approvals App: Gags Sync" (action "tags-…") reads Core's GAG_TAGS and posts a short summary to /api/tags-sync.
