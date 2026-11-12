@@ -85,3 +85,9 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - P002 (EAHX6ptv4mU) 11 pages, one colour (Dark Heather), no colour words in names. MOCKUP_PAGES SH T-SHIRT: all 11 pages (thumbnail, gift, hanging, closeup, setup 1, payoff 1, setup 2, payoff 2, AGM, size guide, brand). VIDEO_SLOT1/2 = 6, 7 (story 1, as before). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_TS_pages.xlsx.
 - Reported: gag text unlocked on pages 1, 3, 5; closeup (page 4) logo unlocked and running off the right/bottom edge; setup 1 vs payoff 1 overlays differ in size and grouping; page 10 uses a different logo asset.
 - 12 Nov: made SH tee setup 1 (page 5) and payoff 1 (page 6) overlays identical at Barry's request via create-brand-template-draft + edit + publish (template ID unchanged, EAHX6ptv4mU): logo 610.6 x 199.4, gag text box 576.4 wide at 43 pt, same logo-to-text spacing; payoff keeps its own position and -1.87 degree tilt. The API can't lock layers: Barry re-locks.
+
+### SHHH. long sleeve rebuild (12 Nov 2026)
+- Template EAHZzYBgHiY (Q002_SH_LONG-SLEEVE_MOCKUPS), 11 pages. Core MOCKUP_PAGES rows 64–74 now SH_01_LS_THUMBNAIL … SH_11_LS_BRAND (positions 1–11), using the names the pages should have.
+- PRODUCT_RULES AU7:AV7 = 6, 7 (video on setup 1 / payoff 1).
+- Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_LS_pages.xlsx.
+- Template discrepancies at the time: page 8 titled SH_07_LS_SETUP_2 (should be SH_08_LS_PAYOFF_2); pages 9–11 titled SH_08/09/10 (one behind); overlays on setup/payoff pairs not identical; logo/text opacity differs between pages; page 6 left unlocked.
