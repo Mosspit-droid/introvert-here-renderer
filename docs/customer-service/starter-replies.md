@@ -85,5 +85,5 @@ Tone: warm, short, a little dry. Signed [SIGN-OFF]: the avatar name, still to be
 >
 > [SIGN-OFF]
 
-## 10. Hand over to Barry (anything angry, legal, or not covered above)
+## 10. Hand over to you (anything angry, legal, or not covered above)
 > *Not sent.* The AI flags these as **Needs you** and writes a one-line summary instead of a draft.
