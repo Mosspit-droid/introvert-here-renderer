@@ -648,6 +648,8 @@ a{color:inherit}
 .iconbtn svg{width:26px;height:26px}
 .iconbtn .n{position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;border-radius:11px;background:var(--warn);color:#1a0d0a;font:800 12px var(--display);display:grid;place-items:center;padding:0 6px}
 .pagehead{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
+.pagehead{position:sticky;top:var(--topbar,72px);z-index:19;margin-top:-6px;padding:10px 0}
+.pagehead::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);background:rgba(8,8,8,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:-1}
 .back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font:700 12px var(--display);letter-spacing:.12em;text-transform:uppercase;text-decoration:none;min-height:40px}
 .back svg{width:18px;height:18px}
 header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
@@ -740,10 +742,6 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tbig{font:900 30px/1 var(--display);font-variant-numeric:tabular-nums}
 .tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
-.fhome{position:fixed;left:max(18px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:29;display:flex;align-items:center;gap:10px;min-height:56px;padding:0 20px 0 16px;border-radius:99px;border:2px solid rgba(242,240,235,.6);background:rgba(8,8,8,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);color:var(--text);text-decoration:none;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;box-shadow:0 8px 24px rgba(0,0,0,.45)}
-.fhome svg{width:24px;height:24px}
-body.on-home .fhome{display:none}
-@media (max-width:760px){.fhome{display:none}}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
 .tabbar a{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;min-height:58px;border-radius:12px;color:var(--muted);font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
@@ -830,7 +828,6 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800;900&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
 <title>Introvert Here Studio</title><style>${STYLE}</style></head>
 <body data-coll="IH">${ICONS}<main>${body}</main>
-<a class="fhome" id="fhome" href="/" aria-label="Back to the dashboard">${icon("home")}<span>Dashboard</span></a>
 <nav class="tabbar" aria-label="Main"><div class="in">${tabs}<a href="#more" id="moreBtn">${icon("more")}More</a></div></nav>
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -838,7 +835,11 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <script>
 (function () {
   var p = location.pathname, on = null;
-  if (p === "/") document.body.classList.add("on-home");
+  // Freeze the "Dashboard" row just under the top bar; anything else sticky sits below both.
+  function sticky() { var t = document.querySelector(".topbar"), h = document.querySelector(".pagehead");
+    var th = t ? t.offsetHeight : 0, hh = h ? h.offsetHeight : 0;
+    document.documentElement.style.setProperty("--topbar", th + "px"); document.documentElement.style.setProperty("--stick", (th + hh) + "px"); }
+  sticky(); window.addEventListener("resize", sticky);
   document.querySelectorAll(".tabbar [data-tab]").forEach(function (a) { var t = a.dataset.tab; if (t === p || (t !== "/" && p.indexOf(t) === 0)) on = a; });
   if (on) on.classList.add("on"); else if (p !== "/") document.getElementById("moreBtn").classList.add("on");
   var sh = document.getElementById("sheet");
@@ -1459,7 +1460,7 @@ ${handledHtml}
 .ahead{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .bulk{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);min-height:44px;padding:0 6px}
 .bulk input{width:28px;height:28px;accent-color:var(--go);margin:0}
-.bulkbar{position:sticky;top:var(--topbar,76px);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;margin:0 0 14px;border:1px solid var(--line);border-radius:16px;background:rgba(13,13,12,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.bulkbar{position:sticky;top:var(--stick,140px);z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;margin:0 0 14px;border:1px solid var(--line);border-radius:16px;background:rgba(13,13,12,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .bulkbar .btn-main{width:auto;min-height:52px;padding:0 22px}
 .bulkbar .btn-main[disabled]{opacity:.45}
 .ac.picked{box-shadow:0 0 0 3px var(--go)}
@@ -1791,7 +1792,7 @@ ${brandHeader("Gags")}
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
     .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
-    .gL .g-prev{position:sticky;top:calc(62px + env(safe-area-inset-top,0px));z-index:15;background:rgba(10,10,9,.96);box-shadow:0 10px 24px rgba(0,0,0,.6)}
+    .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15;background:rgba(10,10,9,.96);box-shadow:0 10px 24px rgba(0,0,0,.6)}
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
@@ -2217,7 +2218,7 @@ async function linksPage(env) {
 .ti button{flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);font-size:20px;cursor:pointer}
 .tadd{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .tadd input{flex:1 1 160px;min-width:0;min-height:48px;padding:0 12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
-.qside{position:sticky;top:96px}
+.qside{position:sticky;top:calc(var(--stick,96px) + 10px)}
 .qside h3{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 .qside h3.second{margin-top:18px}
 .qks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
