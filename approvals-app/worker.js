@@ -202,10 +202,14 @@ async function lockOp(request, env) {
       return json({ ok: false, reason: "already running", holder: cur.id, since: cur.at });
     }
     await env.PENDING.put(key, JSON.stringify({ id, at: now }));
-    return json({ ok: true });
+    // Gags finished in the last 10 minutes ("ID:MODE"), so a stale read of Core can't make the next run redo one.
+    const done = ((await env.PENDING.get(key + ":done", "json")) || []).filter((x) => now - x.at < 10 * 60e3);
+    return json({ ok: true, recent: done.map((x) => x.job).join(",") });
   }
   if (action === "pass" || action === "free") {
     if (cur && (cur.id === id || !id)) await env.PENDING.put(key, JSON.stringify({ ...cur, passed: true, at: now }));
+    const job = String(b.done || "").replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 60);
+    if (job) { const done = ((await env.PENDING.get(key + ":done", "json")) || []).filter((x) => now - x.at < 10 * 60e3); done.push({ job, at: now }); await env.PENDING.put(key + ":done", JSON.stringify(done.slice(-30))); }
     return json({ ok: true });
   }
   return json({ ok: false, reason: "unknown action" }, 400);
