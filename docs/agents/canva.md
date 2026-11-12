@@ -91,3 +91,8 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - PRODUCT_RULES AU7:AV7 = 6, 7 (video on setup 1 / payoff 1).
 - Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_LS_pages.xlsx.
 - Template discrepancies at the time: page 8 titled SH_07_LS_SETUP_2 (should be SH_08_LS_PAYOFF_2); pages 9–11 titled SH_08/09/10 (one behind); overlays on setup/payoff pairs not identical; logo/text opacity differs between pages; page 6 left unlocked.
+- 12 Nov: Barry fixed names and photo. Balanced the overlays by eye at his request: pair 1 left as is (sizes look right for how far away he stands); payoff 2 (page 8) logo and text made about 6% bigger, top edge kept where it was, because she stands closer than in setup 2. Text on pages 7 and 8 set to 80% (Barry's standard). Published, ID unchanged. Page 1 text is still 64% (locked).
+
+### SHHH. sweatshirt rebuild (12 Nov 2026)
+- Template EAHZzqbkUro (R002_SH_SWEATSHIRT_MOCKUPS), 11 pages: THUMBNAIL, GIFT, HANGING, CLOSEUP, SETUP_1, PAYOFF_1 (back view, no overlay), SETUP_2, PAYOFF_2, AGM, SIZE_GUIDE, BRAND. Core MOCKUP_PAGES rows 75–85, PRODUCT_RULES AU8:AV8 = 6, 7. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_SW_pages.xlsx.
+- Reported: overlays all at 64% (page 2's logo at 61%), not the 80% standard; gag text unlocked on pages 1 and 3. Pair 2 sizes look balanced by eye.
