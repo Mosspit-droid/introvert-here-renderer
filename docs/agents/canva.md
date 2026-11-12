@@ -111,3 +111,4 @@ Adding pages moves the page numbers, so every range done must also update Core i
 ### PER CONTRACT long-sleeve rebuild (12 Nov 2026)
 - Template EAHZzusW5X8 (M002_PC_LONG-SLEEVE_MOCKUPS), 25 pages, same layout as the PC tee (Navy/Dark Heather/Black). Core MOCKUP_PAGES PC LONG-SLEEVE rows 110–122: pages 1, 2, 3, 4, 7, 10, 11, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU11:AV11). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_LS_pages.xlsx.
 - Setup/payoff (station in the rain) use the same overlay size and position, and he's framed the same in both, so no change was needed (draft opened, then cancelled). Reported: overlay groups unlocked on pages 1–3, 14, 16, 18, 19, 20, 21; the size guide logo uses a different image (MAHZTmLLC_0) from the PC tee's.
+- Barry 12 Nov: unlocked overlays aren't a concern (stop reporting them); the PC long-sleeve size guide logo is intentional.
