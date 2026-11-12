@@ -3476,7 +3476,7 @@ function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected
 // Mockups: all photos, just one photo, or add a new one (all three work per listing, per range or globally).
 function pagesFor(combo) { var p = combo.split("|"); return (S0.pages || []).filter(function (x) { return x.coll === rColl(p[0]) && x.type === p[1]; }); }
 function photoChoice(cb) {
-  var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Just one photo","Swap one photo on each listing. About 10 credits a listing."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template."]];
+  var P = A.photo, opts = [["all","All photos","Re-export every mockup page. About 60 credits a listing, and makes a new video."],["one","Just one photo","Swap one photo on each listing (pick which one below). About 25 credits a listing."],["add","Add a new photo","Add a page you've just added to the end of the Canva mockup template. About 25 credits a listing."]];
   var out = '<div class="col">' + opts.map(function (o) { return '<label class="tick"><input type="radio" name="pmode" data-pmode="' + o[0] + '"' + (P.mode === o[0] ? " checked" : "") + '><span class="lbl">' + o[1] + "<small>" + o[2] + "</small></span></label>"; }).join("") + "</div>";
   if (!S0.pages) return out + '<p class="hint">Tap Sync to Core first so the app knows your mockup pages.</p>';
   if (P.mode === "one") {
@@ -3485,7 +3485,7 @@ function photoChoice(cb) {
       photoPlan(pagesFor(c), "BLACK").forEach(function (x) { if (x.thumb) return; if (!keys[x.key]) { keys[x.key] = { label: x.label, n: 0, video: false }; order.push(x.key); }
         keys[x.key].n++; if (x.rank === rule.slot1 || x.rank === rule.slot2) keys[x.key].video = true; }); });
     if (!P.key || !keys[P.key]) P.key = order[0] || "";
-    out += '<label class="f">Which photo<select data-pkey="1">' + order.map(function (k) { return '<option value="' + h(k) + '"' + (k === P.key ? " selected" : "") + ">" + h(keys[k].label) + (keys[k].n < cb.length ? " (not every garment)" : "") + "</option>"; }).join("") + "</select></label>";
+    out += '<label class="f"><b>Which photo?</b><select data-pkey="1">' + order.map(function (k) { return '<option value="' + h(k) + '"' + (k === P.key ? " selected" : "") + ">" + h(keys[k].label) + (keys[k].n < cb.length ? " (not every garment)" : "") + "</option>"; }).join("") + "</select></label>";
     if (P.key && keys[P.key] && keys[P.key].video) out += '<p class="hint">This photo is used in the video, so each listing also gets a new video to approve.</p>';
     out += '<p class="hint">Thumbnails aren\'t on this list: they\'re linked to the colour choices, so use All photos for those. Each listing gets its lead colour\'s version of the photo.</p>';
   }
@@ -3541,7 +3541,7 @@ function details() {
 function check() {
   var ks = selKeys(), gs = {}, rs = {}, ts = {};
   ks.forEach(function (k) { var p = k.split("|"); gs[p[0]] = 1; rs[rName(p[0].slice(0, 2))] = 1; ts[gName(p[1])] = 1; });
-  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "one mockup photo" : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
+  var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "the " + (A.photo.key ? A.photo.key.split("#")[0].toLowerCase().replace(/_/g, " ") + (A.photo.key.split("#")[1] !== "1" ? " " + A.photo.key.split("#")[1] : "") : "chosen") + " photo" : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
   var n = ks.length, ng = Object.keys(gs).length;
   var per = A.what.print ? 2.5 : (A.what.mockups && A.photo.mode !== "all" && !A.what.colours && !A.what.supplier) ? 0.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
   var mins = Math.max(5, Math.round(n * per) + 5);
