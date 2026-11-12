@@ -1369,11 +1369,34 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
     return (left !== null && left < 7) || (left === null && slot && slot.mode === "fill" && slot.dates && !!slot.dates[0]);
   }).map((x) => x[2]);
+  // In progress: listing updates, then the new videos they produce (free: from what the app already tracks).
+  const B = watch.batch;
+  let prog = "", showProg = false;
+  if (B && B.ids && B.ids.length) {
+    const total = B.ids.length, left = B.doneAt ? 0 : Math.min(total, busy.filter((g) => B.ids.includes(g.id)).length || (B.doneAt ? 0 : total));
+    const done = total - left, prods = B.products || [];
+    const vids = Object.values(items).filter((i) => prods.includes(i.product) && (i.receivedAt || 0) > B.start);
+    const vIn = vids.length, vWait = vids.filter((i) => i.status === "pending").length, vDone = vids.filter((i) => i.status !== "pending").length;
+    const bar = (pct, tone) => `<div class="pbar"><i style="width:${Math.max(3, Math.min(100, pct))}%;background:${tone}"></i></div>`;
+    if (!(prods.length && vDone >= prods.length)) {
+      showProg = true;
+      const mins = left * 8;
+      const upd = left ? `<div class="prow2"><div class="pt"><b>Updating listings</b><span>${done} of ${total} gag${total === 1 ? "" : "s"} done · about ${mins < 60 ? mins + " min" : Math.round(mins / 60 * 10) / 10 + " hours"} left</span></div>${bar(done / total * 100, "var(--go)")}</div>`
+        : `<div class="prow2"><div class="pt"><b>Updating listings</b><span>All ${total} gag${total === 1 ? "" : "s"} done ✓</span></div>${bar(100, "var(--go)")}</div>`;
+      const vid = !prods.length ? "" : left ? `<div class="prow2"><div class="pt"><b>New videos</b><span>Start when the updates finish · ${prods.length} to come</span></div>${bar(0, "#e6b450")}</div>`
+        : `<a class="prow2" href="/approvals"><div class="pt"><b>New videos</b><span>${vIn} of ${prods.length} in${vWait ? ` · <em>${vWait} waiting for you</em>` : ""}${vDone ? ` · ${vDone} approved` : ""}</span></div>${bar(vIn / prods.length * 100, "#e6b450")}</a>`;
+      prog = `<h2>In progress</h2><div class="card progc">${upd}${vid}</div>`;
+    }
+  }
   return shell(`
 ${topBar("Dashboard")}
+<style>.progc{display:flex;flex-direction:column;gap:16px;margin-bottom:8px}.prow2{display:block;color:var(--text);text-decoration:none}
+.pt{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}.pt b{font:800 13px var(--display);letter-spacing:.14em;text-transform:uppercase}.pt span{color:var(--muted);font-size:14px}.pt em{font-style:normal;color:#e6b450;font-weight:600}
+.pbar{height:12px;border-radius:99px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;border-radius:99px;transition:width .4s}</style>
+${prog}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
-(watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
+(watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned || showProg ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
 need("warn", tagsDue.length, "Tags to fix", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
 need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (lowRanges.length === 1 ? " runs out" : " run out") + " within a week", "/gags")].join("");
@@ -2833,6 +2856,16 @@ async function amendWatch(env) {
     await saveAlerts(env, alerts);
     await notify(env, "https://mosspit-approvals.mosspit.workers.dev", title, "Tap Restart updates on the Update listings page.", "warning");
   }
+  // Progress bar: remember this batch of gags (and the listings in it) so the dashboard can show
+  // "3 of 7 gags updated" and then "12 of 28 new videos in". Cleared a day after the updates finish.
+  if (busy) {
+    const b = w.batch && !w.batch.doneAt ? w.batch : { start: now, ids: [], products: [] };
+    busyIds.forEach((id) => { if (b.ids.includes(id)) return; b.ids.push(id);
+      const g = S.gags.find((x) => x.id === id); const garm = g ? (g.only ? String(g.only).split("|") : g.live || []) : [];
+      garm.forEach((t) => b.products.push(id + "-" + t)); });
+    w.batch = b;
+  } else if (w.batch && !w.batch.doneAt) w.batch.doneAt = now;
+  if (w.batch && w.batch.doneAt && now - w.batch.doneAt > 24 * 3600e3) delete w.batch;
   await env.PENDING.put("amend-watch", JSON.stringify(w));
   if (!busy && !justSaved) return;
   if (w.last && now - w.last < 9 * 60000) return;
