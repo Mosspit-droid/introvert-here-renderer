@@ -121,3 +121,8 @@ Adding pages moves the page numbers, so every range done must also update Core i
 ### Extra MOCKUP_PAGES rows removed (12 Nov 2026)
 - Someone other than Barry had added 86 rows at the bottom of MOCKUP_PAGES (rows 201–286): the other-colour pages for IH (Dark Heather), the PC tee (Dark Heather/Black) and all of OTS (Forest Green/Dark Chocolate). That would have pushed listings past Etsy's 20-photo limit. Barry said delete them. The Core backup copy was declined, so the rows are saved in docs/canva/mockup_pages_extra_rows_deleted_2026-11-12.csv; then they were deleted (shift up). The table is now A1:D200.
 - Column D is left-aligned and has no leading spaces; any visible indent is cell formatting only (Graph can't read the indent level).
+
+### PER CONTRACT hoodie rebuild (12 Nov 2026)
+- Template EAHZzviiQb8 (O002_PC_HOODIE_MOCKUPS), 25 pages: thumbnail 1–3, gift 4–6, hanging 7–9, closeup 10–12, variants 13, setup/payoff 14–19 (canteen: front chest logo, then hood up; no gag overlay), folded 20–22, AGM 23, size guide 24, brand 25. Core MOCKUP_PAGES PC HOODIE rows 136–148: pages 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU13:AV13). Old rows (PC_01_HD_THUMBNAIL … PC_13_HD_AGM, positions 1–13) were replaced. No Core backup copy this time (Barry declined the last one).
+- Reported: Canva page 4 is named PC_02_HD_GIFT_NAVY and page 10 PC_05_HD_CLOSEUP_NAVY (Core uses PC_04 / PC_10); setup/payoff pages have no gag-text overlay.
+- All 16 mockup templates (IH, SHHH., PC, OTS × 4 garments) now match Core.
