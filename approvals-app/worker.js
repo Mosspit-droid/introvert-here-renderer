@@ -1045,7 +1045,9 @@ async function creditsCheck(env, force) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token"));
   if (!token) return { error: "No Make token saved yet." };
   const prev = (await env.PENDING.get("credits", "json")) || {};
-  if (!force && prev.at && Date.now() - prev.at < 55 * 60000) return prev;
+  const forced = force || !!(await env.PENDING.get("credits-force"));
+  if (!forced && prev.at && Date.now() - prev.at < 55 * 60000) return prev;
+  await env.PENDING.delete("credits-force");
   const settings = (await env.PENDING.get("credits-settings", "json")) || {};
   const sc = await makeGet(token, `/scenarios?teamId=${MAKE_TEAM}&pg%5Blimit%5D=200`);
   if (!sc.ok || !sc.j || !Array.isArray(sc.j.scenarios)) {
@@ -1053,27 +1055,33 @@ async function creditsCheck(env, force) {
     await env.PENDING.put("credits", JSON.stringify(out)); return out;
   }
   const scenarios = sc.j.scenarios.map((s) => ({ id: s.id, name: String(s.name || "").replace(/^(Introvert Here|Mosspit Studios):\s*/, ""), active: !!s.isActive, paused: !!s.isPaused,
-    dlq: Number(s.dlqCount) || 0, ops: Number(s.operations) || 0, credits: (Number(s.centicredits) || 0) / 100 }));
-  // Organisation allowance (needs the organizations:read scope; falls back to Barry's own figure).
+    dlq: Number(s.dlqCount) || 0, credits: 0, d7: 0 }));
+  // Organisation: plan, extras, reset date (needs organizations:read). Raw numbers kept so the maths can be checked.
   let org = null;
   const o = await makeGet(token, `/organizations/${MAKE_ORG}`);
   if (o.ok && o.j && o.j.organization) {
     const g = o.j.organization, lic = g.license || {};
-    const num = (...xs) => { for (const x of xs) { const n = Number(x); if (isFinite(n) && n > 0) return n; } return 0; };
-    org = { plan: g.productName || lic.productName || "", limit: num(lic.credits, lic.operations, g.credits, g.operationsLimit),
-      used: num(g.consumedCredits, g.consumedOperations, g.operations), nextReset: g.nextReset || lic.nextReset || g.resetDate || "" };
+    const flat = {};
+    const grab = (obj, pre) => { for (const [k, v] of Object.entries(obj || {})) { if (typeof v === "number" || (typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v)) || typeof v === "boolean") flat[pre + k] = v; else if (v && typeof v === "object" && !Array.isArray(v) && pre.split(".").length < 3) grab(v, pre + k + "."); } };
+    grab(g, "");
+    org = { plan: g.productName || lic.productName || "", raw: flat, nextReset: g.nextReset || lic.nextReset || g.resetDate || "" };
   }
-  // Daily totals for 30 days: organisation usage if allowed, else the sum of every scenario's usage.
-  let daily = {};
-  const ou = await makeGet(token, `/organizations/${MAKE_ORG}/usage`);
-  if (ou.ok && ou.j && Array.isArray(ou.j.data)) ou.j.data.forEach((d) => { daily[ddmmyyyy(d.date)] = (Number(d.centicredits) || 0) / 100; });
-  else {
-    const per = await Promise.all(scenarios.map((s) => makeGet(token, `/scenarios/${s.id}/usage`)));
-    per.forEach((p, i) => { if (p.ok && p.j && Array.isArray(p.j.data)) p.j.data.forEach((d) => { const k = ddmmyyyy(d.date), c = (Number(d.centicredits) || 0) / 100; daily[k] = (daily[k] || 0) + c; scenarios[i].d7 = scenarios[i].d7 || 0; if (Date.now() - Date.parse(k) < 7 * 864e5) scenarios[i].d7 += c; }); });
-  }
-  const used = (org && org.used) || scenarios.reduce((a, s) => a + s.credits, 0);
-  const limit = (org && org.limit) || Number(settings.allowance) || 0;
-  const out = { at: Date.now(), scenarios, daily, org, used, limit, error: "" };
+  // Period = since the last reset (from Make, or Barry's reset day). Credits per scenario per day, summed over the period.
+  const reset = nextResetDate(settings.resetDay, org && org.nextReset);
+  const start = reset ? new Date(Date.UTC(reset.getUTCFullYear(), reset.getUTCMonth() - 1, reset.getUTCDate())) : new Date(Date.now() - 30 * 864e5);
+  const startKey = start.toISOString().slice(0, 10);
+  const daily = {};
+  const per = await Promise.all(scenarios.map((s) => makeGet(token, `/scenarios/${s.id}/usage`)));
+  per.forEach((p, i) => { if (p.ok && p.j && Array.isArray(p.j.data)) p.j.data.forEach((d) => {
+    const k = ddmmyyyy(d.date), c = (Number(d.centicredits) || 0) / 100;
+    daily[k] = (daily[k] || 0) + c;
+    if (k >= startKey) scenarios[i].credits += c;
+    if (Date.now() - Date.parse(k) < 7 * 864e5) scenarios[i].d7 += c; }); });
+  const scenUsed = scenarios.reduce((a, s) => a + s.credits, 0);
+  const extras = Number(settings.extras) || 0;
+  const limit = (Number(settings.allowance) || 0) + extras;
+  const used = scenUsed + (Number(settings.otherUsed) || 0);
+  const out = { at: Date.now(), scenarios, daily, org, used, limit, periodStart: startKey, error: "" };
   await env.PENDING.put("credits", JSON.stringify(out));
   await creditsAlerts(env, out, prev);
   return out;
@@ -1123,6 +1131,7 @@ async function creditsKey(request, env) {
   }
   const s = (await env.PENDING.get("credits-settings", "json")) || {};
   if (d.allowance !== undefined && d.allowance !== "") { const n = Number(String(d.allowance).replace(/[, ]/g, "")); if (!(n > 0)) return json({ error: "Monthly allowance should be a number." }, 400); s.allowance = n; saved.push("allowance"); }
+  if (d.extras !== undefined) { const n = Number(String(d.extras || 0).replace(/[, ]/g, "")); if (!(n >= 0)) return json({ error: "Extra credits should be a number." }, 400); if (n !== (s.extras || 0)) { s.extras = n; saved.push("extra credits"); } }
   if (d.resetDay !== undefined && d.resetDay !== "") { const n = Number(d.resetDay); if (!(n >= 1 && n <= 31)) return json({ error: "Reset day should be 1 to 31." }, 400); s.resetDay = n; saved.push("reset day"); }
   await env.PENDING.put("credits-settings", JSON.stringify(s));
   if (!saved.length) return json({ error: "Nothing to save." }, 400);
@@ -1171,7 +1180,7 @@ async function creditsPage(env) {
     body = `${paused ? `<div class="card warnc"><b>Make has paused your account.</b> Nothing runs until credits are topped up or the month resets.</div>` : ""}
 ${c.error ? `<div class="card warnc small">Last check failed: ${esc(c.error)}</div>` : ""}
 <div class="cgrid">
-<div class="card"><div class="lbl2">Make credits this period</div>
+<div class="card"><div class="lbl2">Make credits since ${c.periodStart ? esc(new Date(c.periodStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })) : "the reset"}</div>
   <div class="big2">${n0(used)}${limit ? `<small> / ${n0(limit)}</small>` : ""}</div>
   ${limit ? `<div class="gauge"><i style="width:${pct}%;background:${tone}"></i></div><div class="small">${Math.round(pct)}% used${reset ? ` · resets ${reset.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} (${daysLeft} day${daysLeft === 1 ? "" : "s"})` : ""}</div>` : `<div class="small">Add your monthly allowance below to see how close you are.</div>`}
   ${forecast ? `<p class="small" style="margin:10px 0 0">${forecast}</p>` : ""}
@@ -1182,8 +1191,9 @@ ${c.error ? `<div class="card warnc small">Last check failed: ${esc(c.error)}</d
 ${lock && lock.length ? `<div class="card small"><b>Builder lock:</b> stopped ${lock.length} extra cop${lock.length === 1 ? "y" : "ies"} from running side by side, most recently ${esc(when(lock[0].at))}.</div>` : ""}`;
   }
   const settingsCard = `<details class="card" ${tok ? "" : "open"}><summary class="lbl2" style="cursor:pointer">Settings</summary>
+<p class="small">Monthly credits = your plan's credits (Make → Subscription → Current plan). Add any extras you buy in the extra-credits box; set it back to 0 after the reset.</p>
 <p class="small">Make token: <b>${tok ? "saved ✓ (…" + esc(tok.slice(-4)) + ")" : "not saved yet"}</b>. To make one: Make → your profile picture → Profile → <b>API access</b> → Add token. Name it <i>Approvals app</i>, tick <b>scenarios:read</b> and <b>organizations:read</b>, then paste it here. It's stored privately and never shown again.</p>
-<div class="kf"><input id="mt" placeholder="Make API token" autocomplete="off" spellcheck="false"><input id="al" inputmode="numeric" placeholder="Monthly credits, e.g. 40000" value="${esc(s.allowance || "")}"><input id="rd" inputmode="numeric" placeholder="Reset day of month, e.g. 4" value="${esc(s.resetDay || "")}"><button class="btn-main" id="ks" type="button">Save</button></div>
+<div class="kf"><input id="mt" placeholder="Make API token" autocomplete="off" spellcheck="false"><input id="al" inputmode="numeric" placeholder="Monthly credits, e.g. 40000" value="${esc(s.allowance || "")}"><input id="rd" inputmode="numeric" placeholder="Reset day of month, e.g. 4" value="${esc(s.resetDay || "")}"><input id="ex" inputmode="numeric" placeholder="Extra credits bought this month (0 if none)" value="${esc(s.extras || "")}"><button class="btn-main" id="ks" type="button">Save</button></div>
 </details>`;
   return shell(`
 ${brandHeader("Credits", `<button class="btn" id="cr" type="button"><svg class="ic"><use href="#i-sync"/></svg> Refresh</button>`)}
@@ -1208,7 +1218,7 @@ ${settingsCard}
 (function () {
   function go(url, b) { return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) }).then(function (r) { return r.json().then(function (j) { if (!r.ok || j.error) throw new Error(j.error || "Couldn't do that"); return j; }); }); }
   document.getElementById("cr").onclick = function () { this.disabled = true; go("/api/credits-refresh").then(function () { location.reload(); }).catch(function (e) { toast(e.message, true); document.getElementById("cr").disabled = false; }); };
-  document.getElementById("ks").onclick = function () { var b = { make_token: document.getElementById("mt").value, allowance: document.getElementById("al").value, resetDay: document.getElementById("rd").value };
+  document.getElementById("ks").onclick = function () { var b = { make_token: document.getElementById("mt").value, allowance: document.getElementById("al").value, resetDay: document.getElementById("rd").value, extras: document.getElementById("ex").value };
     go("/api/credits-key", b).then(function (j) { toast("Saved " + j.saved.join(", ")); setTimeout(function () { location.reload(); }, 700); }).catch(function (e) { toast(e.message, true); }); };
 })();
 </script>`);
