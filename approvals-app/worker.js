@@ -235,7 +235,11 @@ async function ingest(request, env, ctx, url) {
   }
 
   // A newer render for the same row replaces the older one (its code is the live one).
+  // Remember if this listing's earlier video was already posted to social, so a re-approval can skip posting again.
+  const prior = items[row];
+  const postedBefore = !!(prior && (prior.postedBefore || (prior.status === "approved" && prior.result && prior.result.ok)));
   items[row] = {
+    postedBefore,
     row,
     product: str(data.product),
     code,
@@ -290,7 +294,7 @@ async function result(request, env, ctx, url) {
   await saveItems(env, items);
 
   if (ok) {
-    ctx.waitUntil(notify(env, url.origin, item.product + " is live", "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
+    ctx.waitUntil(notify(env, url.origin, item.product + " is live", item.social === false ? "Live on Etsy with its new video (not posted to social)." : "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
   } else {
     ctx.waitUntil(notify(env, url.origin, item.product + ": approval FAILED" + (item.result.step ? " at " + item.result.step : ""), item.result.message || "Open the app for details.", "x"));
   }
@@ -439,9 +443,10 @@ async function approveItem(request, env) {
   const item = items[str(data.row)];
   if (!item || item.code !== str(data.code)) return json({ error: "That item has changed. Refresh the page." }, 409);
   if (item.status !== "pending") return json({ error: "This one has already been handled." }, 409);
-  const res = await fetch(approveUrl(item), { method: "GET" });
+  const social = str(data.social) !== "no";
+  const res = await fetch(approveUrl(item, social), { method: "GET" });
   if (!res.ok) return json({ error: "Make didn't accept the approval (" + res.status + "). Nothing was changed." }, 502);
-  item.status = "approved"; item.approvedAt = Date.now(); item.updatedAt = Date.now();
+  item.status = "approved"; item.approvedAt = Date.now(); item.updatedAt = Date.now(); item.social = social;
   await saveItems(env, items);
   return json({ ok: true });
 }
@@ -595,9 +600,9 @@ const esc = (s) =>
 
 const safeUrl = (s) => (/^https?:\/\//i.test(s || "") ? s : "");
 
-function approveUrl(item) {
+function approveUrl(item, social = true) {
   const q = (v) => encodeURIComponent(v);
-  return `${APPROVE_HOOK}?code=${q(item.code)}&row=${q(item.row)}&product=${q(item.product)}&file=${q(item.file)}`;
+  return `${APPROVE_HOOK}?code=${q(item.code)}&row=${q(item.row)}&product=${q(item.product)}&file=${q(item.file)}${social ? "" : "&social=no"}`;
 }
 
 function when(ms) {
@@ -1420,7 +1425,7 @@ async function page(env) {
   const handled = items.filter((i) => i.status !== "pending").sort((a, b) => b.updatedAt - a.updatedAt);
   const alerts = await loadAlerts(env);
   const pendingHtml = pending.length
-    ? `${pending.length > 1 ? `<div class="bulkbar" id="bulkbar"><label class="bulk"><input type="checkbox" id="pickAll"><span>Select all</span></label><button class="btn-main" id="bulkGo" type="button" disabled>${icon("check")}<span id="bulkTxt">Approve ticked</span></button></div>` : ""}<div class="aq">${pending.map(pendingCard).join("")}</div>`
+    ? `${pending.length > 1 ? `<div class="bulkbar" id="bulkbar"><label class="bulk"><input type="checkbox" id="pickAll"><span>Select all</span></label><div class="bbtns"><button class="btn" id="bulkRej" type="button" disabled>Reject ticked</button><button class="btn-main" id="bulkGo" type="button" disabled>${icon("check")}<span id="bulkTxt">Approve ticked</span></button></div></div>` : ""}<div class="aq">${pending.map(pendingCard).join("")}</div>`
     : `<div class="card empty">${icon("approve")}Nothing waiting for review. New videos appear here.</div>`;
   const comingHtml = comingUp(await env.PENDING.get("daily", "json"));
   const handledHtml = handled.length ? `<h2>Recently handled</h2><div class="grid" id="handled">${handled.map((h, n) => n < 6 ? handledCard(h) : handledCard(h).replace('<div class="card', '<div hidden class="card')).join("")}</div>${handled.length > 6 ? `<button class="btn" id="showAll" type="button" style="margin-top:12px" onclick="document.querySelectorAll('#handled [hidden]').forEach(function(e){e.hidden=false});this.remove()">Show all ${handled.length}</button>` : ""}` : "";
@@ -1432,7 +1437,7 @@ ${pendingHtml}
 ${comingHtml}
 ${handledHtml}
 <p class="small" style="margin-top:32px">Handled items and alerts are cleared after ${KEEP_HANDLED_DAYS} days.</p>
-<div class="sheet" id="ask"><div class="pane askpane"><div class="askt" id="askT"></div><div class="small" id="askB"></div><div class="askbtns"><button class="btn-main" id="askGo" type="button"></button><button class="btn" id="askNo" type="button">Cancel</button></div></div></div>
+<div class="sheet" id="ask"><div class="pane askpane"><div class="askt" id="askT"></div><div class="small" id="askB"></div><label class="bulk asksoc" id="askSocW" hidden><input type="checkbox" id="askSoc"><span id="askSocT">Also post to Pinterest, Instagram and Facebook</span></label><div class="askbtns"><button class="btn-main" id="askGo" type="button"></button><button class="btn" id="askNo" type="button">Cancel</button></div></div></div>
 <style>
 .aq{display:flex;flex-direction:column;gap:18px}
 .ac{position:relative;touch-action:pan-y;transition:transform .25s ease}
@@ -1463,6 +1468,9 @@ ${handledHtml}
 .swipehint.r{right:16px;color:#0d0d0c;background:var(--frame)}
 .askpane{display:flex!important;flex-direction:column;gap:12px;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0}
 .askt{font:800 18px var(--display)}
+.asksoc{text-transform:none;letter-spacing:0;font:600 15px var(--body);color:var(--text)}
+.pill2{align-self:flex-start;font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:99px;border:1px solid #e6b450;color:#e6b450}
+.bulkbar .bbtns{display:flex;gap:10px;flex-wrap:wrap}.bulkbar .btn{min-height:52px;padding:0 20px}
 .askbtns{display:grid;grid-template-columns:2fr 1fr;gap:10px}
 .askbtns .btn-main,.askbtns .btn{min-height:58px}
 </style>
@@ -1476,16 +1484,19 @@ async function post(path, data) {
 }
 function cardOf(el) { const c = el.closest(".ac"); return { card: c, row: c.dataset.row, code: c.dataset.code, product: c.dataset.product }; }
 let pendingAsk = null;
-function ask(title, body, goText, fn) { $("askT").textContent = title; $("askB").textContent = body; $("askGo").textContent = goText; pendingAsk = fn; $("ask").classList.add("open"); }
+function ask(title, body, goText, fn, soc) { $("askT").textContent = title; $("askB").textContent = body; $("askGo").textContent = goText; pendingAsk = fn;
+  $("askSocW").hidden = !soc; if (soc) { $("askSoc").checked = soc.on; $("askSocT").textContent = soc.label; } $("ask").classList.add("open"); }
 $("askNo").onclick = () => { $("ask").classList.remove("open"); pendingAsk = null; document.querySelectorAll(".ac").forEach((c) => c.style.transform = ""); };
 $("ask").addEventListener("click", (e) => { if (e.target.id === "ask") $("askNo").onclick(); });
 $("askGo").onclick = async () => { const f = pendingAsk; $("ask").classList.remove("open"); pendingAsk = null; if (f) await f(); };
 function approve(d) {
-  ask("Approve " + d.product + "?", "This attaches the video, puts the listing live and posts it to Pinterest, Instagram and Facebook.", "Approve", async () => {
+  const posted = d.card.dataset.posted === "1";
+  ask("Approve " + d.product + "?", "This attaches the video to the listing and puts it live." + (posted ? " This listing's earlier video was already posted to social, so posting is off unless you tick it." : ""), "Approve", async () => {
     d.card.style.opacity = ".5";
-    try { await post("/api/approve", { row: d.row, code: d.code }); toast("Approved: going live"); setTimeout(() => location.reload(), 1200); }
+    const social = $("askSoc").checked ? "yes" : "no";
+    try { await post("/api/approve", { row: d.row, code: d.code, social }); toast(social === "no" ? "Approved: video only, not posted to social" : "Approved: going live"); setTimeout(() => location.reload(), 1200); }
     catch (err) { d.card.style.opacity = ""; d.card.style.transform = ""; toast(err.message, true); }
-  });
+  }, { on: !posted, label: "Also post to Pinterest, Instagram and Facebook" });
 }
 function remake(d) {
   ask("Remake the video for " + d.product + "?", "This video is rejected and a new one is made from what's in Core and on the Etsy listing now. It'll appear here in a few minutes.", "Remake", async () => {
@@ -1498,17 +1509,28 @@ document.querySelectorAll("[data-approve]").forEach((b) => b.addEventListener("c
 // Bulk approve: tick cards, then approve them all. Make's Approve scenario runs one at a time, so they queue safely.
 const picks = () => [...document.querySelectorAll("[data-pick]")];
 function bulkSync() { const n = picks().filter((x) => x.checked).length; if (!$("bulkGo")) return;
-  $("bulkGo").disabled = !n; $("bulkTxt").textContent = n ? "Approve " + n + " ticked" : "Approve ticked";
+  $("bulkGo").disabled = !n; $("bulkRej").disabled = !n; $("bulkTxt").textContent = n ? "Approve " + n + " ticked" : "Approve ticked"; $("bulkRej").textContent = n ? "Reject " + n + " ticked" : "Reject ticked";
   $("pickAll").checked = n && n === picks().length; picks().forEach((x) => x.closest(".ac").classList.toggle("picked", x.checked)); }
 picks().forEach((x) => x.addEventListener("change", bulkSync));
 if ($("pickAll")) $("pickAll").addEventListener("change", (e) => { picks().forEach((x) => { x.checked = e.target.checked; }); bulkSync(); });
 if ($("bulkGo")) $("bulkGo").onclick = () => { const ds = picks().filter((x) => x.checked).map((x) => cardOf(x));
-  ask("Approve " + ds.length + " video" + (ds.length === 1 ? "" : "s") + "?", "Each listing gets its video, goes live and is posted to Pinterest, Instagram and Facebook. Make does them one at a time, about 2 minutes each, so the last one finishes in roughly " + Math.max(2, ds.length * 2) + " minutes.", "Approve " + ds.length, async () => {
-    $("bulkGo").disabled = true; let ok = 0, bad = [];
+  const nPosted = ds.filter((d) => d.card.dataset.posted === "1").length;
+  ask("Approve " + ds.length + " video" + (ds.length === 1 ? "" : "s") + "?", "Each listing gets its video and goes live. Make does them one at a time, about 2 minutes each, so the last one finishes in roughly " + Math.max(2, ds.length * 2) + " minutes." + (nPosted ? " " + nPosted + " of them were already posted to social once and won't be posted again." : ""), "Approve " + ds.length, async () => {
+    $("bulkGo").disabled = true; $("bulkRej").disabled = true; let ok = 0, bad = [];
+    const socOn = $("askSoc").checked;
     for (const d of ds) { d.card.style.opacity = ".5"; $("bulkTxt").textContent = "Approving " + (ok + bad.length + 1) + " of " + ds.length + "…";
-      try { await post("/api/approve", { row: d.row, code: d.code }); ok++; } catch (err) { d.card.style.opacity = ""; bad.push(d.product + ": " + err.message); } }
+      const social = socOn && d.card.dataset.posted !== "1" ? "yes" : "no";
+      try { await post("/api/approve", { row: d.row, code: d.code, social }); ok++; } catch (err) { d.card.style.opacity = ""; bad.push(d.product + ": " + err.message); } }
     toast(ok + " approved" + (bad.length ? ", " + bad.length + " didn't go: " + bad[0] : ": going live"), !!bad.length);
-    setTimeout(() => location.reload(), bad.length ? 4000 : 1500); });
+    setTimeout(() => location.reload(), bad.length ? 4000 : 1500); }, { on: nPosted < ds.length, label: "Also post to Pinterest, Instagram and Facebook" + (nPosted ? " (new ones only)" : "") });
+};
+if ($("bulkRej")) $("bulkRej").onclick = () => { const ds = picks().filter((x) => x.checked).map((x) => cardOf(x));
+  ask("Reject " + ds.length + " video" + (ds.length === 1 ? "" : "s") + "?", "Each one is marked REJECTED in Core. Nothing goes live or gets posted, and no new video is made until you tap Make new video under Recently handled.", "Reject " + ds.length, async () => {
+    $("bulkGo").disabled = true; $("bulkRej").disabled = true; let ok = 0, bad = [];
+    for (const d of ds) { d.card.style.opacity = ".5"; $("bulkRej").textContent = "Rejecting " + (ok + bad.length + 1) + " of " + ds.length + "…";
+      try { await post("/api/reject", { row: d.row, code: d.code, product: d.product }); ok++; } catch (err) { d.card.style.opacity = ""; bad.push(d.product + ": " + err.message); } }
+    toast(ok + " rejected" + (bad.length ? ", " + bad.length + " didn't go: " + bad[0] : ""), !!bad.length);
+    setTimeout(() => location.reload(), bad.length ? 4000 : 1200); });
 };
 document.querySelectorAll("[data-remake]").forEach((b) => b.addEventListener("click", () => remake(cardOf(b))));
 document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { const d = cardOf(b);
@@ -1558,12 +1580,13 @@ function pendingCard(i) {
     ? `<div class="vwrap"><video controls playsinline preload="metadata" src="/video/${encodeURIComponent(i.row)}/${encodeURIComponent(i.code)}"></video><button class="fsbtn" data-fs type="button">Full screen</button></div>`
     : `<div class="card empty" style="margin:0">${icon("approve")}${oneDrive ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">Watch the video in OneDrive</a>` : "No video attached"}</div>`;
   return `
-<div class="frame ac" data-coll="${coll}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}"><div class="card in">
+<div class="frame ac" data-coll="${coll}" data-row="${esc(i.row)}" data-code="${esc(i.code)}" data-product="${esc(i.product)}" data-posted="${i.postedBefore ? 1 : ""}"><div class="card in">
   <span class="swipehint l">Approve</span><span class="swipehint r">Remake</span>
   ${player}
   <div class="meta2">
     <div class="ahead"><img class="rlogo" src="/assets/brand-${coll.toLowerCase()}-wide.png?v=2" alt=""><label class="bulk"><input type="checkbox" data-pick aria-label="Tick to approve in bulk"><span>Tick</span></label></div>
     <span class="code">${esc(i.product)} · rendered ${esc(when(i.receivedAt))}</span>
+    ${i.postedBefore ? `<span class="pill2">Replacement video · already posted to social once</span>` : ""}
     ${i.title ? `<div class="title">${esc(i.title)}</div>` : ""}
     ${captionBlock(i)}
     <div class="links">
@@ -1581,7 +1604,7 @@ function handledCard(i) {
   let action = "";
   if (i.status === "approved") {
     if (!i.result) status = `<div class="status wait">Approved ${esc(when(i.approvedAt || i.updatedAt))}. Waiting for the result from Make…</div>`;
-    else if (i.result.ok) status = `<div class="status ok">✓ Live on Etsy and posted to Pinterest, Instagram and Facebook (${esc(when(i.result.at))})</div>`;
+    else if (i.result.ok) status = `<div class="status ok">✓ Live on Etsy${i.social === false ? " with its new video (not posted to social)" : " and posted to Pinterest, Instagram and Facebook"} (${esc(when(i.result.at))})</div>`;
     else status = `<div class="status bad"><b>Failed${i.result.step ? " at " + esc(i.result.step) : ""}</b>${i.result.message ? "<br>" + esc(i.result.message) : ""}</div>`;
   } else if (i.status === "rejected") {
     status = `<div class="status bad">Rejected ${esc(when(i.updatedAt))}. Marked REJECTED in Core, so no new video will be made until you ask for one.</div>`;
