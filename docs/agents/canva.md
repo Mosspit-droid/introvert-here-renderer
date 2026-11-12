@@ -117,3 +117,7 @@ Adding pages moves the page numbers, so every range done must also update Core i
 - Template EAHZzoT13dY (N002_PC_SWEATSHIRT_MOCKUPS), 25 pages: thumbnail 1–3, gift 4–6, hanging 7–9, closeup 10–12 (Navy/DH/Black), RANGE 13, setup/payoff 14–19, flatlay 20–22, AGM 23, size guide 24, brand 25. Core MOCKUP_PAGES PC SWEATSHIRT rows 123–135: pages 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25; VIDEO_SLOT1/2 = 9, 10 (AU12:AV12). Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_PC_SW_pages.xlsx.
 - Payoff groups (pages 15, 17, 19) made 7% smaller (top and centre kept) to match the setups by eye; published, ID unchanged. Barry's earlier draft DAHausrGsps vanished mid-session (probably published by him), so I used a fresh draft.
 - Canva page 1 is named PC_01_SW_THUMBNAIL (no _NAVY); Core has PC_01_SW_THUMBNAIL_NAVY. Page names can't be changed through the API.
+
+### Extra MOCKUP_PAGES rows removed (12 Nov 2026)
+- Someone other than Barry had added 86 rows at the bottom of MOCKUP_PAGES (rows 201–286): the other-colour pages for IH (Dark Heather), the PC tee (Dark Heather/Black) and all of OTS (Forest Green/Dark Chocolate). That would have pushed listings past Etsy's 20-photo limit. Barry said delete them. The Core backup copy was declined, so the rows are saved in docs/canva/mockup_pages_extra_rows_deleted_2026-11-12.csv; then they were deleted (shift up). The table is now A1:D200.
+- Column D is left-aligned and has no leading spaces; any visible indent is cell formatting only (Graph can't read the indent level).
