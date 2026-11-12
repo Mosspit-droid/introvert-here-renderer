@@ -93,6 +93,9 @@ export default {
       if (pathname === "/links" && method === "GET") {
         return authed ? await linksPage(env) : loginPage(false);
       }
+      if (pathname === "/gagcheck.js" && method === "GET") {
+        return authed ? new Response("var gagIssues = " + gagIssuesFn.toString() + ";", { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
+      }
       if (pathname === "/amend.js" && method === "GET") {
         return authed ? new Response(AMEND_JS, { headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": "no-store" } }) : json({ error: "not signed in" }, 401);
       }
@@ -1381,7 +1384,20 @@ ${todayStrip}
 <h2>Ranges</h2>
 <div class="ranges">${ranges}</div>
 <p class="foot">Release plan updated ${daily ? esc(when(daily.at)) : "—"} · <a href="/logout">Sign out</a></p>
-<script>setTimeout(function () { location.reload(); }, 120000);</script>`);
+<script src="/gagcheck.js"></script>
+<script>
+// Gag check runs here in the background; a "Gag problems" card appears only when something needs fixing.
+fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
+  if (!g || !g.all || typeof gagIssues !== "function") return;
+  var iss = gagIssues(g); if (!iss.length) return;
+  var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var card = '<a class="need warn" href="/check"><span class="big">' + iss.length + '</span><span><span class="t">Gag problem' + (iss.length === 1 ? "" : "s") + ' to fix</span><span class="s">' + esc(iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80) + '</span></span></a>';
+  var needs = document.querySelector(".needs");
+  if (needs) needs.insertAdjacentHTML("beforeend", card);
+  else { var ac = document.querySelector(".allclear"); if (ac) ac.outerHTML = '<h2>Needs you</h2><div class="needs">' + card + "</div>"; }
+}).catch(function () {});
+setTimeout(function () { location.reload(); }, 120000);
+</script>`);
 }
 
 async function alertsPage(env) {
@@ -2642,6 +2658,36 @@ async function toolRun(request, env) {
   return json({ ok: true });
 }
 
+// Gag checks, shared by Check Core and the dashboard. Runs in the browser (served as /gagcheck.js from this
+// function's own source), so the worker does no heavy work. Returns [{ t: kind, d: detail, ids: [gag ids] }].
+function gagIssuesFn(g) {
+  const all = (g && g.all) || [], issues = [];
+  const norm = (t) => String(t || "").toUpperCase().replace(/…/g, " ").replace(/[^A-Z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
+  const bigrams = (str) => { const m = new Map(); for (let i = 0; i < str.length - 1; i++) { const k = str.slice(i, i + 2); m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const dice = (a, b) => { let inter = 0, na = 0, nb = 0; a.forEach((v) => { na += v; }); b.forEach((v) => { nb += v; }); a.forEach((v, k) => { if (b.has(k)) inter += Math.min(v, b.get(k)); }); return na + nb ? 2 * inter / (na + nb) : 0; };
+  const by = (f) => { const m = {}; all.forEach((x) => { const k = f(x); if (k) (m[k] = m[k] || []).push(x.id); }); return Object.entries(m).filter(([, v]) => v.length > 1); };
+  by((x) => x.id).forEach(([k, v]) => issues.push({ t: "Same gag ID used twice", d: k + " (" + v.length + " rows)", ids: [k] }));
+  by((x) => norm(x.text)).forEach(([, v]) => issues.push({ t: "Identical gag text", d: "", ids: v }));
+  by((x) => String(x.stem || "").trim().toLowerCase()).forEach(([k, v]) => issues.push({ t: "Same title stem", d: "“" + k + "”", ids: v }));
+  all.forEach((x) => {
+    const st = String(x.stem || "");
+    if (/[\r\n\t]/.test(st)) issues.push({ t: "Line break in title stem", d: JSON.stringify(st), ids: [x.id] });
+    else if (/^\s|\s$|\s{2,}/.test(st)) issues.push({ t: "Stray spaces in title stem", d: "“" + st + "”", ids: [x.id] });
+    if (!/^\s*(\.\.\.|…)/.test(String(x.text || ""))) issues.push({ t: "Missing the opening ...", d: "", ids: [x.id] });
+    [x.t12, x.t13].forEach((t) => { if (t && String(t).trim().length > 20) issues.push({ t: "Custom tag over 20 characters", d: "“" + t + "”", ids: [x.id] }); });
+  });
+  const B = all.map((x) => ({ id: x.id, n: norm(x.text), t: String(x.text || "") }));
+  B.forEach((x) => { x.bg = bigrams(x.n); });
+  const sim = [];
+  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
+    const a = B[i], b = B[j]; if (a.n === b.n) continue;
+    if (Math.abs(a.n.length - b.n.length) > 0.5 * Math.max(a.n.length, b.n.length)) continue;
+    const d = dice(a.bg, b.bg); if (d >= 0.72) sim.push([d, a, b]);
+  }
+  sim.sort((p, q) => q[0] - p[0]).slice(0, 15).forEach(([d, a, b]) => issues.push({ t: "Very similar gags (" + Math.round(d * 100) + "% alike)", d: a.id + ": " + a.t.replace(/\n+/g, " ") + "\n" + b.id + ": " + b.t.replace(/\n+/g, " "), ids: [a.id, b.id] }));
+  return issues;
+}
+
 async function toolsPage(env) {
   const runs = (await env.PENDING.get("tool-runs", "json")) || {};
   const last = (k) => runs[k] ? "Last started " + esc(when(runs[k].at)) + " (" + esc(runs[k].scope) + ")" : "Not run from the app yet";
@@ -2658,14 +2704,17 @@ async function toolsPage(env) {
 .tcard p{margin:0 0 8px;font-size:14px;color:var(--muted)}
 .issue{border-top:1px solid var(--line);padding:9px 0;font-size:14px;white-space:pre-wrap}
 .issue b{display:block;font-size:13px;color:var(--accent);margin-bottom:2px}
+.gchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.gchip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid var(--frame);border-radius:12px;color:var(--text);text-decoration:none;font:700 13px var(--display);letter-spacing:.06em}
 </style>
 ${brandHeader("Check Core", `<button class="btn" id="scanRefresh" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="frame" style="max-width:860px"><div class="card tcard">
   <h3>Check the gags for problems</h3>
-  <p>Looks through every written gag for duplicates, very similar gags, title stems with stray spaces or line breaks, gags missing the opening "...", and custom tags over Etsy's 20 characters. Instant and free.</p>
-  <button class="btn-main" id="scan" type="button">${icon("check")}Check now</button>
+  <p>Runs by itself whenever you open this page or the dashboard. Looks through every written gag for duplicates, very similar gags, title stems with stray spaces or line breaks, gags missing the opening "...", and custom tags over Etsy's 20 characters. Instant and free.</p>
+  <button class="btn-main" id="scan" type="button">${icon("check")}Check again</button>
   <div id="scanOut" class="small" style="margin-top:12px"></div>
 </div></div>
+<script src="/gagcheck.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 document.querySelectorAll(".trun").forEach((b) => b.addEventListener("click", async () => {
@@ -2680,38 +2729,18 @@ document.querySelectorAll(".trun").forEach((b) => b.addEventListener("click", as
   b.disabled = false;
   card.querySelector(".tmsg").textContent = r.ok ? "Started. You'll get an alert on the Approvals page when it's done." : (j.error || "Something went wrong.");
 }));
-const norm = (t) => String(t || "").toUpperCase().replace(/…/g, " ").replace(/[^A-Z0-9' ]+/g, " ").replace(/\\s+/g, " ").trim();
-function bigrams(s) { const m = new Map(); for (let i = 0; i < s.length - 1; i++) { const g = s.slice(i, i + 2); m.set(g, (m.get(g) || 0) + 1); } return m; }
-function dice(a, b) { let inter = 0, na = 0, nb = 0; a.forEach((v) => na += v); b.forEach((v) => nb += v); a.forEach((v, k) => { if (b.has(k)) inter += Math.min(v, b.get(k)); }); return na + nb ? 2 * inter / (na + nb) : 0; }
+function esc2(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 async function scan() {
   const out = $("scanOut"); out.textContent = "Checking…";
   const r = await fetch("/api/gags-data"); const g = r.ok ? await r.json() : null;
   if (!g || !g.all) { out.innerHTML = "The app hasn't got the full gag list yet. Tap “Sync to Core”, wait a minute, then check again."; return; }
-  const all = g.all, issues = [];
-  const by = (f) => { const m = {}; all.forEach((x) => { const k = f(x); if (k) (m[k] = m[k] || []).push(x.id); }); return Object.entries(m).filter(([, v]) => v.length > 1); };
-  by((x) => x.id).forEach(([k, v]) => issues.push(["Same gag ID used twice", k + " (" + v.length + " rows)"]));
-  by((x) => norm(x.text)).forEach(([, v]) => issues.push(["Identical gag text", v.join(", ")]));
-  by((x) => String(x.stem).trim().toLowerCase()).forEach(([k, v]) => issues.push(["Same title stem", "“" + k + "”: " + v.join(", ")]));
-  all.forEach((x) => {
-    const s = String(x.stem || "");
-    if (/[\\r\\n\\t]/.test(s)) issues.push(["Line break in title stem", x.id + " (row " + x.row + "): " + JSON.stringify(s)]);
-    else if (/^\\s|\\s$|\\s{2,}/.test(s)) issues.push(["Stray spaces in title stem", x.id + " (row " + x.row + "): “" + s + "”"]);
-    if (!/^\\s*(\\.\\.\\.|…)/.test(x.text)) issues.push(["Missing the opening ...", x.id + " (row " + x.row + ")"]);
-    [x.t12, x.t13].forEach((t) => { if (t && String(t).trim().length > 20) issues.push(["Custom tag over 20 characters", x.id + ": “" + t + "”"]); });
-  });
-  const B = all.map((x) => ({ id: x.id, n: norm(x.text), t: x.text }));
-  B.forEach((x) => x.bg = bigrams(x.n));
-  const sim = [];
-  for (let i = 0; i < B.length; i++) for (let j = i + 1; j < B.length; j++) {
-    const a = B[i], b = B[j]; if (a.n === b.n) continue;
-    if (Math.abs(a.n.length - b.n.length) > 0.5 * Math.max(a.n.length, b.n.length)) continue;
-    const d = dice(a.bg, b.bg); if (d >= 0.72) sim.push([d, a, b]);
-  }
-  sim.sort((p, q) => q[0] - p[0]).slice(0, 15).forEach(([d, a, b]) => issues.push(["Very similar gags (" + Math.round(d * 100) + "% alike)", a.id + ": " + a.t.replace(/\\n+/g, " ") + "\\n" + b.id + ": " + b.t.replace(/\\n+/g, " ")]));
-  const head = "Checked " + all.length + " written gags (Core read " + new Date(g.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + "). ";
-  out.innerHTML = issues.length ? head + issues.length + " thing" + (issues.length === 1 ? "" : "s") + " to look at:" + issues.map(([t, d]) => '<div class="issue"><b>' + t + '</b>' + d.replace(/[<&]/g, (c) => c === "<" ? "&lt;" : "&amp;") + '</div>').join("") : head + "No problems found. ✓";
+  const issues = gagIssues(g);
+  const head = "Checked " + g.all.length + " written gags (Core read " + new Date(g.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + "). ";
+  out.innerHTML = issues.length ? head + issues.length + " thing" + (issues.length === 1 ? "" : "s") + " to look at. Tap a gag to open it and fix it:" + issues.map((x) =>
+    '<div class="issue"><b>' + esc2(x.t) + '</b>' + (x.d ? esc2(x.d) + "<br>" : "") + '<span class="gchips">' + x.ids.map((id) => '<a class="gchip" href="/gag/' + encodeURIComponent(id) + '">' + esc2(id) + " ›</a>").join("") + "</span></div>").join("") : head + "No problems found. ✓";
 }
 $("scan").addEventListener("click", scan);
+scan();
 $("scanRefresh").addEventListener("click", async () => { $("scanOut").textContent = "Syncing to Core… check again in about a minute."; await fetch("/api/gags-refresh", { method: "POST" }); toast("Syncing to Core"); });
 </script>`);
 }
