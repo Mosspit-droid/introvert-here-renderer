@@ -959,7 +959,7 @@ async function todoExtApi(request, env, key, sub) {
 }
 // Claude: minimal remote MCP server (Streamable HTTP, JSON responses, no sessions)
 const TODO_TOOLS = [
-  { name: "add_todo", description: "Add an item to Barry's shared Introvert Here to-do list. Use when Barry says the code word \"Note it\": summarise the idea as a short, clear to-do line (under 120 characters), with any useful context in details.", inputSchema: { type: "object", properties: { text: { type: "string", description: "The to-do, one short line" }, details: { type: "string", description: "Optional extra context" } }, required: ["text"] } },
+  { name: "add_todo", description: "Add an item to Barry's shared Introvert Here to-do list. Use when Barry asks to save an idea or task, in any wording: \"note it\", \"note that\", \"add that to the list\", \"put that on the list\", \"jot that down\", \"remember this\", \"save that idea\", \"park that\", \"to-do:\", \"idea:\", or plainly saying something is worth doing later. If you are unsure whether he wants it saved, ask in one line first. Summarise the idea as a short, clear to-do line (under 120 characters), with any useful context in details.", inputSchema: { type: "object", properties: { text: { type: "string", description: "The to-do, one short line" }, details: { type: "string", description: "Optional extra context" } }, required: ["text"] } },
   { name: "list_todos", description: "List the open items on Barry's shared Introvert Here to-do list.", inputSchema: { type: "object", properties: {} } },
   { name: "complete_todo", description: "Tick off an item on the shared to-do list by its id.", inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } },
 ];
@@ -971,7 +971,7 @@ async function todoMcp(request, env, key) {
   const handle = async (m) => {
     if (m.id === undefined || m.id === null) return null; // notification
     const ok = (result) => ({ jsonrpc: "2.0", id: m.id, result });
-    if (m.method === "initialize") return ok({ protocolVersion: (m.params && m.params.protocolVersion) || "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "introvert-here-todo", version: "1.0.0" }, instructions: "Barry's shared to-do list for Introvert Here. When he says \"Note it\", summarise the idea and call add_todo." });
+    if (m.method === "initialize") return ok({ protocolVersion: (m.params && m.params.protocolVersion) || "2025-03-26", capabilities: { tools: {} }, serverInfo: { name: "introvert-here-todo", version: "1.0.0" }, instructions: "Barry's shared to-do list for Introvert Here. Call add_todo when Barry asks to save an idea or task, in any wording: \"note it\", \"note that\", \"add that to the list\", \"put that on the list\", \"jot that down\", \"remember this\", \"save that idea\", \"park that\", \"to-do:\", \"idea:\", or plainly saying something is worth doing later. If you are unsure whether he wants it saved, ask in one line first." });
     if (m.method === "ping") return ok({});
     if (m.method === "tools/list") return ok({ tools: TODO_TOOLS });
     if (m.method === "tools/call") {
@@ -999,10 +999,10 @@ async function todoPage(env, origin) {
     paths: { "/": { get: { operationId: "listTodos", summary: "List open to-dos", responses: { "200": { description: "OK" } } },
       post: { operationId: "addTodo", summary: "Add a to-do", requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { text: { type: "string", description: "One short line" }, details: { type: "string" } }, required: ["text"] } } } }, responses: { "200": { description: "OK" } } } },
       "/done": { post: { operationId: "completeTodo", summary: "Tick off a to-do by id", requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } } } }, responses: { "200": { description: "OK" } } } } } }, null, 2) : "";
-  const gptInstr = "You help Barry run Introvert Here, an Etsy shop of introvert humour clothing. When Barry says \"Note it\", summarise the idea he has just described as one short, clear to-do line (under 120 characters), put any useful context in details, and call addTodo. Confirm in one line. If he asks what's on his list, call listTodos.";
+  const gptInstr = "You help Barry run Introvert Here, an Etsy shop of introvert humour clothing. When Barry asks to save an idea or task, in any wording (\"note it\", \"note that\", \"add that to the list\", \"jot that down\", \"remember this\", \"park that\", \"idea:\", or saying something is worth doing later), summarise it as one short, clear to-do line (under 120 characters), put any useful context in details, and call addTodo. If you're not sure he wants it saved, ask in one line first. Confirm in one line. If he asks what's on his list, call listTodos.";
   const setup = key ? `<details class="card setup"><summary>Set up Claude and ChatGPT</summary>
   <p class="small">Keep these private: anyone with the link can add to your list.</p>
-  <h4>Claude</h4><ol class="small"><li>In Claude: Settings → Connectors → <b>Add custom connector</b>.</li><li>Name: <b>Introvert Here to-do</b>. URL: the link below. Leave the advanced settings empty, then Add.</li><li>Settings → Profile, in "What personal preferences should Claude consider", add: <i>When I say "Note it", summarise the idea and add it with the Introvert Here to-do connector.</i></li></ol>
+  <h4>Claude</h4><ol class="small"><li>In Claude: Settings → Connectors → <b>Add custom connector</b>.</li><li>Name: <b>Introvert Here to-do</b>. URL: the link below. Leave the advanced settings empty, then Add.</li><li>Settings → Profile, in "What personal preferences should Claude consider", add: <i>When I ask to save an idea or task in any wording (note it, add that to the list, jot that down, remember this, park that), summarise it and add it with the Introvert Here to-do connector. If unsure, ask me first.</i></li></ol>
   <div class="cp"><code>${esc(mcpUrl)}</code><button class="btn" type="button" data-copy="${esc(mcpUrl)}">Copy</button></div>
   <h4>ChatGPT</h4><ol class="small"><li>In ChatGPT: Explore GPTs → <b>Create</b> → Configure. Name it <b>Introvert Here</b>.</li><li>Paste the instructions below into Instructions.</li><li>Create new action → paste the schema below. Authentication: None. Save (Only me).</li><li>Chat in that GPT and say "Note it" when you have an idea.</li></ol>
   <div class="cp"><code>Instructions</code><button class="btn" type="button" data-copy="${esc(gptInstr)}">Copy instructions</button></div>
@@ -1036,7 +1036,7 @@ ${brandHeader("To-do")}
     <h2 id="doneH">Done</h2><div class="tdl" id="done"></div>
   </div>
   <div class="card"><h3 style="margin:0 0 8px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)">Add from anywhere</h3>
-    <p class="small" style="margin:0">In Claude or ChatGPT, say <b>Note it</b> and the idea is summarised and added here. Claude Code can add to it too. Ticked items move to Done.</p></div>
+    <p class="small" style="margin:0">In Claude or ChatGPT, say <b>Note it</b>, <b>add that to the list</b>, <b>jot that down</b> or similar, and the idea is summarised and added here. Claude Code can add to it too. Ticked items move to Done.</p></div>
   ${setup}
 </div>
 <script>
