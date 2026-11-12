@@ -145,6 +145,9 @@ export default {
       if (pathname === "/api/todo" && method === "POST") return await todoAppApi(request, env);
       if (pathname === "/api/template-check" && method === "POST") return await templateCheck(request, env);
       if (pathname === "/api/template-checks" && method === "GET") return json((await env.PENDING.get("tpl-checks", "json")) || {});
+      if (pathname === "/api/stop" && method === "POST") return await stopBuilder(request, env);
+      if (pathname === "/api/resume" && method === "POST") return await resumeBuilder(env);
+      if (pathname === "/api/stop-state" && method === "GET") return json((await env.PENDING.get("builder-stop", "json")) || {});
       if (pathname === "/api/amend-trial" && method === "POST") return await amendTrial(request, env);
       if (pathname === "/api/credits-key" && method === "POST") return await creditsKey(request, env);
       if (pathname === "/api/credits-refresh" && method === "POST") { const out = await creditsCheck(env, true); return json(out.error ? { error: out.error } : { ok: true }); }
@@ -199,6 +202,7 @@ async function lockOp(request, env) {
   const key = "lock:" + name, now = Date.now();
   const cur = await env.PENDING.get(key, "json");
   if (action === "take") {
+    if (name === "builder" && (await env.PENDING.get("builder-stop"))) return json({ ok: false, reason: "stopped by Barry" });
     if (cur && cur.id !== id && !cur.passed && now - cur.at < ttl) {
       const blocked = (await env.PENDING.get(key + ":blocked", "json")) || [];
       blocked.unshift({ id, at: now, holder: cur.id });
@@ -669,6 +673,13 @@ a{color:inherit}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pagehead{align-items:center;margin:4px 0 14px}
 .topbar .sp{flex:1}
+.stopbtn{flex:none;min-height:46px;padding:0 22px;border-radius:99px;border:2px solid #d9534f;background:rgba(217,83,79,.14);color:#ff8a85;font:900 13px var(--display);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
+.stopbtn.resume{border-color:#e6b450;background:rgba(230,180,80,.18);color:#f0c870;animation:pulse 2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(230,180,80,.15)}}
+@media (max-width:560px){.stopbtn{padding:0 14px;min-height:40px;font-size:11px}}
+.stopsheet .opt{display:block;width:100%;text-align:left;padding:16px;margin-top:10px;border-radius:14px;border:1.5px solid var(--line);background:var(--field);color:var(--text);cursor:pointer;font:600 15px var(--body)}
+.stopsheet .opt b{display:block;font:800 14px var(--display);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.stopsheet .opt.red{border-color:#d9534f}
 .topbar .when{font:600 12px var(--body);color:var(--muted);text-align:right;line-height:1.3}
 .topbar .when b{display:block;color:var(--text);font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase}
 .iconbtn{position:relative;width:48px;height:48px;border-radius:14px;border:2px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--text);text-decoration:none;flex:none}
@@ -859,9 +870,32 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <nav class="tabbar" aria-label="Main"><div class="in">${tabs}<a href="#more" id="moreBtn">${icon("more")}More</a></div></nav>
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sheet stopsheet" id="stopSheet"><div class="pane" style="max-width:560px;margin:0 auto;display:block"><div style="font:800 18px var(--display)" id="stopT">Emergency stop</div><div class="small" id="stopB" style="margin-top:6px"></div><div id="stopOpts"></div><button class="btn" type="button" id="stopNo" style="width:100%;margin-top:12px">Never mind</button></div></div>
 <div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find a gag: ID, title, any word of the gag" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
+  // Emergency stop button (centre of the top bar).
+  (function () {
+    var btn = document.getElementById("stopBtn"), sh = document.getElementById("stopSheet"); if (!btn) return;
+    function post(u, b) { return fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b || {}) }).then(function (r) { return r.json(); }); }
+    function show(st) { btn.hidden = false; btn.classList.toggle("resume", !!st.at); btn.textContent = st.at ? "Stopped · Resume" : "Stop"; btn.dataset.on = st.at ? "1" : ""; }
+    fetch("/api/stop-state").then(function (r) { return r.ok ? r.json() : null; }).then(function (st) { if (st) show(st); }).catch(function () {});
+    function opt(cls, title, text, fn) { var b = document.createElement("button"); b.type = "button"; b.className = "opt " + cls; b.innerHTML = "<b>" + title + "</b>" + text; b.onclick = fn; return b; }
+    function close() { sh.classList.remove("open"); }
+    document.getElementById("stopNo").onclick = close; sh.addEventListener("click", function (e) { if (e.target === sh) close(); });
+    btn.onclick = function () {
+      var o = document.getElementById("stopOpts"); o.innerHTML = "";
+      if (btn.dataset.on) {
+        document.getElementById("stopT").textContent = "Resume?"; document.getElementById("stopB").textContent = "The builder starts again and carries on with anything still queued.";
+        o.appendChild(opt("", "Resume", "Start the builder again.", function () { post("/api/resume").then(function (j) { close(); toast(j.queued ? "Resumed: carrying on with " + j.queued + " queued gag" + (j.queued === 1 ? "" : "s") : "Resumed"); show({}); }); }));
+      } else {
+        document.getElementById("stopT").textContent = "Emergency stop"; document.getElementById("stopB").textContent = "Stops the listing builder before it starts anything new. If it's halfway through a gag, it finishes that one gag (up to 8 minutes) and then stops.";
+        o.appendChild(opt("", "Pause", "Stop for now. Anything queued waits until you tap Resume.", function () { post("/api/stop", { mode: "pause" }).then(function () { close(); toast("Stopped. Tap Resume when you're ready."); show({ at: 1 }); }); }));
+        o.appendChild(opt("red", "Pause and cancel", "Stop, and throw away the queued updates so they never happen. Changes already saved in Core (like a new title) stay.", function () { post("/api/stop", { mode: "cancel" }).then(function (j) { close(); toast("Stopped and cancelled" + (j.cleared ? " (" + j.cleared + " gag" + (j.cleared === 1 ? "" : "s") + ")" : "")); show({ at: 1 }); }); }));
+      }
+      sh.classList.add("open");
+    };
+  })();
   var p = location.pathname, on = null;
   // Freeze the "Dashboard" row just under the top bar; anything else sticky sits below both.
   function sticky() { var t = document.querySelector(".topbar"), h = document.querySelector(".pagehead");
@@ -904,7 +938,7 @@ const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"]
 const TOP_PAGES = ["/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/credits", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div>
+  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div><button class="stopbtn" id="stopBtn" type="button" hidden>Stop</button><div class="sp"></div>
 <div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
@@ -3040,6 +3074,33 @@ async function amendWatch(env) {
   if (w.last && now - w.last < 9 * 60000) return;
   w.last = now; await env.PENDING.put("amend-watch", JSON.stringify(w));
   await amendHook(env, { action: "state" });
+}
+
+// ---------- Emergency stop ----------
+// STOP sets "builder-stop": the builder's lock refuses every new run (each stops at its first step, 1 credit).
+// "Pause and cancel" also clears the queued updates in Core. Resume clears the flag and restarts anything queued.
+async function stopBuilder(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const cancel = d.mode === "cancel";
+  await env.PENDING.put("builder-stop", JSON.stringify({ at: Date.now(), mode: cancel ? "cancel" : "pause" }));
+  let cleared = 0;
+  if (cancel) {
+    const S = await env.PENDING.get("amend", "json");
+    const busy = S ? S.gags.filter((g) => /^AMENDMENT_REQUIRED/.test(g.status)) : [];
+    const ops = [];
+    busy.forEach((g) => { ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, "LIVE_EXISTING")); g.status = "LIVE_EXISTING"; if (S.hasOnly && g.only) { ops.push(amendCell("GAGS_TABLE", "AMEND_ONLY", g.row, "")); g.only = ""; } });
+    if (ops.length) { const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" }); if (err) return err; await env.PENDING.put("amend", JSON.stringify(S)); }
+    cleared = busy.length;
+    await env.PENDING.delete("amend-trial"); await env.PENDING.delete("photo-job");
+  }
+  return json({ ok: true, cleared });
+}
+async function resumeBuilder(env) {
+  await env.PENDING.delete("builder-stop");
+  const S = await env.PENDING.get("amend", "json");
+  const queued = S ? S.gags.filter((g) => /^AMENDMENT_REQUIRED/.test(g.status)).length : 0;
+  if (queued) { const err = await amendHook(env, { action: "kick" }); if (err) return err; }
+  return json({ ok: true, queued });
 }
 
 async function amendRestart(env) {
