@@ -3014,7 +3014,7 @@ $("scanRefresh").addEventListener("click", async () => { $("scanOut").textConten
 const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
 const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
 const AMEND_GARMENTS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
-const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags"];
+const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags", "video"];
 const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID" };
 const AMEND_TAG_COLS = ["PRODUCT_TAG_09", "PRODUCT_TAG_10", "PRODUCT_TAG_11", "PRODUCT_TAG_12", "PRODUCT_TAG_13"];
 const amendCell = (table, col, row, value) => ({ url: `${AMEND_XL}/tables/${table}/columns/${col}/dataBodyRange/cell(row=${Number(row)},column=0)`, value: String(value) });
@@ -3210,7 +3210,10 @@ async function amendApply2(request, env, given) {
     if (d.photo.mode === "one") {
       const keys = (Array.isArray(d.photo.keys) ? d.photo.keys : d.photo.key ? [d.photo.key] : []).map(String).filter((k) => /^[A-Z_]+#\d+$/.test(k) && !/^THUMBNAIL/.test(k));
       if (!keys.length) throw new Error("Tick at least one photo to refresh.");
-      photoJob = { action: "replace", keys, key: keys[0], at: Date.now() };
+      // Is any ticked photo in the video? Then the builder clears the video so a new one is made.
+      const video = [...combosPicked].some((combo) => { const [coll, type] = combo.split("|"); const r = (S.rules || []).find((x) => x.coll === coll && x.type === type) || {};
+        return photoPlan(pagesOf(coll, type), "BLACK").some((x) => keys.includes(x.key) && (x.rank === r.slot1 || x.rank === r.slot2)); });
+      photoJob = { action: "replace", keys, key: keys[0], video, at: Date.now() };
     } else {
       const name = String(d.photo.name || "").toUpperCase().replace(/[^A-Z_]/g, "");
       if (!/^[A-Z][A-Z_]{1,23}$/.test(name)) throw new Error("Give the new photo a name, letters only (e.g. BEACH).");
@@ -3228,14 +3231,20 @@ async function amendApply2(request, env, given) {
         ops.push({ url: `${AMEND_XL}/tables/MOCKUP_PAGES/rows`, method: "POST", values: rows });
         rows.forEach((r) => S.pages.push({ coll: r[0], type: r[1], pos: r[2], name: r[3] }));
       }
-      photoJob = { action: "add", key: name + "#1", at: Date.now() };
+      photoJob = { action: "add", key: name + "#1", keys: [name + "#1"], video: false, at: Date.now() };
     }
   }
+  // New video: clear each picked listing's video status so the video starter makes a fresh one.
+  if (what.has("video")) {
+    if (!S.regRows) throw new Error("The app needs a fresh read of Core first. Tap Sync to Core, wait a minute, and try again.");
+    for (const id of gagIds) for (const t of byGag[id]) { const r = S.regRows[id + "-" + t]; if (r !== undefined) ops.push(amendCell("LISTING_REGISTRY_TABLE", "VIDEO_STATUS", r, "")); }
+  }
+  const onlyVideo = what.size === 1 && what.has("video");
   const text = what.has("titles") || what.has("descriptions") || what.has("tags");
   const status = photoJob ? "AMENDMENT_REQUIRED_PHOTO" : what.has("print") ? "AMENDMENT_REQUIRED_REPRINT"
     : what.has("supplier") || what.has("colours") || (text && what.has("mockups")) ? "AMENDMENT_REQUIRED_COLOURS"
     : text ? "AMENDMENT_REQUIRED" : "AMENDMENT_REQUIRED_ARTWORK";
-  for (const id of gagIds) {
+  for (const id of onlyVideo ? [] : gagIds) {
     const g = S.gags.find((x) => x.id === id);
     const pick = byGag[id];
     const only = g.live.every((t) => pick.has(t)) ? "" : AMEND_GARMENTS.filter((t) => pick.has(t)).join("|");
@@ -3244,7 +3253,7 @@ async function amendApply2(request, env, given) {
     ops.push(amendCell("GAGS_TABLE", "STATUS", g.row, status)); g.status = status;
   }
   if (photoJob) await env.PENDING.put("photo-job", JSON.stringify(photoJob));
-  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "300", run: "yes" });
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: onlyVideo ? "5" : "300", run: "yes" });
   if (err) return err;
   await env.PENDING.put("amend", JSON.stringify(S));
   const n = gagIds.reduce((a, id) => a + byGag[id].size, 0);
@@ -3405,7 +3414,8 @@ var WHAT = [
   ["colours","Colours","Add or take away colours"],
   ["titles","Titles","The title ending for a range and garment, or one gag's title stem"],
   ["descriptions","Descriptions","Intro, features, who it's for, closing text"],
-  ["tags","Product tags","The 5 product tags for a range and garment"]];
+  ["tags","Product tags","The 5 product tags for a range and garment"],
+  ["video","New video","Make a fresh video for each listing from the photos already on Etsy. It comes to Approvals; approving it replaces the old video."]];
 var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_PHOTO:"Updating one photo", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
 function gName(t) { for (var i = 0; i < GARM.length; i++) if (GARM[i][0] === t) return GARM[i][1]; return t; }
 function rName(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][1]; return c; }

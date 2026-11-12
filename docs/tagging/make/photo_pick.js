@@ -14,5 +14,5 @@ const s1 = Number(input.slot1) || 0, s2 = Number(input.slot2) || 0;
 const hits = plan.filter(function (x) { return !x.thumb && keys.indexOf(x.key) >= 0; }).sort(function (a, b) { return a.pos - b.pos; });
 if (!hits.length) return { found: false, reason: "None of " + keys.join(", ") + " on this garment", hero: hero, pages: [], posList: "" };
 const list = hits.map(function (x, i) { return { idx: i + 1, pos: x.pos, rank: x.rank, name: x.name }; });
-return { found: true, pages: list, posList: list.map(function (x) { return x.pos; }).join(","), video: hits.some(function (x) { return x.rank === s1 || x.rank === s2; }), hero: hero,
+return { found: true, pages: list, posList: list.map(function (x) { return x.pos; }).join(","), video: String(input.jobVideo) === "true" || hits.some(function (x) { return x.rank === s1 || x.rank === s2; }), hero: hero,
   pos: list[0].pos, rank: list[0].rank, name: list[0].name };
