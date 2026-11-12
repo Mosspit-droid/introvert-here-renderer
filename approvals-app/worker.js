@@ -1165,18 +1165,19 @@ async function creditsCheck(env, force) {
   return out;
 }
 
-// Cloudflare free plan: KV writes/deletes/lists 1,000 a day each, reads 100,000; Worker requests 100,000. Resets 00:00 UTC.
-const CF_LIMITS = { write: 1000, delete: 1000, list: 1000, read: 100000, requests: 100000 };
+// Cloudflare Workers Paid ($5/month, from 12 Nov 2026): included each month: KV writes/deletes/lists 1M each,
+// KV reads 10M, Worker requests 10M. Counted month to date (resets on the 1st, UTC).
+const CF_LIMITS = { write: 1000000, delete: 1000000, list: 1000000, read: 10000000, requests: 10000000 };
 async function cloudflareUsage(env) {
   const tok = env.SECRETS && (await env.SECRETS.get("cf_token"));
   if (!tok) return null;
-  const d = new Date().toISOString().slice(0, 10);
-  const q = `query { viewer { accounts(filter:{accountTag:"82725ced954062d2cb0d30912fbd923c"}) { kvOperationsAdaptiveGroups(limit:20, filter:{date_geq:"${d}", date_leq:"${d}"}) { sum { requests } dimensions { actionType } } workersInvocationsAdaptive(limit:20, filter:{date_geq:"${d}", date_leq:"${d}"}) { sum { requests } } } } }`;
+  const d = new Date().toISOString().slice(0, 10), m1 = d.slice(0, 8) + "01";
+  const q = `query { viewer { accounts(filter:{accountTag:"82725ced954062d2cb0d30912fbd923c"}) { kvOperationsAdaptiveGroups(limit:20, filter:{date_geq:"${m1}", date_leq:"${d}"}) { sum { requests } dimensions { actionType } } workersInvocationsAdaptive(limit:20, filter:{date_geq:"${m1}", date_leq:"${d}"}) { sum { requests } } } } }`;
   try {
     const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { Authorization: "Bearer " + tok, "Content-Type": "application/json" }, body: JSON.stringify({ query: q }) });
     const j = await r.json(); const a = j && j.data && j.data.viewer && j.data.viewer.accounts && j.data.viewer.accounts[0];
     if (!a) return { error: "Cloudflare said " + r.status + ((j && j.errors && j.errors[0] && ": " + j.errors[0].message) || "") };
-    const u = { day: d };
+    const u = { day: d.slice(0, 7) };
     (a.kvOperationsAdaptiveGroups || []).forEach((g) => { u[g.dimensions.actionType] = (u[g.dimensions.actionType] || 0) + (g.sum.requests || 0); });
     u.requests = (a.workersInvocationsAdaptive || []).reduce((x, g) => x + (g.sum.requests || 0), 0);
     return u;
@@ -1214,7 +1215,7 @@ async function creditsAlerts(env, cur, prev) {
     if (worst[1] >= 0.8 && st.cf !== tag) {
       st.cf = tag;
       const nice = { write: "saves", delete: "deletes", list: "lookups", read: "reads", requests: "page visits" }[worst[0]];
-      fresh.push({ title: "Cloudflare: " + Math.round(worst[1] * 100) + "% of today's " + nice + " used", body: "The app has used " + (cur.cf[worst[0]] || 0).toLocaleString("en-GB") + " of its " + CF_LIMITS[worst[0]].toLocaleString("en-GB") + " free " + nice + " today. If it runs out, new videos can't be saved until midnight (UTC). It resets by itself. If this keeps happening, Cloudflare's paid plan ($5 a month) removes the limit.", link: "https://mosspit-approvals.mosspit.workers.dev/credits" });
+      fresh.push({ title: "Cloudflare: " + Math.round(worst[1] * 100) + "% of this month's " + nice + " used", body: "The app has used " + (cur.cf[worst[0]] || 0).toLocaleString("en-GB") + " of the " + CF_LIMITS[worst[0]].toLocaleString("en-GB") + " " + nice + " included in your $5 plan this month. Going over doesn't stop anything; Cloudflare just charges a little extra (about 50p per extra million saves). Ask Claude if it's growing fast.", link: "https://mosspit-approvals.mosspit.workers.dev/credits" });
     }
   }
   if (JSON.stringify(st) !== st0) await env.PENDING.put("credits-state", JSON.stringify(st));
@@ -1311,11 +1312,11 @@ ${lock && lock.length ? `<div class="card small"><b>Builder lock:</b> stopped ${
   const cfTok = env.SECRETS && (await env.SECRETS.get("cf_token"));
   const cfU = c && c.cf;
   const bar2 = (n, of) => { const pct = Math.min(100, (n / of) * 100); return `<div class="gauge"><i style="width:${Math.max(2, pct)}%;background:${pct >= 95 ? "var(--warn)" : pct >= 80 ? "#e6b450" : "var(--go)"}"></i></div>`; };
-  const cfCard = `<div class="card"><div class="lbl2">Cloudflare (runs this app) · free plan</div>${!cfTok ? `<p class="small">Add a Cloudflare token in Settings below to see today's use here.</p>` : !cfU ? `<p class="small">Reading Cloudflare… tap Refresh in a moment.</p>` : cfU.error ? `<p class="small">Couldn't read Cloudflare: ${esc(cfU.error)}</p>` :
-    `<div class="big2">${n0(cfU.write || 0)}<small> / 1,000 saves today</small></div>${bar2(cfU.write || 0, 1000)}<div class="small">Reads ${n0(cfU.read || 0)} of 100,000 · page visits ${n0(cfU.requests || 0)} of 100,000 · resets overnight at midnight UTC</div>`}</div>`;
+  const cfCard = `<div class="card"><div class="lbl2">Cloudflare (runs this app) · $5 plan</div>${!cfTok ? `<p class="small">Add a Cloudflare token in Settings below to see today's use here.</p>` : !cfU ? `<p class="small">Reading Cloudflare… tap Refresh in a moment.</p>` : cfU.error ? `<p class="small">Couldn't read Cloudflare: ${esc(cfU.error)}</p>` :
+    `<div class="big2">${n0(cfU.write || 0)}<small> / 1,000,000 saves this month</small></div>${bar2(cfU.write || 0, 1000000)}<div class="small">Reads ${n0(cfU.read || 0)} of 10 million · page visits ${n0(cfU.requests || 0)} of 10 million · included in your $5 plan, counted from the 1st</div>`}</div>`;
   const ai = (nm, plan, cost, renew, url) => `<div class="card"><div class="lbl2">${nm}</div><div class="big2" style="font-size:24px">${esc(plan || "Plan not set")}</div><div class="small">${cost ? esc(cost) + " a month" : ""}${renew ? (cost ? " · " : "") + "renews on the " + esc(renew) + ordinal(renew) : ""}</div><p class="small" style="margin:8px 0">${nm} doesn't let other apps see your usage, so tap to check it there.</p><a class="btn" href="${url}" target="_blank" rel="noopener">Check ${nm} usage</a></div>`;
   const aiCards = `<div class="cgrid">${ai("Claude", s.claudePlan, s.claudeCost, s.claudeRenew, "https://claude.ai/settings/usage")}${ai("ChatGPT", s.gptPlan, s.gptCost, s.gptRenew, "https://chatgpt.com/#settings/Account")}</div>`;
-  const costs = [["Make", s.makeCost], ["Cloudflare", "Free"], ["Claude", s.claudeCost], ["ChatGPT", s.gptCost]].filter((x) => x[1]);
+  const costs = [["Make", s.makeCost], ["Cloudflare", "$5"], ["Claude", s.claudeCost], ["ChatGPT", s.gptCost]].filter((x) => x[1]);
   const costCard = costs.length ? `<div class="card"><div class="lbl2">Monthly costs</div>${costs.map((x) => `<div class="cr"><div class="cn">${x[0]}</div><div class="cv"><b>${esc(x[1])}</b></div></div>`).join("")}</div>` : "";
   body += cfCard + aiCards + costCard;
   const settingsCard = `<details class="card" ${tok ? "" : "open"}><summary class="lbl2" style="cursor:pointer">Settings</summary>
