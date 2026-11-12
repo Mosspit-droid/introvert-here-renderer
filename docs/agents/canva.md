@@ -96,3 +96,8 @@ Adding pages moves the page numbers, so every range done must also update Core i
 ### SHHH. sweatshirt rebuild (12 Nov 2026)
 - Template EAHZzqbkUro (R002_SH_SWEATSHIRT_MOCKUPS), 11 pages: THUMBNAIL, GIFT, HANGING, CLOSEUP, SETUP_1, PAYOFF_1 (back view, no overlay), SETUP_2, PAYOFF_2, AGM, SIZE_GUIDE, BRAND. Core MOCKUP_PAGES rows 75–85, PRODUCT_RULES AU8:AV8 = 6, 7. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_SW_pages.xlsx.
 - Reported: overlays all at 64% (page 2's logo at 61%), not the 80% standard; gag text unlocked on pages 1 and 3. Pair 2 sizes look balanced by eye.
+
+### SHHH. hoodie rebuild (12 Nov 2026)
+- Template EAHX6iqxDIo (S002_SH_HOODIE_MOCKUPS), 11 pages: THUMBNAIL, GIFT, HANGING, FLATLAY, SETUP_1, PAYOFF_1, SETUP_2, PAYOFF_2, AGM, SIZE_GUIDE, BRAND. Setups show the small front chest logo; payoffs show the back print with the gag. Core MOCKUP_PAGES rows 86–96, PRODUCT_RULES AU9:AV9 = 6, 7. Backup: 001A_INTROVERT_HERE_CORE_BACKUP_2026-11-12_before_SH_HD_pages.xlsx.
+- Checked by eye: front logos (pages 5, 7) and back prints (pages 6, 8) are in proportion to the body in both pairs. Every overlay shows at 80%. Only the page 5 chest logo is unlocked.
+- 12 Nov 09:00 check: IH-00014 hoodie built with Dark Heather lead (gag 14, even) and thumbnails in the right order; couldn't see the Printify shot's colour (i.etsystatic.com blocked). Builder ran about every 8 min overnight (~270 ops each); reported to Barry, not touched.
