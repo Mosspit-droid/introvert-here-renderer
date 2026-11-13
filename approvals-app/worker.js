@@ -2161,15 +2161,15 @@ ${brandHeader("Gags")}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
   .tab.on{border:3px solid var(--accent);color:var(--text);background:var(--card)}
-  #stage{background:rgba(0,0,0,.55)!important}
+  #stage{background:#000!important}
   @media (max-width:700px){.two{grid-template-columns:1fr}.four{grid-template-columns:1fr 1fr}.gagrow{flex-direction:column}}
   textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
   .gagrow{display:flex;gap:14px;flex-wrap:wrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .four{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
-  #stage{margin-top:4px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden;position:relative;width:100%;min-height:60px}
+  #stage{margin:4px auto 0;background:#000;border-radius:6px;padding:0;box-sizing:border-box;overflow:visible;position:relative;width:100%;min-height:60px}
   .gagrow > *{min-width:0}
-  #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;box-sizing:content-box;overflow:visible;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
+  #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;box-sizing:content-box;overflow:visible;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right}
   #pbox div{white-space:nowrap}
   #pbox .over{color:#ff9a8a}
   .result{padding:10px;border-top:1px solid var(--line);cursor:pointer}
@@ -2290,15 +2290,14 @@ function preview() {
   box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
   const over = [];
   [...box.children].forEach((d, i) => { const w = d.scrollWidth; if (w > width + 0.5) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
-  // The frame is always the product text box: 12 capital Ws wide x 9 lines tall, same as the
-  // Canva text boxes and Core's cells, with a faint 12 x 9 grid. Shown compact (about 160px tall).
-  const lh = fs * 1.2, frameH = lh * 9;
+  // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
+  // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown about 130px tall.
+  const lh = fs * 1.2, frameH = lh * 9, pad = 6;
   box.style.height = frameH + "px";
-  box.style.backgroundImage = "linear-gradient(to right, rgba(255,255,255,.14) 3px, transparent 3px), linear-gradient(to bottom, rgba(255,255,255,.14) 3px, transparent 3px)";
-  box.style.backgroundSize = (width / 12) + "px " + lh + "px";
-  const stage = $("stage"); const scale = Math.min(1, (stage.clientWidth - 28) / width, 160 / frameH);
-  box.style.transform = "scale(" + scale + ")"; box.style.left = Math.max(14, (stage.clientWidth - width * scale) / 2) + "px";
-  stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 28) + "px";
+  const stage = $("stage"); const scale = Math.min(1, ($("stage").parentElement.clientWidth - 2 * pad) / width, 130 / frameH);
+  box.style.transform = "scale(" + scale + ")"; box.style.left = pad + "px"; box.style.top = pad + "px";
+  stage.style.width = (width * scale + 2 * pad) + "px";
+  stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 2 * pad) + "px";
   const warn = [];
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
