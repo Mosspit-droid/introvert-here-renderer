@@ -2117,7 +2117,8 @@ ${brandHeader("Gags")}
 </form>
 <button class="btn-main fabsave" type="submit" form="form" id="save">Save to Core</button>
 <style>
-  .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"L R" "L acts";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
+  /* Form on the left, preview and recent saves on the right (Barry, 13 Nov: works better in split screen). */
+  .gwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);grid-template-areas:"R L" "acts L";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
   .gacts{grid-area:acts;display:flex;gap:8px;flex-wrap:wrap}.gacts .btn{flex:1}
   .gL{grid-area:L}.gR{grid-area:R}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
