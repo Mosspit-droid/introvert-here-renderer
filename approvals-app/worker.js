@@ -1040,7 +1040,7 @@ ${topBar()}
 
 // ---------- one gag, drilled down ----------
 const GAG_STATUS = { LIVE_EXISTING: ["Live", "ok"], READY_FOR_RELEASE: ["Scheduled", "wait"], ETSY_DRAFT_READY_FOR_REVIEW: ["Draft waiting for review", "wait"], AMENDMENT_REQUIRED: ["Updating text", "run"], AMENDMENT_REQUIRED_ARTWORK: ["Updating mockups", "run"], AMENDMENT_REQUIRED_REPRINT: ["Updating printed design", "run"], AMENDMENT_REQUIRED_COLOURS: ["Updating colours", "run"], AMENDMENT_REQUIRED_PHOTO: ["Updating one photo", "run"], FAILED: ["Failed", "bad"] };
-const GAG_GARMENTS = [["T-SHIRT", "T-shirt"], ["LONG-SLEEVE", "Long sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
+const GAG_GARMENTS = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
 async function gagPage(env, id) {
   const [gags, stats, items, tags, amend, daily] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("stats", "json"), loadItems(env), env.PENDING.get("tags", "json"), env.PENDING.get("amend", "json"), env.PENDING.get("daily", "json")]);
   const g = gags && (gags.all || []).find((x) => x.id === id);
@@ -1650,7 +1650,7 @@ ${todayStrip}
   ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
-  ${tile("/pricing", "price", "Pricing", tee ? `T-shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
+  ${tile("/pricing", "price", "Pricing", tee ? `T-Shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
   ${tile("/links", "links", "Links", "Key addresses")}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/check", "check", "Check Core", "Core checks and tools")}
@@ -1684,7 +1684,7 @@ setTimeout(function () { location.reload(); }, 120000);
 // Every gag with a garment releasing in the next 7 days (from tomorrow), from the app's copy of Core.
 function weekReleases(gags) {
   const start = new Date(Date.now() + 864e5).toISOString().slice(0, 10), end = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
-  const GN = ["T-shirt", "Long sleeve", "Sweatshirt", "Hoodie"];
+  const GN = ["T-Shirt", "Long-Sleeve", "Sweatshirt", "Hoodie"];
   return ((gags && gags.editable) || []).map((e) => {
     const hits = (e.dates || []).map((d, i) => [d, GN[i]]).filter(([d]) => d && d >= start && d <= end);
     return hits.length ? { id: e.id, text: e.text, stem: e.stem, hits, first: hits.map((h) => h[0]).sort()[0] } : null;
@@ -1926,7 +1926,9 @@ function handledCard(i) {
 </div>`;
 }
 
-const TYPE_NAMES = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long-sleeve", SWEATSHIRT: "Sweatshirt", HOODIE: "Hoodie" };
+// Garment names as shown in the app (Barry, 13 Nov): T-Shirt, Long-Sleeve, Sweatshirt, Hoodie.
+function garmentName(t) { return { "T-SHIRT": "T-Shirt", "LONG-SLEEVE": "Long-Sleeve", SWEATSHIRT: "Sweatshirt", HOODIE: "Hoodie" }[String(t || "").toUpperCase()] || String(t || ""); }
+const TYPE_NAMES = { "T-SHIRT": "T-Shirt", "LONG-SLEEVE": "Long-Sleeve", SWEATSHIRT: "Sweatshirt", HOODIE: "Hoodie" };
 
 function comingUp(d) {
   if (!d) return "";
@@ -2105,7 +2107,7 @@ ${brandHeader("Gags")}
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-dates"><b>Release dates</b>
         <div class="four">
-          <label>T-shirt<input type="date" id="d1"></label><label>Long-sleeve<input type="date" id="d2"></label>
+          <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
       <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button></div>
@@ -2668,7 +2670,7 @@ async function statsIngest(request, env) {
   return json({ ok: true, listings: data.listings.length, days: keep.length });
 }
 
-const TYPE_LABEL = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long-sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
+const TYPE_LABEL = { "T-SHIRT": "T-Shirt", "LONG-SLEEVE": "Long-Sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
 const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract", OS: "Off The Shelf" };
 const gagOf = (code) => String(code || "").split("-").slice(0, 2).join("-");
 const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
@@ -2923,7 +2925,7 @@ ${brandHeader("Pricing", nav)}
 <script>
 let D = ${JSON.stringify(data || null)};
 const $ = (id) => document.getElementById(id);
-const TYPES = [["T-SHIRT","T-shirt"],["LONG-SLEEVE","Long-sleeve"],["SWEATSHIRT","Sweatshirt"],["HOODIE","Hoodie"]];
+const TYPES = [["T-SHIRT","T-Shirt"],["LONG-SLEEVE","Long-Sleeve"],["SWEATSHIRT","Sweatshirt"],["HOODIE","Hoodie"]];
 const money = (n) => (n < 0 ? "−£" : "£") + Math.abs(n).toFixed(2);
 function cls(p, target){ return p >= target - 0.005 ? "good" : (p >= target / 2 ? "meh" : "bad"); }
 function render() {
@@ -3110,7 +3112,7 @@ async function toolsPage(env) {
   const runs = (await env.PENDING.get("tool-runs", "json")) || {};
   const SA = await env.PENDING.get("amend", "json");
   const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
-  const tplOpts = ((SA && SA.rules) || []).map((r) => `<option value="${esc(r.coll + "|" + r.type)}">${esc((RN[r.coll] || r.coll) + " · " + r.type.toLowerCase().replace("-", " "))}</option>`).join("");
+  const tplOpts = ((SA && SA.rules) || []).map((r) => `<option value="${esc(r.coll + "|" + r.type)}">${esc((RN[r.coll] || r.coll) + " · " + garmentName(r.type))}</option>`).join("");
   const last = (k) => runs[k] ? "Last started " + esc(when(runs[k].at)) + " (" + esc(runs[k].scope) + ")" : "Not run from the app yet";
   const scope = (k, withOS) => `<div class="prow"><label>Which listings</label><select class="tsel" data-k="${k}">
     <option value="">All collections</option><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option><option value="OS">Off The Shelf</option></select></div>
@@ -3467,7 +3469,7 @@ function trialCard(t, S, where) {
   if (!t) return "";
   const g = S && S.gags ? S.gags.find((x) => x.id === t.first.gag) : null;
   const busy = g && /^AMENDMENT_REQUIRED/.test(g.status);
-  const name = esc(t.first.gag + " " + t.first.garment.toLowerCase().replace("-", " "));
+  const name = esc(t.first.gag + " " + garmentName(t.first.garment));
   const n = t.rest.listings.length;
   return `<div class="card trialc"><b>${busy ? "Trying it on one listing first" : "Trial done: check it"}</b>
 <p class="small" style="margin:6px 0 10px">${busy ? `Updating ${name} now. When it's done, check it on Etsy, then carry on with the other ${n}.` : `Look at ${name} on Etsy. If it's right, carry on with the other ${n} listing${n === 1 ? "" : "s"}. If not, stop and nothing else changes.`}</p>
@@ -3594,7 +3596,7 @@ const AMEND_JS = String.raw`
 var D = JSON.parse(document.getElementById("amend-data").textContent);
 var S0 = D.S, LOG = D.log || [];
 var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
-var GARM = [["T-SHIRT","T-shirt","T-shirts"],["LONG-SLEEVE","Long sleeve","Long sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
+var GARM = [["T-SHIRT","T-Shirt","T-Shirts"],["LONG-SLEEVE","Long-Sleeve","Long-Sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
 var WHAT = [
   ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace), then refresh colours and mockups"],
   ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video"],
