@@ -667,6 +667,7 @@ body{margin:0;min-height:100vh;color:var(--text);font:15px/1.5 var(--body);overf
 main{max-width:1120px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right,0px)) 120px max(16px,env(safe-area-inset-left,0px))}
 a{color:inherit}
 :focus-visible{outline:2px solid var(--frame);outline-offset:3px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:0}
 /* top bar */
 .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:calc(12px + env(safe-area-inset-top,0px)) 0 12px;margin-bottom:6px}
 .topbar::before{content:"";position:absolute;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);background:linear-gradient(rgba(8,8,8,.94),rgba(8,8,8,.7));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:-1}
@@ -2102,7 +2103,7 @@ ${brandHeader("Gags")}
     <div class="card g-side">
       <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div></div>
-      <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote"></span></label><div id="stemspell"></div></div>
+      <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
       <div class="fld o-cat"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-dates"><b>Release dates</b>
