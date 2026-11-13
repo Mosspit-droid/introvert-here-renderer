@@ -788,7 +788,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
 .trialc{border:2px solid #e6b450!important}
-.fabsave{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:28;width:auto!important;min-height:62px;padding:0 30px;border-radius:99px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+.fabsave{position:fixed;left:max(20px,env(safe-area-inset-left,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:28;width:auto!important;min-height:62px;padding:0 30px;border-radius:99px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
 @media (max-width:760px){.fabsave{bottom:calc(92px + env(safe-area-inset-bottom,0px))}}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
