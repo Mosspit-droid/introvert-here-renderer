@@ -107,6 +107,9 @@ export default {
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
+      if (pathname === "/calendar" && method === "GET") {
+        return authed ? await calendarPage(env) : redirect("/");
+      }
       if (pathname === "/settings" && method === "GET") {
         return authed ? await settingsPage(env) : redirect("/");
       }
@@ -873,6 +876,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-todo" viewBox="0 0 32 32"><rect x="4" y="4" width="24" height="24" rx="6" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M9.5 16.5l4 4 9-9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-back" viewBox="0 0 32 32"><path d="M19 7l-9 9 9 9" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-credits" viewBox="0 0 32 32"><path d="M5 22a11 11 0 1 1 22 0" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M16 22l6-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="22" r="2.4" fill="currentColor"/></symbol>
+<symbol id="i-cal" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M4 13h24M11 3.5v5M21 3.5v5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="9" y="17" width="5" height="4.5" rx="1.2" fill="currentColor"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
 </defs></svg>`;
@@ -1659,14 +1663,15 @@ need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (low
 ${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
-  ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
-  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
   ${tile("/amend", "update", "Update listings", `<b>${liveListings || "—"}</b> live listings`)}
-  ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved")}
-  ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
+  ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
+  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
+  ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
   ${tile("/pricing", "price", "Pricing", tee ? `T-Shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
+  ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
   ${tile("/links", "links", "Links", "Key addresses")}
+  ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved")}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/check", "check", "Check Core", "Core checks and tools")}
   ${tile("/settings", "tools", "Settings", "Tag system and product text")}
@@ -3143,6 +3148,113 @@ async function templateResult(request, env) {
   all[d.coll + "|" + d.type] = { at: Date.now(), pages: Number(d.pages) || 0, issues: templateIssues(S, d.coll, d.type, d.pages) };
   await env.PENDING.put("tpl-checks", JSON.stringify(all));
   return json({ ok: true });
+}
+
+// ---------- Calendar (Barry, 13 Nov): releases, sales dates and seasonal tag windows ----------
+// Seasonal windows mirror Core's SEASON_POOL (earliest start to latest end per season). The daily
+// "Refresh seasonal tags" scenario swaps live listings' seasonal tags automatically inside these windows.
+const SEASON_WINDOWS = [["Christmas", 1001, 1231], ["New Year", 1226, 115], ["Valentine's", 120, 214], ["Mother's Day", 301, 512], ["Easter", 301, 430],
+  ["Graduation", 501, 731], ["Father's Day", 520, 621], ["Back to school", 615, 1005], ["Halloween", 915, 1031], ["Winter", 1015, 228]];
+async function calendarPage(env) {
+  const [g, daily] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("daily", "json")]);
+  const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+  const ev = {}, seen = new Set();
+  const add = (date, o) => { if (!date) return; const k = o.id + "|" + o.garment + "|" + date; if (seen.has(k)) return; seen.add(k); (ev[date] = ev[date] || []).push(o); };
+  ((g && g.editable) || []).forEach((e) => (e.dates || []).forEach((d, i) => add(d, { id: e.id, garment: TY[i], stem: e.stem || "", edit: true })));
+  ((daily && daily.upcoming) || []).forEach((u) => add(u.date, { id: u.gag, garment: u.type, stem: u.title || "", built: !!u.built }));
+  Object.values(ev).forEach((l) => l.forEach((o) => { o.gname = garmentName(o.garment); }));
+  return shell(`
+${brandHeader("Calendar")}
+<style>
+.calbar{display:flex;align-items:center;gap:10px;margin:0 0 12px}.calbar h2{margin:0;flex:1;font:900 22px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--text)}.calbar h2::after{display:none}
+.calbar .btn{width:auto;min-height:44px;padding:0 16px}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.calhd{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:4px 6px}
+.cday{min-height:104px;border:1px solid var(--line);border-radius:12px;padding:6px;background:var(--card);cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;text-align:left;color:var(--text);font:inherit}
+.cday.out{opacity:.35}.cday.today{border-color:var(--frame);box-shadow:inset 0 0 0 1px var(--frame)}.cday.sel{outline:2px solid var(--go);outline-offset:-2px}
+.cday .dn{font:800 13px var(--display)}
+.cr{display:flex;align-items:center;gap:5px;font-size:11px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr i{flex:none;width:8px;height:8px;border-radius:50%}.cr.hol{color:#ff9a5c}.cr.sea{color:#9fc6ef}.cr.more{color:var(--muted)}
+.cdet{margin-top:16px}.cdet h3{margin:0 0 10px;font:800 16px var(--display)}
+.ditem{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;color:var(--text);text-decoration:none;background:rgba(255,255,255,.03)}
+.ditem i{flex:none;width:12px;height:12px;border-radius:50%}.ditem b{font-weight:700}.ditem .small{margin-left:auto}
+.ditem.hol{border-color:rgba(255,154,92,.5)}.ditem.sea{border-color:rgba(159,198,239,.45)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 0;font-size:12px;color:var(--muted)}.legend span{display:flex;align-items:center;gap:6px}.legend i{width:10px;height:10px;border-radius:50%}
+@media (max-width:700px){.cday{min-height:58px;padding:4px}.cr span{display:none}.cr{gap:2px}.cday .crs{display:flex;flex-wrap:wrap;gap:3px}.cr.more{display:none}}
+</style>
+<div class="calbar"><button class="btn" id="cPrev" type="button">‹</button><h2 id="cTitle"></h2><button class="btn" id="cToday" type="button">Today</button><button class="btn" id="cNext" type="button">›</button></div>
+<div class="calgrid" id="cGrid"></div>
+<div class="legend"><span><i style="background:var(--ih)"></i>Introvert Here</span><span><i style="background:var(--sh)"></i>SHHH.</span><span><i style="background:var(--pc)"></i>Per Contract</span><span><i style="background:var(--os)"></i>Off The Shelf</span><span><i style="background:#ff9a5c"></i>Sales date</span><span><i style="background:#9fc6ef"></i>Seasonal tags</span></div>
+<div class="cdet card" id="cDet"></div>
+<script>
+(function () {
+  var EV = ${JSON.stringify(ev).replace(/</g, "\\u003c")}, SEAS = ${JSON.stringify(SEASON_WINDOWS)};
+  var COL = { IH: "var(--ih)", SH: "var(--sh)", PC: "var(--pc)", OS: "var(--os)" };
+  function h(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function iso(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function nth(y, m, wd, n) { var d = new Date(y, m, 1); var off = (wd - d.getDay() + 7) % 7; return new Date(y, m, 1 + off + 7 * (n - 1)); }
+  function easter(y) { var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), hh = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - hh - k) % 7, m = Math.floor((a + 11 * hh + 22 * l) / 451), mo = Math.floor((hh + l - 7 * m + 114) / 31), da = ((hh + l - 7 * m + 114) % 31) + 1; return new Date(y, mo - 1, da); }
+  function add(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  // Sales dates worth planning around (UK shop, plenty of US buyers on Etsy).
+  function holidays(y) {
+    var E = easter(y), tg = nth(y, 10, 4, 4), L = [];
+    function p(d, t, n) { L.push([iso(d), t, n || ""]); }
+    p(new Date(y, 0, 2), "World Introvert Day", "Made for this shop - worth a social post.");
+    p(new Date(y, 1, 14), "Valentine's Day", "Anti-Valentine's gags do well.");
+    p(nth(y, 2, 4, 1), "World Book Day (UK)", "Off The Shelf.");
+    p(add(E, -21), "Mothering Sunday (UK)");
+    p(E, "Easter Sunday");
+    p(nth(y, 4, 0, 2), "Mother's Day (US)");
+    p(nth(y, 5, 0, 3), "Father's Day");
+    p(new Date(y, 7, 9), "Book Lovers Day", "Off The Shelf.");
+    p(new Date(y, 9, 16), "Boss's Day", "Per Contract.");
+    p(new Date(y, 9, 31), "Halloween");
+    p(new Date(y, 10, 11), "Singles' Day");
+    p(add(tg, 1), "Black Friday", "Biggest sales weekend of the year.");
+    p(add(tg, 4), "Cyber Monday");
+    p(new Date(y, 11, 10), "Last safe Christmas order (approx.)", "Print and post takes about 10-14 days to UK addresses. Check Printify's cut-off each year.");
+    p(new Date(y, 11, 25), "Christmas Day");
+    p(new Date(y, 11, 26), "Boxing Day sales");
+    return L;
+  }
+  function seasons(y) { var L = []; SEAS.forEach(function (s) { var sm = Math.floor(s[1] / 100), sd = s[1] % 100, em = Math.floor(s[2] / 100), ed = s[2] % 100;
+    [y - 1, y].forEach(function (yy) { var st = new Date(yy, sm - 1, sd), en = new Date(s[2] < s[1] ? yy + 1 : yy, em - 1, ed);
+      L.push([iso(add(st, -7)), "Seasonal tags: " + s[0] + " starts next week", "From " + st.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + " live listings swap in " + s[0] + " gift tags automatically (every morning at 07:20). Good week to check the phrases in Settings."]);
+      L.push([iso(st), "Seasonal tags on: " + s[0], "Live listings start getting " + s[0] + " tags today, automatically."]);
+      L.push([iso(add(en, 1)), "Seasonal tags off: " + s[0], s[0] + " tags are swapped back out of live listings, automatically."]); }); });
+    return L; }
+  var extra = {};
+  function build(y) { [y - 1, y, y + 1].forEach(function (yy) { if (extra["y" + yy]) return; extra["y" + yy] = 1;
+    holidays(yy).forEach(function (x) { (extra[x[0]] = extra[x[0]] || []).push({ hol: 1, t: x[1], n: x[2] }); });
+    seasons(yy).forEach(function (x) { var l = (extra[x[0]] = extra[x[0]] || []); if (!l.some(function (q) { return q.t === x[1]; })) l.push({ sea: 1, t: x[1], n: x[2] }); }); }); }
+  var now = new Date(), cur = new Date(now.getFullYear(), now.getMonth(), 1), sel = iso(now);
+  function items(day) { return { rel: (EV[day] || []).slice().sort(function (a, b) { return a.id < b.id ? -1 : 1; }), oth: extra[day] || [] }; }
+  function draw() {
+    build(cur.getFullYear());
+    document.getElementById("cTitle").textContent = cur.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    var start = add(cur, -((cur.getDay() + 6) % 7)), html = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(function (d) { return '<div class="calhd">' + d + "</div>"; }).join("");
+    for (var i = 0; i < 42; i++) { var d = add(start, i), k = iso(d), it = items(k), rows = [];
+      if (i >= 35 && d.getMonth() !== cur.getMonth()) break;
+      it.oth.forEach(function (o) { rows.push('<div class="cr ' + (o.hol ? "hol" : "sea") + '"><i style="background:' + (o.hol ? "#ff9a5c" : "#9fc6ef") + '"></i><span>' + h(o.t) + "</span></div>"); });
+      it.rel.forEach(function (o) { rows.push('<div class="cr"><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + '"></i><span>' + h(o.id) + " " + h(o.gname) + "</span></div>"); });
+      var shown = rows.slice(0, 4).join("") + (rows.length > 4 ? '<div class="cr more">+' + (rows.length - 4) + " more</div>" : "");
+      html += '<button type="button" class="cday' + (d.getMonth() !== cur.getMonth() ? " out" : "") + (k === iso(now) ? " today" : "") + (k === sel ? " sel" : "") + '" data-d="' + k + '"><span class="dn">' + d.getDate() + '</span><span class="crs">' + shown + "</span></button>"; }
+    document.getElementById("cGrid").innerHTML = html; det();
+  }
+  function det() { var it = items(sel), d = new Date(sel + "T12:00:00");
+    var out = '<h3>' + d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + "</h3>";
+    it.oth.forEach(function (o) { out += '<div class="ditem ' + (o.hol ? "hol" : "sea") + '"><i style="background:' + (o.hol ? "#ff9a5c" : "#9fc6ef") + '"></i><div><b>' + h(o.t) + "</b>" + (o.n ? '<div class="small">' + h(o.n) + "</div>" : "") + "</div></div>"; });
+    it.rel.forEach(function (o) { var href = o.edit ? "/gags?edit=" + encodeURIComponent(o.id) : "/gag/" + encodeURIComponent(o.id);
+      out += '<a class="ditem" href="' + href + '"><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + '"></i><div><b>' + h(o.id) + " · " + h(o.gname) + "</b><div class=\\"small\\">" + h(o.stem) + "</div></div><span class=\\"small\\">" + (o.built ? "Built ✓" : o.edit ? "Tap to edit" : "") + "</span></a>"; });
+    if (!it.oth.length && !it.rel.length) out += '<p class="small">Nothing on this day.</p>';
+    document.getElementById("cDet").innerHTML = out; }
+  document.getElementById("cGrid").addEventListener("click", function (e) { var b = e.target.closest("[data-d]"); if (!b) return; sel = b.dataset.d; draw(); if (window.innerWidth < 700) document.getElementById("cDet").scrollIntoView({ behavior: "smooth" }); });
+  document.getElementById("cPrev").onclick = function () { cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1); draw(); };
+  document.getElementById("cNext").onclick = function () { cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1); draw(); };
+  document.getElementById("cToday").onclick = function () { cur = new Date(now.getFullYear(), now.getMonth(), 1); sel = iso(now); draw(); };
+  draw();
+})();
+</script>`);
 }
 
 // ---------- Settings (Barry, 13 Nov): things that used to be changed by hand in Core ----------
