@@ -2095,6 +2095,8 @@ async function gagSave(request, env) {
 
 async function gagsPage(env) {
   const g = await env.PENDING.get("gags", "json");
+  const catMap = await loadCategories(env);
+  if (g) g.categories = Array.from(new Set([...(g.categories || []), ...Object.values(catMap).flat()]));
   const saves = await loadSaves(env);
   const savesHtml = saves.length ? `<h3 class="sideh">Recent saves</h3><div class="saves">${saves.slice(0, 8).map((x) => {
     const cls = x.status === "ok" ? "ok" : x.status === "failed" ? "bad" : "wait";
@@ -2196,6 +2198,7 @@ ${brandHeader("Gags")}
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <script>
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
+window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_LAMPS_SCRIPT}</script>`);
@@ -2216,7 +2219,7 @@ const GAG_LAMPS_SCRIPT = String.raw`(function () {
 // the buttons set them and fire "change". Categories are grouped by how Core's gags are filed today.
 const GAG_CHIPS_SCRIPT = String.raw`(function () {
   var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"] };
-  var CATS = {
+  var CATS = window.GAG_CATS || {
     "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking"],
     "SHHH.": ["Alternative Communication", "Sensory Issues"],
     "PER CONTRACT": ["Quiet Quitting", "Corporate Nonsense", "Off The Clock", "Burnout", "Workplace"],
@@ -3149,9 +3152,23 @@ const SETTINGS_DEFAULT = { TagEngine: "ON", AutoApprove: "ON", AutoApproveDays: 
 const TAG_SETTING_ROW = { TagCap: 2, TagEngine: 14, AutoApprove: 15, AutoApproveDays: 16 }; // TAG_SETTINGS column B
 const RULE_TEXT = [["suffix", "Title ending (after the title stem)", 0], ["intro", "Range intro", 1], ["features", "Product features", 1], ["audience", "Who it's for", 1], ["closing", "Closing text (legal / EU wording goes here)", 1]];
 
+// Which gag categories belong to which range (the gag tool's buttons). Kept in the app; Core's
+// GAG_CATEGORIES/TAG_POOL hold each category's tags and phrases.
+const CATEGORIES_KEY = "categories";
+const CATEGORIES_DEFAULT = {
+  "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking", "Plans Cancelled", "Phone Calls", "Homebody"],
+  "SHHH.": ["Alternative Communication", "Sensory Issues", "Noise & Loud People", "Personal Space", "Headphones On", "Masking", "Not Talking Today"],
+  "PER CONTRACT": ["Quiet Quitting", "Corporate Nonsense", "Off The Clock", "Burnout", "Workplace", "Meetings", "Team Building & Office Socials", "Emails & Messages", "Working From Home", "Management"],
+  "OFF THE SHELF": ["Book Lover", "Escapism", "Reading Over People", "Fictional Love Life", "Genre Jokes", "Library & Book Club", "To-Be-Read Pile"] };
+async function loadCategories(env) { return (await env.PENDING.get(CATEGORIES_KEY, "json")) || CATEGORIES_DEFAULT; }
+const phraseOk = (t) => t.length >= 2 && t.length <= 20 && /^[a-z0-9 '\-]+$/.test(t) && !/^['\-]/.test(t) && !/  /.test(t);
+const splitPhrases = (v) => Array.from(new Set(String(v || "").split(/[\n,]+/).map((t) => t.trim().toLowerCase().replace(/\s+/g, " ")).filter(Boolean)));
+const poolRow = (cat, cls, t) => [cat, "GAG", cls, t, "Y", null, null, null, null];
+
 async function settingsSave(request, env) {
   const d = await request.json().catch(() => ({}));
   const ops = [];
+  if (d.kind === "cat-add" || d.kind === "phrase-add") return await categorySave(d, env);
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   let S = null, rule = null;
   if (d.kind === "tag") {
@@ -3189,9 +3206,59 @@ async function settingsSave(request, env) {
   return json({ ok: true, settings: cs });
 }
 
+async function categorySave(d, env) {
+  const cats = await loadCategories(env);
+  const tagsKV = (await env.PENDING.get("tags", "json")) || {};
+  const pool = tagsKV.pool || {};
+  const all = Object.values(cats).flat();
+  const ops = [];
+  let name = "", anchors = [], flavours = [];
+  if (d.kind === "cat-add") {
+    name = String(d.name || "").trim().replace(/\s+/g, " ");
+    if (!(d.range in cats)) return json({ error: "Pick a range." }, 400);
+    if (!/^[A-Za-z0-9][A-Za-z0-9 &'\-]{1,39}$/.test(name)) return json({ error: "Give the category a name of 2 to 40 letters, numbers or spaces (& ' - allowed)." }, 400);
+    if (all.some((c) => c.toLowerCase() === name.toLowerCase())) return json({ error: "There's already a category called " + name + "." }, 400);
+    anchors = splitPhrases(d.anchors); flavours = splitPhrases(d.flavours).filter((t) => !anchors.includes(t));
+    if (anchors.length < 1 || anchors.length > 4) return json({ error: "Add 1 to 4 main phrases (one per line)." }, 400);
+    if (flavours.length < 8) return json({ error: "Add at least 8 flavour phrases (one per line) - 12 or more is better." }, 400);
+  } else {
+    name = String(d.name || "");
+    if (!all.includes(name)) return json({ error: "Pick a category." }, 400);
+    const have = new Set((pool[name] || []).map((p) => p.t));
+    flavours = splitPhrases(d.flavours).filter((t) => !have.has(t));
+    if (!flavours.length) return json({ error: "No new phrases to add (they may already be there)." }, 400);
+  }
+  const bad = [...anchors, ...flavours].filter((t) => !phraseOk(t));
+  if (bad.length) return json({ error: "These break Etsy's tag rules (20 characters max; letters, numbers, spaces, ' and -): " + bad.map((b) => "\u201c" + b + "\u201d").join(", ") }, 400);
+  const T = (t) => `${AMEND_XL}/tables/${t}/rows/add`;
+  if (d.kind === "cat-add") {
+    const ctags = [name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9 '\-]/g, "").slice(0, 20).trim(), ...anchors, ...flavours].filter(phraseOk).slice(0, 5);
+    while (ctags.length < 5) ctags.push("");
+    ops.push({ url: T("GAG_CATEGORIES"), method: "POST", values: [[name, ...ctags]] });
+    ops.push({ url: T("POOL_CAPACITY"), method: "POST", values: [[name, null, null, null, null, null]] });
+  }
+  ops.push({ url: T("TAG_POOL"), method: "POST", values: [...anchors.map((t) => poolRow(name, "Anchor", t)), ...flavours.map((t) => poolRow(name, "Flavour", t))] });
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  if (d.kind === "cat-add") {
+    cats[d.range] = [...cats[d.range], name]; await env.PENDING.put(CATEGORIES_KEY, JSON.stringify(cats));
+    const g = await env.PENDING.get("gags", "json"); if (g) { g.categories = Array.from(new Set([...(g.categories || []), name])); await env.PENDING.put("gags", JSON.stringify(g)); }
+  }
+  pool[name] = [...(pool[name] || []), ...anchors.map((t) => ({ t, c: "A", cap: false })), ...flavours.map((t) => ({ t, c: "F", cap: false }))];
+  tagsKV.pool = pool; await env.PENDING.put("tags", JSON.stringify(tagsKV));
+  return json({ ok: true, added: anchors.length + flavours.length });
+}
+
 async function settingsPage(env) {
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   const S = await env.PENDING.get("amend", "json");
+  const cats = await loadCategories(env);
+  const pool = ((await env.PENDING.get("tags", "json")) || {}).pool || {};
+  const RN0 = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const catHtml = Object.entries(cats).map(([rng, list]) => `<div class="catrng"><b>${esc(RN0[rng] || rng)}</b><div class="catchips">${list.map((c) => {
+    const p = pool[c] || []; const fl = p.filter((x) => x.c === "F").length;
+    return `<details class="catc"><summary>${esc(c)} <span class="small">${fl ? fl + " phrases" : ""}</span></summary><div class="small">${p.length ? p.map((x) => esc(x.t) + (x.c === "A" ? " ★" : "")).join(" · ") : "Phrases load after the next Sync to Core."}</div></details>`; }).join("")}</div></div>`).join("");
+  const allCats = Object.values(cats).flat();
   const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
   const rules = ((S && S.rules) || []).map((r) => ({ row: r.row, name: (RN[r.coll] || r.coll) + " · " + garmentName(r.type), suffix: r.suffix || "", intro: r.intro || "", features: r.features || "", audience: r.audience || "", closing: r.closing || "", tags: Array.isArray(r.tags) ? r.tags : [] }));
   const onoff = (k, title, help) => `<div class="setrow"><div><b>${title}</b><p class="small">${help}</p></div>
@@ -3210,6 +3277,9 @@ ${brandHeader("Settings")}
 .numset{display:flex;gap:8px;flex:none}.numset input{width:84px;min-height:46px;padding:0 12px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext label{display:block;margin:14px 0 0;font-weight:700}.ptext textarea,.ptext input,.ptext select{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext textarea{min-height:110px;resize:vertical;white-space:pre-wrap}.ptags{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.catrng{margin-top:16px}.catrng>b{font:800 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.catchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.catc{border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:rgba(255,255,255,.03)}
+.catc summary{cursor:pointer;font-weight:600}.catc[open]{flex-basis:100%}.catc .small{margin-top:6px;line-height:1.6}
 @media (max-width:700px){.setrow{flex-direction:column;align-items:flex-start}.ptags{grid-template-columns:1fr 1fr}}
 </style>
 <div class="setw">
@@ -3218,6 +3288,21 @@ ${brandHeader("Settings")}
     ${onoff("AutoApprove", "Approve tags automatically", "On: if you haven't approved a gag's tags yourself, they're approved and frozen shortly before its first release (not if the overlap with other gags is red). Off: every gag waits for you on the Tags page.")}
     ${num("AutoApproveDays", "Days before release to auto-approve", "How long before a gag's first release its tags are approved automatically. Gives you that long to change them. 1 to 14.", 1, 14)}
     ${num("TagCap", "Gags per flavour phrase", "How many different gags may share one flavour tag phrase before it's rested. Lower = more variety, but bigger phrase lists needed. 1 to 10.", 1, 10)}
+  </div>
+  <div class="card ptext"><h2 style="margin-top:0">Gag categories</h2>
+    <p class="small" style="margin:0">Each category has its own tag phrases: ★ main phrases (one goes on every gag in it) and flavour phrases (four per gag, rotated so gags don't share identical tags). Tap a category to see its phrases.</p>
+    ${catHtml}
+    <h3 class="sideh" style="margin-top:22px">Add a category</h3>
+    <label>Range<select id="caR">${Object.keys(cats).map((r) => `<option value="${esc(r)}">${esc(RN0[r] || r)}</option>`).join("")}</select></label>
+    <label>Name<input id="caN" maxlength="40" placeholder="e.g. Hobbies"></label>
+    <label>Main phrases (1 to 4, one per line)<textarea id="caA" style="min-height:80px" placeholder="hobby humour"></textarea></label>
+    <label>Flavour phrases (at least 8, ideally 12 or more, one per line)<textarea id="caF" placeholder="crafting addict"></textarea></label>
+    <p class="small">Tag rules: up to 20 characters; letters, numbers, spaces, ' and - only. Lower case is fine.</p>
+    <button class="btn-main" type="button" id="caGo" style="width:auto;padding:0 26px">Add category</button>
+    <h3 class="sideh" style="margin-top:26px">Add phrases to a category</h3>
+    <label>Category<select id="paC">${allCats.map((c) => `<option>${esc(c)}</option>`).join("")}</select></label>
+    <label>New flavour phrases (one per line)<textarea id="paF"></textarea></label>
+    <button class="btn-main" type="button" id="paGo" style="width:auto;padding:0 26px">Add phrases</button>
   </div>
   <div class="card ptext"><h2 style="margin-top:0">Product text</h2>
     <p class="small" style="margin:0">What new listings are built with, for each range and garment. Saving changes Core only: listings already live keep their text. To change live listings as well, use Update listings → Descriptions.</p>
@@ -3240,6 +3325,10 @@ ${brandHeader("Settings")}
     document.getElementById("pf").innerHTML = F.map(function (f) { return '<label>' + h(f[1]) + (f[2] ? '<textarea data-f="' + f[0] + '">' + h(r[f[0]]) + '</textarea>' : '<input data-f="' + f[0] + '" maxlength="60" value="' + h(r[f[0]]) + '">') + '</label>'; }).join("") +
       '<label>Product tags (5, up to 20 characters each)</label><div class="ptags">' + [0, 1, 2, 3, 4].map(function (i) { return '<input data-t="' + i + '" maxlength="20" value="' + h(r.tags[i] || "") + '">'; }).join("") + '</div>'; }
   sel.addEventListener("change", draw); draw();
+  function go(btn, body, done) { btn.disabled = true; var lbl = btn.textContent; btn.textContent = "Saving…";
+    post(body).then(function (o) { toast("Saved to Core: " + o.added + (o.added === 1 ? " phrase" : " phrases")); done(); }).catch(function (er) { toast(er.message, true); }).then(function () { btn.disabled = false; btn.textContent = lbl; }); }
+  document.getElementById("caGo").addEventListener("click", function () { go(this, { kind: "cat-add", range: document.getElementById("caR").value, name: document.getElementById("caN").value, anchors: document.getElementById("caA").value, flavours: document.getElementById("caF").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
+  document.getElementById("paGo").addEventListener("click", function () { go(this, { kind: "phrase-add", name: document.getElementById("paC").value, flavours: document.getElementById("paF").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
   document.getElementById("psave").addEventListener("click", function () { var r = R[sel.value]; if (!r) return; var b = { kind: "rule", row: r.row, tags: [] };
     document.querySelectorAll("#pf [data-f]").forEach(function (x) { b[x.dataset.f] = x.value; }); document.querySelectorAll("#pf [data-t]").forEach(function (x) { b.tags[+x.dataset.t] = x.value; });
     var btn = this; btn.disabled = true; btn.textContent = "Saving…";
