@@ -43,4 +43,9 @@ const editable = gags.filter((g) => g.text && g.status !== "LIVE_EXISTING" && !T
   .map((g) => ({ id: g.id, text: g.text, collection: g.collection, category: g.category, tag12: g.tag12, tag13: g.tag13, stem: g.stem, dates: g.dates }));
 // Every written gag, compact, for the app's "Check Core for problems" tool.
 const all = gags.filter((g) => g.text).map((g) => ({ id: g.id, row: g.index + 2, text: g.text, stem: g.rawStem, status: g.status, t12: g.tag12, t13: g.tag13 }));
-return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable, all }) };
+// Full release schedule for the app's Calendar: every written gag with a date from two weeks ago on,
+// including part-live gags, with which garments are already built.
+const cutoff = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+const sched = gags.filter((g) => g.text && g.dates.some((d) => d && d >= cutoff))
+  .map((g) => ({ id: g.id, s: g.stem, d: g.dates, b: TYPES.map((t) => (built.has(`${g.id}-${t}`) ? 1 : 0)) }));
+return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable, all, sched }) };

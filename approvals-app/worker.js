@@ -3160,6 +3160,8 @@ async function calendarPage(env) {
   const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
   const ev = {}, seen = new Set();
   const add = (date, o) => { if (!date) return; const k = o.id + "|" + o.garment + "|" + date; if (seen.has(k)) return; seen.add(k); (ev[date] = ev[date] || []).push(o); };
+  const editableIds = new Set(((g && g.editable) || []).map((e) => e.id));
+  ((g && g.sched) || []).forEach((e) => (e.d || []).forEach((d, i) => add(d, { id: e.id, garment: TY[i], stem: e.s || "", edit: editableIds.has(e.id), built: !!(e.b && e.b[i]) })));
   ((g && g.editable) || []).forEach((e) => (e.dates || []).forEach((d, i) => add(d, { id: e.id, garment: TY[i], stem: e.stem || "", edit: true })));
   ((daily && daily.upcoming) || []).forEach((u) => add(u.date, { id: u.gag, garment: u.type, stem: u.title || "", built: !!u.built }));
   Object.values(ev).forEach((l) => l.forEach((o) => { o.gname = garmentName(o.garment); }));
