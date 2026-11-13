@@ -2119,7 +2119,8 @@ ${brandHeader("Gags")}
   .gL{grid-area:L}.gR{grid-area:R}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
-  .gL .g-prev .card{background:rgba(12,12,11,.97);box-shadow:0 12px 28px rgba(0,0,0,.65)}
+  .gL .g-prev .card{background:rgba(12,12,11,.97);box-shadow:0 12px 28px rgba(0,0,0,.65);padding:12px 14px}
+  .gL .g-prev .prevhead{margin-bottom:6px}
   .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
   .g-side{display:flex;flex-direction:column;gap:18px}
@@ -2164,7 +2165,7 @@ ${brandHeader("Gags")}
   .gagrow{display:flex;gap:14px;flex-wrap:wrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .four{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
-  #stage{margin-top:6px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden;position:relative;width:100%;min-height:60px}
+  #stage{margin-top:4px;background:#1b1b1a;border-radius:10px;padding:14px;overflow:hidden;position:relative;width:100%;min-height:60px}
   .gagrow > *{min-width:0}
   #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right;outline:1px dashed rgba(255,255,255,.25)}
   #pbox div{white-space:nowrap}
@@ -2287,8 +2288,10 @@ function preview() {
   box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
   const over = [];
   [...box.children].forEach((d, i) => { const w = d.scrollWidth; if (w > width + 0.5) { d.classList.add('over'); over.push(i + 1); } });
-  const stage = $("stage"); const scale = Math.min(1, (stage.clientWidth - 28) / width);
-  box.style.transform = "scale(" + scale + ")"; stage.style.height = (box.scrollHeight * scale + 28) + "px";
+  // Kept compact (Barry, 13 Nov): at most 60% of the panel's width and about 120px tall, centred.
+  const stage = $("stage"); const scale = Math.min(1, (stage.clientWidth - 28) / width * 0.6, 120 / Math.max(1, box.scrollHeight));
+  box.style.transform = "scale(" + scale + ")"; box.style.left = Math.max(14, (stage.clientWidth - width * scale) / 2) + "px";
+  stage.style.height = (box.scrollHeight * scale + 28) + "px";
   const warn = [];
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
