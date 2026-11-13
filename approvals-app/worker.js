@@ -80,6 +80,9 @@ export default {
       if (pathname.startsWith("/gag/") && method === "GET") {
         return authed ? await gagPage(env, decodeURIComponent(pathname.slice(5)).toUpperCase()) : redirect("/");
       }
+      if (pathname === "/week" && method === "GET") {
+        return authed ? await weekPage(env) : redirect("/");
+      }
       if (pathname === "/credits" && method === "GET") {
         return authed ? await creditsPage(env) : redirect("/");
       }
@@ -764,6 +767,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:420px){.ranges{grid-template-columns:1fr}}
 .rng{padding:16px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;text-decoration:none;color:var(--text);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.rng{position:relative}.rlbtn{position:absolute;top:10px;right:10px;min-height:34px;padding:0 12px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.45);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;z-index:2}
 .rng img{width:100%;max-width:240px;height:auto;display:block}
 .rng .row{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
 .rng .row b{color:var(--text);font:700 13px var(--display);letter-spacing:.04em}
@@ -781,6 +785,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tok{color:var(--ok);font-size:12px;font-weight:600}.tno{color:var(--warn);font-size:12px;font-weight:600}
 /* bottom bar (phones) */
 .trialc{border:2px solid #e6b450!important}
+.fabsave{position:fixed;right:max(20px,env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:28;width:auto!important;min-height:62px;padding:0 30px;border-radius:99px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+@media (max-width:760px){.fabsave{bottom:calc(92px + env(safe-area-inset-bottom,0px))}}
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:30;display:none;background:rgba(8,8,8,.95);border-top:1px solid var(--line);padding:8px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
 .tabbar .in{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:560px;margin:0 auto}
 .tabbar a{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;min-height:58px;border-radius:12px;color:var(--muted);font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;text-decoration:none}
@@ -802,7 +808,16 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .sheet .pane a.fr{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:2px 12px;padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--text);background:rgba(255,255,255,.03);text-align:left;text-transform:none;letter-spacing:0;font:400 14px var(--body)}
 .sheet .pane a.fr:hover{border-color:var(--frame)}
 .frid{grid-row:span 2;font:500 12px var(--mono);color:var(--muted);align-self:center}
-.fr b{font:700 15px var(--display)}.frt{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr b{font:700 15px var(--display)}
+.rlhead,.sheet .pane a.rlrow{display:grid;grid-template-columns:96px minmax(0,1fr) 128px;gap:12px;align-items:center}
+.rlhead{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:0 12px 4px}
+.sheet .pane a.rlrow{padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--text);background:rgba(255,255,255,.03);text-transform:none;letter-spacing:0;font:400 14px var(--body)}
+.rltx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rld{font:600 13px var(--body);text-align:right}
+.st-live .rld{color:#7fd39a}.st-soon .rld{color:#f0c870}.st-later .rld{color:#f08a85}
+@media (max-width:600px){.rlhead,.sheet .pane a.rlrow{grid-template-columns:80px minmax(0,1fr) 92px}}
+.st-live{border-left:5px solid #5fbf7f!important}.st-soon{border-left:5px solid #e6b450!important}.st-later{border-left:5px solid #e0605a!important}
+.stpill{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font:700 10px var(--display);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
+.st-live .stpill{background:rgba(95,191,127,.18);color:#7fd39a}.st-soon .stpill{background:rgba(230,180,80,.18);color:#f0c870}.st-later .stpill{background:rgba(224,96,90,.16);color:#f08a85}.frt{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* toast */
 .toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);z-index:50;background:var(--frame);color:#0d0d0c;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:14px 20px;border-radius:14px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100vw - 32px);text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -871,6 +886,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="sheet stopsheet" id="stopSheet"><div class="pane" style="max-width:560px;margin:0 auto;display:block"><div style="font:800 18px var(--display)" id="stopT">Emergency stop</div><div class="small" id="stopB" style="margin-top:6px"></div><div id="stopOpts"></div><button class="btn" type="button" id="stopNo" style="width:100%;margin-top:12px">Never mind</button></div></div>
+<div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlX" type="button">Close</button></div><div class="small" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap a gag to edit it.</div><div id="rlR" class="findr"></div></div></div>
 <div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find a gag: ID, title, any word of the gag" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
@@ -913,12 +929,25 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   // Find a gag (search button in the top bar)
   var F = document.getElementById("find"), FQ = document.getElementById("findQ"), FR = document.getElementById("findR"), data = null;
   function esc2(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  // Live (green), releasing within 2 weeks or part-released (amber), scheduled later (red).
+  function gagState(g, d) {
+    if (g.status === "LIVE_EXISTING") return { c: "live", t: "Live", first: "" };
+    var e = null; (d.editable || []).some(function (x) { if (x.id === g.id) { e = x; return true; } return false; });
+    var ds = (e && e.dates || []).filter(Boolean).sort(), first = ds[0] || "";
+    var today = new Date().toISOString().slice(0, 10), soon = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+    var nice = first ? new Date(first + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: first.slice(0, 4) !== today.slice(0, 4) ? "numeric" : undefined }) : "No date";
+    if (first && first <= soon) return { c: "soon", t: (first <= today ? "Releasing now" : "Soon · " + nice), first: first };
+    return { c: "later", t: nice, first: first };
+  }
+  window.gagState = gagState;
+  function editHref(g, d) { var ed = (d.editable || []).some(function (x) { return x.id === g.id; }); return ed ? "/gags?edit=" + encodeURIComponent(g.id) : "/gag/" + encodeURIComponent(g.id); }
+  window.gagEditHref = editHref;
   function run() {
     var q = FQ.value.trim().toLowerCase();
     if (!data) { FR.innerHTML = '<p class="small">Loading…</p>'; return; }
     var cats = {}; (data.editable || []).forEach(function (e) { cats[e.id] = e.category || ""; });
     var hits = (data.all || []).filter(function (g) { return !q || (g.id + " " + g.stem + " " + g.text + " " + (cats[g.id] || "")).toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
-    FR.innerHTML = hits.length ? hits.map(function (g) { return '<a class="fr" href="/gag/' + encodeURIComponent(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><b>' + esc2(g.stem || "") + '</b><span class="frt">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span></a>'; }).join("") : '<p class="small">No gags match “' + esc2(FQ.value) + '”.</p>';
+    FR.innerHTML = hits.length ? hits.map(function (g) { var st = gagState(g, data); return '<a class="fr st-' + st.c + '" href="/gag/' + encodeURIComponent(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><b>' + esc2(g.stem || "") + ' <span class="stpill">' + esc2(st.t) + '</span></b><span class="frt">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span></a>'; }).join("") : '<p class="small">No gags match “' + esc2(FQ.value) + '”.</p>';
   }
   var fb = document.getElementById("findBtn");
   if (fb) fb.addEventListener("click", function () { F.classList.add("open"); setTimeout(function () { FQ.focus(); }, 50);
@@ -926,6 +955,17 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   document.getElementById("findX").addEventListener("click", function () { F.classList.remove("open"); });
   F.addEventListener("click", function (e) { if (e.target === F) F.classList.remove("open"); });
   FQ.addEventListener("input", run);
+  // Range list (button on each range card on the dashboard).
+  var RL = document.getElementById("rlist");
+  function showRange(code, name) {
+    document.getElementById("rlT").textContent = name; RL.classList.add("open");
+    var draw = function () { var list = (data.all || []).filter(function (g) { return g.id.indexOf(code + "-") === 0; });
+      document.getElementById("rlR").innerHTML = list.length ? '<div class="rlhead"><span>Gag</span><span>Gag text</span><span>Release</span></div>' + list.map(function (g) { var st = gagState(g, data);
+        return '<a class="rlrow st-' + st.c + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>'; };
+    if (data) draw(); else { document.getElementById("rlR").innerHTML = '<p class="small">Loading…</p>'; fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { data = d || { all: [] }; draw(); }); }
+  }
+  document.querySelectorAll("[data-rlist]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); showRange(b.dataset.rlist, b.dataset.name); }); });
+  if (RL) { document.getElementById("rlX").addEventListener("click", function () { RL.classList.remove("open"); }); RL.addEventListener("click", function (e) { if (e.target === RL) RL.classList.remove("open"); }); }
   // Errors that used to pop up as browser boxes now show as a red message.
   window.alert = function (m) { if (window.toast) window.toast(String(m), true); };
   window.toast = function (msg, bad) { var t = document.getElementById("toast"); t.textContent = msg; t.className = "toast show" + (bad ? " bad" : ""); clearTimeout(window.__tt); window.__tt = setTimeout(function () { t.className = "toast"; }, 2600); };
@@ -937,7 +977,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 }
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
-const TOP_PAGES = ["/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/credits", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
+const TOP_PAGES = ["/week", "/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/credits", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div><button class="stopbtn" id="stopBtn" type="button" hidden>Stop</button><div class="sp"></div>
@@ -1464,7 +1504,7 @@ async function dashboardPage(env) {
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
     const firstSlot = left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0] ? slot.dates[0] : "";
     const low = (left !== null && left < 7) || !!firstSlot;
-    return `<a class="rng" href="/gags"><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
+    return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
@@ -1519,6 +1559,7 @@ ${topBar("Dashboard")}
 ${trial ? `<h2>Waiting for you</h2>${trialCard(trial, amend)}` : ""}
 ${prog}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
+(new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" }) === "Saturday" ? need("warn", weekReleases(gags).length, "Check next week's releases", "Read through the gags going out in the next 7 days", "/week") : "") +
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
 (watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned || showProg ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
@@ -1557,6 +1598,32 @@ fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).th
 }).catch(function () {});
 setTimeout(function () { location.reload(); }, 120000);
 </script>`);
+}
+
+// ---------- This week's releases (Saturday check) ----------
+// Every gag with a garment releasing in the next 7 days (from tomorrow), from the app's copy of Core.
+function weekReleases(gags) {
+  const start = new Date(Date.now() + 864e5).toISOString().slice(0, 10), end = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  const GN = ["T-shirt", "Long sleeve", "Sweatshirt", "Hoodie"];
+  return ((gags && gags.editable) || []).map((e) => {
+    const hits = (e.dates || []).map((d, i) => [d, GN[i]]).filter(([d]) => d && d >= start && d <= end);
+    return hits.length ? { id: e.id, text: e.text, stem: e.stem, hits, first: hits.map((h) => h[0]).sort()[0] } : null;
+  }).filter(Boolean).sort((a, b) => a.first.localeCompare(b.first) || a.id.localeCompare(b.id));
+}
+async function weekPage(env) {
+  const gags = await env.PENDING.get("gags", "json");
+  const list = weekReleases(gags);
+  const day = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const rows = list.map((g) => `<a class="wkrow" href="/gags?edit=${encodeURIComponent(g.id)}"><span class="frid">${esc(g.id)}</span><span class="wktx"><b>${esc(g.stem || "")}</b><span>${esc(String(g.text || "").replace(/\s+/g, " "))}</span></span><span class="wkd">${g.hits.map((h) => esc(day(h[0]) + " · " + h[1])).join("<br>")}</span></a>`).join("");
+  return shell(`
+${brandHeader("This week's releases")}
+<style>.wkl{display:flex;flex-direction:column;gap:8px;max-width:980px}
+.wkrow{display:grid;grid-template-columns:96px minmax(0,1fr) 190px;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-left:5px solid #e6b450;border-radius:12px;background:var(--card);color:var(--text);text-decoration:none}
+.wktx{min-width:0}.wktx b{display:block;font:700 15px var(--display)}.wktx span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wkd{font:600 13px var(--body);color:#f0c870;text-align:right}
+@media (max-width:600px){.wkrow{grid-template-columns:1fr}.wkd{text-align:left}}</style>
+<p class="small" style="margin:0 0 12px">Everything releasing in the next 7 days. Read each one through; tap a gag to fix anything before it goes out.</p>
+<div class="wkl">${rows || '<div class="card empty">Nothing releases in the next 7 days.</div>'}</div>`);
 }
 
 async function alertsPage(env) {
@@ -1926,7 +1993,7 @@ ${brandHeader("Gags")}
           <label>T-shirt<input type="date" id="d1"></label><label>Long-sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
-      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn-main" type="submit" id="save" style="flex:1">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
+      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn-main fabsave" type="submit" id="save">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
     </div>
   </div>
 </form>
