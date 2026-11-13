@@ -701,6 +701,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:14px;fl
 h1{font:900 clamp(26px,4.6vw,40px)/1.05 var(--display);letter-spacing:.04em;text-transform:uppercase;margin:0;text-wrap:balance}
 h2{font:800 12px var(--display);color:var(--muted);margin:30px 0 12px;text-transform:uppercase;letter-spacing:.2em;display:flex;align-items:center;gap:12px}
 h2::after{content:"";flex:1;height:1px;background:var(--line)}
+h2.rngh .dsync{order:2;min-height:38px;padding:0 14px;font-size:11px;letter-spacing:.12em;flex:none}h2.rngh .dsync svg{width:16px;height:16px}
 h3{font-family:var(--display)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;align-items:start}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
@@ -1626,8 +1627,14 @@ ${todayStrip}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/check", "check", "Check Core", "Core checks and tools")}
 </div>
-<h2>Ranges</h2>
+<h2 class="rngh">Ranges<button class="btn dsync" id="dashSync" type="button">${icon("sync")}Sync to Core</button></h2>
 <div class="ranges">${ranges}</div>
+<script>(function () { var b = document.getElementById("dashSync"); if (!b) return; b.addEventListener("click", function () {
+  b.disabled = true; b.lastChild.textContent = "Syncing…";
+  Promise.all([fetch("/api/gags-refresh", { method: "POST" }), fetch("/api/amend-refresh", { method: "POST" })]).then(function (r) {
+    if (!r[0].ok) throw 0; if (window.toast) window.toast("Syncing to Core. The page refreshes in a minute.");
+    setTimeout(function () { location.reload(); }, 60000);
+  }).catch(function () { b.disabled = false; b.lastChild.textContent = "Sync to Core"; alert("Sync didn't start. Try again."); }); }); })();</script>
 <p class="foot">Release plan updated ${daily ? esc(when(daily.at)) : "—"} · <a href="/logout">Sign out</a></p>
 <script src="/gagcheck.js"></script>
 <script>
