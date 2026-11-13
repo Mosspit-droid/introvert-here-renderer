@@ -1496,9 +1496,18 @@ async function dashboardPage(env) {
   const need = (cls, n, t, s, href) => n ? `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span></a>` : "";
   const tile = (href, ic, nm, st, primary) => `<a class="tile${primary ? " primary" : ""}" href="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`;
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
+  // Last planned release per range. The gags summary is re-sent whenever Core changes,
+  // so use it when it is newer than the once-a-day summary.
+  const runwayFor = (code, coll) => {
+    if (gags && gags.editable && (!daily || (gags.receivedAt || 0) > (daily.at || 0))) {
+      const ds = gags.editable.filter((e) => e.id.startsWith(code + "-")).flatMap((e) => e.dates || []).filter(Boolean).sort();
+      return ds.length ? { collection: coll, lastDate: ds[ds.length - 1] } : null;
+    }
+    return (daily && daily.runway || []).find((x) => x.collection === coll);
+  };
   const ranges = DASH_RANGES.map(([code, coll, name, colour]) => {
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
-    const r = (daily && daily.runway || []).find((x) => x.collection === coll);
+    const r = runwayFor(code, coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const pct = left === null ? 0 : Math.max(3, Math.min(100, Math.round(left / 28 * 100)));
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
@@ -1527,7 +1536,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   <a class="tcell tdcell" href="/todo"><span class="tl">To-do</span><b class="tbig">${todos.length}</b><span class="small">${todos.length ? esc(todos[0].text).slice(0, 50) : "Nothing on the list"}</span></a>
 </div>`;
   const lowRanges = DASH_RANGES.filter(([code, coll]) => {
-    const r = (daily && daily.runway || []).find((x) => x.collection === coll);
+    const r = runwayFor(code, coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
     return (left !== null && left < 7) || (left === null && slot && slot.mode === "fill" && slot.dates && !!slot.dates[0]);
