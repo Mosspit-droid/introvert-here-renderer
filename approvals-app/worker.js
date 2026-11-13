@@ -760,8 +760,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .need.run .big{color:var(--info)}
 .need.quiet .big{color:var(--dim)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.tiles .tile{grid-column:span 1}.tiles .tile.primary{grid-column:span 2}
-@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles .tile.primary{grid-column:span 2}}
+.tiles .tile,.tiles .tile.primary{grid-column:span 1}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
 .tile .ic{width:48px;height:48px;border-radius:13px;background:var(--frame);color:#0d0d0c;display:grid;place-items:center}
@@ -771,7 +771,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile .st b{color:var(--text);font-weight:600}
 .tile .dots{position:absolute;right:14px;top:16px;display:flex;gap:5px;padding:5px 8px;border:1.5px solid rgba(242,240,235,.4);border-radius:99px}
 .tile .dots i{width:5px;height:5px;border-radius:50%;background:rgba(242,240,235,.55)}
-.tile.primary{border-color:var(--frame);border-width:2.5px;min-height:170px}
+.tile.primary{border-color:var(--frame);border-width:2.5px}
 .tile.primary .nm{font-size:18px}
 .ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
