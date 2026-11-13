@@ -2092,13 +2092,13 @@ ${brandHeader("Gags")}
   <div class="gacts o-acts"><a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button></div>
   <div class="gcol gL">
     <div class="frame g-prev o-prev"><div class="card"><div class="prevhead"><h3 class="sideh">Preview</h3><span class="lamp" id="lFit">Fits</span><span class="lamp" id="lSpell">Spelling</span></div><div id="stage"><div id="pbox"></div></div></div></div>
-    <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="spell"></div></div>
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
     <div class="tabs o-tabs"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
+    <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="spell"></div></div>
     <div class="card g-side">
       <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div></div>
@@ -2121,7 +2121,8 @@ ${brandHeader("Gags")}
   .gL{grid-area:L}.gR{grid-area:R}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
-  .gL .g-prev .card{background:rgba(12,12,11,.97);box-shadow:0 12px 28px rgba(0,0,0,.65);padding:12px 14px}
+  /* The whole preview card is the black print area; the gag sits in it with margins (Barry, 13 Nov). */
+  .g-prev .card{background:#000!important;box-shadow:0 12px 28px rgba(0,0,0,.65);padding:14px 16px 18px}
   .gL .g-prev .prevhead{margin-bottom:6px}
   .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
@@ -2161,13 +2162,12 @@ ${brandHeader("Gags")}
   select,input:not([type=checkbox]),textarea{display:block;width:100%;margin-top:6px;padding:12px;font-size:16px;border:1px solid var(--line);border-radius:12px;background:var(--field);color:var(--text);font-family:'Montserrat',sans-serif}
   select option{background:#1c1c1b;color:var(--text)}
   .tab.on{border:3px solid var(--accent);color:var(--text);background:var(--card)}
-  #stage{background:#000!important}
   @media (max-width:700px){.two{grid-template-columns:1fr}.four{grid-template-columns:1fr 1fr}.gagrow{flex-direction:column}}
   textarea{font-family:'Montserrat',sans-serif;line-height:1.35;resize:vertical}
   .gagrow{display:flex;gap:14px;flex-wrap:wrap}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .four{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:6px}
-  #stage{margin:4px auto 0;background:#000;border-radius:6px;padding:0;box-sizing:border-box;overflow:visible;position:relative;width:100%;min-height:60px}
+  #stage{margin:0;background:none;border-radius:0;padding:0;box-sizing:border-box;overflow:visible;position:relative;width:100%;min-height:60px}
   .gagrow > *{min-width:0}
   #pbox{position:absolute;left:14px;top:14px;transform-origin:top left;box-sizing:content-box;overflow:visible;color:#fff;font-family:'Montserrat',sans-serif;font-weight:400;line-height:1.2;letter-spacing:-0.04em;text-align:right}
   #pbox div{white-space:nowrap}
@@ -2292,12 +2292,15 @@ function preview() {
   [...box.children].forEach((d, i) => { const w = d.scrollWidth; if (w > width + 0.5) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
   // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
   // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
-  const lh = fs * 1.2, frameH = lh * 9, pad = 0;
+  // The gag frame (12 W x 9 lines) is centred in the black card with side margins, as large as fits
+  // the card's width and about a third of the screen's height.
+  const lh = fs * 1.2, frameH = lh * 9, side = 24;
   box.style.height = frameH + "px";
-  const stage = $("stage"); const scale = Math.min(1, ($("stage").parentElement.clientWidth - 2 * pad) / width, 160 / frameH);
-  box.style.transform = "scale(" + scale + ")"; box.style.left = pad + "px"; box.style.top = pad + "px";
-  stage.style.width = (width * scale + 2 * pad) + "px";
-  stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 2 * pad) + "px";
+  const stage = $("stage"); stage.style.width = "100%";
+  const scale = Math.min(1, (stage.clientWidth - 2 * side) / width, Math.min(320, window.innerHeight * 0.36) / frameH);
+  box.style.transform = "scale(" + scale + ")"; box.style.top = "4px";
+  box.style.left = Math.max(side, (stage.clientWidth - width * scale) / 2) + "px";
+  stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 8) + "px";
   const warn = [];
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
