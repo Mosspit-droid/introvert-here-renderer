@@ -2291,10 +2291,10 @@ function preview() {
   const over = [];
   [...box.children].forEach((d, i) => { const w = d.scrollWidth; if (w > width + 0.5) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
   // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
-  // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown about 130px tall.
-  const lh = fs * 1.2, frameH = lh * 9, pad = 6;
+  // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
+  const lh = fs * 1.2, frameH = lh * 9, pad = 0;
   box.style.height = frameH + "px";
-  const stage = $("stage"); const scale = Math.min(1, ($("stage").parentElement.clientWidth - 2 * pad) / width, 130 / frameH);
+  const stage = $("stage"); const scale = Math.min(1, ($("stage").parentElement.clientWidth - 2 * pad) / width, 160 / frameH);
   box.style.transform = "scale(" + scale + ")"; box.style.left = pad + "px"; box.style.top = pad + "px";
   stage.style.width = (width * scale + 2 * pad) + "px";
   stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 2 * pad) + "px";
