@@ -2002,14 +2002,18 @@ ${brandHeader("Gags")}
           <label>T-shirt<input type="date" id="d1"></label><label>Long-sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
-      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn-main fabsave" type="submit" id="save">Save to Core</button><button class="btn" type="button" id="clear">Clear</button></div>
+      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button></div>
     </div>
   </div>
 </form>
+<button class="btn-main fabsave" type="submit" form="form" id="save">Save to Core</button>
 <style>
   .gwrap{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-template-areas:"L R" "L acts";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
   .gacts{grid-area:acts;display:flex;gap:8px;flex-wrap:wrap}.gacts .btn{flex:1}
   .gL{grid-area:L}.gR{grid-area:R}
+  /* Preview stays pinned under the header while the rest scrolls beneath it. */
+  .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
+  .gL .g-prev .card{background:rgba(12,12,11,.97);box-shadow:0 12px 28px rgba(0,0,0,.65)}
   .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
   .g-side{display:flex;flex-direction:column;gap:18px}
@@ -2017,7 +2021,6 @@ ${brandHeader("Gags")}
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
     .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
-    .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15;background:rgba(10,10,9,.96);box-shadow:0 10px 24px rgba(0,0,0,.6)}
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
