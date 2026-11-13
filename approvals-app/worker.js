@@ -139,6 +139,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
@@ -815,6 +816,13 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .rltx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rld{font:600 13px var(--body);text-align:right}
 .st-live .rld{color:#7fd39a}.st-soon .rld{color:#f0c870}.st-later .rld{color:#f08a85}
 @media (max-width:600px){.rlhead,.sheet .pane a.rlrow{grid-template-columns:80px minmax(0,1fr) 92px}}
+.rlbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin:0 0 10px;border:1px solid var(--line);border-radius:12px;background:rgba(14,14,13,.97)}
+.rlbar span{flex:1;min-width:200px;font:600 14px var(--body)}.rlbar .btn-main{width:auto;min-height:46px;padding:0 20px}
+#rlist.swapping a.rlrow .frid::before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border:2px solid var(--muted);border-radius:5px}
+#rlist.swapping a.rlrow.sel{background:rgba(127,211,154,.12);border-color:#7fd39a}
+#rlist.swapping a.rlrow.sel .frid::before{background:#7fd39a;border-color:#7fd39a;box-shadow:inset 0 0 0 3px #111}
+#rlist.swapping a.rlrow.nopick{opacity:.35}#rlist.swapping a.rlrow.nopick .frid::before{visibility:hidden}
+#rlS.on{border-color:#7fd39a;color:#7fd39a}
 .st-live{border-left:5px solid #5fbf7f!important}.st-soon{border-left:5px solid #e6b450!important}.st-later{border-left:5px solid #e0605a!important}
 .stpill{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font:700 10px var(--display);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
 .st-live .stpill{background:rgba(95,191,127,.18);color:#7fd39a}.st-soon .stpill{background:rgba(230,180,80,.18);color:#f0c870}.st-later .stpill{background:rgba(224,96,90,.16);color:#f08a85}.frt{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -886,7 +894,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="sheet stopsheet" id="stopSheet"><div class="pane" style="max-width:560px;margin:0 auto;display:block"><div style="font:800 18px var(--display)" id="stopT">Emergency stop</div><div class="small" id="stopB" style="margin-top:6px"></div><div id="stopOpts"></div><button class="btn" type="button" id="stopNo" style="width:100%;margin-top:12px">Never mind</button></div></div>
-<div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlX" type="button">Close</button></div><div class="small" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap a gag to edit it.</div><div id="rlR" class="findr"></div></div></div>
+<div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlS" type="button">Swap</button><button class="btn" id="rlX" type="button">Close</button></div><div class="small" id="rlHelp" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap a gag to edit it.</div><div id="rlBar" class="rlbar" hidden></div><div id="rlR" class="findr"></div></div></div>
 <div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find a gag: ID, title, any word of the gag" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
@@ -957,12 +965,40 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   FQ.addEventListener("input", run);
   // Range list (button on each range card on the dashboard).
   var RL = document.getElementById("rlist");
+  var rlCode = "", swapOn = false, picked = [];
+  function canSwap(g) { var e = null; (data.editable || []).some(function (x) { if (x.id === g.id) { e = x; return true; } return false; });
+    return !!(e && e.dates && e.dates.length === 4 && e.dates.every(Boolean)); }
+  function rlNice(id) { var st = null; (data.all || []).some(function (g) { if (g.id === id) { st = gagState(g, data); return true; } return false; }); return id + " (" + (st ? st.t.replace("Soon · ", "") : "") + ")"; }
+  function rlBar() { var bar = document.getElementById("rlBar"); RL.classList.toggle("swapping", swapOn); document.getElementById("rlS").classList.toggle("on", swapOn);
+    document.getElementById("rlHelp").style.display = swapOn ? "none" : "";
+    if (!swapOn) { bar.hidden = true; return; } bar.hidden = false;
+    bar.innerHTML = picked.length < 2 ? '<span>' + (picked.length ? "Now tick the second gag." : "Tick two unreleased gags to swap their release dates.") + '</span><button class="btn" type="button" id="rlCancel">Cancel</button>'
+      : '<span>Swap ' + esc2(rlNice(picked[0])) + ' ↔ ' + esc2(rlNice(picked[1])) + '?</span><button class="btn-main" type="button" id="rlGo">Swap dates</button><button class="btn" type="button" id="rlCancel">Cancel</button>';
+    document.getElementById("rlCancel").onclick = function () { swapOn = false; picked = []; rlDraw(); };
+    var go = document.getElementById("rlGo"); if (go) go.onclick = function () { go.disabled = true; go.textContent = "Swapping…";
+      fetch("/api/gag-swap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: picked[0], b: picked[1] }) })
+        .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
+        .then(function (x) { if (!x.ok) { go.disabled = false; go.textContent = "Swap dates"; alert(x.o.error || "Swap failed"); return; }
+          [x.o.a, x.o.b].forEach(function (n) { (data.editable || []).forEach(function (e) { if (e.id === n.id) e.dates = n.dates; }); });
+          swapOn = false; picked = []; rlDraw(); if (window.toast) window.toast("Swapped. Core updates in about a minute."); })
+        .catch(function () { go.disabled = false; go.textContent = "Swap dates"; alert("Couldn't reach the app. Nothing was changed."); }); }; }
+  function rlDraw() {
+    var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0; }).map(function (g) { return { g: g, st: gagState(g, data) }; });
+    list.sort(function (a, b) { var ka = a.st.c === "live" ? "0" : (a.st.first ? "1" + a.st.first : "2"), kb = b.st.c === "live" ? "0" : (b.st.first ? "1" + b.st.first : "2"); return ka < kb ? -1 : ka > kb ? 1 : (a.g.id < b.g.id ? -1 : 1); });
+    document.getElementById("rlR").innerHTML = list.length ? '<div class="rlhead"><span>Gag</span><span>Gag text</span><span>Release</span></div>' + list.map(function (x) { var g = x.g, st = x.st;
+      var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
+      return '<a class="' + cls + '" data-id="' + esc2(g.id) + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>';
+    rlBar(); }
   function showRange(code, name) {
+    rlCode = code; swapOn = false; picked = [];
     document.getElementById("rlT").textContent = name; RL.classList.add("open");
-    var draw = function () { var list = (data.all || []).filter(function (g) { return g.id.indexOf(code + "-") === 0; });
-      document.getElementById("rlR").innerHTML = list.length ? '<div class="rlhead"><span>Gag</span><span>Gag text</span><span>Release</span></div>' + list.map(function (g) { var st = gagState(g, data);
-        return '<a class="rlrow st-' + st.c + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>'; };
-    if (data) draw(); else { document.getElementById("rlR").innerHTML = '<p class="small">Loading…</p>'; fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { data = d || { all: [] }; draw(); }); }
+    if (data) rlDraw(); else { document.getElementById("rlR").innerHTML = '<p class="small">Loading…</p>'; fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { data = d || { all: [] }; rlDraw(); }); }
+  }
+  if (RL) {
+    document.getElementById("rlS").addEventListener("click", function () { if (!data) return; swapOn = !swapOn; picked = []; rlDraw(); });
+    document.getElementById("rlR").addEventListener("click", function (e) { if (!swapOn) return; var a = e.target.closest("a.rlrow"); if (!a) return; e.preventDefault();
+      if (a.classList.contains("nopick")) return; var id = a.dataset.id, i = picked.indexOf(id);
+      if (i >= 0) picked.splice(i, 1); else { if (picked.length >= 2) picked.shift(); picked.push(id); } rlDraw(); });
   }
   document.querySelectorAll("[data-rlist]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); showRange(b.dataset.rlist, b.dataset.name); }); });
   if (RL) { document.getElementById("rlX").addEventListener("click", function () { RL.classList.remove("open"); }); RL.addEventListener("click", function (e) { if (e.target === RL) RL.classList.remove("open"); }); }
@@ -1946,6 +1982,41 @@ async function gagsRefresh(env) {
   const res = await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "refresh" }) });
   if (!res.ok) return json({ error: "Make didn't accept the refresh (" + res.status + ")" }, 502);
   return json({ ok: true });
+}
+
+// Swap the release dates of two unreleased gags in the same range: two ordinary "edit"
+// saves through the Save Gag webhook, so Make re-checks each row exactly as for a normal edit.
+async function gagSwap(request, env) {
+  if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
+  const d = await request.json().catch(() => ({}));
+  const g = await env.PENDING.get("gags", "json");
+  const ed = (g && g.editable) || [];
+  const A = ed.find((e) => e.id === str(d.a)), B = ed.find((e) => e.id === str(d.b));
+  if (!A || !B) return json({ error: "Only written gags that haven't been built yet can be swapped. Tap Sync to Core and try again." }, 400);
+  if (A.id === B.id) return json({ error: "Pick two different gags." }, 400);
+  if (A.id.split("-")[0] !== B.id.split("-")[0]) return json({ error: "Gags can only be swapped within the same range." }, 400);
+  const ok4 = (e) => Array.isArray(e.dates) && e.dates.length === 4 && e.dates.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x || ""));
+  if (!ok4(A) || !ok4(B)) return json({ error: "Both gags need all four release dates to be swapped." }, 400);
+  const send = async (e, dates, ref) => {
+    const body = { ref, action: "edit", gagId: e.id, collection: str(e.collection), category: str(e.category), text: String(e.text || ""), stem: str(e.stem),
+      tag12: "auto", tag13: "auto", d1: dates[0], d2: dates[1], d3: dates[2], d4: dates[3], datesFromSlot: "false" };
+    const r = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    return r.ok;
+  };
+  const refA = crypto.randomUUID(), refB = crypto.randomUUID();
+  if (!(await send(A, B.dates, refA))) return json({ error: "Make didn't accept the swap. Nothing was changed." }, 502);
+  if (!(await send(B, A.dates, refB))) {
+    await send(A, A.dates, crypto.randomUUID()); // put the first one back
+    return json({ error: "Make didn't accept the second half of the swap, so the first gag was put back. Nothing changed." }, 502);
+  }
+  const saves = await loadSaves(env);
+  saves.unshift({ ref: refB, action: "edit", gagId: B.id, stem: "Swap: " + str(B.stem) + " (now " + A.dates[0] + ")", text: B.text, status: "pending", at: Date.now() },
+    { ref: refA, action: "edit", gagId: A.id, stem: "Swap: " + str(A.stem) + " (now " + B.dates[0] + ")", text: A.text, status: "pending", at: Date.now() });
+  await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
+  // Reflect the swap straight away; the next Gags Sync overwrites this with what Core holds.
+  const da = A.dates; A.dates = B.dates; B.dates = da;
+  await env.PENDING.put("gags", JSON.stringify(g));
+  return json({ ok: true, a: { id: A.id, dates: A.dates }, b: { id: B.id, dates: B.dates } });
 }
 
 async function gagSave(request, env) {
