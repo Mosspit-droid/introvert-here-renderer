@@ -2650,7 +2650,10 @@ async function spell(request, env) {
   catch (e) { return json({ unavailable: true }); }
   if (!res.ok) return json({ unavailable: true, status: res.status });
   const out = await res.json();
-  const matches = (out.matches || []).map((m) => {
+  // British -ise spellings are correct for this shop (Barry, 13 Nov): drop LanguageTool's Oxford
+  // "-ize" rule and any suggestion that only swaps an s for a z.
+  const isZSwap = (m) => { const o = text.substr(m.offset, m.length).toLowerCase(); return (m.replacements || []).some((r) => { const v = String(r.value || "").toLowerCase(); return v.length === o.length && v.replace(/z/g, "s") === o.replace(/z/g, "s") && v !== o; }); };
+  const matches = (out.matches || []).filter((m) => !/OXFORD/i.test((m.rule && m.rule.id) || "") && !/oxford/i.test(m.message || "") && !isZSwap(m)).map((m) => {
     const orig = text.substr(m.offset, m.length);
     const caps = orig && orig === orig.toUpperCase() && /[A-Z]/.test(orig);
     return {
