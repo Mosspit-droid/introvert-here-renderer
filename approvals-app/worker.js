@@ -1004,6 +1004,13 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   }
   document.querySelectorAll("[data-rlist]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); showRange(b.dataset.rlist, b.dataset.name); }); });
   if (RL) { document.getElementById("rlX").addEventListener("click", function () { RL.classList.remove("open"); }); RL.addEventListener("click", function (e) { if (e.target === RL) RL.classList.remove("open"); }); }
+  // Sync to Core button in every page header.
+  document.querySelectorAll("[data-sync]").forEach(function (b) { b.addEventListener("click", function () {
+    b.disabled = true; var t = b.lastChild; t.textContent = "Syncing…";
+    Promise.all([fetch("/api/gags-refresh", { method: "POST" }), fetch("/api/amend-refresh", { method: "POST" })]).then(function (r) {
+      if (!r[0].ok) throw 0; if (window.toast) window.toast("Syncing to Core. Reload in about a minute to see it.");
+      setTimeout(function () { b.disabled = false; t.textContent = "Sync to Core"; }, 60000);
+    }).catch(function () { b.disabled = false; t.textContent = "Sync to Core"; if (window.toast) window.toast("Sync didn't start. Try again.", true); }); }); });
   // Errors that used to pop up as browser boxes now show as a red message.
   window.alert = function (m) { if (window.toast) window.toast(String(m), true); };
   window.toast = function (msg, bad) { var t = document.getElementById("toast"); t.textContent = msg; t.className = "toast show" + (bad ? " bad" : ""); clearTimeout(window.__tt); window.__tt = setTimeout(function () { t.className = "toast"; }, 2600); };
@@ -1024,7 +1031,10 @@ function topBar(section = "") {
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
 function brandHeader(title, actions = "") {
   const kept = String(actions || "").replace(/<a class="btn" href="(\/[a-z-]*)"[^>]*>[\s\S]*?<\/a>/g, (m, href) => (TOP_PAGES.includes(href) ? "" : m));
-  return `${topBar(title)}<header class="pagehead"><div class="brand"><a class="back" href="/">${icon("back")}Dashboard</a><h1 class="vh">${title}</h1></div>${kept.trim() ? `<div class="actions">${kept}</div>` : ""}</header>`;
+  // Every page gets a Sync to Core button (Barry, 13 Nov), unless the page already has its own.
+  const sync = /Sync to Core/.test(kept) ? "" : `<button class="btn" type="button" data-sync>${icon("sync")}Sync to Core</button>`;
+  const acts = (kept.trim() + sync).trim();
+  return `${topBar(title)}<header class="pagehead"><div class="brand"><a class="back" href="/">${icon("back")}Dashboard</a><h1 class="vh">${title}</h1></div>${acts ? `<div class="actions">${acts}</div>` : ""}</header>`;
 }
 
 function loginPage(wrong) {
