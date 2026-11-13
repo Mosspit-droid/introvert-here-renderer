@@ -1469,6 +1469,7 @@ ${brandHeader("To-do")}
 .td .tx{flex:1;min-width:0}.td .tx b{display:block;font:700 16px var(--display)}.td .tx p{margin:4px 0 0;font-size:14px;color:var(--muted);white-space:pre-wrap}
 .td .meta3{font-size:12px;color:var(--dim);margin-top:6px}
 .td.done .tx b{text-decoration:line-through;color:var(--muted)}
+.td button.tdcp{font-size:18px;color:var(--text)}
 .td button{flex:none;width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--muted);font-size:20px;cursor:pointer}
 .src{display:inline-block;font:700 10px var(--display);letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--line);margin-right:6px}
 .setup{grid-column:2}.setup summary{cursor:pointer;font:800 13px var(--display);letter-spacing:.06em;text-transform:uppercase}
@@ -1492,7 +1493,7 @@ ${brandHeader("To-do")}
   var L = ${JSON.stringify(list).replace(/</g, "\\u003c")};
   function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function when(ms) { return new Date(ms).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
-  function row(t) { return '<div class="td' + (t.done ? " done" : "") + '"><input type="checkbox" data-id="' + esc(t.id) + '"' + (t.done ? " checked" : "") + ' aria-label="Done"><div class="tx"><b>' + esc(t.text) + '</b>' + (t.details ? "<p>" + esc(t.details) + "</p>" : "") + '<div class="meta3"><span class="src ' + esc(t.source) + '">' + esc(t.source) + '</span>' + when(t.done ? t.doneAt : t.at) + '</div></div><button type="button" data-rm="' + esc(t.id) + '" aria-label="Delete">×</button></div>'; }
+  function row(t) { return '<div class="td' + (t.done ? " done" : "") + '"><input type="checkbox" data-id="' + esc(t.id) + '"' + (t.done ? " checked" : "") + ' aria-label="Done"><div class="tx"><b>' + esc(t.text) + '</b>' + (t.details ? "<p>" + esc(t.details) + "</p>" : "") + '<div class="meta3"><span class="src ' + esc(t.source) + '">' + esc(t.source) + '</span>' + when(t.done ? t.doneAt : t.at) + '</div></div><button type="button" class="tdcp" data-cp="' + esc(t.id) + '" aria-label="Copy for Claude or ChatGPT" title="Copy for Claude or ChatGPT">⧉</button><button type="button" data-rm="' + esc(t.id) + '" aria-label="Delete">×</button></div>'; }
   function draw() { var o = L.filter(function (t) { return !t.done; }), d = L.filter(function (t) { return t.done; }).slice(0, 30);
     document.getElementById("open").innerHTML = o.length ? o.map(row).join("") : '<div class="card empty">Nothing on the list. Say “Note it” to Claude or ChatGPT, or add one above.</div>';
     document.getElementById("done").innerHTML = d.map(row).join(""); document.getElementById("doneH").hidden = !d.length; }
@@ -1502,6 +1503,14 @@ ${brandHeader("To-do")}
   document.querySelectorAll("[data-copy]").forEach(function (b) { b.addEventListener("click", function () { navigator.clipboard.writeText(b.dataset.copy).then(function () { toast("Copied"); }).catch(function () { toast("Couldn't copy. Long-press to select instead.", true); }); }); });
   document.getElementById("tdText").addEventListener("keydown", function (e) { if (e.key === "Enter") add(); });
   document.addEventListener("change", function (e) { var id = e.target.dataset && e.target.dataset.id; if (id) send({ action: e.target.checked ? "done" : "undo", id: id }).catch(function (er) { toast(er.message, true); }); });
+  // Copy a to-do as a ready-made message to paste into Claude or ChatGPT.
+  function prompt(t) { return "Let's pick up this Introvert Here to-do:\\n\\n" + t.text + (t.details ? "\\n\\nDetails: " + t.details : "") +
+      "\\n\\n(Added " + when(t.at) + (t.source ? " by " + t.source : "") + ".) Please remind me where we got to and suggest the next step."; }
+  function copyText(txt) { if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(txt);
+    return new Promise(function (ok, no) { var a = document.createElement("textarea"); a.value = txt; a.style.position = "fixed"; a.style.opacity = "0"; document.body.appendChild(a); a.select();
+      var r = false; try { r = document.execCommand("copy"); } catch (x) {} a.remove(); r ? ok() : no(); }); }
+  document.addEventListener("click", function (e) { var c = e.target.closest("[data-cp]"); if (!c) return; var t = L.filter(function (x) { return x.id === c.dataset.cp; })[0]; if (!t) return;
+    copyText(prompt(t)).then(function () { toast("Copied. Paste it into Claude or ChatGPT."); }).catch(function () { toast("Couldn't copy on this device.", true); }); });
   document.addEventListener("click", function (e) { var b = e.target.closest("[data-rm]"); if (b) send({ action: "remove", id: b.dataset.rm }).then(function () { toast("Deleted"); }).catch(function (er) { toast(er.message, true); }); });
   draw();
   setInterval(function () { fetch("/api/todo-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d && JSON.stringify(d) !== JSON.stringify(L) && !document.activeElement.matches("input#tdText")) { L = d; draw(); } }); }, 30000);
