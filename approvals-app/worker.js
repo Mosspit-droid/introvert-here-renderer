@@ -3262,8 +3262,9 @@ ${brandHeader("Calendar")}
 // ---------- Settings (Barry, 13 Nov): things that used to be changed by hand in Core ----------
 // Writes go through the Amend helper's generic "apply" route (cell PATCHes), with the builder left alone.
 const SETTINGS_KEY = "core-settings";
-const SETTINGS_DEFAULT = { TagEngine: "ON", AutoApprove: "ON", AutoApproveDays: 2, TagCap: 3 };
-const TAG_SETTING_ROW = { TagCap: 2, TagEngine: 14, AutoApprove: 15, AutoApproveDays: 16 }; // TAG_SETTINGS column B
+const SETTINGS_DEFAULT = { TagEngine: "ON", AutoApprove: "ON", AutoApproveDays: 2, TagCap: 3, OverlapAmber: 4, OverlapRed: 6, PlanMonths: 12, StemMaxWords: 4 };
+const TAG_SETTING_ROW = { TagCap: 2, OverlapAmber: 7, OverlapRed: 8, PlanMonths: 12, StemMaxWords: 13, TagEngine: 14, AutoApprove: 15, AutoApproveDays: 16 }; // TAG_SETTINGS column B
+const TAG_SETTING_LIM = { TagCap: [1, 10], OverlapAmber: [1, 12], OverlapRed: [2, 13], PlanMonths: [1, 36], StemMaxWords: [1, 6], AutoApproveDays: [1, 14] };
 const RULE_TEXT = [["suffix", "Title ending (after the title stem)", 0], ["intro", "Range intro", 1], ["features", "Product features", 1], ["audience", "Who it's for", 1], ["closing", "Closing text (legal / EU wording goes here)", 1]];
 
 // Which gag categories belong to which range (the gag tool's buttons). Kept in the app; Core's
@@ -3283,6 +3284,8 @@ async function settingsSave(request, env) {
   const d = await request.json().catch(() => ({}));
   const ops = [];
   if (d.kind === "cat-add" || d.kind === "phrase-add") return await categorySave(d, env);
+  if (["phrase-toggle", "season-toggle", "season-add"].includes(d.kind)) return await poolSave(d, env);
+  if (["page-save", "page-add", "page-del"].includes(d.kind)) return await pageSave(d, env);
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   let S = null, rule = null;
   if (d.kind === "tag") {
@@ -3290,7 +3293,9 @@ async function settingsSave(request, env) {
     if (!(k in TAG_SETTING_ROW)) return json({ error: "Unknown setting" }, 400);
     let v;
     if (k === "TagEngine" || k === "AutoApprove") { v = str(d.value).toUpperCase() === "ON" ? "ON" : "OFF"; }
-    else { v = Math.round(Number(d.value)); const lim = k === "TagCap" ? [1, 10] : [1, 14]; if (!(v >= lim[0] && v <= lim[1])) return json({ error: "Pick a number from " + lim[0] + " to " + lim[1] + "." }, 400); }
+    else { v = Math.round(Number(d.value)); const lim = TAG_SETTING_LIM[k]; if (!(v >= lim[0] && v <= lim[1])) return json({ error: "Pick a number from " + lim[0] + " to " + lim[1] + "." }, 400);
+      if (k === "OverlapRed" && v <= Number(cs.OverlapAmber)) return json({ error: "Red has to be higher than amber (" + cs.OverlapAmber + ")." }, 400);
+      if (k === "OverlapAmber" && v >= Number(cs.OverlapRed)) return json({ error: "Amber has to be lower than red (" + cs.OverlapRed + ")." }, 400); }
     ops.push({ url: `${AMEND_XL}/worksheets/TAG_SETTINGS/range(address='B${TAG_SETTING_ROW[k]}')`, values: [[v]] });
     cs[k] = v;
   } else if (d.kind === "rule") {
@@ -3318,6 +3323,65 @@ async function settingsSave(request, env) {
   if (d.kind === "tag") await env.PENDING.put(SETTINGS_KEY, JSON.stringify(cs));
   else await env.PENDING.put("amend", JSON.stringify(S));
   return json({ ok: true, settings: cs });
+}
+
+// TAG_POOL and SEASON_POOL rows with their table positions, kept in step by the app (rows are only ever
+// appended or switched on/off, never deleted, so positions stay valid).
+const POOLS_KEY = "pools";
+const mmdd = (v) => { const m = /^(\d{1,2})\/(\d{1,2})$/.exec(String(v || "").trim()); if (!m) return 0; const dd = +m[1], mo = +m[2]; return mo >= 1 && mo <= 12 && dd >= 1 && dd <= 31 ? mo * 100 + dd : 0; };
+async function poolSave(d, env) {
+  const P = (await env.PENDING.get(POOLS_KEY, "json")) || { tag: [], season: [] };
+  const ops = [];
+  if (d.kind === "phrase-toggle" || d.kind === "season-toggle") {
+    const L = d.kind === "phrase-toggle" ? P.tag : P.season, row = L.find((x) => x.i === Number(d.i));
+    if (!row) return json({ error: "That phrase isn't in the app's list. Reload and try again." }, 400);
+    row.on = !!d.on;
+    ops.push(amendCell(d.kind === "phrase-toggle" ? "TAG_POOL" : "SEASON_POOL", "ACTIVE", row.i, row.on ? "Y" : "N"));
+  } else {
+    const t = String(d.t || "").trim().toLowerCase().replace(/\s+/g, " "), season = String(d.s || "").trim().toUpperCase().replace(/[^A-Z_ ]/g, "").replace(/ +/g, "_");
+    const a = mmdd(d.a), e = mmdd(d.e);
+    if (!phraseOk(t)) return json({ error: "“" + t + "” breaks Etsy's tag rules (20 characters max; letters, numbers, spaces, ' and -)." }, 400);
+    if (!season) return json({ error: "Pick or name a season." }, 400);
+    if (!a || !e) return json({ error: "Give start and end as day/month, e.g. 01/10 and 24/12." }, 400);
+    if (P.season.some((x) => x.t === t)) return json({ error: "“" + t + "” is already a seasonal phrase." }, 400);
+    ops.push({ url: `${AMEND_XL}/tables/SEASON_POOL/rows/add`, method: "POST", values: [[t, season, a, e, "Y", null, null, null]] });
+    P.season.push({ i: P.season.length, t, s: season, a, e, on: true });
+  }
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  await env.PENDING.put(POOLS_KEY, JSON.stringify(P));
+  return json({ ok: true });
+}
+// MOCKUP_PAGES: the app's copy (amend.pages) is in table order, so list position = table row.
+async function pageSave(d, env) {
+  const S = await env.PENDING.get("amend", "json");
+  const pages = (S && S.pages) || [];
+  const ops = [], idx = Number(d.idx);
+  const cleanName = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, "_");
+  const pos = Math.round(Number(d.pos));
+  if (d.kind !== "page-del" && !(pos >= 1 && pos <= 40)) return json({ error: "Position has to be a number from 1 to 40." }, 400);
+  if (d.kind === "page-save") {
+    const pg = pages[idx]; if (!pg) return json({ error: "That page isn't in the app's list. Tap Sync to Core and try again." }, 400);
+    const name = cleanName(d.name); if (!/^[A-Z0-9_]{3,60}$/.test(name)) return json({ error: "Page names use capitals, numbers and underscores, like OS_05_TS_GIFT_FOREST_GREEN." }, 400);
+    if (pos !== Number(pg.pos)) ops.push({ url: `${AMEND_XL}/tables/MOCKUP_PAGES/columns/POSITION/dataBodyRange/cell(row=${idx},column=0)`, values: [[pos]] });
+    if (name !== pg.name) ops.push(amendCell("MOCKUP_PAGES", "PAGE_NAME", idx, name));
+    if (!ops.length) return json({ ok: true, unchanged: true });
+    pg.pos = pos; pg.name = name;
+  } else if (d.kind === "page-add") {
+    const name = cleanName(d.name); if (!/^[A-Z0-9_]{3,60}$/.test(name)) return json({ error: "Page names use capitals, numbers and underscores, like OS_05_TS_GIFT_FOREST_GREEN." }, 400);
+    if (!S || !(S.rules || []).some((r) => r.coll === d.coll && r.type === d.type)) return json({ error: "Pick a range and garment." }, 400);
+    if (pages.some((p) => p.coll === d.coll && p.type === d.type && Number(p.pos) === pos)) return json({ error: "Position " + pos + " is already used for this garment. Change that page first, or pick another number." }, 400);
+    ops.push({ url: `${AMEND_XL}/tables/MOCKUP_PAGES/rows/add`, method: "POST", values: [[d.coll, d.type, pos, name]] });
+    pages.push({ coll: d.coll, type: d.type, pos, name });
+  } else {
+    const pg = pages[idx]; if (!pg || pg.name !== String(d.name || "")) return json({ error: "That page has moved since this screen loaded. Reload and try again." }, 400);
+    ops.push({ url: `${AMEND_XL}/worksheets/MOCKUP_PAGES/range(address='A${idx + 2}:D${idx + 2}')/delete`, method: "POST", body: { shift: "Up" } });
+    pages.splice(idx, 1);
+  }
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  S.pages = pages; await env.PENDING.put("amend", JSON.stringify(S));
+  return json({ ok: true });
 }
 
 async function categorySave(d, env) {
@@ -3358,6 +3422,9 @@ async function categorySave(d, env) {
     cats[d.range] = [...cats[d.range], name]; await env.PENDING.put(CATEGORIES_KEY, JSON.stringify(cats));
     const g = await env.PENDING.get("gags", "json"); if (g) { g.categories = Array.from(new Set([...(g.categories || []), name])); await env.PENDING.put("gags", JSON.stringify(g)); }
   }
+  const P = (await env.PENDING.get(POOLS_KEY, "json")) || { tag: [], season: [] };
+  [...anchors.map((t) => ["A", t]), ...flavours.map((t) => ["F", t])].forEach(([c, t]) => P.tag.push({ i: P.tag.length, p: name, g: "GAG", c, t, on: true }));
+  await env.PENDING.put(POOLS_KEY, JSON.stringify(P));
   pool[name] = [...(pool[name] || []), ...anchors.map((t) => ({ t, c: "A", cap: false })), ...flavours.map((t) => ({ t, c: "F", cap: false }))];
   tagsKV.pool = pool; await env.PENDING.put("tags", JSON.stringify(tagsKV));
   return json({ ok: true, added: anchors.length + flavours.length });
@@ -3368,10 +3435,20 @@ async function settingsPage(env) {
   const S = await env.PENDING.get("amend", "json");
   const cats = await loadCategories(env);
   const pool = ((await env.PENDING.get("tags", "json")) || {}).pool || {};
+  const P = (await env.PENDING.get(POOLS_KEY, "json")) || { tag: [], season: [] };
+  const byPool = {}; P.tag.forEach((x) => { (byPool[x.p] = byPool[x.p] || []).push(x); });
+  const chip = (x, kind) => `<button type="button" class="ph${x.on ? "" : " off"}" data-kind="${kind}" data-i="${x.i}" title="Tap to switch ${x.on ? "off" : "on"}">${esc(x.t)}${x.c === "A" ? " ★" : ""}</button>`;
+  const md = (n) => { n = Number(n) || 0; const m = Math.floor(n / 100), d0 = n % 100; return m ? new Date(2001, m - 1, d0).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "?"; };
+  const seasons = {}; P.season.forEach((x) => { (seasons[x.s] = seasons[x.s] || []).push(x); });
+  const seasonHtml = Object.entries(seasons).map(([sn, l]) => { const on = l.filter((x) => x.on);
+    const a = Math.min(...(on.length ? on : l).map((x) => x.a)), e = (on.length ? on : l).map((x) => x.e);
+    return `<div class="catrng"><b>${esc(sn.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()))}</b> <span class="small">${l.map((x) => md(x.a) + "–" + md(x.e)).filter((v, i, arr) => arr.indexOf(v) === i).join(", ")}</span><div class="catchips">${l.map((x) => chip(x, "season-toggle")).join("")}</div></div>`; }).join("");
+  const pages = ((S && S.pages) || []).map((p, i) => Object.assign({ i }, p));
   const RN0 = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
   const catHtml = Object.entries(cats).map(([rng, list]) => `<div class="catrng"><b>${esc(RN0[rng] || rng)}</b><div class="catchips">${list.map((c) => {
     const p = pool[c] || []; const fl = p.filter((x) => x.c === "F").length;
-    return `<details class="catc"><summary>${esc(c)} <span class="small">${fl ? fl + " phrases" : ""}</span></summary><div class="small">${p.length ? p.map((x) => esc(x.t) + (x.c === "A" ? " ★" : "")).join(" · ") : "Phrases load after the next Sync to Core."}</div></details>`; }).join("")}</div></div>`).join("");
+    const rows = byPool[c] || []; const n = rows.length ? rows.filter((x) => x.c === "F" && x.on).length : fl;
+    return `<details class="catc"><summary>${esc(c)} <span class="small">${n ? n + " phrases" : ""}</span></summary><div class="catchips">${rows.length ? rows.map((x) => chip(x, "phrase-toggle")).join("") : '<span class="small">' + (p.length ? p.map((x) => esc(x.t)).join(" · ") : "Phrases load after the next Sync to Core.") + "</span>"}</div></details>`; }).join("")}</div></div>`).join("");
   const allCats = Object.values(cats).flat();
   const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
   const rules = ((S && S.rules) || []).map((r) => ({ row: r.row, name: (RN[r.coll] || r.coll) + " · " + garmentName(r.type), suffix: r.suffix || "", intro: r.intro || "", features: r.features || "", audience: r.audience || "", closing: r.closing || "", tags: Array.isArray(r.tags) ? r.tags : [] }));
@@ -3391,6 +3468,12 @@ ${brandHeader("Settings")}
 .numset{display:flex;gap:8px;flex:none}.numset input{width:84px;min-height:46px;padding:0 12px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext label{display:block;margin:14px 0 0;font-weight:700}.ptext textarea,.ptext input,.ptext select{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext textarea{min-height:110px;resize:vertical;white-space:pre-wrap}.ptags{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ph{border:1px solid var(--line);border-radius:99px;padding:6px 12px;background:rgba(255,255,255,.04);color:var(--text);font:500 13px var(--body);cursor:pointer}
+.ph.off{opacity:.45;text-decoration:line-through}
+.more{margin-top:8px}.more summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:10px 0}
+.g3{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.g3 label{margin-top:10px}
+.mprow{display:grid;grid-template-columns:76px minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-top:8px}.mprow input{margin:0!important}.mprow .btn{width:auto;min-height:44px;padding:0 14px}
+@media (max-width:700px){.g3{grid-template-columns:1fr 1fr}.mprow{grid-template-columns:60px minmax(0,1fr)}.mprow .btn{grid-column:span 1}}
 .catrng{margin-top:16px}.catrng>b{font:800 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
 .catchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}.catc{border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:rgba(255,255,255,.03)}
 .catc summary{cursor:pointer;font-weight:600}.catc[open]{flex-basis:100%}.catc .small{margin-top:6px;line-height:1.6}
@@ -3402,6 +3485,12 @@ ${brandHeader("Settings")}
     ${onoff("AutoApprove", "Approve tags automatically", "On: if you haven't approved a gag's tags yourself, they're approved and frozen shortly before its first release (not if the overlap with other gags is red). Off: every gag waits for you on the Tags page.")}
     ${num("AutoApproveDays", "Days before release to auto-approve", "How long before a gag's first release its tags are approved automatically. Gives you that long to change them. 1 to 14.", 1, 14)}
     ${num("TagCap", "Gags per flavour phrase", "How many different gags may share one flavour tag phrase before it's rested. Lower = more variety, but bigger phrase lists needed. 1 to 10.", 1, 10)}
+    <details class="more"><summary>More tag settings</summary>
+      ${num("OverlapAmber", "Overlap warning: amber", "How many comparable tags two gags can share before the Tags page shows amber. 1 to 12.", 1, 12)}
+      ${num("OverlapRed", "Overlap warning: red", "How many shared tags count as red. A red gag is never approved automatically. Must be above amber.", 2, 13)}
+      ${num("StemMaxWords", "Most words in a title-stem tag", "Title stems longer than this are held until shortened. 1 to 6.", 1, 6)}
+      ${num("PlanMonths", "Months ahead for phrase capacity", "How far ahead the phrase-list check looks when warning that a category is running low. 1 to 36.", 1, 36)}
+    </details>
   </div>
   <div class="card ptext"><h2 style="margin-top:0">Gag categories</h2>
     <p class="small" style="margin:0">Each category has its own tag phrases: ★ main phrases (one goes on every gag in it) and flavour phrases (four per gag, rotated so gags don't share identical tags). Tap a category to see its phrases.</p>
@@ -3417,6 +3506,23 @@ ${brandHeader("Settings")}
     <label>Category<select id="paC">${allCats.map((c) => `<option>${esc(c)}</option>`).join("")}</select></label>
     <label>New flavour phrases (one per line)<textarea id="paF"></textarea></label>
     <button class="btn-main" type="button" id="paGo" style="width:auto;padding:0 26px">Add phrases</button>
+  </div>
+  <div class="card ptext"><h2 style="margin-top:0">Seasonal tags</h2>
+    <p class="small" style="margin:0">Live listings swap these in automatically each morning while they're in season (see the Calendar). Tap a phrase to switch it off or back on.</p>
+    ${seasonHtml || '<p class="small">No seasonal phrases loaded.</p>'}
+    <h3 class="sideh" style="margin-top:22px">Add a seasonal phrase</h3>
+    <div class="g3"><label>Phrase<input id="spT" maxlength="20" placeholder="e.g. advent gift"></label>
+      <label>Season<input id="spS" list="spList" placeholder="CHRISTMAS"><datalist id="spList">${Object.keys(seasons).map((sn) => `<option value="${esc(sn)}">`).join("")}</datalist></label>
+      <label>Starts (day/month)<input id="spA" placeholder="01/10"></label><label>Ends (day/month)<input id="spE" placeholder="24/12"></label></div>
+    <button class="btn-main" type="button" id="spGo" style="width:auto;padding:0 26px;margin-top:12px">Add seasonal phrase</button>
+  </div>
+  <div class="card ptext"><h2 style="margin-top:0">Mockup pages</h2>
+    <p class="small" style="margin:0">Which pages of each Canva mockup template become listing photos, and in what order. Names must match the Canva page names exactly. After changing a garment's pages, run Check Core → Check a mockup template for it.</p>
+    <label>Range and garment<select id="mpR">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
+    <div id="mpL"></div>
+    <h3 class="sideh" style="margin-top:18px">Add a page</h3>
+    <div class="g3"><label>Position<input id="mpP" type="number" min="1" max="40"></label><label style="grid-column:span 2">Page name<input id="mpN" placeholder="OS_26_TS_EXTRA_MAROON"></label></div>
+    <button class="btn-main" type="button" id="mpGo" style="width:auto;padding:0 26px;margin-top:12px">Add page</button>
   </div>
   <div class="card ptext"><h2 style="margin-top:0">Product text</h2>
     <p class="small" style="margin:0">What new listings are built with, for each range and garment. Saving changes Core only: listings already live keep their text. To change live listings as well, use Update listings → Descriptions.</p>
@@ -3439,8 +3545,20 @@ ${brandHeader("Settings")}
     document.getElementById("pf").innerHTML = F.map(function (f) { return '<label>' + h(f[1]) + (f[2] ? '<textarea data-f="' + f[0] + '">' + h(r[f[0]]) + '</textarea>' : '<input data-f="' + f[0] + '" maxlength="60" value="' + h(r[f[0]]) + '">') + '</label>'; }).join("") +
       '<label>Product tags (5, up to 20 characters each)</label><div class="ptags">' + [0, 1, 2, 3, 4].map(function (i) { return '<input data-t="' + i + '" maxlength="20" value="' + h(r.tags[i] || "") + '">'; }).join("") + '</div>'; }
   sel.addEventListener("change", draw); draw();
+  var PG = ${JSON.stringify(pages).replace(/</g, "\\u003c")}, RL = ${JSON.stringify(((S && S.rules) || []).map((r) => [r.coll, r.type]))};
+  document.addEventListener("click", function (e) { var b = e.target.closest(".ph"); if (!b) return; var on = b.classList.contains("off");
+    post({ kind: b.dataset.kind, i: +b.dataset.i, on: on }).then(function () { b.classList.toggle("off", !on); b.title = "Tap to switch " + (on ? "off" : "on"); toast(on ? "Switched on" : "Switched off"); }).catch(function (er) { toast(er.message, true); }); });
+  document.getElementById("spGo").addEventListener("click", function () { go(this, { kind: "season-add", t: document.getElementById("spT").value, s: document.getElementById("spS").value, a: document.getElementById("spA").value, e: document.getElementById("spE").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
+  var mp = document.getElementById("mpR");
+  function mpDraw() { var k = RL[mp.value] || []; var rows = PG.filter(function (p) { return p.coll === k[0] && p.type === k[1]; }).sort(function (a, b) { return a.pos - b.pos; });
+    document.getElementById("mpL").innerHTML = rows.length ? rows.map(function (p) { return '<div class="mprow" data-idx="' + p.i + '" data-name="' + h(p.name) + '"><input type="number" min="1" max="40" value="' + h(p.pos) + '" class="mpPos"><input value="' + h(p.name) + '" class="mpName"><button class="btn mpSave" type="button">Save</button><button class="btn mpDel" type="button">Remove</button></div>'; }).join("") : '<p class="small">No pages listed for this garment yet.</p>'; }
+  mp.addEventListener("change", mpDraw); mpDraw();
+  document.getElementById("mpL").addEventListener("click", function (e) { var r = e.target.closest(".mprow"); if (!r) return;
+    if (e.target.closest(".mpSave")) post({ kind: "page-save", idx: +r.dataset.idx, pos: r.querySelector(".mpPos").value, name: r.querySelector(".mpName").value }).then(function (o) { toast(o.unchanged ? "Nothing changed" : "Saved to Core"); }).catch(function (er) { toast(er.message, true); });
+    if (e.target.closest(".mpDel") && confirm("Remove " + r.dataset.name + " from the photos for this garment?")) post({ kind: "page-del", idx: +r.dataset.idx, name: r.dataset.name }).then(function () { toast("Removed"); setTimeout(function () { location.reload(); }, 900); }).catch(function (er) { toast(er.message, true); }); });
+  document.getElementById("mpGo").addEventListener("click", function () { var k = RL[mp.value] || []; go(this, { kind: "page-add", coll: k[0], type: k[1], pos: document.getElementById("mpP").value, name: document.getElementById("mpN").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
   function go(btn, body, done) { btn.disabled = true; var lbl = btn.textContent; btn.textContent = "Saving…";
-    post(body).then(function (o) { toast("Saved to Core: " + o.added + (o.added === 1 ? " phrase" : " phrases")); done(); }).catch(function (er) { toast(er.message, true); }).then(function () { btn.disabled = false; btn.textContent = lbl; }); }
+    post(body).then(function (o) { toast(o.added == null ? "Saved to Core" : "Saved to Core: " + o.added + (o.added === 1 ? " phrase" : " phrases")); done(); }).catch(function (er) { toast(er.message, true); }).then(function () { btn.disabled = false; btn.textContent = lbl; }); }
   document.getElementById("caGo").addEventListener("click", function () { go(this, { kind: "cat-add", range: document.getElementById("caR").value, name: document.getElementById("caN").value, anchors: document.getElementById("caA").value, flavours: document.getElementById("caF").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
   document.getElementById("paGo").addEventListener("click", function () { go(this, { kind: "phrase-add", name: document.getElementById("paC").value, flavours: document.getElementById("paF").value }, function () { setTimeout(function () { location.reload(); }, 900); }); });
   document.getElementById("psave").addEventListener("click", function () { var r = R[sel.value]; if (!r) return; var b = { kind: "rule", row: r.row, tags: [] };
