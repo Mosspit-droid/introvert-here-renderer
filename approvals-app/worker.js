@@ -107,6 +107,9 @@ export default {
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
+      if (pathname === "/settings" && method === "GET") {
+        return authed ? await settingsPage(env) : redirect("/");
+      }
       if ((pathname === "/tools" || pathname === "/check") && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
       }
@@ -140,6 +143,7 @@ export default {
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
+      if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
@@ -1665,6 +1669,7 @@ ${todayStrip}
   ${tile("/links", "links", "Links", "Key addresses")}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/check", "check", "Check Core", "Core checks and tools")}
+  ${tile("/settings", "tools", "Settings", "Tag system and product text")}
 </div>
 <h2 class="rngh">Ranges<button class="btn dsync" id="dashSync" type="button">${icon("sync")}Sync to Core</button></h2>
 <div class="ranges">${ranges}</div>
@@ -3135,6 +3140,113 @@ async function templateResult(request, env) {
   all[d.coll + "|" + d.type] = { at: Date.now(), pages: Number(d.pages) || 0, issues: templateIssues(S, d.coll, d.type, d.pages) };
   await env.PENDING.put("tpl-checks", JSON.stringify(all));
   return json({ ok: true });
+}
+
+// ---------- Settings (Barry, 13 Nov): things that used to be changed by hand in Core ----------
+// Writes go through the Amend helper's generic "apply" route (cell PATCHes), with the builder left alone.
+const SETTINGS_KEY = "core-settings";
+const SETTINGS_DEFAULT = { TagEngine: "ON", AutoApprove: "ON", AutoApproveDays: 2, TagCap: 3 };
+const TAG_SETTING_ROW = { TagCap: 2, TagEngine: 14, AutoApprove: 15, AutoApproveDays: 16 }; // TAG_SETTINGS column B
+const RULE_TEXT = [["suffix", "Title ending (after the title stem)", 0], ["intro", "Range intro", 1], ["features", "Product features", 1], ["audience", "Who it's for", 1], ["closing", "Closing text (legal / EU wording goes here)", 1]];
+
+async function settingsSave(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const ops = [];
+  const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
+  let S = null, rule = null;
+  if (d.kind === "tag") {
+    const k = str(d.key);
+    if (!(k in TAG_SETTING_ROW)) return json({ error: "Unknown setting" }, 400);
+    let v;
+    if (k === "TagEngine" || k === "AutoApprove") { v = str(d.value).toUpperCase() === "ON" ? "ON" : "OFF"; }
+    else { v = Math.round(Number(d.value)); const lim = k === "TagCap" ? [1, 10] : [1, 14]; if (!(v >= lim[0] && v <= lim[1])) return json({ error: "Pick a number from " + lim[0] + " to " + lim[1] + "." }, 400); }
+    ops.push({ url: `${AMEND_XL}/worksheets/TAG_SETTINGS/range(address='B${TAG_SETTING_ROW[k]}')`, values: [[v]] });
+    cs[k] = v;
+  } else if (d.kind === "rule") {
+    S = await env.PENDING.get("amend", "json");
+    rule = S && (S.rules || []).find((r) => String(r.row) === String(d.row));
+    if (!rule) return json({ error: "That range and garment isn't in the app's copy of Core. Tap Sync to Core and try again." }, 400);
+    for (const [k] of RULE_TEXT) {
+      if (d[k] === undefined) continue;
+      const v = String(d[k]).replace(/\r\n?/g, "\n");
+      if (k === "suffix" && v.length > 60) return json({ error: "The title ending is too long (60 characters max)." }, 400);
+      if (v !== String(rule[k] || "")) { ops.push(amendCell("PRODUCT_RULES", AMEND_RULE_COLS[k], rule.row, v)); rule[k] = v; }
+    }
+    if (Array.isArray(d.tags)) {
+      const tags = d.tags.slice(0, 5).map((t) => String(t || "").trim().toLowerCase());
+      const bad = tags.find((t) => t.length > 20 || !/^[a-z0-9 '\-]*$/.test(t));
+      if (bad !== undefined) return json({ error: "Product tag “" + bad + "” breaks Etsy's rules (20 characters max; letters, numbers, spaces, ' and -)." }, 400);
+      const old = Array.isArray(rule.tags) ? rule.tags : [];
+      tags.forEach((t, i) => { if (t !== String(old[i] || "")) ops.push(amendCell("PRODUCT_RULES", AMEND_TAG_COLS[i], rule.row, t)); });
+      rule.tags = tags;
+    }
+  } else return json({ error: "Unknown request" }, 400);
+  if (!ops.length) return json({ ok: true, unchanged: true });
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  if (d.kind === "tag") await env.PENDING.put(SETTINGS_KEY, JSON.stringify(cs));
+  else await env.PENDING.put("amend", JSON.stringify(S));
+  return json({ ok: true, settings: cs });
+}
+
+async function settingsPage(env) {
+  const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
+  const S = await env.PENDING.get("amend", "json");
+  const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const rules = ((S && S.rules) || []).map((r) => ({ row: r.row, name: (RN[r.coll] || r.coll) + " · " + garmentName(r.type), suffix: r.suffix || "", intro: r.intro || "", features: r.features || "", audience: r.audience || "", closing: r.closing || "", tags: Array.isArray(r.tags) ? r.tags : [] }));
+  const onoff = (k, title, help) => `<div class="setrow"><div><b>${title}</b><p class="small">${help}</p></div>
+    <div class="seg" data-k="${k}"><button type="button" data-v="ON" class="${cs[k] === "ON" ? "on" : ""}">On</button><button type="button" data-v="OFF" class="${cs[k] !== "ON" ? "on" : ""}">Off</button></div></div>`;
+  const num = (k, title, help, min, max) => `<div class="setrow"><div><b>${title}</b><p class="small">${help}</p></div>
+    <div class="numset"><input type="number" inputmode="numeric" min="${min}" max="${max}" value="${esc(String(cs[k]))}" data-k="${k}"><button class="btn" type="button" data-save="${k}">Save</button></div></div>`;
+  return shell(`
+${brandHeader("Settings")}
+<style>
+.setw{display:grid;gap:18px;max-width:980px}
+.setrow{display:flex;gap:18px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}
+.setrow:first-of-type{border-top:0}.setrow b{font:700 16px var(--display)}.setrow p{margin:4px 0 0;max-width:560px}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:99px;overflow:hidden;flex:none}
+.seg button{min-width:76px;min-height:46px;border:0;background:none;color:var(--muted);font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.seg button.on{background:var(--go);color:var(--go-text)}
+.numset{display:flex;gap:8px;flex:none}.numset input{width:84px;min-height:46px;padding:0 12px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
+.ptext label{display:block;margin:14px 0 0;font-weight:700}.ptext textarea,.ptext input,.ptext select{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
+.ptext textarea{min-height:110px;resize:vertical;white-space:pre-wrap}.ptags{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:700px){.setrow{flex-direction:column;align-items:flex-start}.ptags{grid-template-columns:1fr 1fr}}
+</style>
+<div class="setw">
+  <div class="card"><h2 style="margin-top:0">Tag system</h2>
+    ${onoff("TagEngine", "Use approved tags", "On: each listing gets the tags approved and frozen for its gag (see the Tags page); a gag with a tag problem waits instead of being built. Off: the older automatic tags, no approval.")}
+    ${onoff("AutoApprove", "Approve tags automatically", "On: if you haven't approved a gag's tags yourself, they're approved and frozen shortly before its first release (not if the overlap with other gags is red). Off: every gag waits for you on the Tags page.")}
+    ${num("AutoApproveDays", "Days before release to auto-approve", "How long before a gag's first release its tags are approved automatically. Gives you that long to change them. 1 to 14.", 1, 14)}
+    ${num("TagCap", "Gags per flavour phrase", "How many different gags may share one flavour tag phrase before it's rested. Lower = more variety, but bigger phrase lists needed. 1 to 10.", 1, 10)}
+  </div>
+  <div class="card ptext"><h2 style="margin-top:0">Product text</h2>
+    <p class="small" style="margin:0">What new listings are built with, for each range and garment. Saving changes Core only: listings already live keep their text. To change live listings as well, use Update listings → Descriptions.</p>
+    <label>Range and garment<select id="pr">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
+    <div id="pf"></div>
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-main" type="button" id="psave" style="width:auto;padding:0 26px">Save product text</button></div>
+  </div>
+</div>
+<script>
+(function () {
+  var R = ${JSON.stringify(rules).replace(/</g, "\\u003c")}, F = ${JSON.stringify(RULE_TEXT)};
+  function h(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function post(b) { return fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(function (r) { return r.json().then(function (o) { if (!r.ok) throw new Error(o.error || "Couldn't save"); return o; }); }); }
+  document.querySelectorAll(".seg").forEach(function (g) { g.addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b || b.classList.contains("on")) return;
+    post({ kind: "tag", key: g.dataset.k, value: b.dataset.v }).then(function () { g.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); }); toast("Saved to Core"); }).catch(function (er) { toast(er.message, true); }); }); });
+  document.querySelectorAll("[data-save]").forEach(function (b) { b.addEventListener("click", function () { var i = document.querySelector('input[data-k="' + b.dataset.save + '"]');
+    post({ kind: "tag", key: b.dataset.save, value: i.value }).then(function () { toast("Saved to Core"); }).catch(function (er) { toast(er.message, true); }); }); });
+  var sel = document.getElementById("pr");
+  function draw() { var r = R[sel.value]; if (!r) { document.getElementById("pf").innerHTML = '<p class="small">Tap Sync to Core to load the product text.</p>'; return; }
+    document.getElementById("pf").innerHTML = F.map(function (f) { return '<label>' + h(f[1]) + (f[2] ? '<textarea data-f="' + f[0] + '">' + h(r[f[0]]) + '</textarea>' : '<input data-f="' + f[0] + '" maxlength="60" value="' + h(r[f[0]]) + '">') + '</label>'; }).join("") +
+      '<label>Product tags (5, up to 20 characters each)</label><div class="ptags">' + [0, 1, 2, 3, 4].map(function (i) { return '<input data-t="' + i + '" maxlength="20" value="' + h(r.tags[i] || "") + '">'; }).join("") + '</div>'; }
+  sel.addEventListener("change", draw); draw();
+  document.getElementById("psave").addEventListener("click", function () { var r = R[sel.value]; if (!r) return; var b = { kind: "rule", row: r.row, tags: [] };
+    document.querySelectorAll("#pf [data-f]").forEach(function (x) { b[x.dataset.f] = x.value; }); document.querySelectorAll("#pf [data-t]").forEach(function (x) { b.tags[+x.dataset.t] = x.value; });
+    var btn = this; btn.disabled = true; btn.textContent = "Saving…";
+    post(b).then(function (o) { F.forEach(function (f) { r[f[0]] = b[f[0]]; }); r.tags = b.tags.map(function (t) { return String(t || "").trim().toLowerCase(); }); toast(o.unchanged ? "Nothing changed" : "Saved to Core"); })
+      .catch(function (er) { toast(er.message, true); }).then(function () { btn.disabled = false; btn.textContent = "Save product text"; }); });
+})();
+</script>`);
 }
 
 async function toolsPage(env) {
