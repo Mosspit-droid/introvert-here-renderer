@@ -32,6 +32,7 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(amendWatch(env));
     ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
+    ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
   },
 
   async fetch(request, env, ctx) {
@@ -108,6 +109,8 @@ export default {
         return authed ? await amendPage(env) : redirect("/");
       }
       if (pathname === "/health" && method === "GET") return authed ? await healthPage(env) : redirect("/");
+      if (pathname === "/quiet" && method === "GET") return authed ? await quietPage(env) : redirect("/");
+      if (pathname === "/reviews" && method === "GET") return authed ? await reviewsPage(env) : redirect("/");
       if (pathname === "/today" && method === "GET") return authed ? await todayPage(env) : redirect("/");
       if (pathname === "/calendar" && method === "GET") {
         return authed ? await calendarPage(env) : redirect("/");
@@ -141,7 +144,7 @@ export default {
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
-      if (pathname === "/api/gags-data" && method === "GET") return json((await env.PENDING.get("gags", "json")) || null);
+      if (pathname === "/api/gags-data" && method === "GET") { const gd = (await env.PENDING.get("gags", "json")) || null; if (gd) gd.stars = (await env.PENDING.get(STARS_KEY, "json")) || {}; return json(gd); }
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
       if (pathname === "/api/tags-data" && method === "GET") return json((await env.PENDING.get("tags", "json")) || null);
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
@@ -150,6 +153,8 @@ export default {
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
       if (pathname === "/api/ideas") return await ideasApi(request, env);
+      if (pathname === "/api/stars") return await starsApi(request, env);
+      if (pathname === "/api/backups" && method === "GET") return json(await backupList(env));
       if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
       if (pathname === "/api/search-data" && method === "GET") return await searchData(env);
       if (pathname === "/api/notify-test" && method === "POST") { await notify(env, url.origin, "Test from your app", "Phone notifications are working.", "bell"); return json({ ok: !!env.NTFY_TOPIC }); }
@@ -905,7 +910,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
-const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -1024,7 +1029,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     list.sort(function (a, b) { var ka = a.st.c === "live" ? "0" : (a.st.first ? "1" + a.st.first : "2"), kb = b.st.c === "live" ? "0" : (b.st.first ? "1" + b.st.first : "2"); return ka < kb ? -1 : ka > kb ? 1 : (a.g.id < b.g.id ? -1 : 1); });
     document.getElementById("rlR").innerHTML = list.length ? '<div class="rlhead"><span>Gag</span><span>Gag text</span><span>Release</span></div>' + list.map(function (x) { var g = x.g, st = x.st;
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
-      return '<a class="' + cls + '" data-id="' + esc2(g.id) + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>';
+      return '<a class="' + cls + '" data-id="' + esc2(g.id) + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + ((data.stars || {})[g.id] ? '<span style="color:#f0c870">' + "★".repeat(data.stars[g.id]) + "</span> " : "") + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>';
     rlBar(); }
   function showRange(code, name) {
     rlCode = code; swapOn = false; picked = [];
@@ -1681,6 +1686,9 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   const londonDay = new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" });
   const isSunday = londonDay === "Sunday", health = isSunday ? await healthIssues(env) : { issues: [] };
   const sale = salesReminder(new Date().toISOString().slice(0, 10));
+  const revKV = (await env.PENDING.get(REVIEWS_KEY, "json")) || { list: [] };
+  const newReviews = (revKV.list || []).filter((r) => r.at && Date.now() - r.at < 14 * 864e5);
+  const quiet = new Date().getUTCDate() <= 7 ? await quietListings(env) : [];
   var HOT = { "/approvals": pending.length, "/orders": toSend.length, "/tags": tagsDue.length, "/gags": lowRanges.length,
     "/amend": watch.warned && busy.length ? busy.length : 0, "/credits": creditPct >= 0.85 ? Math.round(creditPct * 100) + "%" : 0 };
   return shell(`
@@ -1694,6 +1702,8 @@ ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pendi
 (new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" }) === "Saturday" ? need("warn", weekReleases(gags).length, "Check next week's releases", "Read through the gags going out in the next 7 days", "/week") : "") +
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts") +
 (sale ? need("warn", sale.days || "!", sale.name + (sale.days ? " in " + sale.days + " day" + (sale.days === 1 ? "" : "s") : " is today"), "Worth an Etsy sale or discount code? Shop Manager → Marketing → Sales and discounts", "https://www.etsy.com/your/shops/me/sales-discounts") : "") +
+(newReviews.length ? need("run", newReviews.length, "New Etsy review" + (newReviews.length === 1 ? "" : "s"), esc("★".repeat(Number(newReviews[0].rating) || 0) + " " + (newReviews[0].text || "")).slice(0, 70), "/reviews") : "") +
+(quiet.length && new Date().getUTCDate() <= 7 ? need("warn", quiet.length, "Quiet listings to refresh", "Live 60+ days with under 10 views. Monthly look.", "/quiet") : "") +
 (isSunday ? need(health.issues.length ? "warn" : "run", health.issues.length || "✓", "Weekly check", health.issues.length ? esc(health.issues[0].t) + (health.issues.length > 1 ? " and " + (health.issues.length - 1) + " more" : "") : "Next two weeks look ready", "/health") : ""),
 (watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned || showProg ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
@@ -2184,6 +2194,7 @@ ${brandHeader("Gags")}
       <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div></div>
       <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
+      <div class="fld o-stars"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
       <div class="fld o-cat"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-season"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
@@ -2206,6 +2217,7 @@ ${brandHeader("Gags")}
   .ideas{margin-top:12px}.ideas summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:6px 0}
   .idea{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.idea .itx{flex:1;font-size:14px}.idea .btn{width:auto;min-height:40px;padding:0 12px}
   .chip.sugg::after{content:" · suggested";font-weight:400;opacity:.7}
+  .chip.star{color:#f0c870;letter-spacing:1px}.chip.star.on{border-color:#f0c870;background:rgba(240,200,112,.14)}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
   /* The whole preview card is the black print area; the gag sits in it with margins (Barry, 13 Nov). */
@@ -2217,7 +2229,7 @@ ${brandHeader("Gags")}
   @media (max-width:820px){
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
-    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
@@ -2269,6 +2281,7 @@ let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
 window.SEASON_LOCK = ${JSON.stringify(lockIds)};
 window.CAT_WORDS = ${JSON.stringify(catWords).replace(/</g, "\\u003c")};
+window.GAG_STARS = ${JSON.stringify((await env.PENDING.get(STARS_KEY, "json")) || {})};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_SEASON_SCRIPT}
@@ -2312,7 +2325,15 @@ const GAG_EXTRA_SCRIPT = String.raw`(function () {
     if (best && best.k !== cat.value) { suggested = best.k; cat.value = best.k; cat.dispatchEvent(new Event("change", { bubbles: true })); var chips = document.querySelectorAll("#catChips [data-c]");
       chips.forEach(function (b) { b.classList.toggle("on", b.dataset.c === best.k); b.classList.toggle("sugg", b.dataset.c === best.k); }); }
   }
-  // 3. Ideas inbox.
+  // 3. Your rating (1-5 stars).
+  window.starPick = 0;
+  function drawStars() { $("starChips").innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" class="chip star' + (window.starPick >= n ? " on" : "") + '" data-star="' + n + '">' + "★".repeat(n) + "</button>"; }).join("") +
+    (window.starPick ? '<button type="button" class="chip" data-star="0">Clear</button>' : ""); }
+  $("starChips").addEventListener("click", function (e) { var b = e.target.closest("[data-star]"); if (!b) return; window.starPick = +b.dataset.star; drawStars(); });
+  var origSlot = slotInfo; slotInfo = function () { origSlot.apply(this, arguments); var ed = (typeof mode !== "undefined" && mode === "edit" && editing) ? editing.id : ""; window.starPick = ed ? ((window.GAG_STARS || {})[ed] || 0) : window.starPick; drawStars(); };
+  $("clear").addEventListener("click", function () { window.starPick = 0; drawStars(); });
+  drawStars();
+  // 4. Ideas inbox.
   var IL = [];
   function drawIdeas() { $("ideasN").textContent = IL.length ? "(" + IL.length + ")" : "";
     $("ideasL").innerHTML = IL.length ? IL.map(function (x) { return '<div class="idea"><div class="itx">' + esc3(x.text).split("\n").join("<br>") + (x.note ? '<div class="small">' + esc3(x.note) + "</div>" : "") + '</div><button type="button" class="btn" data-iuse="' + x.id + '">Use</button><button type="button" class="btn" data-idel="' + x.id + '">×</button></div>'; }).join("") : '<p class="small">No ideas saved. Type a half-finished gag and tap Save as idea.</p>'; }
@@ -2356,7 +2377,8 @@ const GAG_SEASON_SCRIPT = String.raw`(function () {
       var best = null;
       var LOCK = window.SEASON_LOCK || [];
       (G.editable || []).forEach(function (e) { if (!e.id || e.id.indexOf(pc.prefix + "-") !== 0 || !e.dates || !e.dates.every(Boolean)) return; if (editingNow && e.id === editingNow.id) return; if (LOCK.indexOf(e.id) >= 0) return;
-        var f = e.dates[0]; if (f < lo || f > hi || f < soonest) return; var dist = Math.abs(new Date(f + "T12:00:00Z").getTime() - aim); if (!best || dist < best.dist) best = { e: e, dist: dist }; });
+        var ST = window.GAG_STARS || {}, mine = window.starPick || 0; if (mine && (ST[e.id] || 0) > mine) return;
+        var f = e.dates[0]; if (f < lo || f > hi || f < soonest) return; var dist = Math.abs(new Date(f + "T12:00:00Z").getTime() - aim) + (ST[e.id] || 0) * 2 * 864e5; if (!best || dist < best.dist) best = { e: e, dist: dist }; });
       if (!editingNow) (G.empties || []).forEach(function (e) { if (e.id.indexOf(pc.prefix + "-") !== 0) return; var f = e.dates[0]; if (f < lo || f > hi || f < soonest) return;
         var dist = Math.abs(new Date(f + "T12:00:00Z").getTime() - aim); if (!best || dist < best.dist) best = { e: { id: e.id, dates: e.dates, empty: true }, dist: dist }; });
       if (best) { target = best.e; target._occ = iso(day); }
@@ -2614,6 +2636,7 @@ $("form").addEventListener("submit", async (e) => {
     const r2 = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mv) });
     if (!r2.ok) alert("Saved, but " + t.id + " couldn't be moved out of the seasonal slot, so two gags now share it. Use Swap in the range list to sort it.");
   }
+  if (body.gagId && (window.starPick || (window.GAG_STARS || {})[body.gagId])) await fetch('/api/stars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: body.gagId, n: window.starPick || 0 }) }).catch(() => {});
   try { sessionStorage.setItem("gagTop", "1"); } catch (e) {}
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   window.scrollTo(0, 0); location.reload();
@@ -3469,6 +3492,119 @@ async function priceTestsHtml(env, st, hist) {
     document.querySelectorAll("[data-ptend]").forEach(function (b) { b.onclick = function () { post({ action: "end", id: b.dataset.ptend }).then(function () { location.reload(); }); }; }); })();</script>`;
 }
 
+// ---------- Batch 2 (Barry, 14 Nov): ratings, quiet listings, Etsy reviews, backups, range shift ----------
+const STARS_KEY = "gag-stars";
+async function starsApi(request, env) {
+  const M = (await env.PENDING.get(STARS_KEY, "json")) || {};
+  if (request.method === "GET") return json(M);
+  const d = await request.json().catch(() => ({}));
+  const id = str(d.id), n = Math.round(Number(d.n));
+  if (!/^[A-Z]{2}-\d{5}$/.test(id)) return json({ error: "Bad gag ID" }, 400);
+  if (n >= 1 && n <= 5) M[id] = n; else delete M[id];
+  await env.PENDING.put(STARS_KEY, JSON.stringify(M));
+  return json({ ok: true });
+}
+
+// Quiet listings: live 60+ days with hardly any interest.
+async function quietListings(env) {
+  const [st, g] = await Promise.all([env.PENDING.get("stats", "json"), env.PENDING.get("gags", "json")]);
+  const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"], rel = {};
+  ((g && g.all) || []).forEach((x) => { (x.ds || []).forEach((d, i) => { if (d) rel[x.id + "-" + TY[i]] = d; }); });
+  const today = Date.now();
+  return ((st && st.listings) || []).filter((l) => l.listingId).map((l) => ({ l, rel: rel[l.code], age: rel[l.code] ? Math.floor((today - Date.parse(rel[l.code] + "T00:00:00Z")) / 864e5) : null }))
+    .filter((x) => x.age !== null && x.age >= 60 && (x.l.views || 0) < 10 && !(x.l.favs > 0)).sort((a, b) => (a.l.views || 0) - (b.l.views || 0));
+}
+async function quietPage(env) {
+  const q = await quietListings(env);
+  const row = (x) => { const gid = x.l.code.split("-").slice(0, 2).join("-");
+    return `<div class="card qrow"><div><b>${esc(x.l.stem || gid)}</b> · ${esc(garmentName(x.l.type))} <span class="small">${esc(x.l.code)} · live ${x.age} days · ${x.l.views || 0} views · no favourites</span></div>
+    <div class="qact"><a class="btn" href="${esc(x.l.url)}" target="_blank" rel="noopener">See on Etsy</a><a class="btn" href="/amend?gag=${encodeURIComponent(gid)}">New tags or photos</a><a class="btn" href="/gag/${encodeURIComponent(gid)}">Gag details</a></div></div>`; };
+  return shell(`${brandHeader("Quiet listings")}
+<style>.qrow{display:flex;flex-direction:column;gap:10px;margin-bottom:10px}.qact{display:flex;gap:8px;flex-wrap:wrap}.qact .btn{width:auto;min-height:42px;padding:0 14px}</style>
+<p class="small">Listings live for 60 days or more with fewer than 10 views and no favourites. Things to try: fresher tags (Tags page or Update listings), a different lead photo (Update listings → Choose photos), or a seasonal push when its occasion comes round. Checked against the daily Etsy numbers.</p>
+${q.length ? q.map(row).join("") : `<div class="allclear">${icon("check")}<span><b>Nothing quiet</b>No listing has been live 60+ days with under 10 views. (Most listings are newer than that so far.)</span></div>`}`);
+}
+
+// Etsy reviews: fetched every 6 hours through the Make "Etsy tool" scenario, newest first.
+const REVIEWS_KEY = "reviews";
+async function reviewsCheck(env, force) {
+  const prev = (await env.PENDING.get(REVIEWS_KEY, "json")) || { list: [] };
+  if (!force && prev.at && Date.now() - prev.at < 6 * 3600e3) return prev;
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return prev;
+  try {
+    const r = await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ responsive: true, data: { path: "/shops/65435151/reviews", method: "GET", qs: [{ key: "limit", value: "50" }] } }) });
+    const j = await r.json().catch(() => ({})); let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+    if (!b || !Array.isArray(b.results)) { prev.at = Date.now(); prev.error = "Etsy said: " + String((j.error && j.error.message) || r.status).slice(0, 120); await env.PENDING.put(REVIEWS_KEY, JSON.stringify(prev)); return prev; }
+    const list = b.results.map((x) => ({ id: String(x.transaction_id || x.created_timestamp), rating: x.rating, text: x.review || "", listing: x.listing_id, at: (x.created_timestamp || x.create_timestamp || 0) * 1000 })).sort((a, c) => c.at - a.at);
+    const out = { at: Date.now(), list };
+    await env.PENDING.put(REVIEWS_KEY, JSON.stringify(out)); return out;
+  } catch (e) { return prev; }
+}
+function reviewDraft(r) {
+  const n = Number(r.rating) || 0;
+  if (n >= 5) return "Thank you so much for the lovely review. It genuinely made our day (quietly, in a corner). Enjoy wearing it, and we hope it saves you from at least one conversation.\n\n— Introvert Here";
+  if (n === 4) return "Thank you for taking the time to leave a review. We're really glad you like it. If there's anything we could have done better, do send us a message; we read every one.\n\n— Introvert Here";
+  return "Thank you for your honest review, and we're sorry it wasn't quite right. Please send us a message through Etsy so we can put it right for you.\n\n— Introvert Here";
+}
+async function reviewsPage(env) {
+  const R = await reviewsCheck(env, false); const st = await env.PENDING.get("stats", "json");
+  const byListing = {}; ((st && st.listings) || []).forEach((l) => { if (l.listingId) byListing[String(l.listingId)] = l; });
+  const stars = (n) => "★★★★★".slice(0, n) + "☆☆☆☆☆".slice(0, 5 - n);
+  const rows = (R.list || []).map((r) => { const l = byListing[String(r.listing)];
+    return `<div class="card rv"><div class="rvh"><span class="rvs">${stars(Number(r.rating) || 0)}</span><span class="small">${r.at ? esc(when(r.at)) : ""}${l ? " · " + esc(l.stem || l.code) + " " + esc(garmentName(l.type)) : ""}</span></div>
+    ${r.text ? `<p>${esc(r.text)}</p>` : '<p class="small">(No written review, just stars.)</p>'}
+    <details><summary>Draft reply</summary><textarea class="rvd">${esc(reviewDraft(r))}</textarea><button class="btn" type="button" data-cpy>Copy reply</button></details></div>`; }).join("");
+  return shell(`${brandHeader("Reviews")}
+<style>.rv{margin-bottom:10px}.rvh{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.rvs{color:#f0c870;font-size:20px;letter-spacing:2px}.rvd{display:block;width:100%;min-height:120px;margin:8px 0;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:15px var(--body)}
+.rv details summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.rv .btn{width:auto}</style>
+<p class="small">Your Etsy reviews, checked every 6 hours${R.at ? " (last " + esc(when(R.at)) + ")" : ""}. Etsy doesn't let apps post replies, so copy a draft, edit if you like, and paste it in Etsy: <a href="https://www.etsy.com/your/shops/me/reviews" target="_blank" rel="noopener">Shop Manager → Reviews</a>.${R.error ? " Last check: " + esc(R.error) : ""}</p>
+${rows || `<div class="allclear">${icon("check")}<span><b>No reviews yet</b>They'll appear here, newest first, with a reply drafted for each.</span></div>`}
+<script>document.addEventListener("click", function (e) { var b = e.target.closest("[data-cpy]"); if (!b) return; navigator.clipboard.writeText(b.previousElementSibling.value).then(function () { toast("Copied"); }); });</script>`);
+}
+
+// Shift a whole range's unreleased schedule by N weeks (Settings → Schedule).
+const toSerial = (iso) => Math.round((Date.parse(iso + "T00:00:00Z") - Date.UTC(1899, 11, 30)) / 864e5);
+async function rangeShift(d, env) {
+  const pre = str(d.prefix), weeks = Math.round(Number(d.weeks));
+  if (!["IH", "SH", "PC", "OS"].includes(pre)) return json({ error: "Pick a range." }, 400);
+  if (!weeks || Math.abs(weeks) > 104) return json({ error: "Pick a number of weeks between -104 and 104 (not 0)." }, 400);
+  const g = await env.PENDING.get("gags", "json");
+  if (!g || !g.sched || !g.sched.every((x) => x.r)) return json({ error: "The app's schedule copy is out of date. Tap Sync to Core, wait a minute and try again." }, 400);
+  const safe = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+  const shiftD = (iso) => new Date(Date.parse(iso + "T00:00:00Z") + weeks * 7 * 864e5).toISOString().slice(0, 10);
+  const rows = [];
+  g.sched.filter((x) => x.id.startsWith(pre + "-")).forEach((x) => rows.push({ r: x.r, id: x.id, d: x.d, b: x.b || [0, 0, 0, 0], ref: x }));
+  (g.empties || []).filter((x) => x.id.startsWith(pre + "-")).forEach((x) => rows.push({ r: x.r, id: x.id, d: x.dates, b: [0, 0, 0, 0], ref: x, empty: true }));
+  let moved = 0, tooSoon = null;
+  rows.forEach((x) => { x.nd = x.d.map((v, i) => { if (!v || x.b[i] || v < safe) return v; const n = shiftD(v); if (n < safe) tooSoon = x.id; moved++; return n; }); });
+  if (tooSoon) return json({ error: "That would move " + tooSoon + " into the next two days or the past. Pick fewer weeks back." }, 400);
+  if (!moved) return json({ error: "Nothing to move: no unreleased dates in that range." }, 400);
+  rows.sort((a, b) => a.r - b.r);
+  const ops = []; let blk = [];
+  const flush = () => { if (!blk.length) return; ops.push({ url: `${AMEND_XL}/worksheets/GAGS/range(address='I${blk[0].r}:L${blk[blk.length - 1].r}')`, values: blk.map((x) => x.nd.map((v) => (v ? toSerial(v) : ""))) }); blk = []; };
+  rows.forEach((x) => { if (blk.length && x.r !== blk[blk.length - 1].r + 1) flush(); blk.push(x); }); flush();
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  rows.forEach((x) => { if (x.empty) x.ref.dates = x.nd; else x.ref.d = x.nd; });
+  const byId = {}; rows.forEach((x) => { byId[x.id] = x.nd; }); (g.editable || []).forEach((e) => { if (byId[e.id]) e.dates = byId[e.id]; });
+  await env.PENDING.put("gags", JSON.stringify(g));
+  if (!d.isUndo) await logSetting(env, "Moved " + pre + "'s unreleased schedule " + (weeks > 0 ? weeks + " week" + (weeks === 1 ? "" : "s") + " later" : -weeks + " week" + (weeks === -1 ? "" : "s") + " earlier"), { kind: "shift", prefix: pre, weeks: -weeks });
+  return json({ ok: true, moved, ops: ops.length });
+}
+
+// Backups: list the nightly copies (read-only) through the Make Core tool.
+async function backupList(env) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return { error: "No Make token saved." };
+  try {
+    const r = await fetch(MAKE_API + "/scenarios/7446858/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ responsive: true, data: { path: "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGVFIVC2ML2V5E2W63R4ZN5PT3T/children?$select=name,webUrl,lastModifiedDateTime&$orderby=name desc&$top=40", method: "GET" } }) });
+    const j = await r.json().catch(() => ({})); let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+    if (b && b.data && b.data.value) b = b.data;
+    return { list: ((b && b.value) || []).map((x) => ({ name: x.name, url: x.webUrl, at: x.lastModifiedDateTime })) };
+  } catch (e) { return { error: "Couldn't reach Make." }; }
+}
+
 // ---------- Improvements batch (Barry, 14 Nov) ----------
 // Sales dates worth a sale or a push: reminder card from 21 days before.
 function salesEvents(y) {
@@ -3582,7 +3718,8 @@ async function priceTestApi(request, env) {
 async function searchData(env) {
   const [todos, orders, stats] = await Promise.all([todoLoad(env), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats", "json")]);
   const pages = [["Dashboard", "/"], ["Today", "/today"], ["Approvals", "/approvals"], ["Gags", "/gags"], ["Update listings", "/amend"], ["Calendar", "/calendar"], ["Stats", "/stats"],
-    ["Tags", "/tags"], ["Orders", "/orders"], ["Pricing", "/pricing"], ["Links", "/links"], ["Credits", "/credits"], ["Check Core", "/check"], ["Weekly check", "/health"], ["To-do", "/todo"], ["Alerts", "/alerts"],
+    ["Tags", "/tags"], ["Orders", "/orders"], ["Pricing", "/pricing"], ["Links", "/links"], ["Credits", "/credits"], ["Check Core", "/check"], ["Weekly check", "/health"], ["Reviews", "/reviews"], ["Quiet listings", "/quiet"], ["To-do", "/todo"], ["Alerts", "/alerts"],
+    ["Settings: schedule (move a range)", "/settings"], ["Settings: backups", "/settings"],
     ["Settings: tag system", "/settings"], ["Settings: gag categories", "/settings"], ["Settings: seasonal tags", "/settings"], ["Settings: mockup pages", "/settings"], ["Settings: product text", "/settings"],
     ["Settings: phone notifications", "/settings"], ["Settings: recent changes / undo", "/settings"]].map(([t, h]) => ({ t, h, k: "Page" }));
   const td = todos.filter((t) => !t.done).map((t) => ({ t: t.text, h: "/todo", k: "To-do" }));
@@ -3631,6 +3768,7 @@ async function settingsSave(request, env) {
   if (d.kind === "cat-add" || d.kind === "phrase-add") return await categorySave(d, env);
   if (["phrase-toggle", "season-toggle", "season-add"].includes(d.kind)) return await poolSave(d, env);
   if (["page-save", "page-add", "page-del"].includes(d.kind)) return await pageSave(d, env);
+  if (d.kind === "shift") return await rangeShift(d, env);
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   let S = null, rule = null;
   if (d.kind === "tag") {
@@ -3890,6 +4028,18 @@ ${brandHeader("Settings")}
     <div class="cp" style="display:flex;gap:8px;align-items:center"><code style="flex:1;font:500 13px var(--mono);overflow:hidden;text-overflow:ellipsis">${esc(env.NTFY_TOPIC || "not set up")}</code>${env.NTFY_TOPIC ? `<button class="btn" type="button" id="ntCopy" style="width:auto" data-t="${esc(env.NTFY_TOPIC)}">Copy</button>` : ""}</div>
     <button class="btn-main" type="button" id="ntTest" style="width:auto;padding:0 26px;margin-top:12px">Send a test notification</button>
   </div>
+  <div class="card ptext"><h2 style="margin-top:0">Schedule: move a whole range</h2>
+    <p class="small" style="margin:0">Moves every unreleased date in one range later or earlier by whole weeks, keeping the order and weekdays. Built and released garments stay put, and nothing can be moved into the next two days. Undo is in Recent changes above.</p>
+    <div class="g3"><label>Range<select id="shR"><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option><option value="OS">Off The Shelf</option></select></label>
+      <label>Weeks (minus = earlier)<input id="shW" type="number" min="-104" max="104" value="1"></label></div>
+    <button class="btn-main" type="button" id="shGo" style="width:auto;padding:0 26px;margin-top:12px">Move the range</button>
+  </div>
+  <div class="card ptext"><h2 style="margin-top:0">Backups</h2>
+    <p class="small" style="margin:0">Core is copied every night at 02:15 and the last 35 days are kept. To put Core back how it was:</p>
+    <ol class="small" style="padding-left:18px"><li><b>Best:</b> open Core in OneDrive (<a href="https://mosspitstudios-my.sharepoint.com/personal/admin_mosspit_org/_layouts/15/Doc.aspx?sourcedoc=%7BEA717AD9-320A-4722-B604-03270C9D7310%7D&file=001A_INTROVERT_HERE_CORE.xlsx&action=default" target="_blank" rel="noopener">open Core</a>) → File → Info → <b>Version history</b>, pick a time and Restore. This keeps the same file, so Make carries on working.</li>
+    <li>Or ask Claude to restore it for you from a nightly copy.</li><li>Don't replace Core with a backup file by hand: Make would lose track of it.</li></ol>
+    <div id="bkL"><p class="small">Loading the nightly copies…</p></div>
+  </div>
 </div>
 <script>
 (function () {
@@ -3907,6 +4057,10 @@ ${brandHeader("Settings")}
   sel.addEventListener("change", draw); draw();
   document.querySelectorAll("[data-undo]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; post({ kind: "undo", id: b.dataset.undo }).then(function () { toast("Undone"); setTimeout(function () { location.reload(); }, 800); }).catch(function (er) { b.disabled = false; toast(er.message, true); }); }); });
   var ntc = document.getElementById("ntCopy"); if (ntc) ntc.onclick = function () { navigator.clipboard.writeText(ntc.dataset.t).then(function () { toast("Copied"); }); };
+  document.getElementById("shGo").onclick = function () { var w = +document.getElementById("shW").value, r = document.getElementById("shR");
+    if (!w || !confirm("Move every unreleased " + r.options[r.selectedIndex].text + " date " + Math.abs(w) + " week" + (Math.abs(w) === 1 ? "" : "s") + (w > 0 ? " later" : " earlier") + "?")) return;
+    go(this, { kind: "shift", prefix: r.value, weeks: w }, function () { setTimeout(function () { location.reload(); }, 900); }); };
+  fetch("/api/backups").then(function (r) { return r.json(); }).then(function (o) { document.getElementById("bkL").innerHTML = o.list && o.list.length ? '<div class="catchips">' + o.list.map(function (b) { return '<a class="ph" href="' + h(b.url) + '" target="_blank" rel="noopener">' + h(b.name.replace("CORE_", "").replace(".xlsx", "")) + "</a>"; }).join("") + "</div>" : '<p class="small">' + h(o.error || "No copies found.") + "</p>"; }).catch(function () {});
   document.getElementById("ntTest").onclick = function () { fetch("/api/notify-test", { method: "POST" }).then(function (r) { return r.json(); }).then(function (o) { toast(o.ok ? "Sent. Check your phone." : "Notifications aren't set up yet.", !o.ok); }); };
   var PG = ${JSON.stringify(pages).replace(/</g, "\\u003c")}, RL = ${JSON.stringify(((S && S.rules) || []).map((r) => [r.coll, r.type]))};
   document.addEventListener("click", function (e) { var b = e.target.closest(".ph"); if (!b) return; var on = b.classList.contains("off");
