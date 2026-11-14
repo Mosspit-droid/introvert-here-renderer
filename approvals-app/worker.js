@@ -2186,20 +2186,21 @@ ${brandHeader("Gags")}
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
-    <div class="tabs o-tabs"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
-    <div id="pick" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
-    <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+    <div class="wzhead o-wzbar"><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzBack">Back</button><button class="btn" type="button" id="wzNext">Next</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
+    <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
+    <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
+    <div class="card g-text o-text" data-st="1"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
       <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
       <details id="ideasBox" class="ideas"><summary>Ideas inbox <span id="ideasN" class="small"></span></summary><div id="ideasL"></div></details></div>
     <div class="card g-side">
-      <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
+      <div class="fld o-range" data-st="2"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div></div>
-      <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
-      <div class="fld o-stars"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
-      <div class="fld o-cat"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
+      <div class="fld o-stem" data-st="3"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
+      <div class="fld o-stars" data-st="5"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
+      <div class="fld o-cat" data-st="4"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
-      <div class="fld o-season"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
-      <div class="fld o-dates"><b>Release dates</b>
+      <div class="fld o-season" data-st="5"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
+      <div class="fld o-dates" data-st="6"><b>Release dates</b>
         <div class="four">
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
@@ -2208,7 +2209,6 @@ ${brandHeader("Gags")}
     </div>
   </div>
 </form>
-<button class="btn-main fabsave" type="submit" form="form" id="save">Save to Core</button>
 <style>
   /* Form on the left, preview and recent saves on the right (Barry, 13 Nov: works better in split screen). */
   .gwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);grid-template-areas:"R L" "acts L";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
@@ -2218,6 +2218,16 @@ ${brandHeader("Gags")}
   .ideas{margin-top:12px}.ideas summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:6px 0}
   .idea{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.idea .itx{flex:1;font-size:14px}.idea .btn{width:auto;min-height:40px;padding:0 12px}
   .chip.sugg::after{content:" · suggested";font-weight:400;opacity:.7}
+  /* Step by step on the left (Barry, 14 Nov): one question at a time, so the keyboard never hides the rest. */
+  .gR [data-st]:not(.cur){display:none!important}
+  .wzbar{display:flex;gap:6px;flex-wrap:wrap}
+  .wzbar button{font:600 13px Montserrat,sans-serif;padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}
+  .wzbar button.on{background:var(--accent);border-color:var(--accent);color:#141413}
+  .wzbar button.done{color:var(--text)}
+  .wzhead{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:14;display:flex;flex-direction:column;gap:10px;padding:10px;margin:-10px;border-radius:var(--r);background:rgba(20,20,19,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .wznav{display:flex;gap:8px}.wznav .btn,.wznav .btn-main{flex:1;min-height:50px;margin:0;width:auto}
+  #wzNext{border-color:var(--accent)}
+  .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
   .chip.star{color:#f0c870;letter-spacing:1px}.chip.star.on{border-color:#f0c870;background:rgba(240,200,112,.14)}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
@@ -2230,7 +2240,7 @@ ${brandHeader("Gags")}
   @media (max-width:820px){
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
-    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .o-prev{order:1}.o-wzbar{order:2}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
@@ -2287,8 +2297,44 @@ ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_SEASON_SCRIPT}
 ${GAG_EXTRA_SCRIPT}
-${GAG_LAMPS_SCRIPT}</script>`);
+${GAG_LAMPS_SCRIPT}
+${GAG_WIZARD_SCRIPT}</script>`);
 }
+
+// Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
+const GAG_WIZARD_SCRIPT = String.raw`(function () {
+  var STEPS = ["Gag", "Range", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;
+  function el(id) { return document.getElementById(id); }
+  function need() {
+    if (cur === 1 && !el("text").value.replace(/^[\s.…]+/, "").trim()) return "Type the gag first" + (document.querySelector('.tab.on[data-tab="edit"]') ? ", or pick one to edit." : ".");
+    if (cur === 2 && !el("collection").value) return "Pick a range.";
+    if (cur === 3 && !el("stem").value.trim()) return "Give it a title stem.";
+    return "";
+  }
+  function go(n) {
+    cur = Math.max(1, Math.min(STEPS.length, n));
+    Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.classList.toggle("cur", Number(x.dataset.st) === cur); });
+    el("wzBar").innerHTML = STEPS.map(function (s, i) { return '<button type="button" data-go="' + (i + 1) + '" class="' + (i + 1 === cur ? "on" : i + 1 < cur ? "done" : "") + '">' + (i + 1) + ". " + s + "</button>"; }).join("");
+        el("wzNext").style.display = cur === STEPS.length ? "none" : "";
+    el("wzBack").style.display = cur === 1 ? "none" : "";
+    var m = document.querySelector(".wzmsg"); if (m) m.remove();
+    var f = document.querySelector(".gR [data-st='" + cur + "'] input:not([type=hidden]):not([type=date]), .gR [data-st='" + cur + "'] textarea");
+    if (f && f.offsetParent && cur <= 3 && !el("search").offsetParent) f.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+  function next(to) { var w = need(); if (w && to > cur) { var m = document.querySelector(".wzmsg") || document.createElement("div"); m.className = "wzmsg"; m.textContent = w; el("wzNext").parentNode.after(m); return; }
+    window.scrollTo(0, 0); go(to); }
+  el("wzNext").onclick = function () { next(cur + 1); };
+  ["text", "stem"].forEach(function (id) { el(id).addEventListener("input", function () { var m = document.querySelector(".wzmsg"); if (m) m.remove(); }); });
+  el("wzBack").onclick = function () { go(cur - 1); };
+  el("wzBar").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (!b) return; var t = Number(b.dataset.go); if (t <= cur) go(t); else { for (var i = cur; i < t; i++) { if (need()) return next(cur + 1); go(cur + 1); } } });
+  el("form").addEventListener("reset", function () { setTimeout(function () { go(1); }, 0); });
+  el("clear").addEventListener("click", function () { setTimeout(function () { if (!el("text").value) go(1); }, 0); });
+  // A range tap moves on by itself; so does picking a gag to edit.
+  el("rangeChips").addEventListener("click", function (e) { if (e.target.closest(".chip") && !e.target.closest(".chip").disabled) setTimeout(function () { if (el("collection").value && cur === 2) go(3); }, 60); });
+  el("results").addEventListener("click", function (e) { if (e.target.closest(".result")) setTimeout(function () { go(1); }, 0); });
+  go(1);
+})();`;
 
 // Status lights in the preview header; the full warnings sit under the text box and only show when something's wrong.
 const GAG_LAMPS_SCRIPT = String.raw`(function () {
@@ -2328,7 +2374,7 @@ const GAG_EXTRA_SCRIPT = String.raw`(function () {
   }
   // 3. Your rating (1-5 stars).
   window.starPick = 0;
-  function drawStars() { $("starChips").innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" class="chip star' + (window.starPick >= n ? " on" : "") + '" data-star="' + n + '">' + "★".repeat(n) + "</button>"; }).join("") +
+  function drawStars() { $("starChips").innerHTML = [1, 2, 3, 4, 5].map(function (n) { return '<button type="button" class="chip star' + (window.starPick === n ? " on" : "") + '" data-star="' + n + '">' + "★".repeat(n) + "</button>"; }).join("") +
     (window.starPick ? '<button type="button" class="chip" data-star="0">Clear</button>' : ""); }
   $("starChips").addEventListener("click", function (e) { var b = e.target.closest("[data-star]"); if (!b) return; window.starPick = +b.dataset.star; drawStars(); });
   var origSlot = slotInfo; slotInfo = function () { origSlot.apply(this, arguments); var ed = (typeof mode !== "undefined" && mode === "edit" && editing) ? editing.id : ""; window.starPick = ed ? ((window.GAG_STARS || {})[ed] || 0) : window.starPick; drawStars(); };
