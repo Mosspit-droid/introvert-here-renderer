@@ -2227,6 +2227,12 @@ ${brandHeader("Gags")}
   .wzhead{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:14;display:flex;flex-direction:column;gap:10px;padding:10px;margin:-10px;border-radius:var(--r);background:rgba(20,20,19,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
   .wznav{display:flex;gap:8px}.wznav .btn,.wznav .btn-main{flex:1;min-height:50px;margin:0;width:auto}
   #wzNext{border-color:var(--accent)}
+  /* Keyboard open (Barry, 14 Nov): only the box being typed in and a small Next. */
+  body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb #wzBack,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
+  body.kb .wzhead{padding:6px 10px;gap:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;align-items:flex-end;pointer-events:none}
+  body.kb .wznav{justify-content:flex-end;pointer-events:auto}
+  body.kb #wzNext{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
+  body.kb .o-text{padding:10px}body.kb .o-text textarea{margin-top:0}
   .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
   .chip.star{color:#f0c870;letter-spacing:1px}.chip.star.on{border-color:#f0c870;background:rgba(240,200,112,.14)}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
@@ -2320,11 +2326,26 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var m = document.querySelector(".wzmsg"); if (m) m.remove();
     var f = document.querySelector(".gR [data-st='" + cur + "'] input:not([type=hidden]):not([type=date]), .gR [data-st='" + cur + "'] textarea");
     if (f && f.offsetParent && cur <= 3 && !el("search").offsetParent) f.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
+    else if (document.body.classList.contains("kb") && document.activeElement) document.activeElement.blur();
+    window.scrollTo(0, 0); if (document.body.classList.contains("kb")) setTimeout(fit, 30);
   }
   function next(to) { var w = need(); if (w && to > cur) { var m = document.querySelector(".wzmsg") || document.createElement("div"); m.className = "wzmsg"; m.textContent = w; el("wzNext").parentNode.after(m); return; }
     window.scrollTo(0, 0); go(to); }
   el("wzNext").onclick = function () { next(cur + 1); };
+  // Keep the keyboard up when Next is tapped mid-typing (the next step's box takes the focus).
+  el("wzNext").addEventListener("pointerdown", function (e) { if (document.body.classList.contains("kb")) e.preventDefault(); });
+  function typing() { var a = document.activeElement; return a && a.closest && a.closest(".gR") && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "date" && a.type !== "checkbox")); }
+  function fit() {   // text box fills what's left above the keyboard
+    var t = el("text"), vv = window.visualViewport, h = vv ? vv.height : window.innerHeight;
+    if (!document.body.classList.contains("kb")) { t.style.height = ""; return; }
+    var a = document.activeElement, card = a && a.closest("[data-st]"); if (!card) return;
+    var head = document.querySelector(".wzhead").getBoundingClientRect();
+    window.scrollBy(0, card.getBoundingClientRect().top - head.bottom - 6);
+    if (a === t) t.style.height = Math.max(120, h - t.getBoundingClientRect().top - 24) + "px";
+  }
+  document.addEventListener("focusin", function () { if (typing()) { document.body.classList.add("kb"); setTimeout(fit, 250); } });
+  document.addEventListener("focusout", function () { setTimeout(function () { if (!typing()) { document.body.classList.remove("kb"); fit(); } }, 150); });
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (document.body.classList.contains("kb")) fit(); });
   ["text", "stem"].forEach(function (id) { el(id).addEventListener("input", function () { var m = document.querySelector(".wzmsg"); if (m) m.remove(); }); });
   el("wzBack").onclick = function () { go(cur - 1); };
   el("wzBar").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (!b) return; var t = Number(b.dataset.go); if (t <= cur) go(t); else { for (var i = cur; i < t; i++) { if (need()) return next(cur + 1); go(cur + 1); } } });
