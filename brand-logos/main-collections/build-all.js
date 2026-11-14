@@ -1,9 +1,11 @@
-// Rebuilds the Introvert Here, SHHH. and PER CONTRACT. logos (wide + stacked) as sharp
-// 4500x1500 PNGs with a see-through panel. Positions measured from Barry's originals.
+// Rebuilds the Introvert Here, SHHH., PER CONTRACT., EXCLUSIVE. and IN PERSON. logos (wide + stacked)
+// as sharp 4500x1500 PNGs. Positions measured from Barry's originals. All have a see-through panel
+// except EXCLUSIVE., which is a filled tabloid masthead (white lettering on red, thin white border).
 const fs=require('fs');const {chromium}=require('playwright');
 const dir=process.argv[2];
-const fig=n=>'data:image/png;base64,'+fs.readFileSync(`${dir}/fig-${n}.png`).toString('base64');
-const COL={ih:'#FFFFFF',sh:'#A8CEA8',pc:'#A7322D'};
+const png=f=>'data:image/png;base64,'+fs.readFileSync(`${dir}/${f}.png`).toString('base64');
+const fig=n=>png(`fig-${n}`);
+const COL={ih:'#FFFFFF',sh:'#A8CEA8',pc:'#A7322D',ex:'#D9141B',ip:'#4A8FE7'};
 function rr(X,Y,W,H,R){return `M${X+R},${Y} H${X+W-R} A${R},${R} 0 0 1 ${X+W},${Y+R} V${Y+H-R} A${R},${R} 0 0 1 ${X+W-R},${Y+H} H${X+R} A${R},${R} 0 0 1 ${X},${Y+H-R} V${Y+R} A${R},${R} 0 0 1 ${X+R},${Y} Z`;}
 function ring(c,[x,y,w,h],ro,[t,r,b,l],ri,holes='',mask=''){return `<path fill="${c}" fill-rule="evenodd" ${mask?`mask="url(#${mask})"`:''} d="${rr(x,y,w,h,ro)} ${rr(x+l,y+t,w-l-r,h-t-b,ri)} ${holes}"/>`;}
 const svg=inner=>`<svg width="4500" height="1500" style="position:absolute;left:0;top:0">${inner}</svg>`;
@@ -30,6 +32,17 @@ const STD={
 };
 const wideBase=(c,f,extra='',holes='',mask='')=>svg(extra+ring(COL[c],STD.wide.frame,STD.wide.ro,STD.wide.th,STD.wide.ri,holes,mask))+figImg(f,...STD.wide.fig)+line(...STD.wide.text);
 const stackBase=(c,f,extra='',holes='',mask='')=>svg(extra+ring(COL[c],STD.stacked.frame,STD.stacked.ro,STD.stacked.th,STD.stacked.ri,holes,mask))+figImg(f,...STD.stacked.fig)+line(...STD.stacked.l1)+line(...STD.stacked.l2);
+// EXCLUSIVE. and IN PERSON.: figure and tag are placed by exact box ([left, top, width, height]), the
+// figure centred between the inside edge of the frame (EXCLUSIVE.: of the white border) and the N.
+// Tags are finished artwork (tag-ex.png, tag-ip.png); IN PERSON.'s carries its own tilt and shadow.
+const pic=(f,l,t,w,h,rot=0)=>`<img src="${png(f)}" style="position:absolute;left:${l}px;top:${t}px;width:${w}px;height:${h}px;transform:rotate(${rot}deg)">`;
+const textOf=k=>k==='wide'?line(...STD.wide.text):line(...STD.stacked.l1)+line(...STD.stacked.l2);
+const panelOf=k=>{const s=STD[k],[x,y,w,h]=s.frame,[t,r,b,l]=s.th;return [x+l,y+t,w-l-r,h-t-b,s.ri];};
+// EXCLUSIVE.: white panel, red panel inset by the border width (wide 38, stacked 30), red frame on top
+const exBase=(k,bw,[fl,ft,fw,fh])=>{const s=STD[k],[x,y,w,h,ri]=panelOf(k);
+ return svg(`<path fill="#fff" d="${rr(x,y,w,h,ri)}"/><path fill="${COL.ex}" d="${rr(x+bw,y+bw,w-2*bw,h-2*bw,Math.max(ri-bw,12))}"/>`+ring(COL.ex,s.frame,s.ro,s.th,s.ri))
+  +pic('fig-ex',fl,ft,fw,fh)+textOf(k);};
+const ipBase=(k,[fl,ft,fw,fh])=>{const s=STD[k];return svg(ring(COL.ip,s.frame,s.ro,s.th,s.ri))+pic('fig-ip',fl,ft,fw,fh)+textOf(k);};
 const L={
  'introvert-here-wide': wideBase('ih','ih'),
  'introvert-here-stacked': stackBase('ih','ih','',PILL_HOLE)+dots,
@@ -37,6 +50,10 @@ const L={
  'shhh-stacked': stackBase('sh','sh',tabMask('ms',2700,940,600,272,50,-3),'','ms')+tab(2700,940,600,272,50,-3,124),
  'per-contract-wide': wideBase('pc','pc')+stamp(3090,1081,1262,236,-3,118),
  'per-contract-stacked': stackBase('pc','pc')+stamp(2290,978,985,192,-3,92),
+ 'exclusive-wide': exBase('wide',38,[305.4,577,106.37,346])+pic('tag-ex',3041,1008,1360,382,-3),
+ 'exclusive-stacked': exBase('stacked',30,[1310.8,186,222.9,725])+pic('tag-ex',2262,948,1040,292.1,-3),
+ 'in-person-wide': ipBase('wide',[260.2,547,158.5,404])+pic('tag-ip',3078.6,887.7,1273.2,574.8),
+ 'in-person-stacked': ipBase('stacked',[1264.8,186,284.4,725])+pic('tag-ip',2299.6,893.2,1107.1,499.8),
 };
 const css=`*{margin:0;padding:0;box-sizing:border-box}html,body{width:4500px;height:1500px;background:transparent;overflow:hidden}
 .t{position:absolute;font-family:'Montserrat';font-weight:700;color:#fff;white-space:nowrap;line-height:1}`;
