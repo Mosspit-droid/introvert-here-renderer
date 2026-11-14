@@ -794,7 +794,11 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .quickbar .nm{display:block;font:800 16px var(--display);letter-spacing:.08em;text-transform:uppercase}
 .quickbar .st{display:block;font-size:13px;margin-top:3px;color:#2b2a27}
 .quickbar .qgo{margin-left:auto;font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;padding:10px 16px;border-radius:99px;background:#141413;color:var(--accent)}
-@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"cal gags" "stats gags" "appr list" "ord list" "cred tags" "set links"}
+  /* Phone (Barry, 14 Nov): the tiles he uses most sit in the right-hand column, under his right thumb. */
+  .tiles [data-tile="/gags"]{grid-area:gags}.tiles [data-tile="/listings"]{grid-area:list}.tiles [data-tile="/tags"]{grid-area:tags}
+  .tiles [data-tile="/calendar"]{grid-area:cal}.tiles [data-tile="/stats"]{grid-area:stats}.tiles [data-tile="/approvals"]{grid-area:appr}
+  .tiles [data-tile="/orders"]{grid-area:ord}.tiles [data-tile="/credits"]{grid-area:cred}.tiles [data-tile="/settings"]{grid-area:set}.tiles [data-tile="/links"]{grid-area:links}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
 .tile .ic{width:48px;height:48px;border-radius:13px;background:var(--frame);color:#0d0d0c;display:grid;place-items:center}
