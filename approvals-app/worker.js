@@ -155,6 +155,9 @@ export default {
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
       if (pathname === "/api/ideas") return await ideasApi(request, env);
       if (pathname === "/api/stars") return await starsApi(request, env);
+      if (pathname === "/api/gag-target" && method === "POST") { const d = await request.json().catch(() => ({})); const k = String(d.prefix || "").toUpperCase(); if (!/^[A-Z]{2}$/.test(k)) return json({ error: "Unknown range" }, 400);
+        const n = Math.round(Number(d.n) || 0); if (n < 0 || n > 5000) return json({ error: "Pick a number up to 5,000." }, 400);
+        const t = (await env.PENDING.get("gag-targets", "json")) || {}; if (n) t[k] = n; else delete t[k]; await env.PENDING.put("gag-targets", JSON.stringify(t)); return json({ ok: true, targets: t }); }
       if (pathname === "/api/backups" && method === "GET") return json(await backupList(env));
       if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
       if (pathname === "/api/search-data" && method === "GET") return await searchData(env);
@@ -2193,7 +2196,7 @@ ${brandHeader("Gags")}
       <details id="ideasBox" class="ideas"><summary>Ideas inbox <span id="ideasN" class="small"></span></summary><div id="ideasL"></div></details></div>
     <div class="card g-side">
       <div class="fld o-range" data-st="2"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
-        <div id="slot" class="small" style="display:none"></div></div>
+        <div id="slot" class="small" style="display:none"></div><div id="rangeCount"></div></div>
       <div class="fld o-stem" data-st="3"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
       <div class="fld o-stars" data-st="5"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
       <div class="fld o-cat" data-st="4"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
@@ -2227,12 +2230,17 @@ ${brandHeader("Gags")}
   .wznav{display:flex;gap:8px}.wznav .btn,.wznav .btn-main{flex:1;min-height:50px;margin:0;width:auto}
   #wzNext{border-color:var(--accent)}
   /* Keyboard open (Barry, 14 Nov): only the box being typed in and a small Next. */
-  body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb #wzBack,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
+  body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
   body.kb .wzhead{padding:6px 10px;gap:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;align-items:flex-start;pointer-events:none}
   body.kb .wznav{justify-content:flex-start;pointer-events:auto}
-  body.kb #wzNext{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
+  body.kb #wzNext,body.kb #wzBack{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
   body.kb .o-text{padding:10px}body.kb .o-text textarea{margin-top:0}
   .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
+  #rangeCount{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+  .rc{font-size:14px}.rc b{font-weight:700}.rc .rch{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+  .rc .rbar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.rc .rbar i{display:block;height:100%;border-radius:99px;background:var(--ok)}
+  .rc button{background:none;border:0;color:var(--accent);font:inherit;font-size:13px;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:0}
+  .rc.sel{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--field)}
   .chip.star{color:#f0c870;letter-spacing:1px}.chip.star.on{border-color:#f0c870;background:rgba(240,200,112,.14)}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
@@ -2298,6 +2306,7 @@ window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
 window.SEASON_LOCK = ${JSON.stringify(lockIds)};
 window.CAT_WORDS = ${JSON.stringify(catWords).replace(/</g, "\\u003c")};
 window.GAG_STARS = ${JSON.stringify((await env.PENDING.get(STARS_KEY, "json")) || {})};
+window.GAG_TARGETS = ${JSON.stringify((await env.PENDING.get("gag-targets", "json")) || {})};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_SEASON_SCRIPT}
@@ -2332,7 +2341,28 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     window.scrollTo(0, 0); go(to); }
   el("wzNext").onclick = function () { next(cur + 1); };
   // Keep the keyboard up when Next is tapped mid-typing (the next step's box takes the focus).
-  el("wzNext").addEventListener("pointerdown", function (e) { if (document.body.classList.contains("kb")) e.preventDefault(); });
+  ["wzNext", "wzBack"].forEach(function (id) { el(id).addEventListener("pointerdown", function (e) { if (document.body.classList.contains("kb")) e.preventDefault(); }); });
+  // Gags per range, with an optional target (Barry, 14 Nov).
+  function counts() {
+    var box = el("rangeCount"); if (!box || typeof G === "undefined" || !G || !G.perCollection) return;
+    var sel = el("collection").value, T = window.GAG_TARGETS || {};
+    box.innerHTML = Object.keys(G.perCollection).map(function (c) {
+      var pre = G.perCollection[c].prefix, n = (G.all || []).filter(function (x) { return new RegExp("^" + pre + "-\\d+$").test(x.id) && String(x.text || "").trim(); }).length, t = Number(T[pre]) || 0;
+      var on = c === sel, name = { IH: "Introvert Here", SH: "SHHH.", PC: "Per Contract", OS: "Off The Shelf" }[pre] || c;
+      if (!on && sel) return "";
+      return '<div class="rc' + (on ? " sel" : "") + '"><div class="rch"><span><b>' + n + "</b> gags in " + name.replace(/</g, "&lt;") + "</span>" +
+        (t ? "<span>" + (n >= t ? "Target reached ✓" : "<b>" + (t - n) + "</b> to go to " + t) + "</span>" : "") + "</div>" +
+        (t ? '<div class="rbar"><i style="width:' + Math.min(100, Math.round(n / t * 100)) + '%"></i></div>' : "") +
+        (on ? '<div style="margin-top:6px"><button type="button" data-target="' + pre + '">' + (t ? "Change target" : "Set a target") + "</button></div>" : "") + "</div>";
+    }).join("");
+  }
+  el("rangeCount").addEventListener("click", function (e) { var b = e.target.closest("[data-target]"); if (!b) return; var pre = b.dataset.target, cur = (window.GAG_TARGETS || {})[pre] || "";
+    var v = prompt("How many " + pre + " gags are you aiming for? (Leave empty to remove the target.)", cur); if (v === null) return;
+    fetch("/api/gag-target", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prefix: pre, n: Number(v) || 0 }) }).then(function (r) { return r.json(); })
+      .then(function (j) { if (j.error) return alert(j.error); window.GAG_TARGETS = j.targets; counts(); }); });
+  el("collection").addEventListener("change", function () { setTimeout(counts, 0); });
+  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); });
+  counts();
   function typing() { var a = document.activeElement; return a && a.closest && a.closest(".gR") && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "date" && a.type !== "checkbox")); }
   function fit() {   // text box fills what's left above the keyboard
     var t = el("text"), vv = window.visualViewport, h = vv ? vv.height : window.innerHeight;
@@ -2350,8 +2380,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   el("wzBar").addEventListener("click", function (e) { var b = e.target.closest("[data-go]"); if (!b) return; var t = Number(b.dataset.go); if (t <= cur) go(t); else { for (var i = cur; i < t; i++) { if (need()) return next(cur + 1); go(cur + 1); } } });
   el("form").addEventListener("reset", function () { setTimeout(function () { go(1); }, 0); });
   el("clear").addEventListener("click", function () { setTimeout(function () { if (!el("text").value) go(1); }, 0); });
-  // A range tap moves on by itself; so does picking a gag to edit.
-  el("rangeChips").addEventListener("click", function (e) { if (e.target.closest(".chip") && !e.target.closest(".chip").disabled) setTimeout(function () { if (el("collection").value && cur === 2) go(3); }, 60); });
+  // Picking a gag to edit goes back to its text.
   el("results").addEventListener("click", function (e) { if (e.target.closest(".result")) setTimeout(function () { go(1); }, 0); });
   go(1);
 })();`;
