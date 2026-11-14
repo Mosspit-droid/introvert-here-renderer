@@ -155,9 +155,8 @@ export default {
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
       if (pathname === "/api/ideas") return await ideasApi(request, env);
       if (pathname === "/api/stars") return await starsApi(request, env);
-      if (pathname === "/api/gag-target" && method === "POST") { const d = await request.json().catch(() => ({})); const k = String(d.prefix || "").toUpperCase(); if (!/^[A-Z]{2}$/.test(k)) return json({ error: "Unknown range" }, 400);
-        const n = Math.round(Number(d.n) || 0); if (n < 0 || n > 5000) return json({ error: "Pick a number up to 5,000." }, 400);
-        const t = (await env.PENDING.get("gag-targets", "json")) || {}; if (n) t[k] = n; else delete t[k]; await env.PENDING.put("gag-targets", JSON.stringify(t)); return json({ ok: true, targets: t }); }
+      if (pathname === "/api/gag-target" && method === "POST") return await gagTarget(request, env);
+      if (pathname === "/api/gag-clear" && method === "POST") return await gagClear(request, env);
       if (pathname === "/api/backups" && method === "GET") return json(await backupList(env));
       if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
       if (pathname === "/api/search-data" && method === "GET") return await searchData(env);
@@ -851,18 +850,26 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .sheet .pane a.fr:hover{border-color:var(--frame)}
 .frid{grid-row:span 2;font:500 12px var(--mono);color:var(--muted);align-self:center}
 .fr b{font:700 15px var(--display)}
-.rlhead,.sheet .pane a.rlrow{display:grid;grid-template-columns:96px minmax(0,1fr) 128px;gap:12px;align-items:center}
+.rlhead,.sheet .pane .rlrow{display:grid;grid-template-columns:96px minmax(0,1fr) 128px auto;gap:12px;align-items:start}
 .rlhead{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:0 12px 4px}
-.sheet .pane a.rlrow{padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--text);background:rgba(255,255,255,.03);text-transform:none;letter-spacing:0;font:400 14px var(--body)}
-.rltx{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rld{font:600 13px var(--body);text-align:right}
+.sheet .pane .rlrow{padding:12px;border:1px solid var(--line);border-radius:12px;text-decoration:none;color:var(--text);background:rgba(255,255,255,.03);text-transform:none;letter-spacing:0;font:400 14px var(--body)}
+.rltx{white-space:pre-line;line-height:1.35;color:var(--text);text-decoration:none}.rld{font:600 13px var(--body);text-align:right}
+.sheet .pane .rlrow a.rltx{display:block;border:0;padding:0;margin:0;background:none;min-height:0;font:400 14px var(--body);text-transform:none;letter-spacing:0;text-align:left;color:var(--text);box-shadow:none;border-radius:0;justify-content:flex-start}
+.sheet .pane .rlacts a{min-height:0;display:inline-block}
+.rlbar[hidden]{display:none!important}
+.rlside{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.rlstars{display:flex;gap:2px}.rlstars button{background:none;border:0;padding:2px;font-size:20px;line-height:1;color:rgba(242,240,235,.25);cursor:pointer}.rlstars button.on{color:#f0c870}
+.rlacts{display:flex;gap:6px}.rlacts a,.rlacts button{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--field);color:var(--text);text-decoration:none;cursor:pointer}
+.rlacts .del{color:#ff9a8a;border-color:rgba(255,154,138,.4)}
+.rlsort{display:flex;gap:6px;align-items:center;margin:0 0 10px;font-size:13px;color:var(--muted)}.rlsort button{font:600 13px var(--body);padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}.rlsort button.on{background:var(--accent);color:#141413;border-color:var(--accent)}
 .st-live .rld{color:#7fd39a}.st-soon .rld{color:#f0c870}.st-later .rld{color:#f08a85}
-@media (max-width:600px){.rlhead,.sheet .pane a.rlrow{grid-template-columns:80px minmax(0,1fr) 92px}}
+@media (max-width:600px){.rlhead,.sheet .pane .rlrow{grid-template-columns:70px minmax(0,1fr)}.rld{text-align:left}.rlside{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}}
 .rlbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin:0 0 10px;border:1px solid var(--line);border-radius:12px;background:rgba(14,14,13,.97)}
 .rlbar span{flex:1;min-width:200px;font:600 14px var(--body)}.rlbar .btn-main{width:auto;min-height:46px;padding:0 20px}
-#rlist.swapping a.rlrow .frid::before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border:2px solid var(--muted);border-radius:5px}
-#rlist.swapping a.rlrow.sel{background:rgba(127,211,154,.12);border-color:#7fd39a}
-#rlist.swapping a.rlrow.sel .frid::before{background:#7fd39a;border-color:#7fd39a;box-shadow:inset 0 0 0 3px #111}
-#rlist.swapping a.rlrow.nopick{opacity:.35}#rlist.swapping a.rlrow.nopick .frid::before{visibility:hidden}
+#rlist.swapping .rlrow .frid::before{content:"";display:inline-block;width:16px;height:16px;margin-right:8px;vertical-align:-3px;border:2px solid var(--muted);border-radius:5px}
+#rlist.swapping .rlrow.sel{background:rgba(127,211,154,.12);border-color:#7fd39a}
+#rlist.swapping .rlrow.sel .frid::before{background:#7fd39a;border-color:#7fd39a;box-shadow:inset 0 0 0 3px #111}
+#rlist.swapping .rlrow.nopick{opacity:.35}#rlist.swapping .rlrow.nopick .frid::before{visibility:hidden}
 #rlS.on{border-color:#7fd39a;color:#7fd39a}
 .st-live{border-left:5px solid #5fbf7f!important}.st-soon{border-left:5px solid #e6b450!important}.st-later{border-left:5px solid #e0605a!important}
 .stpill{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:99px;font:700 10px var(--display);letter-spacing:.06em;text-transform:uppercase;vertical-align:middle}
@@ -936,7 +943,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <div class="sheet" id="sheet"><div class="pane">${more}</div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="sheet stopsheet" id="stopSheet"><div class="pane" style="max-width:560px;margin:0 auto;display:block"><div style="font:800 18px var(--display)" id="stopT">Emergency stop</div><div class="small" id="stopB" style="margin-top:6px"></div><div id="stopOpts"></div><button class="btn" type="button" id="stopNo" style="width:100%;margin-top:12px">Never mind</button></div></div>
-<div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlS" type="button">Swap</button><button class="btn" id="rlX" type="button">Close</button></div><div class="small" id="rlHelp" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap a gag to edit it.</div><div id="rlBar" class="rlbar" hidden></div><div id="rlR" class="findr"></div></div></div>
+<div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlS" type="button">Swap</button><button class="btn" id="rlX" type="button">Close</button></div><div class="small" id="rlHelp" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap the stars to rate a gag.</div><div id="rlBar" class="rlbar" hidden></div><div id="rlR" class="findr"></div></div></div>
 <div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find anything: a gag, page, to-do, order or listing" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
@@ -1029,12 +1036,20 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
           [x.o.a, x.o.b].forEach(function (n) { (data.editable || []).forEach(function (e) { if (e.id === n.id) e.dates = n.dates; }); });
           swapOn = false; picked = []; rlDraw(); if (window.toast) window.toast("Swapped. Core updates in about a minute."); })
         .catch(function () { go.disabled = false; go.textContent = "Swap dates"; alert("Couldn't reach the app. Nothing was changed."); }); }; }
+  var rlSort = "date";
   function rlDraw() {
-    var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0; }).map(function (g) { return { g: g, st: gagState(g, data) }; });
+    var ST = data.stars || {};
+    var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0 && String(g.text || "").trim(); }).map(function (g) { return { g: g, st: gagState(g, data) }; });
     list.sort(function (a, b) { var ka = a.st.c === "live" ? "0" : (a.st.first ? "1" + a.st.first : "2"), kb = b.st.c === "live" ? "0" : (b.st.first ? "1" + b.st.first : "2"); return ka < kb ? -1 : ka > kb ? 1 : (a.g.id < b.g.id ? -1 : 1); });
-    document.getElementById("rlR").innerHTML = list.length ? '<div class="rlhead"><span>Gag</span><span>Gag text</span><span>Release</span></div>' + list.map(function (x) { var g = x.g, st = x.st;
+    if (rlSort === "stars") list.sort(function (a, b) { return (ST[b.g.id] || 0) - (ST[a.g.id] || 0); });
+    var today = new Date().toISOString().slice(0, 10), soon2 = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+    var sortBar = '<div class="rlsort">Sort by <button type="button" data-rlsort="date" class="' + (rlSort === "date" ? "on" : "") + '">Release date</button><button type="button" data-rlsort="stars" class="' + (rlSort === "stars" ? "on" : "") + '">Rating</button></div>';
+    document.getElementById("rlR").innerHTML = list.length ? sortBar + list.map(function (x) { var g = x.g, st = x.st, n = ST[g.id] || 0;
+      var ed = (data.editable || []).some(function (e) { return e.id === g.id; }), canDel = ed && !(st.first && st.first <= soon2);
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
-      return '<a class="' + cls + '" data-id="' + esc2(g.id) + '" href="' + editHref(g, data) + '"><span class="frid">' + esc2(g.id) + '</span><span class="rltx">' + ((data.stars || {})[g.id] ? '<span style="color:#f0c870">' + "★".repeat(data.stars[g.id]) + "</span> " : "") + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span><span class="rld">' + esc2(st.t) + '</span></a>'; }).join("") : '<p class="small">No gags written for this range yet.</p>';
+      var stars = '<span class="rlstars">' + [1, 2, 3, 4, 5].map(function (k) { return '<button type="button" data-rate="' + k + '" data-id="' + esc2(g.id) + '" class="' + (k <= n ? "on" : "") + '" aria-label="' + k + ' stars">★</button>'; }).join("") + "</span>";
+      return '<div class="' + cls + '" data-id="' + esc2(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><a class="rltx" href="' + editHref(g, data) + '">' + esc2(String(g.text || "")) + '</a><span class="rld">' + esc2(st.t) + '</span><span class="rlside">' + stars +
+        '<span class="rlacts"><a href="' + editHref(g, data) + '">Edit</a>' + (canDel ? '<button type="button" class="del" data-del="' + esc2(g.id) + '">Delete</button>' : "") + "</span></span></div>"; }).join("") : '<p class="small">No gags written for this range yet.</p>';
     rlBar(); }
   function showRange(code, name) {
     rlCode = code; swapOn = false; picked = [];
@@ -1043,7 +1058,17 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   }
   if (RL) {
     document.getElementById("rlS").addEventListener("click", function () { if (!data) return; swapOn = !swapOn; picked = []; rlDraw(); });
-    document.getElementById("rlR").addEventListener("click", function (e) { if (!swapOn) return; var a = e.target.closest("a.rlrow"); if (!a) return; e.preventDefault();
+    document.getElementById("rlR").addEventListener("click", function (e) {
+      var sb = e.target.closest("[data-rlsort]"); if (sb) { rlSort = sb.dataset.rlsort; rlDraw(); return; }
+      var rb = e.target.closest("[data-rate]"); if (rb && !swapOn) { e.preventDefault(); var id = rb.dataset.id, k = Number(rb.dataset.rate); data.stars = data.stars || {}; var nn = data.stars[id] === k ? 0 : k; if (nn) data.stars[id] = nn; else delete data.stars[id]; rlDraw();
+        fetch("/api/stars", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: id, n: nn }) }).catch(function () { alert("Couldn't save the rating."); }); return; }
+      var db = e.target.closest("[data-del]"); if (db && !swapOn) { e.preventDefault(); var did = db.dataset.del; var gg = (data.all || []).filter(function (x) { return x.id === did; })[0] || {};
+        if (!confirm("Delete " + did + " (" + (gg.stem || "") + ")?" + String.fromCharCode(10, 10) + "Its text, title and tags are cleared from Core. The space and its release dates stay, so the next gag you write for this range fills it.")) return;
+        db.disabled = true; db.textContent = "Deleting…";
+        fetch("/api/gag-clear", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: did }) }).then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
+          .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't delete."); rlDraw(); return; } (data.all || []).forEach(function (g) { if (g.id === did) { g.text = ""; g.stem = ""; } }); data.editable = (data.editable || []).filter(function (e) { return e.id !== did; }); rlDraw(); if (window.toast) window.toast(did + " deleted. Its space is free for a new gag."); })
+          .catch(function () { alert("Couldn't reach the app. Nothing was changed."); rlDraw(); }); return; }
+      if (!swapOn) return; var a = e.target.closest(".rlrow"); if (!a) return; e.preventDefault();
       if (a.classList.contains("nopick")) return; var id = a.dataset.id, i = picked.indexOf(id);
       if (i >= 0) picked.splice(i, 1); else { if (picked.length >= 2) picked.shift(); picked.push(id); } rlDraw(); });
   }
@@ -2066,6 +2091,7 @@ async function gagsSync(request, env) {
   if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
   const data = await request.json();
   data.receivedAt = Date.now();
+  const moved = await env.PENDING.get("gag-rows-moved"); if (moved && Date.now() - Number(moved) > 150000) await env.PENDING.delete("gag-rows-moved");   // a sync read after the rows moved
   await env.PENDING.put("gags", JSON.stringify(data));
   return json({ ok: true });
 }
@@ -2138,6 +2164,85 @@ async function gagSwap(request, env) {
   const da = A.dates; A.dates = B.dates; B.dates = da;
   await env.PENDING.put("gags", JSON.stringify(g));
   return json({ ok: true, a: { id: A.id, dates: A.dates }, b: { id: B.id, dates: B.dates } });
+}
+
+// Delete a gag (Barry, 14 Nov): clear its text, title and tags in Core but keep the row, its ID and its dates,
+// so the gag tool fills that space next. Only for gags not built yet and not releasing within 2 days.
+const GAG_CLEAR_COLS = ["GAG_TEXT", "GAG_CATEGORY", "CUSTOM_TAG_12", "CUSTOM_TAG_13", "TITLE_STEM", "STATUS", "ELLIPSIS_CHECK", "AMEND_ONLY"];
+const TAG_CLEAR_COLS = ["STEM_TAG", "APPROVED", "STEM_FROZEN", "GAG5_FROZEN", "SEAS2_FROZEN", "FROZEN_AT", "FREEZE_MESSAGE", "GAG5_OVERRIDE"];
+async function gagClear(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const id = str(d.id), g = await env.PENDING.get("gags", "json");
+  const e = g && (g.editable || []).find((x) => x.id === id), a = g && (g.all || []).find((x) => x.id === id);
+  if (!e || !a || !a.row) return json({ error: "Only gags that haven't been built yet can be deleted. Tap Sync to Core and try again." }, 400);
+  const first = (e.dates || []).filter(Boolean).sort()[0] || "";
+  if (first && first <= new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10)) return json({ error: id + " releases within 2 days, so it may already be building. Change its dates first if you really want it gone." }, 400);
+  if (await env.PENDING.get("gag-rows-moved")) return json({ error: "Rows were just added or removed in Core. Tap Sync to Core, wait a minute, then try again." }, 409);
+  const idx = Number(a.row) - 2, ops = [];
+  GAG_CLEAR_COLS.forEach((c) => ops.push(amendCell("GAGS_TABLE", c, idx, "")));
+  TAG_CLEAR_COLS.forEach((c) => ops.push(amendCell("GAG_TAGS", c, idx, "")));
+  const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+  if (err) return err;
+  a.text = ""; a.stem = ""; g.editable = g.editable.filter((x) => x.id !== id);
+  await env.PENDING.put("gags", JSON.stringify(g));
+  for (const k of [STARS_KEY, "season-locks"]) { const M = (await env.PENDING.get(k, "json")) || {}; if (M[id]) { delete M[id]; await env.PENDING.put(k, JSON.stringify(M)); } }
+  await logSetting(env, "Deleted gag " + id + " (" + (e.stem || "") + ")", null);
+  return json({ ok: true });
+}
+
+// Target (Barry, 14 Nov): the number of gag spaces a range should have. Raising it adds empty, numbered rows to
+// Core (dates carry on the range's own rhythm); lowering it removes empty rows from the end only, never a written gag.
+const XL_DAY = (iso) => Math.round((Date.parse(iso + "T00:00:00Z") - Date.UTC(1899, 11, 30)) / 864e5);
+const ISO_DAY = (n) => new Date(Date.UTC(1899, 11, 30) + n * 864e5).toISOString().slice(0, 10);
+function targetPlan(g, pre, target) {
+  const rows = (g.all || []).concat((g.empties || []).map((e) => ({ id: e.id, row: e.r, text: "", ds: e.dates }))).filter((x) => new RegExp("^" + pre + "-\\d+$").test(x.id)).sort((x, y) => (x.id < y.id ? -1 : 1));
+  const written = rows.filter((x) => String(x.text || "").trim()).length;
+  const coll = (Object.entries(g.perCollection || {}).find(([, v]) => v.prefix === pre) || [])[0];
+  const plan = { pre, target, have: rows.length, written, add: [], remove: [], blocked: 0 };
+  if (!coll || !rows.length) return plan;
+  if (target > rows.length) {
+    const last = rows[rows.length - 1], prev = rows[rows.length - 2] || last;
+    const ld = (last.ds || []).map(XL_DAY), pd = (prev.ds || []).map(XL_DAY);
+    const step = ld[0] && pd[0] && ld[0] > pd[0] ? ld[0] - pd[0] : 7;
+    let num = Number(last.id.split("-")[1]), cur = ld.length === 4 && ld.every(Boolean) ? ld : null;
+    if (!cur) return Object.assign(plan, { error: "The last " + pre + " row has no dates to carry on from." });
+    for (let i = rows.length; i < target; i++) { num++; cur = cur.map((x) => x + step); plan.add.push({ id: pre + "-" + String(num).padStart(5, "0"), coll, ds: cur.map(ISO_DAY), xl: cur.slice() }); }
+  } else if (target < rows.length) {
+    for (let i = rows.length - 1; i >= 0 && rows.length - plan.remove.length > target; i--) {
+      if (String(rows[i].text || "").trim()) { plan.blocked = rows.length - plan.remove.length - target; break; }
+      plan.remove.push({ id: rows[i].id, row: Number(rows[i].row) });
+    }
+  }
+  return plan;
+}
+async function gagTarget(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const pre = String(d.prefix || "").toUpperCase(); if (!/^[A-Z]{2}$/.test(pre)) return json({ error: "Unknown range" }, 400);
+  const n = Math.round(Number(d.n) || 0); if (n < 0 || n > 5000) return json({ error: "Pick a number up to 5,000." }, 400);
+  const t = (await env.PENDING.get("gag-targets", "json")) || {};
+  const g = await env.PENDING.get("gags", "json");
+  const plan = n && g ? targetPlan(g, pre, n) : { add: [], remove: [], blocked: 0 };
+  if (plan.error) return json({ error: plan.error }, 400);
+  if (d.dry) return json({ ok: true, plan });
+  if ((plan.add.length || plan.remove.length) && await env.PENDING.get("gag-rows-moved")) return json({ error: "Rows were just added or removed in Core. Tap Sync to Core, wait a minute, then try again." }, 409);
+  const ops = [];
+  if (plan.add.length) {
+    ops.push({ url: `${AMEND_XL}/tables/GAGS_TABLE/rows/add`, method: "POST", values: plan.add.map((r) => [r.id, "", r.coll, "", "", "", "", "", ...r.xl, "", ""]) });
+    ops.push({ url: `${AMEND_XL}/tables/GAG_TAGS/rows/add`, method: "POST", values: plan.add.map((r) => [r.id, ...Array(28).fill(null)]) });
+  }
+  plan.remove.slice().sort((x, y) => y.row - x.row).forEach((r) => {   // bottom first, so row numbers above stay put
+    ops.push({ url: `${AMEND_XL}/worksheets/GAGS/range(address='A${r.row}:N${r.row}')/delete`, method: "POST", body: { shift: "Up" } });
+    ops.push({ url: `${AMEND_XL}/worksheets/GAG_TAGS/range(address='A${r.row}:AC${r.row}')/delete`, method: "POST", body: { shift: "Up" } });
+  });
+  if (ops.length) {
+    const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+    if (err) return err;
+    await env.PENDING.put("gag-rows-moved", String(Date.now()), { expirationTtl: 3600 });   // until Core has been re-read, no more row changes
+    await logSetting(env, "Target " + pre + " " + n + ": " + (plan.add.length ? "added " + plan.add[0].id + "–" + plan.add[plan.add.length - 1].id : "") + (plan.remove.length ? "removed " + plan.remove.length + " empty rows" : ""), null);
+  }
+  if (n) t[pre] = n; else delete t[pre];
+  await env.PENDING.put("gag-targets", JSON.stringify(t));
+  return json({ ok: true, targets: t, plan });
 }
 
 async function gagSave(request, env) {
@@ -2347,19 +2452,26 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var box = el("rangeCount"); if (!box || typeof G === "undefined" || !G || !G.perCollection) return;
     var sel = el("collection").value, T = window.GAG_TARGETS || {};
     box.innerHTML = Object.keys(G.perCollection).map(function (c) {
-      var pre = G.perCollection[c].prefix, n = (G.all || []).filter(function (x) { return new RegExp("^" + pre + "-\\d+$").test(x.id) && String(x.text || "").trim(); }).length, t = Number(T[pre]) || 0;
+      var pre = G.perCollection[c].prefix, rows = (G.all || []).concat(G.empties || []).filter(function (x) { return new RegExp("^" + pre + "-\\d+$").test(x.id); }), n = rows.filter(function (x) { return String(x.text || "").trim(); }).length, t = Number(T[pre]) || 0;
       var on = c === sel, name = { IH: "Introvert Here", SH: "SHHH.", PC: "Per Contract", OS: "Off The Shelf" }[pre] || c;
       if (!on && sel) return "";
       return '<div class="rc' + (on ? " sel" : "") + '"><div class="rch"><span><b>' + n + "</b> gags in " + name.replace(/</g, "&lt;") + "</span>" +
         (t ? "<span>" + (n >= t ? "Target reached ✓" : "<b>" + (t - n) + "</b> to go to " + t) + "</span>" : "") + "</div>" +
-        (t ? '<div class="rbar"><i style="width:' + Math.min(100, Math.round(n / t * 100)) + '%"></i></div>' : "") +
+        (t ? '<div class="rbar"><i style="width:' + Math.min(100, Math.round(n / t * 100)) + '%"></i></div>' : "") + (on ? '<div class="small" style="margin-top:6px">' + rows.length + " spaces in Core · " + (rows.length - n) + " empty</div>" : "") +
         (on ? '<div style="margin-top:6px"><button type="button" data-target="' + pre + '">' + (t ? "Change target" : "Set a target") + "</button></div>" : "") + "</div>";
     }).join("");
   }
   el("rangeCount").addEventListener("click", function (e) { var b = e.target.closest("[data-target]"); if (!b) return; var pre = b.dataset.target, cur = (window.GAG_TARGETS || {})[pre] || "";
-    var v = prompt("How many " + pre + " gags are you aiming for? (Leave empty to remove the target.)", cur); if (v === null) return;
-    fetch("/api/gag-target", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prefix: pre, n: Number(v) || 0 }) }).then(function (r) { return r.json(); })
-      .then(function (j) { if (j.error) return alert(j.error); window.GAG_TARGETS = j.targets; counts(); }); });
+    var v = prompt("How many " + pre + " gags should this range have in total? Core gets that many numbered spaces. (Leave empty to remove the target.)", cur); if (v === null) return;
+    var post = function (dry) { return fetch("/api/gag-target", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prefix: pre, n: Number(v) || 0, dry: dry }) }).then(function (r) { return r.json(); }); };
+    var nice = function (iso) { return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
+    post(true).then(function (j) { if (j.error) return alert(j.error); var P = j.plan || {}, msg = "";
+      if (P.add && P.add.length) msg = "Add " + P.add.length + " empty space" + (P.add.length === 1 ? "" : "s") + " to Core: " + P.add[0].id + (P.add.length > 1 ? " to " + P.add[P.add.length - 1].id : "") + ". Dates carry on from the last one; the final T-shirt releases " + nice(P.add[P.add.length - 1].ds[0]) + ".";
+      else if (P.remove && P.remove.length) msg = "Remove " + P.remove.length + " empty space" + (P.remove.length === 1 ? "" : "s") + " from the end of the range in Core (" + P.remove.map(function (r) { return r.id; }).reverse().join(", ") + ")." + (P.blocked ? " " + P.blocked + " more can't go: the spaces at the end have gags written in them. Delete those gags first if you want them gone." : "");
+      else if (P.blocked) msg = "Nothing can be removed: the spaces at the end have gags written in them. Delete those gags first (range list on the dashboard).";
+      if (msg && !confirm(msg + String.fromCharCode(10, 10) + "Go ahead?")) return;
+      post(false).then(function (k) { if (k.error) return alert(k.error); window.GAG_TARGETS = k.targets; counts();
+        if (msg && window.toast) window.toast("Sent to Core. Tap Sync to Core in a minute to see the new numbers."); }); }); });
   el("collection").addEventListener("change", function () { setTimeout(counts, 0); });
   el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); });
   counts();
