@@ -711,6 +711,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline-offset:0
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pagehead{align-items:center;margin:4px 0 14px}
 .topbar .sp{flex:1}
+.topbar .sect .short{display:none}
 .stopbtn{flex:none;min-height:46px;padding:0 22px;border-radius:99px;border:2px solid #d9534f;background:rgba(217,83,79,.14);color:#ff8a85;font:900 13px var(--display);letter-spacing:.16em;text-transform:uppercase;cursor:pointer}
 .stopbtn.resume{border-color:#e6b450;background:rgba(230,180,80,.18);color:#f0c870;animation:pulse 2s infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(230,180,80,.15)}}
@@ -798,7 +799,9 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
   /* Phone (Barry, 14 Nov): the tiles he uses most sit in the right-hand column, under his right thumb. */
   .tiles [data-tile="/gags"]{grid-area:gags}.tiles [data-tile="/listings"]{grid-area:list}.tiles [data-tile="/tags"]{grid-area:tags}
   .tiles [data-tile="/calendar"]{grid-area:cal}.tiles [data-tile="/stats"]{grid-area:stats}.tiles [data-tile="/approvals"]{grid-area:appr}
-  .tiles [data-tile="/orders"]{grid-area:ord}.tiles [data-tile="/credits"]{grid-area:cred}.tiles [data-tile="/settings"]{grid-area:set}.tiles [data-tile="/links"]{grid-area:links}}
+  .tiles [data-tile="/orders"]{grid-area:ord}.tiles [data-tile="/credits"]{grid-area:cred}.tiles [data-tile="/settings"]{grid-area:set}.tiles [data-tile="/links"]{grid-area:links}
+  .tiles [data-tile="/settings"].primary:not(.hot){background:var(--card);border-color:rgba(242,240,235,.5)}.tiles [data-tile="/settings"] .dots{display:none}
+  .tiles [data-tile="/links"]:not(.hot){background:#3a3a36;border-color:rgba(242,240,235,.7)}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
 .tile .ic{width:48px;height:48px;border-radius:13px;background:var(--frame);color:#0d0d0c;display:grid;place-items:center}
@@ -901,6 +904,13 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 @media (max-width:560px){
   .topbar .home #logo{display:none}
   .topbar .home .mark{display:block}
+  /* Phone: give the page name the room (Barry, 14 Nov) */
+  .topbar{gap:8px}.topbar .sp{display:none}
+  .topbar .sect{flex:1 1 auto;font-size:15px;letter-spacing:.03em;padding-left:10px}
+  .topbar .sect .short{display:none}.topbar .sect .short+.full,.topbar .sect .full:has(+.short){display:none}.topbar .sect .full:has(+.short)+.short{display:inline}
+  .topbar .stopbtn{padding:0 10px;letter-spacing:.06em}
+  .topbar .iconbtn{width:40px;height:40px;border-radius:12px}
+  .topbar .home .mark{height:40px;width:40px}
   .grid{grid-template-columns:1fr}
   .card{padding:15px}
   .actions{width:100%}
@@ -1109,9 +1119,10 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 
 const collOf = (code) => (/^(IH|SH|PC|OS)-/.exec(String(code || "")) || [, "IH"])[1];
 const TOP_PAGES = ["/week", "/", "/todo", "/approvals", "/gags", "/tags", "/stats", "/credits", "/pricing", "/orders", "/amend", "/tools", "/check", "/links", "/alerts"];
+const TITLE_SHORT = { Dashboard: "Home", "Check for problems": "Checks", "Quiet listings": "Quiet", "Weekly check": "Weekly" };   // phone: shorter page names
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
-  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div><button class="stopbtn" id="stopBtn" type="button" hidden>Stop</button><div class="sp"></div>
+  return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect"><span class="full">${section}</span>${TITLE_SHORT[section] ? `<span class="short">${TITLE_SHORT[section]}</span>` : ""}</span>` : ""}<div class="sp"></div><button class="stopbtn" id="stopBtn" type="button" hidden>Stop</button><div class="sp"></div>
 <div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a><button class="iconbtn moretop" type="button" id="moreTop" aria-label="Menu">${icon("more")}</button></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
