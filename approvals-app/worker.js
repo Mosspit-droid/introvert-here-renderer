@@ -776,6 +776,9 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile.primary{background:#3a3a36;border-color:rgba(242,240,235,.7);color:var(--text)}
 .tile.primary:hover{border-color:var(--frame)}
 .tile.primary .st{color:#c9c6bf}.tile.primary .st b{color:var(--text)}
+.tile.hot{border-color:#e0605a;background:rgba(150,40,34,.32)}.tile.hot:hover{border-color:#ff8a85}
+.tile.hot .ic{background:#e0605a;color:#fff}
+.hotb{position:absolute;right:14px;top:14px;min-width:30px;height:30px;padding:0 9px;border-radius:99px;background:#e0605a;color:#fff;font:800 13px var(--display);display:grid;place-items:center;letter-spacing:.04em}
 .need{position:relative}.nread{margin-left:auto;flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 .ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1585,7 +1588,9 @@ async function dashboardPage(env) {
   const dismissed = (await env.PENDING.get("dismissed", "json")) || {};
   const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
   const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
-  const tile = (href, ic, nm, st, primary) => `<a class="tile${primary ? " primary" : ""}" href="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`;
+  // A tile turns red while its area needs attention, with the count as a badge (Barry, 14 Nov).
+  const tile = (href, ic, nm, st, primary) => { const n = (typeof HOT === "object" && HOT[href]) || 0;
+    return `<a class="tile${primary ? " primary" : ""}${n ? " hot" : ""}" href="${href}" data-tile="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${n ? `<span class="hotb">${n === true ? "!" : n}</span>` : primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`; };
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
   // Last planned release per range. The gags summary is re-sent whenever Core changes,
   // so use it when it is newer than the once-a-day summary.
@@ -1651,6 +1656,9 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
       prog = `<h2>In progress</h2><div class="card progc">${upd}${vid}</div>`;
     }
   }
+  const creditPct = credits && credits.used && credits.limit ? credits.used / credits.limit : 0;
+  var HOT = { "/approvals": pending.length, "/orders": toSend.length, "/tags": tagsDue.length, "/gags": lowRanges.length,
+    "/amend": watch.warned && busy.length ? busy.length : 0, "/credits": creditPct >= 0.85 ? Math.round(creditPct * 100) + "%" : 0 };
   return shell(`
 ${topBar("Dashboard")}
 <style>.progc{display:flex;flex-direction:column;gap:16px;margin-bottom:8px}.prow2{display:block;color:var(--text);text-decoration:none}
@@ -1704,6 +1712,7 @@ document.addEventListener("click", function (e) { var b = e.target.closest(".nre
 fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
   if (!g || !g.all || typeof gagIssues !== "function") return;
   var iss = gagIssues(g); if (!iss.length) return;
+  var ct = document.querySelector('[data-tile="/check"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); }
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var gt = "Gag problem" + (iss.length === 1 ? "" : "s") + " to fix", gs = (iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80), sig = iss.length + "|" + gs;
   if ((window.DISMISSED || {})[gt] === sig) return;
