@@ -827,6 +827,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 /* more sheet */
 .sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:none;align-items:flex-end}
 .sheet.open{display:flex}
+@media (min-width:761px){#sheet{justify-content:center}#sheet .pane{max-width:820px;grid-template-columns:repeat(4,1fr);border-radius:20px 20px 0 0}}
 .sheet .pane{width:100%;background:#141413;border-top:2px solid var(--frame);border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sheet .pane a{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px;border:1.5px solid var(--line);border-radius:14px;text-decoration:none;color:var(--text);font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase}
 .sheet .pane a svg{width:28px;height:28px}
@@ -862,7 +863,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .toast.bad{background:var(--warn)}
 @media (min-width:761px){.toast{bottom:28px}}
 @media (max-width:760px){
-  .tabbar{display:block}
+  .tabbar{display:block}.moretop{display:none!important}
   .topbar .when{display:none}
   .topbar .home img{height:38px}
   .topbar .sect{font-size:17px;padding-left:12px}
@@ -963,6 +964,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   if (on) on.classList.add("on"); else if (p !== "/") document.getElementById("moreBtn").classList.add("on");
   var sh = document.getElementById("sheet");
   document.getElementById("moreBtn").addEventListener("click", function (e) { e.preventDefault(); sh.classList.add("open"); });
+  var mt = document.getElementById("moreTop"); if (mt) mt.addEventListener("click", function () { sh.classList.add("open"); });
   sh.addEventListener("click", function (e) { if (e.target === sh) sh.classList.remove("open"); });
   var n = document.body.dataset.alerts; if (n && Number(n) > 0) { var b = document.querySelector('.tabbar [data-tab="/"]'); }
   // Find a gag (search button in the top bar)
@@ -1059,7 +1061,7 @@ const TOP_PAGES = ["/week", "/", "/todo", "/approvals", "/gags", "/tags", "/stat
 function topBar(section = "") {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
   return `<div class="topbar"><a class="home" href="/" aria-label="Dashboard"><img id="logo" src="/assets/brand-ih-wide.png?v=2" alt="Introvert Here"><img class="mark" src="/assets/icon3-192.png" alt="Introvert Here"></a>${section ? `<span class="sect">${section}</span>` : ""}<div class="sp"></div><button class="stopbtn" id="stopBtn" type="button" hidden>Stop</button><div class="sp"></div>
-<div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a></div>`;
+<div class="when"><b>Studio</b>${esc(today)}</div><button class="iconbtn" type="button" id="findBtn" aria-label="Find a gag">${icon("search")}</button><a class="iconbtn" href="/alerts" aria-label="Alerts">${icon("bell")}</a><button class="iconbtn moretop" type="button" id="moreTop" aria-label="Menu">${icon("more")}</button></div>`;
 }
 // Page header. Links to other app pages are dropped (the dashboard and bottom bar do that now); page buttons stay.
 function brandHeader(title, actions = "") {
