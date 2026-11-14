@@ -772,12 +772,10 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile .st b{color:var(--text);font-weight:600}
 .tile .dots{position:absolute;right:14px;top:16px;display:flex;gap:5px;padding:5px 8px;border:1.5px solid rgba(242,240,235,.4);border-radius:99px}
 .tile .dots i{width:5px;height:5px;border-radius:50%;background:rgba(242,240,235,.55)}
-/* Most-used tiles (the four corners): black on white, like the logo box. */
-.tile.primary{background:var(--frame);border-color:var(--frame);color:#0d0d0c;backdrop-filter:none;-webkit-backdrop-filter:none}
-.tile.primary:hover{border-color:#fff}
-.tile.primary .ic{background:#0d0d0c;color:var(--frame)}
-.tile.primary .st{color:#3a3a37}.tile.primary .st b{color:#0d0d0c}
-.tile.primary .dots{border-color:rgba(13,13,12,.35)}.tile.primary .dots i{background:rgba(13,13,12,.55)}
+/* Most-used tiles (the four corners): soft grey so they stand out without glare. */
+.tile.primary{background:#3a3a36;border-color:rgba(242,240,235,.7);color:var(--text)}
+.tile.primary:hover{border-color:var(--frame)}
+.tile.primary .st{color:#c9c6bf}.tile.primary .st b{color:var(--text)}
 .need{position:relative}.nread{margin-left:auto;flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 .ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
