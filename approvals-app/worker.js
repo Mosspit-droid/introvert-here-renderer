@@ -107,6 +107,8 @@ export default {
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
+      if (pathname === "/health" && method === "GET") return authed ? await healthPage(env) : redirect("/");
+      if (pathname === "/today" && method === "GET") return authed ? await todayPage(env) : redirect("/");
       if (pathname === "/calendar" && method === "GET") {
         return authed ? await calendarPage(env) : redirect("/");
       }
@@ -147,6 +149,10 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
+      if (pathname === "/api/ideas") return await ideasApi(request, env);
+      if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
+      if (pathname === "/api/search-data" && method === "GET") return await searchData(env);
+      if (pathname === "/api/notify-test" && method === "POST") { await notify(env, url.origin, "Test from your app", "Phone notifications are working.", "bell"); return json({ ok: !!env.NTFY_TOPIC }); }
       if (pathname === "/api/dismiss" && method === "POST") { const d = await request.json().catch(() => ({})); const m = (await env.PENDING.get("dismissed", "json")) || {}; m[str(d.k).slice(0, 80)] = str(d.sig).slice(0, 200); await env.PENDING.put("dismissed", JSON.stringify(m)); return json({ ok: true }); }
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
@@ -436,6 +442,14 @@ async function daily(request, env, ctx, url) {
     runway: data.runway || [],
   }));
 
+  // Release-day confirmation (Barry, 14 Nov): the 8am build should have made today's listings by now.
+  const todaysRel = (data.upcoming || []).filter((u) => u.date === today);
+  if (todaysRel.length && !(st.relDay === today)) {
+    st.relDay = today; await env.PENDING.put("daily-state", JSON.stringify(st));
+    const missing = todaysRel.filter((u) => !u.built);
+    if (missing.length) fresh.push({ title: "Today's release didn't build: " + missing.map((u) => u.gag + " " + garmentName(u.type)).join(", "), body: "It was due today but isn't on Etsy yet. Check Make's Build Next Listing scenario (or ask Claude). It will build at the next run once fixed.", link: url.origin + "/calendar", source: "Release check" });
+    else ctx.waitUntil(notify(env, url.origin, "Today's release is live", todaysRel.map((u) => u.gag + " " + garmentName(u.type) + (u.title ? " (" + u.title + ")" : "")).join(", "), "white_check_mark", "low"));
+  }
   if (fresh.length) {
     const alerts = await loadAlerts(env);
     for (const a of fresh.reverse()) alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), ...a });
@@ -890,7 +904,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
-const NAV_MORE = [["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -912,7 +926,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="sheet stopsheet" id="stopSheet"><div class="pane" style="max-width:560px;margin:0 auto;display:block"><div style="font:800 18px var(--display)" id="stopT">Emergency stop</div><div class="small" id="stopB" style="margin-top:6px"></div><div id="stopOpts"></div><button class="btn" type="button" id="stopNo" style="width:100%;margin-top:12px">Never mind</button></div></div>
 <div class="sheet find" id="rlist"><div class="pane findpane"><div class="findbar"><b id="rlT" style="flex:1;font:800 16px var(--display)">Gags</b><button class="btn" id="rlS" type="button">Swap</button><button class="btn" id="rlX" type="button">Close</button></div><div class="small" id="rlHelp" style="margin:0 0 8px">Green live · amber releasing within 2 weeks · red scheduled later. Tap a gag to edit it.</div><div id="rlBar" class="rlbar" hidden></div><div id="rlR" class="findr"></div></div></div>
-<div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find a gag: ID, title, any word of the gag" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
+<div class="sheet find" id="find"><div class="pane findpane"><div class="findbar">${icon("search")}<input id="findQ" placeholder="Find anything: a gag, page, to-do, order or listing" autocomplete="off" enterkeyhint="search"><button class="btn" id="findX" type="button">Close</button></div><div id="findR" class="findr"></div></div></div>
 <script>
 (function () {
   // Emergency stop button (centre of the top bar).
@@ -952,7 +966,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
   sh.addEventListener("click", function (e) { if (e.target === sh) sh.classList.remove("open"); });
   var n = document.body.dataset.alerts; if (n && Number(n) > 0) { var b = document.querySelector('.tabbar [data-tab="/"]'); }
   // Find a gag (search button in the top bar)
-  var F = document.getElementById("find"), FQ = document.getElementById("findQ"), FR = document.getElementById("findR"), data = null;
+  var F = document.getElementById("find"), FQ = document.getElementById("findQ"), FR = document.getElementById("findR"), data = null, SX = null;
   function esc2(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   // Live (green), releasing within 2 weeks or part-released (amber), scheduled later (red).
   function gagState(g, d) {
@@ -972,10 +986,14 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     if (!data) { FR.innerHTML = '<p class="small">Loading…</p>'; return; }
     var cats = {}; (data.editable || []).forEach(function (e) { cats[e.id] = e.category || ""; });
     var hits = (data.all || []).filter(function (g) { return !q || (g.id + " " + g.stem + " " + g.text + " " + (cats[g.id] || "")).toLowerCase().indexOf(q) >= 0; }).slice(0, 40);
-    FR.innerHTML = hits.length ? hits.map(function (g) { var st = gagState(g, data); return '<a class="fr st-' + st.c + '" href="/gag/' + encodeURIComponent(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><b>' + esc2(g.stem || "") + ' <span class="stpill">' + esc2(st.t) + '</span></b><span class="frt">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span></a>'; }).join("") : '<p class="small">No gags match “' + esc2(FQ.value) + '”.</p>';
+    var other = q ? (SX || []).filter(function (x) { return (x.k + " " + x.t).toLowerCase().indexOf(q) >= 0; }).slice(0, 15) : [];
+    var otherHtml = other.map(function (x) { return '<a class="fr" href="' + esc2(x.h) + '"' + (x.h.indexOf("http") === 0 ? ' target="_blank" rel="noopener"' : "") + '><span class="frid">' + esc2(x.k) + "</span><b>" + esc2(x.t) + "</b></a>"; }).join("");
+    if (!hits.length && otherHtml) { FR.innerHTML = otherHtml; return; }
+    FR.innerHTML = (otherHtml ? otherHtml : "") + (hits.length ? hits.map(function (g) { var st = gagState(g, data); return '<a class="fr st-' + st.c + '" href="/gag/' + encodeURIComponent(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><b>' + esc2(g.stem || "") + ' <span class="stpill">' + esc2(st.t) + '</span></b><span class="frt">' + esc2(String(g.text || "").replace(/\\s+/g, " ")) + '</span></a>'; }).join("") : '<p class="small">No gags match “' + esc2(FQ.value) + '”.</p>');
   }
   var fb = document.getElementById("findBtn");
   if (fb) fb.addEventListener("click", function () { F.classList.add("open"); setTimeout(function () { FQ.focus(); }, 50);
+    if (!SX) fetch("/api/search-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { SX = (d && d.items) || []; run(); }).catch(function () { SX = []; });
     if (!data) fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { data = d || { all: [] }; run(); }); else run(); });
   document.getElementById("findX").addEventListener("click", function () { F.classList.remove("open"); });
   F.addEventListener("click", function (e) { if (e.target === F) F.classList.remove("open"); });
@@ -1658,6 +1676,9 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
     }
   }
   const creditPct = credits && credits.used && credits.limit ? credits.used / credits.limit : 0;
+  const londonDay = new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" });
+  const isSunday = londonDay === "Sunday", health = isSunday ? await healthIssues(env) : { issues: [] };
+  const sale = salesReminder(new Date().toISOString().slice(0, 10));
   var HOT = { "/approvals": pending.length, "/orders": toSend.length, "/tags": tagsDue.length, "/gags": lowRanges.length,
     "/amend": watch.warned && busy.length ? busy.length : 0, "/credits": creditPct >= 0.85 ? Math.round(creditPct * 100) + "%" : 0 };
   return shell(`
@@ -1669,13 +1690,15 @@ ${trial ? `<h2>Waiting for you</h2>${trialCard(trial, amend)}` : ""}
 ${prog}
 ${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 (new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" }) === "Saturday" ? need("warn", weekReleases(gags).length, "Check next week's releases", "Read through the gags going out in the next 7 days", "/week") : "") +
-need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts"),
+need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts") +
+(sale ? need("warn", sale.days || "!", sale.name + (sale.days ? " in " + sale.days + " day" + (sale.days === 1 ? "" : "s") : " is today"), "Worth an Etsy sale or discount code? Shop Manager → Marketing → Sales and discounts", "https://www.etsy.com/your/shops/me/sales-discounts") : "") +
+(isSunday ? need(health.issues.length ? "warn" : "run", health.issues.length || "✓", "Weekly check", health.issues.length ? esc(health.issues[0].t) + (health.issues.length > 1 ? " and " + (health.issues.length - 1) + " more" : "") : "Next two weeks look ready", "/health") : ""),
 (watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned || showProg ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
 need("warn", toSend.length, "Orders to send", toSend.length ? "Waiting for you" : "All caught up", "/orders"),
 need("warn", tagsDue.length, "Tags to fix", tagsDue.length ? esc(tagsDue.slice(0, 2).map((t) => t.titleStem || t.id).join(", ")) + (tagsDue.length > 2 ? " and " + (tagsDue.length - 2) + " more" : "") + " · releasing this week" : "", "/tags"),
 need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (lowRanges.length === 1 ? " runs out" : " run out") + " within a week", "/gags")].join("");
   return cards ? `<h2>Needs you</h2><div class="needs">${cards}</div>` : `<div class="allclear">${icon("check")}<span><b>All caught up</b>Nothing needs you right now.</span></div>`; })()}
-<h2>Today</h2>
+<h2>Today <a class="small" href="/today" style="margin-left:auto;letter-spacing:.08em">Today view ›</a></h2>
 ${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
@@ -2130,6 +2153,8 @@ async function gagsPage(env) {
   // Gags the Best season option must never bump: already placed for an occasion, or tags approved/frozen.
   const locks = (await env.PENDING.get("season-locks", "json")) || {};
   const tagItems = (((await env.PENDING.get("tags", "json")) || {}).items) || [];
+  const poolsKV = (await env.PENDING.get(POOLS_KEY, "json")) || { tag: [] };
+  const catWords = {}; poolsKV.tag.forEach((x) => { if (x.on && x.g === "GAG") (catWords[x.p] = catWords[x.p] || []).push(x.t); });
   const lockIds = Array.from(new Set([...Object.keys(locks), ...tagItems.filter((t) => t.approved === true || t.approved === "True" || t.frozen).map((t) => t.id)]));
   if (g) g.categories = Array.from(new Set([...(g.categories || []), ...Object.values(catMap).flat()]));
   const saves = await loadSaves(env);
@@ -2151,7 +2176,8 @@ ${brandHeader("Gags")}
     <div class="tabs o-tabs"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
     <div class="card g-text o-text"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="spell"></div></div>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
+      <details id="ideasBox" class="ideas"><summary>Ideas inbox <span id="ideasN" class="small"></span></summary><div id="ideasL"></div></details></div>
     <div class="card g-side">
       <div class="fld o-range"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div></div>
@@ -2164,7 +2190,7 @@ ${brandHeader("Gags")}
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
-      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button></div>
+      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button><button class="btn" type="button" id="ideaSave">Save as idea</button></div>
     </div>
   </div>
 </form>
@@ -2174,6 +2200,10 @@ ${brandHeader("Gags")}
   .gwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);grid-template-areas:"R L" "acts L";grid-template-rows:auto 1fr;gap:16px;align-items:start;margin-top:4px}
   .gacts{grid-area:acts;display:flex;gap:8px;flex-wrap:wrap}.gacts .btn{flex:1}
   .gL{grid-area:L}.gR{grid-area:R}
+  .warnbox{margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(230,180,80,.14);border:1px solid rgba(230,180,80,.5);font-size:14px}.warnbox a{color:var(--text)}
+  .ideas{margin-top:12px}.ideas summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:6px 0}
+  .idea{display:flex;gap:8px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}.idea .itx{flex:1;font-size:14px}.idea .btn{width:auto;min-height:40px;padding:0 12px}
+  .chip.sugg::after{content:" · suggested";font-weight:400;opacity:.7}
   /* Preview stays pinned under the header while the rest scrolls beneath it. */
   .gL .g-prev{position:sticky;top:var(--stick,calc(62px + env(safe-area-inset-top,0px)));z-index:15}
   /* The whole preview card is the black print area; the gag sits in it with margins (Barry, 13 Nov). */
@@ -2236,9 +2266,11 @@ ${brandHeader("Gags")}
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
 window.SEASON_LOCK = ${JSON.stringify(lockIds)};
+window.CAT_WORDS = ${JSON.stringify(catWords).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_SEASON_SCRIPT}
+${GAG_EXTRA_SCRIPT}
 ${GAG_LAMPS_SCRIPT}</script>`);
 }
 
@@ -2251,6 +2283,44 @@ const GAG_LAMPS_SCRIPT = String.raw`(function () {
     new MutationObserver(upd).observe(src, { childList: true, subtree: true, characterData: true }); upd();
   }
   watch("pwarn", "lFit"); watch("spell", "lSpell");
+})();`;
+
+// Gag tool extras (Barry, 14 Nov): ideas inbox, "very similar" warning while typing, category suggestion.
+const GAG_EXTRA_SCRIPT = String.raw`(function () {
+  var tx = $("text"), STOP = " the and you your are was not but that this for with have just what when then them they its it's i'm i've don't can't too all any our out who how why off one get got been into from about would could there their here very much more some like ";
+  function words(t) { return String(t || "").toLowerCase().replace(/[^a-z' ]/g, " ").split(" ").filter(function (w) { return w.length > 2 && STOP.indexOf(" " + w + " ") < 0; }); }
+  function esc3(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  // 1. Very similar gags, checked as you type.
+  var dupT = null;
+  function dup() { var box = $("dupwarn"); if (!box) return; var w = words(tx.value); if (w.length < 3 || !G || !G.all) { box.innerHTML = ""; return; }
+    var set = {}; w.forEach(function (x) { set[x] = 1; }); var me = (typeof editing !== "undefined" && editing) ? editing.id : "";
+    var hits = G.all.map(function (g) { if (g.id === me) return null; var o = words(g.text); if (o.length < 3) return null; var os = {}, inter = 0; o.forEach(function (x) { os[x] = 1; });
+      Object.keys(os).forEach(function (x) { if (set[x]) inter++; }); var uni = Object.keys(set).length + Object.keys(os).length - inter; var sc = uni ? inter / uni : 0; return sc >= 0.5 ? { g: g, sc: sc } : null; })
+      .filter(Boolean).sort(function (a, b) { return b.sc - a.sc; }).slice(0, 2);
+    box.innerHTML = hits.length ? '<div class="warnbox">Very similar to ' + hits.map(function (h) { return '<a href="/gag/' + encodeURIComponent(h.g.id) + '" target="_blank">' + esc3(h.g.id) + "</a> (" + Math.round(h.sc * 100) + "% the same words): “" + esc3(String(h.g.text).split("\n").join(" ").slice(0, 70)) + "”"; }).join("; ") + "</div>" : ""; }
+  tx.addEventListener("input", function () { clearTimeout(dupT); dupT = setTimeout(function () { dup(); suggest(); }, 450); });
+  // 2. Category suggestion from the gag's words and each category's tag phrases.
+  var userPicked = false, suggested = "";
+  $("catChips").addEventListener("click", function (e) { if (e.target.closest("[data-c]")) userPicked = true; });
+  $("collection").addEventListener("change", function () { userPicked = false; suggested = ""; setTimeout(suggest, 0); });
+  function suggest() { var c = $("collection").value, cat = $("category"); if (!c || userPicked || (typeof mode !== "undefined" && mode === "edit")) return;
+    var cats = (window.GAG_CATS || {})[c] || []; var w = words(tx.value); if (w.length < 2) return;
+    var best = null; cats.forEach(function (k) { var vocab = words(k + " " + ((window.CAT_WORDS || {})[k] || []).join(" ")), vs = {}, sc = 0; vocab.forEach(function (x) { vs[x] = 1; vs[x.replace(/s$/, "")] = 1; });
+      w.forEach(function (x) { if (vs[x] || vs[x.replace(/s$/, "")]) sc++; }); if (sc > 0 && (!best || sc > best.sc)) best = { k: k, sc: sc }; });
+    if (best && best.k !== cat.value) { suggested = best.k; cat.value = best.k; cat.dispatchEvent(new Event("change", { bubbles: true })); var chips = document.querySelectorAll("#catChips [data-c]");
+      chips.forEach(function (b) { b.classList.toggle("on", b.dataset.c === best.k); b.classList.toggle("sugg", b.dataset.c === best.k); }); }
+  }
+  // 3. Ideas inbox.
+  var IL = [];
+  function drawIdeas() { $("ideasN").textContent = IL.length ? "(" + IL.length + ")" : "";
+    $("ideasL").innerHTML = IL.length ? IL.map(function (x) { return '<div class="idea"><div class="itx">' + esc3(x.text).split("\n").join("<br>") + (x.note ? '<div class="small">' + esc3(x.note) + "</div>" : "") + '</div><button type="button" class="btn" data-iuse="' + x.id + '">Use</button><button type="button" class="btn" data-idel="' + x.id + '">×</button></div>'; }).join("") : '<p class="small">No ideas saved. Type a half-finished gag and tap Save as idea.</p>'; }
+  function ideas(b) { return fetch("/api/ideas", b ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) } : {}).then(function (r) { return r.json().then(function (o) { if (!r.ok) throw new Error(o.error || "Failed"); return o; }); }); }
+  ideas().then(function (l) { IL = l || []; drawIdeas(); }).catch(function () {});
+  $("ideaSave").addEventListener("click", function () { ideas({ action: "add", text: tx.value, note: $("stem").value, range: $("collection").value }).then(function (o) { IL = o.ideas; drawIdeas(); $("ideasBox").open = true; toast("Saved to your ideas"); }).catch(function (e) { toast(e.message, true); }); });
+  $("ideasL").addEventListener("click", function (e) { var u = e.target.closest("[data-iuse]"), d = e.target.closest("[data-idel]");
+    if (u) { var x = IL.filter(function (i) { return i.id === u.dataset.iuse; })[0]; if (!x) return; if (tx.value.trim() && tx.value.trim() !== "..." && !confirm("Replace what's in the gag box?")) return;
+      tx.value = x.text; tx.dispatchEvent(new Event("input", { bubbles: true })); if (x.note && !$("stem").value) $("stem").value = x.note; toast("Loaded. It stays in your ideas until you remove it."); }
+    if (d) ideas({ action: "remove", id: d.dataset.idel }).then(function (o) { IL = o.ideas; drawIdeas(); }); });
 })();`;
 
 // "Best season" (Barry, 14 Nov): pick an occasion and the gag goes into the best slot of its range,
@@ -2929,6 +2999,8 @@ ${tile("Sales", money(revenue))}
 ${trend}
 <style>.tkey{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--muted)}.tkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}</style>
 ${plannerStatsHtml(planner, tile)}
+${workingHtml(st, hist)}
+${await priceTestsHtml(env, st, hist)}
 <h2>By gag</h2>
 <div class="sorts">${sortBtn("views", "Most views")}${sortBtn("recent", "Most views lately")}${sortBtn("favs", "Most favourites")}${sortBtn("sales", "Most sold")}</div>
 <div class="card list">${gagRows || `<div class="small">Nothing live yet.</div>`}</div>
@@ -3349,6 +3421,175 @@ ${brandHeader("Calendar")}
 </script>`);
 }
 
+// "What's working": plain-English pointers from the daily Etsy numbers (Barry, 14 Nov).
+function workingHtml(st, hist) {
+  const live = (st.listings || []).filter((l) => l.listingId);
+  if (live.length < 4) return "";
+  const days = Object.keys(hist || {}).sort(), last = days[days.length - 1], wk = days.filter((d) => d <= addDays(last, -7)).pop();
+  const recent = (code) => (last && wk && hist[last][code] && hist[wk][code]) ? hist[last][code][0] - hist[wk][code][0] : null;
+  const RN = { IH: "Introvert Here", SH: "SHHH.", PC: "Per Contract", OS: "Off The Shelf" };
+  const avgBy = (keyFn) => { const m = {}; live.forEach((l) => { const k = keyFn(l); (m[k] = m[k] || { v: 0, n: 0, f: 0 }); m[k].v += l.views || 0; m[k].f += l.favs || 0; m[k].n++; });
+    return Object.entries(m).map(([k, x]) => ({ k, avg: x.v / x.n, favs: x.f, n: x.n })).sort((a, b) => b.avg - a.avg); };
+  const rng = avgBy((l) => l.code.slice(0, 2)), gar = avgBy((l) => l.type);
+  const hot = live.map((l) => ({ l, r: recent(l.code) })).filter((x) => x.r !== null && x.r > 0).sort((a, b) => b.r - a.r).slice(0, 3);
+  const colours = {}; (st.orders || []).forEach((o) => { const c = String(o.variant || "").split("/")[0].trim(); if (c) colours[c] = (colours[c] || 0) + (Number(o.qty) || 1); });
+  const col = Object.entries(colours).sort((a, b) => b[1] - a[1]);
+  const li = [];
+  if (rng.length > 1) li.push(`<b>${esc(RN[rng[0].k] || rng[0].k)}</b> gets the most views per listing (${rng[0].avg.toFixed(1)}), ${rng.length > 1 ? "then " + esc(RN[rng[1].k] || rng[1].k) + " (" + rng[1].avg.toFixed(1) + ")" : ""}.`);
+  if (gar.length > 1) li.push(`<b>${esc(garmentName(gar[0].k))}</b> listings get the most views on average (${gar[0].avg.toFixed(1)}); ${esc(garmentName(gar[gar.length - 1].k))} the fewest (${gar[gar.length - 1].avg.toFixed(1)}).`);
+  if (hot.length) li.push(`Busiest this week: ${hot.map((x) => `<b>${esc(x.l.stem || x.l.code)}</b> ${esc(garmentName(x.l.type))} (+${x.r})`).join(", ")}.`);
+  if (col.length) li.push(`Colours sold so far: ${col.map(([c, n]) => esc(c) + " ×" + n).join(", ")}.`);
+  return li.length ? `<h2>What's working</h2><div class="card"><ul style="margin:0;padding-left:20px;line-height:1.7">${li.map((x) => "<li>" + x + "</li>").join("")}</ul><p class="small" style="margin-bottom:0">Small numbers early on, so treat these as hints rather than rules.</p></div>` : "";
+}
+async function priceTestsHtml(env, st, hist) {
+  const tests = (await env.PENDING.get(PRICE_TESTS_KEY, "json")) || [];
+  const live = (st.listings || []).filter((l) => l.listingId);
+  const combos = []; live.forEach((l) => { const k = l.coll + "|" + l.type; if (!combos.includes(k)) combos.push(k); });
+  const days = Object.keys(hist || {}).sort();
+  const perDay = (t, from, to) => { const ds = days.filter((d) => d >= from && d <= to); if (ds.length < 2) return null;
+    const codes = live.filter((l) => l.coll === t.coll && l.type === t.type).map((l) => l.code);
+    const v = (d) => codes.reduce((a, c) => a + (((hist[d] || {})[c] || [0])[0] || 0), 0);
+    return (v(ds[ds.length - 1]) - v(ds[0])) / Math.max(1, (Date.parse(ds[ds.length - 1]) - Date.parse(ds[0])) / 864e5); };
+  const sold = (t, from, to) => (st.orders || []).filter((o) => o.code && o.code.indexOf("-" + t.type) > 0 && o.date >= from && o.date <= to).length;
+  const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = tests.map((t) => { const end = t.end || today, before = perDay(t, addDays(t.start, -14), t.start), after = perDay(t, t.start, end);
+    const cur = live.find((l) => l.coll === t.coll && l.type === t.type);
+    return `<div class="setrow" style="display:flex;gap:12px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding:12px 0"><div><b>${esc(RN[t.coll] || t.coll)} · ${esc(garmentName(t.type))}</b> <span class="small">from ${esc(t.start)}${t.end ? " to " + esc(t.end) : " (running)"} · £${Number(t.oldPrice || 0).toFixed(2)} → £${Number(cur ? cur.price : 0).toFixed(2)}</span>
+      <div class="small">Views a day: ${before === null ? "—" : before.toFixed(1)} before → ${after === null ? "still collecting" : after.toFixed(1)} since · sales: ${sold(t, addDays(t.start, -14), t.start)} in the 2 weeks before, ${sold(t, t.start, end)} since${t.note ? " · " + esc(t.note) : ""}</div></div>
+      ${t.end ? "" : `<button class="btn" type="button" data-ptend="${esc(t.id)}" style="width:auto">End test</button>`}</div>`; }).join("");
+  return `<h2>Price tests</h2><div class="card"><p class="small" style="margin-top:0">Change a price on the Pricing page, then start a test here. It compares views and sales from the two weeks before with the time since, for that range and garment.</p>
+  ${rows || ""}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><select id="ptC" style="flex:1;min-width:200px">${combos.map((k) => { const [c, t] = k.split("|"); return `<option value="${esc(k)}">${esc(RN[c] || c)} · ${esc(garmentName(t))}</option>`; }).join("")}</select>
+  <input id="ptN" placeholder="Note (e.g. £24.99 instead of £26.99)" style="flex:2;min-width:200px"><button class="btn-main" id="ptGo" type="button" style="width:auto;padding:0 22px">Start test</button></div></div>
+  <script>(function () { function post(b) { return fetch("/api/price-test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(function (r) { return r.json().then(function (o) { if (!r.ok) throw new Error(o.error || "Failed"); return o; }); }); }
+    var g = document.getElementById("ptGo"); if (g) g.onclick = function () { var k = document.getElementById("ptC").value.split("|"); post({ action: "start", coll: k[0], type: k[1], note: document.getElementById("ptN").value }).then(function () { location.reload(); }).catch(function (e) { toast(e.message, true); }); };
+    document.querySelectorAll("[data-ptend]").forEach(function (b) { b.onclick = function () { post({ action: "end", id: b.dataset.ptend }).then(function () { location.reload(); }); }; }); })();</script>`;
+}
+
+// ---------- Improvements batch (Barry, 14 Nov) ----------
+// Sales dates worth a sale or a push: reminder card from 21 days before.
+function salesEvents(y) {
+  const U = (m, d) => new Date(Date.UTC(y, m, d));
+  const nthDow = (m, wd, n) => { const d = U(m, 1); return U(m, 1 + ((wd - d.getUTCDay() + 7) % 7) + 7 * (n - 1)); };
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, dd = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - dd - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const easter = U(Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+  const tg = nthDow(10, 4, 4);
+  return [["Valentine's Day", U(1, 14)], ["Mothering Sunday", new Date(easter.getTime() - 21 * 864e5)], ["Father's Day", nthDow(5, 0, 3)],
+    ["Black Friday", new Date(tg.getTime() + 864e5)], ["Christmas (last safe order)", U(11, 10)]].map(([n, d]) => ({ name: n, date: d.toISOString().slice(0, 10) }));
+}
+function salesReminder(today) {
+  const y = Number(today.slice(0, 4));
+  const t = Date.parse(today + "T00:00:00Z");
+  return [...salesEvents(y), ...salesEvents(y + 1)].map((e) => ({ ...e, days: Math.round((Date.parse(e.date + "T00:00:00Z") - t) / 864e5) })).filter((e) => e.days >= 0 && e.days <= 21).sort((a, b) => a.days - b.days)[0] || null;
+}
+
+// Weekly health check (Sundays on the dashboard, any time at /health).
+async function healthIssues(env) {
+  const [g, tags, amend, credits, watch, alerts, daily] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("tags", "json"), env.PENDING.get("amend", "json"),
+    env.PENDING.get("credits", "json"), env.PENDING.get("amend-watch", "json"), loadAlerts(env), env.PENDING.get("daily", "json")]);
+  const out = [], today = new Date().toISOString().slice(0, 10), in14 = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+  const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+  const COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
+  const pages = (amend && amend.pages) || [], items = (tags && tags.items) || [];
+  const due = [];
+  ((g && g.sched) || []).forEach((e) => (e.d || []).forEach((d, i) => { if (d && d >= today && d <= in14 && !(e.b && e.b[i])) due.push({ id: e.id, type: TY[i], date: d }); }));
+  const noPages = new Set();
+  due.forEach((r) => { const n = pages.filter((p) => p.coll === COLL[r.id.slice(0, 2)] && p.type === r.type).length; if (n < 10) noPages.add(r.id.slice(0, 2) + " " + garmentName(r.type) + " (" + n + " pages)"); });
+  if (noPages.size) out.push({ level: "bad", t: "Mockup pages look short", s: "Releasing in the next 2 weeks with fewer than 10 photo pages listed: " + [...noPages].join(", ") + ". Check Settings → Mockup pages.", href: "/settings" });
+  const ids = [...new Set(due.map((r) => r.id))];
+  const tagBad = items.filter((t) => ids.includes(t.id) && !t.approved && (t.stemProblem || String(t.band || "").toUpperCase() === "RED"));
+  if (tagBad.length) out.push({ level: "bad", t: "Tags won't auto-approve", s: tagBad.map((t) => t.id + (t.stemProblem ? " (stem: " + t.stemProblem + ")" : " (overlap red)")).join(", ") + ". Fix on the Tags page or they'll be held.", href: "/tags" });
+  if (credits && credits.limit && credits.used) {
+    const days = Object.keys(credits.daily || {}).sort().slice(-8, -1), avg = days.reduce((a, k) => a + credits.daily[k], 0) / Math.max(1, days.length);
+    const start = Date.parse((credits.periodStart || today) + "T00:00:00Z"), reset = new Date(start); reset.setUTCMonth(reset.getUTCMonth() + 1);
+    const daysLeft = Math.max(0, (reset - Date.now()) / 864e5), runOut = avg > 0 ? (credits.limit - credits.used) / avg : 99;
+    if (runOut < daysLeft) out.push({ level: "bad", t: "Make credits may run out", s: "At about " + Math.round(avg).toLocaleString("en-GB") + " a day they'd last " + Math.floor(runOut) + " days, but the reset is in " + Math.ceil(daysLeft) + ".", href: "/credits" });
+  }
+  if (watch && watch.warned) out.push({ level: "bad", t: "A listing update is stuck", s: "Open Update listings and tap Restart.", href: "/amend" });
+  if (alerts.length) out.push({ level: "warn", t: alerts.length + " alert" + (alerts.length === 1 ? "" : "s") + " not dismissed", s: esc(alerts[0].title).slice(0, 80), href: "/alerts" });
+  ((daily && daily.runway) || []).forEach((r) => { const left = r.lastDate ? (Date.parse(r.lastDate) - Date.now()) / 864e5 : 0; if (left < 28) out.push({ level: "warn", t: "Running low: " + r.collection, s: "Written gags run out " + (r.lastDate ? "on " + r.lastDate : "now") + ".", href: "/gags" }); });
+  const unbuiltPast = ((g && g.sched) || []).flatMap((e) => (e.d || []).map((d, i) => (d && d < today && d >= new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10) && !(e.b && e.b[i]) ? e.id + " " + garmentName(TY[i]) + " (" + d + ")" : null))).filter(Boolean);
+  if (unbuiltPast.length) out.push({ level: "bad", t: "Releases from the last week not built", s: unbuiltPast.slice(0, 6).join(", ") + (unbuiltPast.length > 6 ? "…" : "") + ". Tap Sync to Core to refresh first; if they stay, ask Claude.", href: "/calendar" });
+  return { issues: out, due: due.length };
+}
+async function healthPage(env) {
+  const h = await healthIssues(env);
+  const row = (i) => `<a class="hrow ${i.level}" href="${i.href}"><b>${esc(i.t)}</b><span class="small">${i.s}</span></a>`;
+  return shell(`${brandHeader("Weekly check")}
+<style>.hrow{display:block;padding:14px 16px;border:1px solid var(--line);border-left:6px solid #e6b450;border-radius:12px;margin-bottom:10px;color:var(--text);text-decoration:none;background:var(--card)}.hrow.bad{border-left-color:#e0605a}.hrow b{display:block;font:700 16px var(--display);margin-bottom:4px}</style>
+<p class="small">Checks the next two weeks of releases (${h.due} garment${h.due === 1 ? "" : "s"} due), tags, mockup pages, Make credits, stuck updates, alerts and gag stock.</p>
+${h.issues.length ? h.issues.map(row).join("") : `<div class="allclear">${icon("check")}<span><b>All clear</b>Everything for the next two weeks looks ready.</span></div>`}`);
+}
+
+// Today view: the essentials on one phone screen.
+async function todayPage(env) {
+  const [g, daily, stats, hist, items, orders, alerts, tags] = await Promise.all([env.PENDING.get("gags", "json"), env.PENDING.get("daily", "json"), env.PENDING.get("stats", "json"),
+    env.PENDING.get("stats-hist", "json"), loadItems(env), env.PENDING.get("shop:orders", "json"), loadAlerts(env), env.PENDING.get("tags", "json")]);
+  const today = new Date().toISOString().slice(0, 10), tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+  const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"], rel = (day) => ((g && g.sched) || []).flatMap((e) => (e.d || []).map((d, i) => (d === day ? { id: e.id, s: e.s, t: TY[i], b: e.b && e.b[i] } : null))).filter(Boolean);
+  const pending = Object.values(items || {}).filter((i) => i.status === "pending"), toSend = (orders || []).filter((o) => o.status === "on-hold" || o.status === "failed");
+  const days = Object.keys(hist || {}).sort(), sum = (d) => Object.values((hist || {})[d] || {}).reduce((a, v) => a + (v[0] || 0), 0);
+  const viewsDelta = days.length >= 2 ? sum(days[days.length - 1]) - sum(days[days.length - 2]) : null;
+  const li = (r) => `<a class="trow" href="/gag/${encodeURIComponent(r.id)}"><span>${esc(r.id)} · ${esc(garmentName(r.t))}</span><span class="small">${esc(r.s || "")}${r.b ? " · ✓ built" : ""}</span></a>`;
+  const card = (n, t, href) => n ? `<a class="tneed" href="${href}"><b>${n}</b>${t}</a>` : "";
+  const needs = card(pending.length, "videos to approve", "/approvals") + card(toSend.length, "orders to send", "/orders") + card(alerts.length, "alerts", "/alerts");
+  return shell(`${brandHeader("Today")}
+<style>.tcol{display:grid;gap:16px;max-width:680px}.trow{display:flex;flex-direction:column;padding:12px 14px;border:1px solid var(--line);border-radius:12px;color:var(--text);text-decoration:none;margin-top:8px;background:var(--card)}
+.tneed{display:flex;align-items:center;gap:12px;padding:14px;border-radius:12px;background:rgba(150,40,34,.32);border:1px solid #e0605a;color:var(--text);text-decoration:none;margin-top:8px}.tneed b{font:900 26px var(--display)}
+.tbig2{font:900 34px var(--display)}</style>
+<div class="tcol">
+  <div class="card"><h2 style="margin-top:0">Needs you</h2>${needs || '<p class="small">Nothing. Enjoy the quiet.</p>'}</div>
+  <div class="card"><h2 style="margin-top:0">Releasing today</h2>${rel(today).map(li).join("") || '<p class="small">Nothing today.</p>'}<h2>Tomorrow</h2>${rel(tomorrow).map(li).join("") || '<p class="small">Nothing tomorrow.</p>'}</div>
+  <div class="card"><h2 style="margin-top:0">Listing views, last day</h2><div class="tbig2">${viewsDelta === null ? "—" : (viewsDelta >= 0 ? "+" : "") + viewsDelta}</div><p class="small">${stats ? stats.listings.filter((l) => l.listingId).length + " live listings" : ""}</p></div>
+  <a class="btn" href="/">Full dashboard</a>
+</div>`);
+}
+
+// Ideas inbox for half-finished gags.
+const IDEAS_KEY = "gag-ideas";
+async function ideasApi(request, env) {
+  const L = (await env.PENDING.get(IDEAS_KEY, "json")) || [];
+  if (request.method === "GET") return json(L);
+  const d = await request.json().catch(() => ({}));
+  if (d.action === "add") { const text = String(d.text || "").replace(/\r\n?/g, "\n").trim().slice(0, 600); if (!text || text === "...") return json({ error: "Type the idea first." }, 400);
+    L.unshift({ id: Date.now().toString(36), text, note: str(d.note).slice(0, 200), range: str(d.range), at: Date.now() }); }
+  else if (d.action === "remove") { const i = L.findIndex((x) => x.id === str(d.id)); if (i >= 0) L.splice(i, 1); }
+  else return json({ error: "Unknown request" }, 400);
+  await env.PENDING.put(IDEAS_KEY, JSON.stringify(L.slice(0, 300)));
+  return json({ ok: true, ideas: L });
+}
+
+// Price tests: note when a price changes and compare views/sales before and after.
+const PRICE_TESTS_KEY = "price-tests";
+async function priceTestApi(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const L = (await env.PENDING.get(PRICE_TESTS_KEY, "json")) || [];
+  if (d.action === "start") {
+    const st = await env.PENDING.get("stats", "json");
+    const ls = ((st && st.listings) || []).filter((l) => l.coll === str(d.coll) && l.type === str(d.type));
+    if (!ls.length) return json({ error: "No live listings for that range and garment yet." }, 400);
+    L.unshift({ id: Date.now().toString(36), coll: str(d.coll), type: str(d.type), start: new Date().toISOString().slice(0, 10), oldPrice: ls[0].price, note: str(d.note).slice(0, 200) });
+  } else if (d.action === "end") { const t = L.find((x) => x.id === str(d.id)); if (t) t.end = new Date().toISOString().slice(0, 10); }
+  else return json({ error: "Unknown request" }, 400);
+  await env.PENDING.put(PRICE_TESTS_KEY, JSON.stringify(L.slice(0, 30)));
+  return json({ ok: true });
+}
+
+// Everything the search sheet can find besides gags.
+async function searchData(env) {
+  const [todos, orders, stats] = await Promise.all([todoLoad(env), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats", "json")]);
+  const pages = [["Dashboard", "/"], ["Today", "/today"], ["Approvals", "/approvals"], ["Gags", "/gags"], ["Update listings", "/amend"], ["Calendar", "/calendar"], ["Stats", "/stats"],
+    ["Tags", "/tags"], ["Orders", "/orders"], ["Pricing", "/pricing"], ["Links", "/links"], ["Credits", "/credits"], ["Check Core", "/check"], ["Weekly check", "/health"], ["To-do", "/todo"], ["Alerts", "/alerts"],
+    ["Settings: tag system", "/settings"], ["Settings: gag categories", "/settings"], ["Settings: seasonal tags", "/settings"], ["Settings: mockup pages", "/settings"], ["Settings: product text", "/settings"],
+    ["Settings: phone notifications", "/settings"], ["Settings: recent changes / undo", "/settings"]].map(([t, h]) => ({ t, h, k: "Page" }));
+  const td = todos.filter((t) => !t.done).map((t) => ({ t: t.text, h: "/todo", k: "To-do" }));
+  const od = [...(orders || []).map((o) => ({ t: (o.name || o.customer || "Shop order") + " · " + (o.status || ""), h: "/orders", k: "Order" })),
+    ...(((stats && stats.orders) || []).map((o) => ({ t: o.title + " · " + o.variant + " · " + o.date, h: "/stats", k: "Etsy sale" })))];
+  const listings = ((stats && stats.listings) || []).filter((l) => l.listingId).map((l) => ({ t: l.code + " · " + (l.stem || ""), h: l.url, k: "Etsy listing" }));
+  return json({ items: [...pages, ...td, ...od, ...listings] });
+}
+
 // ---------- Settings (Barry, 13 Nov): things that used to be changed by hand in Core ----------
 // Writes go through the Amend helper's generic "apply" route (cell PATCHes), with the builder left alone.
 const SETTINGS_KEY = "core-settings";
@@ -3370,8 +3611,20 @@ const phraseOk = (t) => t.length >= 2 && t.length <= 20 && /^[a-z0-9 '\-]+$/.tes
 const splitPhrases = (v) => Array.from(new Set(String(v || "").split(/[\n,]+/).map((t) => t.trim().toLowerCase().replace(/\s+/g, " ")).filter(Boolean)));
 const poolRow = (cat, cls, t) => [cat, "GAG", cls, t, "Y", null, null, null, null];
 
+// Settings history with one-tap undo (Barry, 14 Nov). Each entry stores the request that puts things back.
+const SET_LOG_KEY = "settings-log";
+async function logSetting(env, label, undo) { const L = (await env.PENDING.get(SET_LOG_KEY, "json")) || []; L.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5), at: Date.now(), label, undo }); await env.PENDING.put(SET_LOG_KEY, JSON.stringify(L.slice(0, 40))); }
 async function settingsSave(request, env) {
-  const d = await request.json().catch(() => ({}));
+  const d0 = await request.json().catch(() => ({}));
+  let d = d0;
+  if (d0.kind === "undo") {
+    const L = (await env.PENDING.get(SET_LOG_KEY, "json")) || []; const e = L.find((x) => x.id === str(d0.id));
+    if (!e || !e.undo) return json({ error: "Nothing to undo there." }, 400);
+    d = Object.assign({ isUndo: true }, e.undo);
+    const r = await settingsSave(new Request("http://x", { method: "POST", body: JSON.stringify(d) }), env);
+    if (r.status === 200) { const L2 = ((await env.PENDING.get(SET_LOG_KEY, "json")) || []).filter((x) => x.id !== e.id); await env.PENDING.put(SET_LOG_KEY, JSON.stringify(L2)); }
+    return r;
+  }
   const ops = [];
   if (d.kind === "cat-add" || d.kind === "phrase-add") return await categorySave(d, env);
   if (["phrase-toggle", "season-toggle", "season-add"].includes(d.kind)) return await poolSave(d, env);
@@ -3387,11 +3640,14 @@ async function settingsSave(request, env) {
       if (k === "OverlapRed" && v <= Number(cs.OverlapAmber)) return json({ error: "Red has to be higher than amber (" + cs.OverlapAmber + ")." }, 400);
       if (k === "OverlapAmber" && v >= Number(cs.OverlapRed)) return json({ error: "Amber has to be lower than red (" + cs.OverlapRed + ")." }, 400); }
     ops.push({ url: `${AMEND_XL}/worksheets/TAG_SETTINGS/range(address='B${TAG_SETTING_ROW[k]}')`, values: [[v]] });
+    d.__log = [k + ": " + cs[k] + " → " + v, { kind: "tag", key: k, value: cs[k] }];
     cs[k] = v;
   } else if (d.kind === "rule") {
     S = await env.PENDING.get("amend", "json");
     rule = S && (S.rules || []).find((r) => String(r.row) === String(d.row));
     if (!rule) return json({ error: "That range and garment isn't in the app's copy of Core. Tap Sync to Core and try again." }, 400);
+    const oldRule = { kind: "rule", row: rule.row, tags: Array.isArray(rule.tags) ? rule.tags.slice() : [] }; RULE_TEXT.forEach(([k]) => { oldRule[k] = String(rule[k] || ""); });
+    d.__log = ["Product text: " + rule.coll + " " + garmentName(rule.type), oldRule];
     for (const [k] of RULE_TEXT) {
       if (d[k] === undefined) continue;
       const v = String(d[k]).replace(/\r\n?/g, "\n");
@@ -3412,6 +3668,7 @@ async function settingsSave(request, env) {
   if (err) return err;
   if (d.kind === "tag") await env.PENDING.put(SETTINGS_KEY, JSON.stringify(cs));
   else await env.PENDING.put("amend", JSON.stringify(S));
+  if (d.__log && !d.isUndo) await logSetting(env, d.__log[0], d.__log[1]);
   return json({ ok: true, settings: cs });
 }
 
@@ -3427,6 +3684,7 @@ async function poolSave(d, env) {
     if (!row) return json({ error: "That phrase isn't in the app's list. Reload and try again." }, 400);
     row.on = !!d.on;
     ops.push(amendCell(d.kind === "phrase-toggle" ? "TAG_POOL" : "SEASON_POOL", "ACTIVE", row.i, row.on ? "Y" : "N"));
+    if (!d.isUndo) d.__log = [(d.kind === "phrase-toggle" ? "Phrase" : "Seasonal phrase") + " \u201c" + row.t + "\u201d switched " + (row.on ? "on" : "off"), { kind: d.kind, i: row.i, on: !row.on }];
   } else {
     const t = String(d.t || "").trim().toLowerCase().replace(/\s+/g, " "), season = String(d.s || "").trim().toUpperCase().replace(/[^A-Z_ ]/g, "").replace(/ +/g, "_");
     const a = mmdd(d.a), e = mmdd(d.e);
@@ -3440,6 +3698,7 @@ async function poolSave(d, env) {
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
   if (err) return err;
   await env.PENDING.put(POOLS_KEY, JSON.stringify(P));
+  if (d.__log) await logSetting(env, d.__log[0], d.__log[1]);
   return json({ ok: true });
 }
 // MOCKUP_PAGES: the app's copy (amend.pages) is in table order, so list position = table row.
@@ -3456,6 +3715,7 @@ async function pageSave(d, env) {
     if (pos !== Number(pg.pos)) ops.push({ url: `${AMEND_XL}/tables/MOCKUP_PAGES/columns/POSITION/dataBodyRange/cell(row=${idx},column=0)`, values: [[pos]] });
     if (name !== pg.name) ops.push(amendCell("MOCKUP_PAGES", "PAGE_NAME", idx, name));
     if (!ops.length) return json({ ok: true, unchanged: true });
+    if (!d.isUndo) d.__log = ["Mockup page " + pg.name + (name !== pg.name ? " renamed " + name : "") + (pos !== Number(pg.pos) ? " moved to " + pos : ""), { kind: "page-save", idx, pos: Number(pg.pos), name: pg.name }];
     pg.pos = pos; pg.name = name;
   } else if (d.kind === "page-add") {
     const name = cleanName(d.name); if (!/^[A-Z0-9_]{3,60}$/.test(name)) return json({ error: "Page names use capitals, numbers and underscores, like OS_05_TS_GIFT_FOREST_GREEN." }, 400);
@@ -3471,6 +3731,7 @@ async function pageSave(d, env) {
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
   if (err) return err;
   S.pages = pages; await env.PENDING.put("amend", JSON.stringify(S));
+  if (d.__log) await logSetting(env, d.__log[0], d.__log[1]);
   return json({ ok: true });
 }
 
@@ -3523,6 +3784,7 @@ async function categorySave(d, env) {
 async function settingsPage(env) {
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   const S = await env.PENDING.get("amend", "json");
+  const setLog = (await env.PENDING.get(SET_LOG_KEY, "json")) || [];
   const cats = await loadCategories(env);
   const pool = ((await env.PENDING.get("tags", "json")) || {}).pool || {};
   const P = (await env.PENDING.get(POOLS_KEY, "json")) || { tag: [], season: [] };
@@ -3570,6 +3832,7 @@ ${brandHeader("Settings")}
 @media (max-width:700px){.setrow{flex-direction:column;align-items:flex-start}.ptags{grid-template-columns:1fr 1fr}}
 </style>
 <div class="setw">
+  ${setLog.length ? `<div class="card"><h2 style="margin-top:0">Recent changes</h2>${setLog.slice(0, 8).map((e) => `<div class="setrow"><div><b style="font:600 14px var(--body)">${esc(e.label)}</b><p class="small">${esc(when(e.at))}</p></div>${e.undo ? `<button class="btn" type="button" data-undo="${esc(e.id)}" style="width:auto">Undo</button>` : ""}</div>`).join("")}</div>` : ""}
   <div class="card"><h2 style="margin-top:0">Tag system</h2>
     ${onoff("TagEngine", "Use approved tags", "On: each listing gets the tags approved and frozen for its gag (see the Tags page); a gag with a tag problem waits instead of being built. Off: the older automatic tags, no approval.")}
     ${onoff("AutoApprove", "Approve tags automatically", "On: if you haven't approved a gag's tags yourself, they're approved and frozen shortly before its first release (not if the overlap with other gags is red). Off: every gag waits for you on the Tags page.")}
@@ -3620,6 +3883,11 @@ ${brandHeader("Settings")}
     <div id="pf"></div>
     <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-main" type="button" id="psave" style="width:auto;padding:0 26px">Save product text</button></div>
   </div>
+  <div class="card"><h2 style="margin-top:0">Phone notifications</h2>
+    <p class="small" style="margin:0 0 10px">The app sends alerts to your phone through the free <b>ntfy</b> app: videos ready, approvals done, failed builds, today's release, alerts. To receive them: install ntfy (App Store / Google Play), tap +, and subscribe to the topic below. Keep the topic private.</p>
+    <div class="cp" style="display:flex;gap:8px;align-items:center"><code style="flex:1;font:500 13px var(--mono);overflow:hidden;text-overflow:ellipsis">${esc(env.NTFY_TOPIC || "not set up")}</code>${env.NTFY_TOPIC ? `<button class="btn" type="button" id="ntCopy" style="width:auto" data-t="${esc(env.NTFY_TOPIC)}">Copy</button>` : ""}</div>
+    <button class="btn-main" type="button" id="ntTest" style="width:auto;padding:0 26px;margin-top:12px">Send a test notification</button>
+  </div>
 </div>
 <script>
 (function () {
@@ -3635,6 +3903,9 @@ ${brandHeader("Settings")}
     document.getElementById("pf").innerHTML = F.map(function (f) { return '<label>' + h(f[1]) + (f[2] ? '<textarea data-f="' + f[0] + '">' + h(r[f[0]]) + '</textarea>' : '<input data-f="' + f[0] + '" maxlength="60" value="' + h(r[f[0]]) + '">') + '</label>'; }).join("") +
       '<label>Product tags (5, up to 20 characters each)</label><div class="ptags">' + [0, 1, 2, 3, 4].map(function (i) { return '<input data-t="' + i + '" maxlength="20" value="' + h(r.tags[i] || "") + '">'; }).join("") + '</div>'; }
   sel.addEventListener("change", draw); draw();
+  document.querySelectorAll("[data-undo]").forEach(function (b) { b.addEventListener("click", function () { b.disabled = true; post({ kind: "undo", id: b.dataset.undo }).then(function () { toast("Undone"); setTimeout(function () { location.reload(); }, 800); }).catch(function (er) { b.disabled = false; toast(er.message, true); }); }); });
+  var ntc = document.getElementById("ntCopy"); if (ntc) ntc.onclick = function () { navigator.clipboard.writeText(ntc.dataset.t).then(function () { toast("Copied"); }); };
+  document.getElementById("ntTest").onclick = function () { fetch("/api/notify-test", { method: "POST" }).then(function (r) { return r.json(); }).then(function (o) { toast(o.ok ? "Sent. Check your phone." : "Notifications aren't set up yet.", !o.ok); }); };
   var PG = ${JSON.stringify(pages).replace(/</g, "\\u003c")}, RL = ${JSON.stringify(((S && S.rules) || []).map((r) => [r.coll, r.type]))};
   document.addEventListener("click", function (e) { var b = e.target.closest(".ph"); if (!b) return; var on = b.classList.contains("off");
     post({ kind: b.dataset.kind, i: +b.dataset.i, on: on }).then(function () { b.classList.toggle("off", !on); b.title = "Tap to switch " + (on ? "off" : "on"); toast(on ? "Switched on" : "Switched off"); }).catch(function (er) { toast(er.message, true); }); });
