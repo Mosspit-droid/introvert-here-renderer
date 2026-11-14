@@ -2471,6 +2471,7 @@ ${brandHeader("Gags")}
     body.kb .wznav{justify-content:flex-end}
     body.kb .o-prev .card{padding:10px 12px}
     #text{height:9.5em;min-height:7em}
+    body.noprev .o-prev{display:none!important}
     body.kb .pagehead,body.kb .tabbar,body.kb #synced{display:none!important}
 
     .g-prev .card{padding:12px}
@@ -2608,6 +2609,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   function go(n) {
     cur = Math.max(1, Math.min(STEPS.length, n));
     Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.classList.toggle("cur", Number(x.dataset.st) === cur); });
+    document.body.classList.toggle("noprev", [1, 3, STEPS.length].indexOf(cur) < 0);   // phone: preview only on the text, title stem and last steps
     el("wzBar").innerHTML = STEPS.map(function (s, i) { return '<button type="button" data-go="' + (i + 1) + '" class="' + (i + 1 === cur ? "on" : i + 1 < cur ? "done" : "") + '">' + (i + 1) + ". " + s + "</button>"; }).join("");
         el("wzNext").style.display = cur === STEPS.length ? "none" : "";
     el("wzBack").style.display = cur === 1 ? "none" : "";
