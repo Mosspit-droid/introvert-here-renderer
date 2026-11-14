@@ -4641,6 +4641,18 @@ async function amendPage(env) {
 .abtn{min-height:52px;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;border-width:2px;border-radius:14px}
 .abtn.go{border-color:var(--go)}
 .grp{margin:10px 0 0;font:800 11px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+/* Tap-to-go tiles (Barry, 14 Nov): every choice is a button that moves you on; no tick boxes. */
+.lt{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin:8px 0 6px}
+.lt .tile{min-height:118px;cursor:pointer;font:inherit;text-align:left;width:100%}
+.lt .tile .ic{width:42px;height:42px;border-radius:12px}.lt .tile .ic svg{width:24px;height:24px}
+.lt .tile .nm{font-size:14px}
+.lt .tile.sm{min-height:76px;flex-direction:row;align-items:center}
+.lt .tile.sm .st{margin-top:2px}
+.lt .tile .busy{position:absolute;right:12px;top:12px;font-size:11px;padding:3px 8px;border-radius:99px;background:rgba(230,180,80,.2);color:#f0c870}
+.lt .tile[disabled]{opacity:.4;cursor:not-allowed;transform:none}
+.lgrp{margin:18px 0 0;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.lgw{display:flex;flex-wrap:wrap;gap:0 12px}.lgb{min-width:0}.lgb .lt{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.runb{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
 .pv{margin-top:12px}.pvlbl{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .pvbox{background:#fff;color:#222;border-radius:10px;padding:12px 14px;font:16px/1.45 Arial,sans-serif}.pvseen{background:#fff3c4}.pvdesc{white-space:pre-wrap;font-size:14px;max-height:420px;overflow:auto}
 .ttab{width:100%;border-collapse:collapse;font-size:13px}.ttab th,.ttab td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -4651,7 +4663,7 @@ ${brandHeader("Listings", `<button class="btn" id="restart" type="button"${S && 
   ${trialCard(trial, S)}
   <div class="steps" id="steps"></div>
   <div class="card" id="view"></div>
-  <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Recent updates</h3><div class="small" id="log"></div><p class="small" id="readAt" style="margin:8px 0 0"></p></div>
+  <details class="card"><summary style="cursor:pointer;font-weight:600">Recent updates</summary><div class="small" id="log" style="margin-top:8px"></div><p class="small" id="readAt" style="margin:8px 0 0"></p></details>
 </div>
 <div class="abar"><div class="in">
   <div class="count" id="count"></div>
@@ -4727,7 +4739,7 @@ function rColl(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] ===
 function $(id) { return document.getElementById(id); }
 function h(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
 var A;  // all choices; Start over resets it
-function fresh() { A = { step:0, scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", keys:{}, name:"", each:true }, trial:true, done:null, err:"" }; }
+function fresh() { A = { step:0, path:[], pickKs:[], scope:null, sel:{}, drill:[], q:"", what:{}, stem:null, text:null, rules:{}, colours:{}, cur:{}, photo:{ mode:"all", keys:{}, name:"", each:true }, trial:true, done:null, err:"" }; }
 fresh();
 var ALL = [];
 if (S0) S0.gags.forEach(function (g) { g.live.forEach(function (t) { ALL.push(g.id + "|" + t); }); });
@@ -4752,41 +4764,47 @@ function render() {
   var n = selKeys().length, w = whatOn();
   $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
   $("back").hidden = A.step === 0 || !!A.done;
-  $("next").hidden = A.step >= 3;
+  $("next").hidden = A.step !== 2 || !!A.done;
+  $("next").textContent = "Check";
   var ruleOnly = w.length && w.every(function (x) { return RULE_ONLY[x] || VIEW_ONLY[x]; });
   $("next").disabled = (A.step === 0 && !w.length) || (A.step === 1 && !n && !ruleOnly) || (A.step === 2 && A.what.mockups && A.photo.mode === "one" && !Object.keys(A.photo.keys).length) || (A.step === 2 && A.what.mockups && A.photo.mode === "add" && !A.photo.name);
   $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(Array.isArray(l.what) ? l.what.join(", ") : (l.what || "")) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
   $("readAt").textContent = "Core read " + new Date(S0.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
 }
 
-function where() {
-  var b = '<p class="q">Which listings?</p><div class="seg">' + [["global","Everything","Every range"],["range","By range","Ranges and garments"],["listing","By listing","Drill down to a gag"]].map(function (x) { return '<button type="button" data-scope="' + x[0] + '" class="' + (A.scope === x[0] ? "on" : "") + '">' + x[1] + "<small>" + x[2] + "</small></button>"; }).join("") + "</div>";
-  if (!A.scope) b += '<p class="hint">Pick one to start. Nothing is ticked until you tick it.</p>';
-  if (A.scope === "global") b += '<p class="hint">Every live listing in every range, for the garments you tick.</p><div class="g2">' + GARM.map(function (g) { var ks = keys(function (k) { return k.split("|")[1] === g[0]; }); return '<label class="tick">' + box(ks, "garm:" + g[0]) + '<span class="lbl">All ' + g[2] + "<small>" + ks.length + " listings</small></span></label>"; }).join("") + "</div>";
-  if (A.scope === "range") b += '<p class="hint">Tick a box for one range and garment, a range name for the whole range, or a column heading for that garment in every range.</p><div class="rt"><table><thead><tr><th></th>' + GARM.map(function (g) { return '<th><button type="button" data-colpick="' + g[0] + '">' + g[2] + "</button></th>"; }).join("") + "</tr></thead><tbody>" +
-    RANGES.map(function (r) { var rk = keys(function (k) { return k.indexOf(r[0] + "-") === 0; });
-      return '<tr><td><label style="display:flex;align-items:center;gap:8px">' + box(rk, "range:" + r[0]) + h(r[1]) + (rk.length ? "" : ' <span class="small">(none live)</span>') + "</label></td>" + GARM.map(function (g) { return "<td>" + box(rk.filter(function (k) { return k.split("|")[1] === g[0]; }), "rg:" + r[0] + ":" + g[0]) + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>";
-  if (A.scope === "listing") b += drill();
-  $("view").innerHTML = b;
-}
-function drill() {
-  var r = A.drill[0], gid = A.drill[1];
-  var c = '<div class="crumbs"><button type="button" data-crumb="0">All ranges</button>' + (r ? " › " + (gid ? '<button type="button" data-crumb="1">' + h(rName(r)) + "</button>" : h(rName(r))) : "") + (gid ? " › " + h(gagOf(gid).stem) : "") + "</div>";
-  if (!r) return c + '<div class="list">' + RANGES.map(function (x) { var ks = keys(function (k) { return k.indexOf(x[0] + "-") === 0; }); var n = S0.gags.filter(function (g) { return g.id.indexOf(x[0] + "-") === 0; }).length;
-    return '<div class="li">' + box(ks, "range:" + x[0]) + '<span class="lbl">' + h(x[1]) + "<small>" + n + " gags · " + ks.length + " listings</small></span>" + (n ? '<button class="drill" type="button" data-drill="' + x[0] + '">Open ›</button>' : "") + "</div>"; }).join("") + "</div>";
-  if (!gid) { var gs = S0.gags.filter(function (g) { return g.id.indexOf(r + "-") === 0 && (!A.q || (g.stem + " " + g.id).toLowerCase().indexOf(A.q.toLowerCase()) >= 0); });
-    return c + '<input class="inp" id="q" placeholder="Search gags" value="' + h(A.q) + '"><div class="list" style="margin-top:8px">' + gs.map(function (g) { return '<div class="li">' + box(g.live.map(function (t) { return g.id + "|" + t; }), "gag:" + g.id) + '<span class="lbl">' + h(g.stem) + busy(g) + "<small>" + g.id + " · " + g.live.map(gName).join(", ") + '</small></span><button class="drill" type="button" data-drill="' + g.id + '">Edit ›</button></div>'; }).join("") + "</div>"; }
-  var g = gagOf(gid);
-  return c + '<p class="hint">Tick the listings to update. You can change the title stem and gag text in step 3.</p><div class="g2">' + g.live.map(function (t) { return '<label class="tick">' + box([g.id + "|" + t], "one:" + g.id + "|" + t) + '<span class="lbl">' + gName(t) + "<small>" + g.id + "-" + t + "</small></span></label>"; }).join("") + "</div>";
-}
-
+var WICON = { mockups: "approve", video: "approve", titles: "gags", descriptions: "gags", tags: "tags", taxonomy: "search", shipping: "orders", colours: "tools", print: "update", supplier: "links" };
+function ic(n) { return '<span class="ic"><svg><use href="#i-' + n + '"/></svg></span>'; }
+function tileB(attr, icon, name, sub, extra) { return '<button type="button" class="tile' + (icon ? "" : " sm") + '" ' + attr + ">" + (icon ? ic(icon) : "") + '<span><span class="nm">' + h(name) + '</span>' + (sub ? '<span class="st" style="display:block">' + sub + "</span>" : "") + "</span>" + (extra || "") + "</button>"; }
 function what() {
-  var grp = "", rows = WHAT.map(function (w) { var head = w[3] !== grp ? '<p class="grp">' + h(w[3]) + "</p>" : ""; grp = w[3];
-    return head + '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>" +
-      (w[0] === "tags" ? '<p class="grp">Price</p><a class="tick" href="/pricing" style="text-decoration:none;color:var(--text)"><span class="lbl">Price ›<small>Prices per garment and size, profit after fees and postage, and changing prices on live listings (opens Pricing)</small></span></a>' : ""); }).join("");
-  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">In the same order as Etsy\'s edit page. Tick one or more.</p><div class="col">' + rows + "</div>";
+  var groups = [], by = {};
+  WHAT.forEach(function (w) { if (!by[w[3]]) { by[w[3]] = []; groups.push(w[3]); } by[w[3]].push(tileB('data-whatgo="' + w[0] + '"', WICON[w[0]], w[1], h(w[2])));
+    if (w[0] === "tags") { groups.push("Price"); by.Price = ['<a class="tile" href="/pricing">' + ic("price") + '<span><span class="nm">Price</span><span class="st" style="display:block">Prices per garment and size, profit after fees and postage. Opens Pricing.</span></span></a>']; } });
+  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">Same order as Etsy\'s edit page. Tap one.</p><div class="lgw">' +
+    groups.map(function (g) { var n = by[g].length; return '<div class="lgb" style="flex:' + n + " 1 " + (n * 200) + 'px"><p class="lgrp">' + h(g) + '</p><div class="lt">' + by[g].join("") + "</div></div>"; }).join("") + "</div>";
 }
-
+function gTiles(ks, label) {   // "All garments" + one tile per garment that has listings in ks
+  var out = '<div class="lt">' + tileB('data-pick="all"', "", "All " + label, ks.length + " listing" + (ks.length === 1 ? "" : "s"));
+  GARM.forEach(function (g) { var n = ks.filter(function (k) { return k.split("|")[1] === g[0]; }).length; if (n) out += tileB('data-pick="' + g[0] + '"', "", g[2], n + " listing" + (n === 1 ? "" : "s")); });
+  return out + "</div>";
+}
+function where() {
+  var P = A.path, ruleOnly = whatOn().every(function (x) { return RULE_ONLY[x]; }), out = '<p class="q">Which listings?</p>';
+  var crumb = function (t) { return '<p class="hint">' + t + "</p>"; };
+  if (!P.length) {
+    out += '<div class="lt">' + (ruleOnly ? tileB('data-path="new"', "gags", "New listings only", "Save to Core. Live listings stay as they are.") : "") +
+      tileB('data-path="all"', "home", "Everything", ALL.length + " live listings in every range") + tileB('data-path="range"', "stats", "One range", "A whole range, or one garment in it") + tileB('data-path="gag"', "search", "One gag", "Find a gag, then pick its garments") + "</div>";
+  } else if (P[0] === "all") { A.pickKs = ALL.slice(); out += crumb("Everything › which garments?") + gTiles(ALL, "garments");
+  } else if (P.length === 1) {
+    out += crumb(P[0] === "range" ? "One range › which range?" : "One gag › which range is it in?") + '<div class="lt">' + RANGES.map(function (r) { var ks = keys(function (k) { return k.indexOf(r[0] + "-") === 0; }); var n = S0.gags.filter(function (g) { return g.id.indexOf(r[0] + "-") === 0; }).length;
+      return tileB('data-path="' + r[0] + '"' + (ks.length ? "" : " disabled"), "", r[1], n + " gags · " + ks.length + " listings"); }).join("") + "</div>";
+  } else if (P[0] === "range") { var rk = keys(function (k) { return k.indexOf(P[1] + "-") === 0; }); A.pickKs = rk; out += crumb("One range › " + h(rName(P[1])) + " › which garments?") + gTiles(rk, h(rName(P[1])) + " garments");
+  } else if (P.length === 2) {
+    var gs = S0.gags.filter(function (g) { return g.id.indexOf(P[1] + "-") === 0 && (!A.q || (g.stem + " " + g.id + " " + g.text).toLowerCase().indexOf(A.q.toLowerCase()) >= 0); });
+    out += crumb("One gag › " + h(rName(P[1])) + " › which gag?") + '<input class="inp" id="q" placeholder="Search by title, ID or words in the gag" value="' + h(A.q) + '"><div class="lt">' +
+      gs.map(function (g) { return tileB('data-path="' + g.id + '"', "", g.stem, h(g.id) + " · " + g.live.length + " garment" + (g.live.length === 1 ? "" : "s"), /^AMENDMENT_REQUIRED/.test(g.status) ? '<span class="busy">' + (STAT[g.status] || "Updating") + "</span>" : ""); }).join("") + "</div>";
+  } else { var g = gagOf(P[2]), gk = g.live.map(function (t) { return g.id + "|" + t; }); A.pickKs = gk; out += crumb("One gag › " + h(g.stem) + " › which garments?") + gTiles(gk, "garments"); }
+  $("view").innerHTML = out;
+}
 function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected id
   if (!A.cur[kind] || list.indexOf(A.cur[kind]) < 0) A.cur[kind] = list[0];
   if (list.length < 2) return "";
@@ -4889,11 +4907,11 @@ function details() {
   preview();
 }
 
-function saveCore() { var rows = Object.keys(A.rules), i = 0, b = $("go"); b.disabled = true; b.textContent = "Saving…";
+function saveCore() { var rows = Object.keys(A.rules), i = 0, b = $("go"); b.disabled = true; b.querySelector(".nm").textContent = "Saving…";
   (function next() { if (i >= rows.length) { A.done = { core: rows.length }; render(); return; }
     var body = Object.assign({ kind: "rule", row: rows[i] }, A.rules[rows[i]]); i++;
     fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't save"); next(); }); })
-      .catch(function (e) { A.err = e.message; b.disabled = false; b.textContent = "Save for new listings"; render(); }); })(); }
+      .catch(function (e) { A.err = e.message; render(); }); })(); }
 function check() {
   var wo = whatOn(), nRule = Object.keys(A.rules).length;
   if (A.done && A.done.core) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">' + A.done.core + " range and garment setting" + (A.done.core === 1 ? " was" : "s were") + " updated. New listings will use it; live listings were not changed. Undo is in Settings → Recent changes.</p></div>"; return; }
@@ -4902,7 +4920,7 @@ function check() {
   if (onlyRules && (!selKeys().length || A.coreOnly)) {
     $("view").innerHTML = '<p class="q">Save for new listings</p><p class="hint">' + (nRule ? nRule + " range and garment setting" + (nRule === 1 ? "" : "s") + " changed. Saved to Core only: listings built from now on use it; live listings stay as they are." : "You haven't changed anything yet. Go Back to edit.") + "</p>" +
       (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") + (selKeys().length ? '<p class="hint"><a href="#" id="toLive">Update the ' + selKeys().length + " ticked live listings too ›</a></p>" : '<p class="hint">To change live listings as well, go Back to step 2 and tick them.</p>') +
-      (nRule ? '<div class="okbox" style="margin-top:10px"><button class="abtn go" type="button" id="go">Save for new listings</button></div>' : "");
+      (nRule ? '<div class="lt runb">' + tileB('id="go"', "check", "Save for new listings", "Saved to Core. Undo is in Settings › Recent changes.") + "</div>" : "");
     if ($("go")) $("go").onclick = saveCore; if ($("toLive")) $("toLive").onclick = function (e) { e.preventDefault(); A.coreOnly = false; render(); };
     return; }
   var ks = selKeys(), gs = {}, rs = {}, ts = {};
@@ -4916,9 +4934,7 @@ function check() {
   $("view").innerHTML = '<p class="q">Check and confirm</p><p class="sum">Change <b>' + h(w.join(", ")) + "</b> on <b>" + n + " listing" + (n === 1 ? "" : "s") + "</b> (" + ng + " gag" + (ng === 1 ? "" : "s") + ") in " + h(Object.keys(rs).join(", ")) + '.</p><div class="chips">' + Object.keys(ts).map(function (t) { return "<span>" + h(t) + "</span>"; }).join("") + "</div>" +
     '<p class="hint">Saved to Core straight away. Etsy starts updating 5 minutes later and takes roughly ' + (mins >= 90 ? Math.round(mins / 6) / 10 + " hours" : mins + " minutes") + ". Listings stay live throughout." + (A.what.print ? " New videos come to the Approvals page for you to approve; approving re-posts them to social." : "") + "</p>" +
     (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") +
-    (n > 1 ? '<label class="tick" style="margin-top:10px"><input type="checkbox" data-trialtick="1"' + (A.trial ? " checked" : "") + '><span class="lbl">Try it on one listing first<small>Updates ' + h(ks[0].replace("|", " ").toLowerCase()) + ' only. You check it on Etsy, then tap Carry on for the other ' + (n - 1) + '. Recommended.</small></span></label>' : "") +
-    '<div class="okbox" style="margin-top:10px"><b>Ready?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="abtn go" type="button" id="go">Confirm and start</button></div></div>';
-  $("go").onclick = submit;
+    '<div class="lt runb">' + (n > 1 ? tileB('data-run="trial" id="go"', "check", "Try one first", "Recommended. Updates " + h(ks[0].replace("|", " ").toLowerCase()) + " only; you check it on Etsy, then tap Carry on for the other " + (n - 1) + ".") + tileB('data-run="all"', "update", "Do all " + n + " now", "Starts straight away.") : tileB('data-run="all" id="go"', "update", "Update it now", "Starts in about 5 minutes.")) + "</div>";
   if (onlyRules && nRule) { var c2 = document.createElement("p"); c2.className = "hint"; c2.innerHTML = '<a href="#">Or save for new listings only (leave live listings as they are) ›</a>'; c2.firstChild.onclick = function (e) { e.preventDefault(); A.coreOnly = true; render(); }; $("view").appendChild(c2); }
 }
 function submit() {
@@ -4929,7 +4945,7 @@ function submit() {
   if (one && A.stem != null) body.stem = A.stem;
   if (one && A.text != null) body.text = A.text;
   if (A.what.colours) { var rs = {}; combos().forEach(function (c) { rs[c.split("|")[0]] = 1; }); Object.keys(rs).forEach(function (code) { if (A.colours[code]) body.colours[code] = A.colours[code]; else { var rules = S0.rules.filter(function (r) { return r.coll === rColl(code); }); var p = S0.profiles.filter(function (x) { return rules[0] && x.name === rules[0].profile; })[0]; body.colours[code] = String(p ? p.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean); } }); }
-  $("go").disabled = true; $("go").textContent = "Saving…";
+  Array.prototype.forEach.call(document.querySelectorAll("[data-run]"), function (b) { b.disabled = true; }); $("go").querySelector(".nm").textContent = "Saving…";
   fetch("/api/amend-apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { return [r.ok, j]; }); }).then(function (x) {
     if (x[0]) { A.done = x[1]; A.err = ""; LOG.unshift({ at: Date.now(), what: whatOn(), listings: x[1].listings }); } else A.err = x[1].error || "Something went wrong.";
     render();
@@ -4939,6 +4955,10 @@ function submit() {
 document.addEventListener("click", function (e) {
   var t = e.target.closest("button"); if (!t) return;
   if (t.id === "readPages") { t.disabled = true; t.textContent = "Reading…"; fetch("/api/amend-refresh", { method: "POST" }); setTimeout(function () { location.reload(); }, 50000); return; }
+  if (t.dataset.whatgo) { A.what = {}; A.what[t.dataset.whatgo] = 1; A.sel = {}; A.path = []; A.coreOnly = false; A.step = VIEW_ONLY[t.dataset.whatgo] ? 2 : 1; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.path) { if (t.dataset.path === "new") { A.sel = {}; A.coreOnly = true; A.step = 2; } else { A.path.push(t.dataset.path); A.q = ""; } render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.pick) { var pk = t.dataset.pick; A.sel = {}; setMany(A.pickKs.filter(function (k) { return pk === "all" || k.split("|")[1] === pk; }), true); A.coreOnly = false; A.step = 2; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.run) { A.trial = t.dataset.run === "trial"; submit(); return; }
   if (t.dataset.scope) { A.scope = t.dataset.scope; A.drill = []; render(); }
   if (t.dataset.colpick) { var ks = keys(function (k) { return k.split("|")[1] === t.dataset.colpick; }); setMany(ks, st(ks) !== "all"); render(); }
   if (t.dataset.drill) { A.drill.push(t.dataset.drill); A.q = ""; render(); }
@@ -4981,7 +5001,7 @@ document.addEventListener("input", function (e) {
   if (el.dataset.rule || el.dataset.one) preview();
 });
 $("next").onclick = function () { A.step++; A.err = ""; render(); window.scrollTo(0, 0); };
-$("back").onclick = function () { A.step--; A.err = ""; render(); window.scrollTo(0, 0); };
+$("back").onclick = function () { if (A.step === 1 && A.path.length) { A.path.pop(); A.q = ""; } else { if (A.step === 2 && (A.coreOnly || VIEW_ONLY[whatOn()[0]])) { A.step = VIEW_ONLY[whatOn()[0]] ? 0 : 1; A.path = []; } else A.step--; } A.err = ""; render(); window.scrollTo(0, 0); };
 $("reset").onclick = function () { fresh(); render(); window.scrollTo(0, 0); };
 // While anything is updating, check every minute for a fresh read of Core and show it.
 setInterval(function () {
