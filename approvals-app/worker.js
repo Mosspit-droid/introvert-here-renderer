@@ -1669,7 +1669,9 @@ async function dashboardPage(env) {
     }
     return (daily && daily.runway || []).find((x) => x.collection === coll);
   };
+  const targets = (await env.PENDING.get("gag-targets", "json")) || {};
   const ranges = DASH_RANGES.map(([code, coll, name, colour]) => {
+    const inCore = ((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-")).length, tgt = Number(targets[code]) || 0;
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
     const r = runwayFor(code, coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
@@ -1680,7 +1682,8 @@ async function dashboardPage(env) {
     return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
-<div class="row"><span>Gags in Core</span><b>${((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-")).length}</b></div>
+<div class="row"><span>Gags in Core</span><b>${inCore}</b></div>
+${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(--ok)"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
   }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
