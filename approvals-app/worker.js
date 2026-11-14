@@ -2283,7 +2283,9 @@ async function quickList(request, env) {
   const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
   if (L.some((j) => ["saving", "tags", "build"].includes(j.stage))) return json({ error: "Another List it now is still building. Wait for it to finish (it shows on the dashboard)." }, 409);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-  const dd = GARMS.map((t) => (garments.includes(t) ? today : ""));
+  const later = d.later && typeof d.later === "object" ? d.later : {};
+  for (const [k, v] of Object.entries(later)) if (!GARMS.includes(k) || garments.includes(k) || !/^\d{4}-\d{2}-\d{2}$/.test(String(v)) || String(v) <= today) return json({ error: "The later release dates need to be after today." }, 400);
+  const dd = GARMS.map((t) => (garments.includes(t) ? today : later[t] ? String(later[t]) : ""));
   const ref = crypto.randomUUID();
   const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: "auto", tag13: "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false" };
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -2394,7 +2396,7 @@ ${brandHeader("Gags")}
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p>
-        <details class="pubnow" id="pubNow"><summary>Publish now instead…</summary><p class="small" style="margin:8px 0">Skips the schedule: it's saved with today's date and built straight away, then comes to Approvals before it goes live.</p><div class="chips" id="pubChips"></div><button class="btn pubgo" type="button" id="pubGo">Publish now</button></details></div>
+        <p class="small" id="nowHint" style="margin:10px 0 0">Tap <b>Now</b> on a garment to publish it straight away instead of waiting for its date.</p></div>
       <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button><button class="btn" type="button" id="ideaSave">Save as idea</button></div>
     </div>
   </div>
@@ -2425,8 +2427,14 @@ ${brandHeader("Gags")}
   body.kb #wzNext,body.kb #wzBack{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
   body.kb .o-text{padding:10px}body.kb .o-text textarea{margin-top:0}
   .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
-  .pubnow{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}.pubnow summary{cursor:pointer;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
-  .pubgo{margin-top:12px;border-color:#e6b450;color:#e6b450;width:auto;padding:0 20px}
+  .nowbtn{float:right;font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}
+  .nowbtn.on{background:#e6b450;border-color:#e6b450;color:#141413}
+  .four input.isnow{opacity:.35}
+  .qmodal{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px}
+  .qmodal .box{max-width:440px;width:100%;background:var(--card,#1c1c1b);border:1px solid var(--line);border-radius:16px;padding:20px;backdrop-filter:blur(12px)}
+  .qmodal h3{margin:0 0 8px;font-size:17px}.qmodal p{margin:0 0 12px;font-size:14px;color:var(--muted)}
+  .qmodal .row{display:flex;gap:10px;align-items:center;margin:10px 0}.qmodal .row input{width:90px;margin:0}
+  .qmodal .acts{display:flex;flex-direction:column;gap:8px;margin-top:14px}.qmodal .acts button{width:100%;margin:0}
   #rangeCount{margin-top:14px;display:flex;flex-direction:column;gap:10px}
   .rc{font-size:14px}.rc b{font-weight:700}.rc .rch{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
   .rc .rbar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.rc .rbar i{display:block;height:100%;border-radius:99px;background:var(--ok)}
@@ -2513,28 +2521,60 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   var GN = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
   function chipsFor(boxId) { var box = document.getElementById(boxId); var draw = function () { box.innerHTML = GN.map(function (x) { return '<button type="button" class="chip' + (GSEL[x[0]] ? " on" : "") + '" data-garm="' + x[0] + '">' + x[1] + "</button>"; }).join(""); };
     draw(); box.addEventListener("click", function (e) { var b = e.target.closest("[data-garm]"); if (!b) return; if (GSEL[b.dataset.garm]) delete GSEL[b.dataset.garm]; else GSEL[b.dataset.garm] = 1; draw(); }); }
-  function quickGo(btn, label) {
+  function quickGo(btn, label, later) {
     var t = document.getElementById("text"), st = document.getElementById("stem");
     if (typeof capsGag === "function") t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
     var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
     if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
-    if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's saved to Core with today's date and built straight away. It comes to Approvals before it goes live.")) return;
+    var lt = Object.keys(later || {}), nice = function (iso) { return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+    if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's built straight away and comes to Approvals before it goes live." + (lt.length ? String.fromCharCode(10) + "Then: " + lt.map(function (k) { return GN.filter(function (x) { return x[0] === k; })[0][1] + " " + nice(later[k]); }).join(", ") + "." : ""))) return;
     btn.disabled = true; btn.textContent = "Starting…";
-    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g }) })
+    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {} }) })
       .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
       .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } location.href = "/"; })
       .catch(function () { alert("Couldn't reach the app. Nothing was changed."); btn.disabled = false; btn.textContent = label; });
   }
-  chipsFor("pubChips");
-  document.getElementById("pubGo").addEventListener("click", function () { quickGo(this, "Publish now"); });
+  // "Now" on a release date (Barry, 14 Nov): publish that garment straight away; a pop-up spaces out the rest.
+  var NOWSET = {}, DIDS = ["d1", "d2", "d3", "d4"];
+  DIDS.forEach(function (id, i) { var inp = document.getElementById(id), lab = inp.parentNode, b = document.createElement("button");
+    b.type = "button"; b.className = "nowbtn"; b.textContent = "Now"; lab.insertBefore(b, lab.firstChild);
+    b.addEventListener("click", function () { var k = GN[i][0]; if (NOWSET[k]) delete NOWSET[k]; else NOWSET[k] = 1; b.classList.toggle("on", !!NOWSET[k]); inp.classList.toggle("isnow", !!NOWSET[k]);
+      document.getElementById("save").textContent = Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }); });
+  function laterPopup(nowKeys, boxDates, go) {
+    var rest = GN.filter(function (x) { return nowKeys.indexOf(x[0]) < 0; });
+    if (!rest.length) return go({});
+    var names = function (L) { return L.map(function (x) { return x[1]; }).join(", "); };
+    var m = document.createElement("div"); m.className = "qmodal";
+    var haveBoxes = boxDates && rest.every(function (x) { return boxDates[x[0]]; });
+    m.innerHTML = '<div class="box"><h3>' + names(GN.filter(function (x) { return nowKeys.indexOf(x[0]) >= 0; })) + ' goes out now.</h3><p>When should the ' + (rest.length === 1 ? "" : rest.length + " ") + 'other' + (rest.length === 1 ? " garment" : "s") + ' (' + names(rest) + ') follow?</p>' +
+      '<div class="row">One every <input type="number" min="1" max="60" value="7" id="qN"> days, in that order</div>' +
+      '<div class="acts"><button class="btn-main" type="button" data-q="space">Space them out</button>' + (haveBoxes ? '<button class="btn" type="button" data-q="boxes">Use the dates in the boxes</button>' : "") + '<button class="btn" type="button" data-q="cancel">Cancel</button></div></div>';
+    document.body.appendChild(m);
+    m.addEventListener("click", function (e) { var b = e.target.closest("[data-q]"); if (!b) { if (e.target === m) m.remove(); return; } var q = b.dataset.q; m.remove(); if (q === "cancel") return;
+      var later = {};
+      if (q === "boxes") rest.forEach(function (x) { later[x[0]] = boxDates[x[0]]; });
+      else { var n = Math.max(1, Math.min(60, Math.round(Number(document.getElementById("qN") ? document.getElementById("qN").value : 7) || 7))); rest.forEach(function (x, i) { later[x[0]] = new Date(Date.now() + (i + 1) * n * 864e5).toLocaleDateString("en-CA", { timeZone: "Europe/London" }); }); }
+      go(later); });
+    setTimeout(function () { var q = document.getElementById("qN"); if (q) q.select(); }, 30);
+  }
+  window.quickLater = laterPopup;
+  document.getElementById("form").addEventListener("submit", function (e) {
+    if (NOW || !Object.keys(NOWSET).length) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var keys = GN.map(function (x) { return x[0]; }).filter(function (k) { return NOWSET[k]; }), boxes = {};
+    DIDS.forEach(function (id, i) { var v = document.getElementById(id).value; if (v) boxes[GN[i][0]] = v; });
+    laterPopup(keys, boxes, function (later) { GSEL = {}; keys.forEach(function (k) { GSEL[k] = 1; }); quickGo(document.getElementById("save"), "Publish now", later); });
+  }, true);
   if (NOW) {
     STEPS = ["Gag", "Range", "Title stem", "Category", "Garments"];
     document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; });
     document.querySelector(".o-garm").dataset.st = "5";
     document.getElementById("save").textContent = "List it now";
-    chipsFor("garmChips"); document.getElementById("pubNow").style.display = "none";
+    chipsFor("garmChips"); document.getElementById("nowHint").style.display = "none";
     document.title = "List it now";
-    document.getElementById("form").addEventListener("submit", function (e) { e.preventDefault(); e.stopImmediatePropagation(); quickGo(document.getElementById("save"), "List it now"); }, true);
+    document.getElementById("form").addEventListener("submit", function (e) { e.preventDefault(); e.stopImmediatePropagation();
+      var keys = Object.keys(GSEL); if (!keys.length) { alert("Pick at least one garment."); return; }
+      window.quickLater(keys, null, function (later) { quickGo(document.getElementById("save"), "List it now", later); }); }, true);
   }
   var FROM = (new URLSearchParams(location.search).get("from") || "").replace(/[^A-Z]/g, "").slice(0, 2);
   if (FROM) { var bl = document.getElementById("wzList"); bl.href = "/?rlist=" + FROM; bl.hidden = false; window.GAG_FROM = FROM; }
@@ -2915,7 +2955,7 @@ $("stem").addEventListener("input", () => checkLater("stem", "stemspell", "stem"
 
 // ----- tabs / edit picker -----
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
-  mode = b.dataset.tab; editing = null; { const pn = document.getElementById("pubNow"); if (pn) pn.style.display = mode === "edit" ? "none" : ""; }
+  mode = b.dataset.tab; editing = null; document.querySelectorAll(".nowbtn,#nowHint").forEach((x) => { x.style.display = mode === "edit" ? "none" : ""; if (mode === "edit" && x.classList.contains("on")) x.click(); });
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   $("pick").style.display = mode === "edit" ? "block" : "none";
   $("collection").disabled = mode === "edit";
