@@ -7,6 +7,12 @@ workers_dev = true
 ALERT_URL = "https://mosspit-approvals.mosspit.workers.dev/api/alert"
 AUTO_SEND = "no"
 TEST_ORDERS_TO_PRINTIFY = "no"
+# Site settings (see the top of worker.js).
+# INDEXING stays "no" until the domain is chosen and SITE_URL is set, so search engines don't index the workers.dev address.
+INDEXING = "no"
+SITE_URL = ""
+CONTACT_EMAIL = ""
+BUSINESS_ADDRESS = ""
 
 [[kv_namespaces]]
 binding = "PENDING"
