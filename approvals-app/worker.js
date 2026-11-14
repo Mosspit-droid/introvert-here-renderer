@@ -3593,6 +3593,42 @@ async function rangeShift(d, env) {
   return json({ ok: true, moved, ops: ops.length });
 }
 
+// Restore Core to how it was at a nightly backup time (Barry asked for the button, 14 Nov).
+// Uses OneDrive's version history for Core itself, so the file (and Make's link to it) stays the same.
+// Restoring creates a new version, so the version that was current just before is kept for "Undo".
+const CORE_ITEM = "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ";
+async function coreTool(env, path, method = "GET", body) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("No Make token saved.");
+  const data = { path, method }; if (body !== undefined) data.body = JSON.stringify(body);
+  const r = await fetch(MAKE_API + "/scenarios/7446858/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
+  const j = await r.json().catch(() => ({})); if (j.error) throw new Error(String(j.error.message || "Make error").slice(0, 200));
+  let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  return b && b.data && b.data.value ? b.data : b;
+}
+async function restoreCore(d, env) {
+  try {
+    let versionId = str(d.version), label = "";
+    let current = null;
+    if (!versionId) {
+      const date = str(d.date); if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a backup date." }, 400);
+      const target = date + "T02:16:00Z";
+      let path = CORE_ITEM + "/versions?$select=id,lastModifiedDateTime&$top=200", pages = 0, found = null;
+      while (path && pages < 25 && !found) {
+        const b = await coreTool(env, path); const vals = (b && b.value) || []; if (!current && vals[0]) current = vals[0];
+        found = vals.find((v) => v.lastModifiedDateTime <= target) || null;
+        path = b && b["@odata.nextLink"] ? b["@odata.nextLink"].replace("https://graph.microsoft.com", "graph:") : ""; pages++;
+      }
+      if (!found) return json({ error: "OneDrive doesn't have a version of Core from that far back." }, 400);
+      if (current && found.id === current.id) return json({ error: "Core hasn't changed since then, so there's nothing to restore." }, 400);
+      versionId = found.id; label = "Core restored to " + date + " 02:15 (version " + found.id + ")";
+    } else { const b = await coreTool(env, CORE_ITEM + "/versions?$select=id&$top=1"); current = ((b && b.value) || [])[0] || null; label = "Restore undone (back to version " + versionId + ")"; }
+    await coreTool(env, CORE_ITEM + "/versions/" + encodeURIComponent(versionId) + "/restoreVersion", "POST", {});
+    if (current && !d.isUndo) await logSetting(env, label, { kind: "restore", version: current.id });
+    await env.PENDING.put("credits-force", "1");
+    return json({ ok: true, restored: versionId });
+  } catch (e) { return json({ error: "Restore didn't go through: " + e.message + ". Nothing was changed." }, 502); }
+}
+
 // Backups: list the nightly copies (read-only) through the Make Core tool.
 async function backupList(env) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return { error: "No Make token saved." };
@@ -3769,6 +3805,7 @@ async function settingsSave(request, env) {
   if (["phrase-toggle", "season-toggle", "season-add"].includes(d.kind)) return await poolSave(d, env);
   if (["page-save", "page-add", "page-del"].includes(d.kind)) return await pageSave(d, env);
   if (d.kind === "shift") return await rangeShift(d, env);
+  if (d.kind === "restore") return await restoreCore(d, env);
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   let S = null, rule = null;
   if (d.kind === "tag") {
@@ -4039,6 +4076,10 @@ ${brandHeader("Settings")}
     <ol class="small" style="padding-left:18px"><li><b>Best:</b> open Core in OneDrive (<a href="https://mosspitstudios-my.sharepoint.com/personal/admin_mosspit_org/_layouts/15/Doc.aspx?sourcedoc=%7BEA717AD9-320A-4722-B604-03270C9D7310%7D&file=001A_INTROVERT_HERE_CORE.xlsx&action=default" target="_blank" rel="noopener">open Core</a>) → File → Info → <b>Version history</b>, pick a time and Restore. This keeps the same file, so Make carries on working.</li>
     <li>Or ask Claude to restore it for you from a nightly copy.</li><li>Don't replace Core with a backup file by hand: Make would lose track of it.</li></ol>
     <div id="bkL"><p class="small">Loading the nightly copies…</p></div>
+    <h3 class="sideh" style="margin-top:20px">Restore Core</h3>
+    <p class="small" style="margin:0">Puts Core back exactly as it was at 02:15 on the night you pick (using OneDrive's version history, so Make keeps working). Everything changed in Core since then is undone, so only use it if something has gone badly wrong. You can undo a restore from Recent changes. Afterwards tap Sync to Core.</p>
+    <div class="g3"><label>Back to the night of<select id="rsD"></select></label></div>
+    <button class="btn" type="button" id="rsGo" style="width:auto;margin-top:12px;border-color:#e0605a;color:#ff8a85">Restore Core…</button>
   </div>
 </div>
 <script>
@@ -4060,7 +4101,12 @@ ${brandHeader("Settings")}
   document.getElementById("shGo").onclick = function () { var w = +document.getElementById("shW").value, r = document.getElementById("shR");
     if (!w || !confirm("Move every unreleased " + r.options[r.selectedIndex].text + " date " + Math.abs(w) + " week" + (Math.abs(w) === 1 ? "" : "s") + (w > 0 ? " later" : " earlier") + "?")) return;
     go(this, { kind: "shift", prefix: r.value, weeks: w }, function () { setTimeout(function () { location.reload(); }, 900); }); };
-  fetch("/api/backups").then(function (r) { return r.json(); }).then(function (o) { document.getElementById("bkL").innerHTML = o.list && o.list.length ? '<div class="catchips">' + o.list.map(function (b) { return '<a class="ph" href="' + h(b.url) + '" target="_blank" rel="noopener">' + h(b.name.replace("CORE_", "").replace(".xlsx", "")) + "</a>"; }).join("") + "</div>" : '<p class="small">' + h(o.error || "No copies found.") + "</p>"; }).catch(function () {});
+  document.getElementById("rsGo").onclick = function () { var dt = document.getElementById("rsD").value; if (!dt) return;
+    var t = prompt("This puts Core back to how it was at 02:15 on " + dt + ". Everything changed in Core since then is undone.\\n\\nType RESTORE to go ahead."); if (t !== "RESTORE") { toast("Not restored"); return; }
+    var b = this; b.disabled = true; b.textContent = "Restoring… (up to a minute)";
+    post({ kind: "restore", date: dt }).then(function () { toast("Core restored. Tap Sync to Core."); setTimeout(function () { location.reload(); }, 1500); }).catch(function (er) { b.disabled = false; b.textContent = "Restore Core…"; toast(er.message, true); }); };
+  fetch("/api/backups").then(function (r) { return r.json(); }).then(function (o) { var sel = document.getElementById("rsD"); sel.innerHTML = (o.list || []).map(function (b) { var dt = b.name.replace("CORE_", "").replace(".xlsx", ""); return '<option value="' + h(dt) + '">' + h(dt) + "</option>"; }).join("");
+    document.getElementById("bkL").innerHTML = o.list && o.list.length ? '<div class="catchips">' + o.list.map(function (b) { return '<a class="ph" href="' + h(b.url) + '" target="_blank" rel="noopener">' + h(b.name.replace("CORE_", "").replace(".xlsx", "")) + "</a>"; }).join("") + "</div>" : '<p class="small">' + h(o.error || "No copies found.") + "</p>"; }).catch(function () {});
   document.getElementById("ntTest").onclick = function () { fetch("/api/notify-test", { method: "POST" }).then(function (r) { return r.json(); }).then(function (o) { toast(o.ok ? "Sent. Check your phone." : "Notifications aren't set up yet.", !o.ok); }); };
   var PG = ${JSON.stringify(pages).replace(/</g, "\\u003c")}, RL = ${JSON.stringify(((S && S.rules) || []).map((r) => [r.coll, r.type]))};
   document.addEventListener("click", function (e) { var b = e.target.closest(".ph"); if (!b) return; var on = b.classList.contains("off");
