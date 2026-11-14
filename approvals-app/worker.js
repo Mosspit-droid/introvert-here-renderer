@@ -147,6 +147,7 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
+      if (pathname === "/api/dismiss" && method === "POST") { const d = await request.json().catch(() => ({})); const m = (await env.PENDING.get("dismissed", "json")) || {}; m[str(d.k).slice(0, 80)] = str(d.sig).slice(0, 200); await env.PENDING.put("dismissed", JSON.stringify(m)); return json({ ok: true }); }
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
@@ -771,8 +772,13 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile .st b{color:var(--text);font-weight:600}
 .tile .dots{position:absolute;right:14px;top:16px;display:flex;gap:5px;padding:5px 8px;border:1.5px solid rgba(242,240,235,.4);border-radius:99px}
 .tile .dots i{width:5px;height:5px;border-radius:50%;background:rgba(242,240,235,.55)}
-.tile.primary{border-color:var(--frame);border-width:2.5px}
-.tile.primary .nm{font-size:18px}
+/* Most-used tiles (the four corners): black on white, like the logo box. */
+.tile.primary{background:var(--frame);border-color:var(--frame);color:#0d0d0c;backdrop-filter:none;-webkit-backdrop-filter:none}
+.tile.primary:hover{border-color:#fff}
+.tile.primary .ic{background:#0d0d0c;color:var(--frame)}
+.tile.primary .st{color:#3a3a37}.tile.primary .st b{color:#0d0d0c}
+.tile.primary .dots{border-color:rgba(13,13,12,.35)}.tile.primary .dots i{background:rgba(13,13,12,.55)}
+.need{position:relative}.nread{margin-left:auto;flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 .ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:420px){.ranges{grid-template-columns:1fr}}
@@ -1577,7 +1583,10 @@ async function dashboardPage(env) {
   const next = (daily && daily.upcoming || []).find((u) => !u.built);
   const thisYear = new Date().getUTCFullYear();
   const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: Number(iso.slice(0, 4)) !== thisYear ? "numeric" : undefined, timeZone: "UTC" });
-  const need = (cls, n, t, s, href) => n ? `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span></a>` : "";
+  // "Read" hides a card until it changes (new count or new first item), then it comes back.
+  const dismissed = (await env.PENDING.get("dismissed", "json")) || {};
+  const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
+  const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
   const tile = (href, ic, nm, st, primary) => `<a class="tile${primary ? " primary" : ""}" href="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`;
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
   // Last planned release per range. The gags summary is re-sent whenever Core changes,
@@ -1663,18 +1672,18 @@ need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (low
 ${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
-  ${tile("/amend", "update", "Update listings", `<b>${liveListings || "—"}</b> live listings`)}
+  ${tile("/amend", "update", "Update listings", `<b>${liveListings || "—"}</b> live listings`, true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
   ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
-  ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here", true)}
+  ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here")}
   ${tile("/pricing", "price", "Pricing", tee ? `T-Shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
   ${tile("/links", "links", "Links", "Key addresses")}
-  ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved")}
+  ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved", true)}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/check", "check", "Check Core", "Core checks and tools")}
-  ${tile("/settings", "tools", "Settings", "Tag system and product text")}
+  ${tile("/settings", "tools", "Settings", "Tag system and product text", true)}
 </div>
 <h2 class="rngh">Ranges<button class="btn dsync" id="dashSync" type="button">${icon("sync")}Sync to Core</button></h2>
 <div class="ranges">${ranges}</div>
@@ -1687,12 +1696,20 @@ ${todayStrip}
 <p class="foot">Release plan updated ${daily ? esc(when(daily.at)) : "—"} · <a href="/logout">Sign out</a></p>
 <script src="/gagcheck.js"></script>
 <script>
+window.DISMISSED = ${JSON.stringify(dismissed).replace(/</g, "\\u003c")};
+document.addEventListener("click", function (e) { var b = e.target.closest(".nread"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  var card = b.closest(".need"); card.style.opacity = ".4";
+  fetch("/api/dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ k: b.dataset.k, sig: b.dataset.sig }) }).then(function (r) { if (!r.ok) throw 0;
+    var box = card.parentNode; card.remove(); if (box && !box.querySelector(".need")) { var h = box.previousElementSibling; if (h && h.tagName === "H2") h.remove(); box.outerHTML = '<div class="allclear"><span><b>All caught up</b>Nothing needs you right now.</span></div>'; } })
+    .catch(function () { card.style.opacity = ""; if (window.toast) window.toast("Couldn't mark it read. Try again.", true); }); });
 // Gag check runs here in the background; a "Gag problems" card appears only when something needs fixing.
 fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
   if (!g || !g.all || typeof gagIssues !== "function") return;
   var iss = gagIssues(g); if (!iss.length) return;
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
-  var card = '<a class="need warn" href="/check"><span class="big">' + iss.length + '</span><span><span class="t">Gag problem' + (iss.length === 1 ? "" : "s") + ' to fix</span><span class="s">' + esc(iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80) + '</span></span></a>';
+  var gt = "Gag problem" + (iss.length === 1 ? "" : "s") + " to fix", gs = (iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80), sig = iss.length + "|" + gs;
+  if ((window.DISMISSED || {})[gt] === sig) return;
+  var card = '<a class="need warn" href="/check"><span class="big">' + iss.length + '</span><span><span class="t">' + gt + '</span><span class="s">' + esc(gs) + '</span></span><button type="button" class="nread" data-k="' + esc(gt) + '" data-sig="' + esc(sig) + '">Read</button></a>';
   var needs = document.querySelector(".needs");
   if (needs) needs.insertAdjacentHTML("beforeend", card);
   else { var ac = document.querySelector(".allclear"); if (ac) ac.outerHTML = '<h2>Needs you</h2><div class="needs">' + card + "</div>"; }
