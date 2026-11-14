@@ -108,6 +108,7 @@ export default {
       if (pathname === "/amend" && method === "GET") {
         return authed ? await amendPage(env) : redirect("/");
       }
+      if (pathname === "/listings" && method === "GET") return authed ? await amendPage(env) : redirect("/");
       if (pathname === "/health" && method === "GET") return authed ? await healthPage(env) : redirect("/");
       if (pathname === "/quiet" && method === "GET") return authed ? await quietPage(env) : redirect("/");
       if (pathname === "/reviews" && method === "GET") return authed ? await reviewsPage(env) : redirect("/");
@@ -116,7 +117,7 @@ export default {
         return authed ? await calendarPage(env) : redirect("/");
       }
       if (pathname === "/settings" && method === "GET") {
-        return authed ? await settingsPage(env) : redirect("/");
+        return authed ? await settingsPage(env, url.searchParams.get("part") || "system") : redirect("/");
       }
       if ((pathname === "/tools" || pathname === "/check") && method === "GET") {
         return authed ? await toolsPage(env) : redirect("/");
@@ -909,7 +910,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 </defs></svg>`;
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
-const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/amend", "update", "Update"]];
+const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/listings", "update", "Listings"]];
 const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
@@ -1690,7 +1691,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   const newReviews = (revKV.list || []).filter((r) => r.at && Date.now() - r.at < 14 * 864e5);
   const quiet = new Date().getUTCDate() <= 7 ? await quietListings(env) : [];
   var HOT = { "/approvals": pending.length, "/orders": toSend.length, "/tags": tagsDue.length, "/gags": lowRanges.length,
-    "/amend": watch.warned && busy.length ? busy.length : 0, "/credits": creditPct >= 0.85 ? Math.round(creditPct * 100) + "%" : 0 };
+    "/listings": watch.warned && busy.length ? busy.length : 0, "/credits": creditPct >= 0.85 ? Math.round(creditPct * 100) + "%" : 0 };
   return shell(`
 ${topBar("Dashboard")}
 <style>.progc{display:flex;flex-direction:column;gap:16px;margin-bottom:8px}.prow2{display:block;color:var(--text);text-decoration:none}
@@ -1714,7 +1715,7 @@ need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (low
 ${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
-  ${tile("/amend", "update", "Update listings", `<b>${liveListings || "—"}</b> live listings`, true)}
+  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
   ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
@@ -3371,6 +3372,7 @@ ${brandHeader("Calendar")}
 .legend{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0 0;font-size:12px;color:var(--muted)}.legend span{display:flex;align-items:center;gap:6px}.legend i{width:10px;height:10px;border-radius:50%}
 @media (max-width:700px){.cday{min-height:58px;padding:4px}.cr span{display:none}.cr{gap:2px}.cday .crs{display:flex;flex-wrap:wrap;gap:3px}.cr.more{display:none}}
 </style>
+<p class="small" style="margin:0 0 10px"><a href="/settings?part=shift">Move a whole range's release dates ›</a></p>
 <div class="calbar"><button class="btn" id="cPrev" type="button">‹</button><h2 id="cTitle"></h2><button class="btn" id="cToday" type="button">Today</button><button class="btn" id="cNext" type="button">›</button></div>
 <div class="calgrid" id="cGrid"></div>
 <div class="legend"><span><i style="background:var(--ih)"></i>Introvert Here</span><span><i style="background:var(--sh)"></i>SHHH.</span><span><i style="background:var(--pc)"></i>Per Contract</span><span><i style="background:var(--os)"></i>Off The Shelf</span><span><i style="background:#ff9a5c"></i>Sales date</span><span><i style="background:#9fc6ef"></i>Seasonal tags</span></div>
@@ -3753,10 +3755,10 @@ async function priceTestApi(request, env) {
 // Everything the search sheet can find besides gags.
 async function searchData(env) {
   const [todos, orders, stats] = await Promise.all([todoLoad(env), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats", "json")]);
-  const pages = [["Dashboard", "/"], ["Today", "/today"], ["Approvals", "/approvals"], ["Gags", "/gags"], ["Update listings", "/amend"], ["Calendar", "/calendar"], ["Stats", "/stats"],
+  const pages = [["Dashboard", "/"], ["Today", "/today"], ["Approvals", "/approvals"], ["Gags", "/gags"], ["Listings", "/listings"], ["Calendar", "/calendar"], ["Stats", "/stats"],
     ["Tags", "/tags"], ["Orders", "/orders"], ["Pricing", "/pricing"], ["Links", "/links"], ["Credits", "/credits"], ["Check Core", "/check"], ["Weekly check", "/health"], ["Reviews", "/reviews"], ["Quiet listings", "/quiet"], ["To-do", "/todo"], ["Alerts", "/alerts"],
-    ["Settings: schedule (move a range)", "/settings"], ["Settings: backups", "/settings"],
-    ["Settings: tag system", "/settings"], ["Settings: gag categories", "/settings"], ["Settings: seasonal tags", "/settings"], ["Settings: mockup pages", "/settings"], ["Settings: product text", "/settings"],
+    ["Move a whole range (dates)", "/settings?part=shift"], ["Settings: backups", "/settings"],
+    ["Settings: tag system", "/settings"], ["Gag categories and tag phrases", "/settings?part=tags"], ["Seasonal tags", "/settings?part=tags"], ["Mockup pages", "/settings?part=pages"], ["Product text (new listings)", "/settings?part=text"],
     ["Settings: phone notifications", "/settings"], ["Settings: recent changes / undo", "/settings"]].map(([t, h]) => ({ t, h, k: "Page" }));
   const td = todos.filter((t) => !t.done).map((t) => ({ t: t.text, h: "/todo", k: "To-do" }));
   const od = [...(orders || []).map((o) => ({ t: (o.name || o.customer || "Shop order") + " · " + (o.status || ""), h: "/orders", k: "Order" })),
@@ -3958,7 +3960,7 @@ async function categorySave(d, env) {
   return json({ ok: true, added: anchors.length + flavours.length });
 }
 
-async function settingsPage(env) {
+async function settingsPage(env, part) {
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   const S = await env.PENDING.get("amend", "json");
   const setLog = (await env.PENDING.get(SET_LOG_KEY, "json")) || [];
@@ -3986,7 +3988,9 @@ async function settingsPage(env) {
   const num = (k, title, help, min, max) => `<div class="setrow"><div><b>${title}</b><p class="small">${help}</p></div>
     <div class="numset"><input type="number" inputmode="numeric" min="${min}" max="${max}" value="${esc(String(cs[k]))}" data-k="${k}"><button class="btn" type="button" data-save="${k}">Save</button></div></div>`;
   return shell(`
-${brandHeader("Settings")}
+${brandHeader(({ system: "Settings", pages: "Mockup pages", tags: "Tags setup", text: "Product text", shift: "Move a range" })[part] || "Settings")}
+<style>.setw > .card{display:none}.setw > .card.part-${/^[a-z]+$/.test(part) ? part : "system"}{display:block}</style>
+${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shift" ? '<a href="/calendar">‹ Calendar</a>' : '<a href="/listings">‹ Listings</a>'} · <a href="/settings">All settings</a></p>` : `<p class="small" style="margin:0 0 12px">Titles, descriptions, tags, mockup pages and phrases are in <a href="/listings">Listings</a>; moving a range's dates is in the <a href="/calendar">Calendar</a>.</p>`}
 <style>
 .setw{display:grid;gap:18px;max-width:980px}
 .setrow{display:flex;gap:18px;align-items:center;justify-content:space-between;padding:14px 0;border-top:1px solid var(--line)}
@@ -4009,8 +4013,8 @@ ${brandHeader("Settings")}
 @media (max-width:700px){.setrow{flex-direction:column;align-items:flex-start}.ptags{grid-template-columns:1fr 1fr}}
 </style>
 <div class="setw">
-  ${setLog.length ? `<div class="card"><h2 style="margin-top:0">Recent changes</h2>${setLog.slice(0, 8).map((e) => `<div class="setrow"><div><b style="font:600 14px var(--body)">${esc(e.label)}</b><p class="small">${esc(when(e.at))}</p></div>${e.undo ? `<button class="btn" type="button" data-undo="${esc(e.id)}" style="width:auto">Undo</button>` : ""}</div>`).join("")}</div>` : ""}
-  <div class="card"><h2 style="margin-top:0">Tag system</h2>
+  ${setLog.length ? `<div class="card part-system"><h2 style="margin-top:0">Recent changes</h2>${setLog.slice(0, 8).map((e) => `<div class="setrow"><div><b style="font:600 14px var(--body)">${esc(e.label)}</b><p class="small">${esc(when(e.at))}</p></div>${e.undo ? `<button class="btn" type="button" data-undo="${esc(e.id)}" style="width:auto">Undo</button>` : ""}</div>`).join("")}</div>` : ""}
+  <div class="card part-system part-tags"><h2 style="margin-top:0">Tag system</h2>
     ${onoff("TagEngine", "Use approved tags", "On: each listing gets the tags approved and frozen for its gag (see the Tags page); a gag with a tag problem waits instead of being built. Off: the older automatic tags, no approval.")}
     ${onoff("AutoApprove", "Approve tags automatically", "On: if you haven't approved a gag's tags yourself, they're approved and frozen shortly before its first release (not if the overlap with other gags is red). Off: every gag waits for you on the Tags page.")}
     ${num("AutoApproveDays", "Days before release to auto-approve", "How long before a gag's first release its tags are approved automatically. Gives you that long to change them. 1 to 14.", 1, 14)}
@@ -4022,7 +4026,7 @@ ${brandHeader("Settings")}
       ${num("PlanMonths", "Months ahead for phrase capacity", "How far ahead the phrase-list check looks when warning that a category is running low. 1 to 36.", 1, 36)}
     </details>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Gag categories</h2>
+  <div class="card ptext part-tags"><h2 style="margin-top:0">Gag categories</h2>
     <p class="small" style="margin:0">Each category has its own tag phrases: ★ main phrases (one goes on every gag in it) and flavour phrases (four per gag, rotated so gags don't share identical tags). Tap a category to see its phrases.</p>
     ${catHtml}
     <h3 class="sideh" style="margin-top:22px">Add a category</h3>
@@ -4037,7 +4041,7 @@ ${brandHeader("Settings")}
     <label>New flavour phrases (one per line)<textarea id="paF"></textarea></label>
     <button class="btn-main" type="button" id="paGo" style="width:auto;padding:0 26px">Add phrases</button>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Seasonal tags</h2>
+  <div class="card ptext part-tags"><h2 style="margin-top:0">Seasonal tags</h2>
     <p class="small" style="margin:0">Live listings swap these in automatically each morning while they're in season (see the Calendar). Tap a phrase to switch it off or back on.</p>
     ${seasonHtml || '<p class="small">No seasonal phrases loaded.</p>'}
     <h3 class="sideh" style="margin-top:22px">Add a seasonal phrase</h3>
@@ -4046,7 +4050,7 @@ ${brandHeader("Settings")}
       <label>Starts (day/month)<input id="spA" placeholder="01/10"></label><label>Ends (day/month)<input id="spE" placeholder="24/12"></label></div>
     <button class="btn-main" type="button" id="spGo" style="width:auto;padding:0 26px;margin-top:12px">Add seasonal phrase</button>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Mockup pages</h2>
+  <div class="card ptext part-pages"><h2 style="margin-top:0">Mockup pages</h2>
     <p class="small" style="margin:0">Which pages of each Canva mockup template become listing photos, and in what order. Names must match the Canva page names exactly. After changing a garment's pages, run Check Core → Check a mockup template for it.</p>
     <label>Range and garment<select id="mpR">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
     <div id="mpL"></div>
@@ -4054,24 +4058,24 @@ ${brandHeader("Settings")}
     <div class="g3"><label>Position<input id="mpP" type="number" min="1" max="40"></label><label style="grid-column:span 2">Page name<input id="mpN" placeholder="OS_26_TS_EXTRA_MAROON"></label></div>
     <button class="btn-main" type="button" id="mpGo" style="width:auto;padding:0 26px;margin-top:12px">Add page</button>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Product text</h2>
+  <div class="card ptext part-text"><h2 style="margin-top:0">Product text</h2>
     <p class="small" style="margin:0">What new listings are built with, for each range and garment. Saving changes Core only: listings already live keep their text. To change live listings as well, use Update listings → Descriptions.</p>
     <label>Range and garment<select id="pr">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
     <div id="pf"></div>
     <div style="display:flex;gap:10px;margin-top:16px"><button class="btn-main" type="button" id="psave" style="width:auto;padding:0 26px">Save product text</button></div>
   </div>
-  <div class="card"><h2 style="margin-top:0">Phone notifications</h2>
+  <div class="card part-system"><h2 style="margin-top:0">Phone notifications</h2>
     <p class="small" style="margin:0 0 10px">The app sends alerts to your phone through the free <b>ntfy</b> app: videos ready, approvals done, failed builds, today's release, alerts. To receive them: install ntfy (App Store / Google Play), tap +, and subscribe to the topic below. Keep the topic private.</p>
     <div class="cp" style="display:flex;gap:8px;align-items:center"><code style="flex:1;font:500 13px var(--mono);overflow:hidden;text-overflow:ellipsis">${esc(env.NTFY_TOPIC || "not set up")}</code>${env.NTFY_TOPIC ? `<button class="btn" type="button" id="ntCopy" style="width:auto" data-t="${esc(env.NTFY_TOPIC)}">Copy</button>` : ""}</div>
     <button class="btn-main" type="button" id="ntTest" style="width:auto;padding:0 26px;margin-top:12px">Send a test notification</button>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Schedule: move a whole range</h2>
+  <div class="card ptext part-shift"><h2 style="margin-top:0">Schedule: move a whole range</h2>
     <p class="small" style="margin:0">Moves every unreleased date in one range later or earlier by whole weeks, keeping the order and weekdays. Built and released garments stay put, and nothing can be moved into the next two days. Undo is in Recent changes above.</p>
     <div class="g3"><label>Range<select id="shR"><option value="IH">Introvert Here</option><option value="SH">SHHH.</option><option value="PC">Per Contract</option><option value="OS">Off The Shelf</option></select></label>
       <label>Weeks (minus = earlier)<input id="shW" type="number" min="-104" max="104" value="1"></label></div>
     <button class="btn-main" type="button" id="shGo" style="width:auto;padding:0 26px;margin-top:12px">Move the range</button>
   </div>
-  <div class="card ptext"><h2 style="margin-top:0">Backups</h2>
+  <div class="card ptext part-system"><h2 style="margin-top:0">Backups</h2>
     <p class="small" style="margin:0">Core is copied every night at 02:15 and the last 35 days are kept. To put Core back how it was:</p>
     <ol class="small" style="padding-left:18px"><li><b>Best:</b> open Core in OneDrive (<a href="https://mosspitstudios-my.sharepoint.com/personal/admin_mosspit_org/_layouts/15/Doc.aspx?sourcedoc=%7BEA717AD9-320A-4722-B604-03270C9D7310%7D&file=001A_INTROVERT_HERE_CORE.xlsx&action=default" target="_blank" rel="noopener">open Core</a>) → File → Info → <b>Version history</b>, pick a time and Restore. This keeps the same file, so Make carries on working.</li>
     <li>Or ask Claude to restore it for you from a nightly copy.</li><li>Don't replace Core with a backup file by hand: Make would lose track of it.</li></ol>
@@ -4507,7 +4511,8 @@ async function amendPage(env) {
   const S = (await env.PENDING.get("amend", "json")) || null;
   const trial = await env.PENDING.get("amend-trial", "json");
   const log = (await env.PENDING.get("amend-log", "json")) || [];
-  const data = JSON.stringify({ S, log }).replace(/</g, "\\u003c");
+  const ship = (await env.PENDING.get("ship-profiles", "json")) || {};
+  const data = JSON.stringify({ S, log, ship }).replace(/</g, "\\u003c");
   return shell(`
 <style>
 .aw{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:110px}
@@ -4562,8 +4567,13 @@ async function amendPage(env) {
   .abar .in{display:grid;grid-template-columns:auto auto 1fr;gap:8px}.abar .count{grid-column:1/-1;min-width:0}}
 .abtn{min-height:52px;font:800 13px var(--display);letter-spacing:.08em;text-transform:uppercase;border-width:2px;border-radius:14px}
 .abtn.go{border-color:var(--go)}
+.grp{margin:10px 0 0;font:800 11px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.pv{margin-top:12px}.pvlbl{font:800 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.pvbox{background:#fff;color:#222;border-radius:10px;padding:12px 14px;font:16px/1.45 Arial,sans-serif}.pvseen{background:#fff3c4}.pvdesc{white-space:pre-wrap;font-size:14px;max-height:420px;overflow:auto}
+.ttab{width:100%;border-collapse:collapse;font-size:13px}.ttab th,.ttab td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.warnbox{margin:8px 0;padding:10px 12px;border-radius:10px;background:rgba(230,180,80,.14);border:1px solid rgba(230,180,80,.5);font-size:14px}
 </style>
-${brandHeader("Update listings", `<button class="btn" id="restart" type="button"${S && S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status)) ? "" : " hidden"}>${icon("sync")}Restart updates</button><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
+${brandHeader("Listings", `<button class="btn" id="restart" type="button"${S && S.gags.some((g) => /^AMENDMENT_REQUIRED/.test(g.status)) ? "" : " hidden"}>${icon("sync")}Restart updates</button><button class="btn" id="reread" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="aw">
   ${trialCard(trial, S)}
   <div class="steps" id="steps"></div>
@@ -4619,18 +4629,24 @@ function photoPlan(pages, hero) {
 
 const AMEND_JS = String.raw`
 var D = JSON.parse(document.getElementById("amend-data").textContent);
-var S0 = D.S, LOG = D.log || [];
+var S0 = D.S, LOG = D.log || [], SHIP = D.ship || {};
+var TAXO = { "T-SHIRT": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "LONG-SLEEVE": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "SWEATSHIRT": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Sweatshirts", "HOODIE": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Hoodies" };
 var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
 var GARM = [["T-SHIRT","T-Shirt","T-Shirts"],["LONG-SLEEVE","Long-Sleeve","Long-Sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
+// Listings (Barry, 14 Nov): sections in the order of Etsy's own edit page.
 var WHAT = [
-  ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace), then refresh colours and mockups"],
-  ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video"],
-  ["mockups","Mockup photos","Re-export the Canva mockup pages onto the listings"],
-  ["colours","Colours","Add or take away colours"],
-  ["titles","Titles","The title ending for a range and garment, or one gag's title stem"],
-  ["descriptions","Descriptions","Intro, features, who it's for, closing text"],
-  ["tags","Product tags","The 5 product tags for a range and garment"],
-  ["video","New video","Make a fresh video for each listing from the photos already on Etsy. It comes to Approvals; approving it replaces the old video."]];
+  ["mockups","Mockups","Photos: re-export the Canva mockup pages onto the listings (all of them, one page, or add a page)","Photos & video"],
+  ["video","Video","Make a fresh video from the photos already on Etsy. It comes to Approvals; approving it replaces the old video.","Photos & video"],
+  ["titles","Title","The title ending for a range and garment, or one gag's title stem. With a preview.","Listing text"],
+  ["descriptions","Description","Intro, features, who it's for, closing text. With a preview.","Listing text"],
+  ["tags","Tags","The 5 product tags for a range and garment (gag tags live on the Tags page)","Listing text"],
+  ["taxonomy","Category & attributes","The Etsy category and colour attributes each range and garment uses","Search"],
+  ["shipping","Shipping","Which Etsy shipping profile listings use","Shipping"],
+  ["colours","Colours & sizes","Add or take away colours (sizes come with each garment from Printify)","Variations"],
+  ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video","Production"],
+  ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace)","Production"]];
+var VIEW_ONLY = { taxonomy: 1, shipping: 1 };
+var RULE_ONLY = { titles: 1, descriptions: 1, tags: 1 };
 var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_PHOTO:"Updating one photo", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
 function gName(t) { for (var i = 0; i < GARM.length; i++) if (GARM[i][0] === t) return GARM[i][1]; return t; }
 function rName(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][1]; return c; }
@@ -4654,17 +4670,18 @@ function ruleFor(code, t) { var c = rColl(code); for (var i = 0; i < S0.rules.le
 function single() { var g = {}; selKeys().forEach(function (k) { g[k.split("|")[0]] = 1; }); var ids = Object.keys(g); return ids.length === 1 ? gagOf(ids[0]) : null; }
 function whatOn() { return WHAT.filter(function (w) { return A.what[w[0]]; }).map(function (w) { return w[0]; }); }
 
-var STEPS = ["Where", "What", "Details", "Check"];
+var STEPS = ["What", "Which", "Details", "Check"];
 function render() {
   if (!S0) { $("view").innerHTML = "The page hasn't read Core yet. Tap <b>Sync to Core</b> and give it a minute."; $("count").textContent = ""; return; }
   $("steps").innerHTML = STEPS.map(function (s, i) { return '<span class="' + (i === A.step ? "on" : i < A.step ? "done" : "") + '">' + (i + 1) + ". " + s + "</span>"; }).join("");
-  [where, what, details, check][A.step]();
+  [what, where, details, check][A.step]();
   Array.prototype.forEach.call(document.querySelectorAll("input[data-mixed]"), function (i) { i.indeterminate = true; });
   var n = selKeys().length, w = whatOn();
   $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
   $("back").hidden = A.step === 0 || !!A.done;
   $("next").hidden = A.step >= 3;
-  $("next").disabled = (A.step === 0 && !n) || (A.step === 1 && !w.length) || (A.step === 2 && A.what.mockups && A.photo.mode === "one" && !Object.keys(A.photo.keys).length) || (A.step === 2 && A.what.mockups && A.photo.mode === "add" && !A.photo.name);
+  var ruleOnly = w.length && w.every(function (x) { return RULE_ONLY[x] || VIEW_ONLY[x]; });
+  $("next").disabled = (A.step === 0 && !w.length) || (A.step === 1 && !n && !ruleOnly) || (A.step === 2 && A.what.mockups && A.photo.mode === "one" && !Object.keys(A.photo.keys).length) || (A.step === 2 && A.what.mockups && A.photo.mode === "add" && !A.photo.name);
   $("log").innerHTML = LOG.length ? LOG.map(function (l) { return h(new Date(l.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })) + " · " + h(Array.isArray(l.what) ? l.what.join(", ") : (l.what || "")) + " · " + (l.listings ? l.listings + " listing" + (l.listings === 1 ? "" : "s") : h(l.scope || "")); }).join("<br>") : "None yet.";
   $("readAt").textContent = "Core read " + new Date(S0.at).toLocaleString("en-GB", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" });
 }
@@ -4691,6 +4708,11 @@ function drill() {
 }
 
 function what() {
+  var grp = "", rows = WHAT.map(function (w) { var head = w[3] !== grp ? '<p class="grp">' + h(w[3]) + "</p>" : ""; grp = w[3];
+    return head + '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>" +
+      (w[0] === "taxonomy" ? '<a class="tick" href="/pricing" style="text-decoration:none;color:var(--text)"><span class="lbl">Pricing ›<small>Prices, margins and price changes on live listings (its own page)</small></span></a>' : ""); }).join("");
+  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">In the same order as Etsy\'s edit page. Tick one or more.</p><div class="col">' + rows + "</div>";
+  return;
   $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">Tick as many as you like. They run together, in the right order.</p><div class="col">' +
     WHAT.map(function (w) { return '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>"; }).join("") + "</div>";
 }
@@ -4734,8 +4756,17 @@ function photoChoice2(cb) {
   return out;
 }
 function rv(row, k, def) { var d = A.rules[row]; return d && d[k] != null ? d[k] : def; }
+function allCombos() { return S0.rules.map(function (r) { var c = ""; RANGES.forEach(function (x) { if (x[2] === r.coll) c = x[0]; }); return c + "|" + r.type; }); }
+function sampleGag(code) { var ks = selKeys().filter(function (k) { return k.indexOf(code + "-") === 0; }); var g = ks.length ? gagOf(ks[0].split("|")[0]) : null;
+  if (!g) S0.gags.some(function (x) { if (x.id.indexOf(code + "-") === 0) { g = x; return true; } return false; }); return g; }
+function preview() { var t = $("pvT"), d = $("pvD"); if (!t && !d) return; var p = (A.cur.rule || "").split("|"), r = ruleFor(p[0], p[1]); if (!r) return; var g = sampleGag(p[0]);
+  var stem = (single() && A.stem != null) ? A.stem : (g ? g.stem : "Your Title Stem"), title = stem + " " + rv(r.row, "suffix", r.suffix);
+  if (t) { var n = title.length; t.innerHTML = '<div class="pvlbl">Etsy title · ' + n + "/140 characters" + (n > 140 ? ' <b style="color:#ff8a85">too long</b>' : "") + '</div><div class="pvbox"><span class="pvseen">' + h(title.slice(0, 45)) + "</span>" + h(title.slice(45)) + '</div><div class="small">Highlighted: roughly what shows in Etsy search on a phone.</div>'; }
+  if (d) { var txt = (g ? g.text : "... YOUR GAG TEXT") + "\n\n" + rv(r.row, "intro", r.intro) + "\n" + rv(r.row, "features", r.features) + "\n" + rv(r.row, "audience", r.audience) + "\n" + rv(r.row, "closing", r.closing);
+    d.innerHTML = '<div class="pvlbl">Etsy description' + (g ? " (shown with " + h(g.id) + ")" : "") + '</div><div class="pvbox pvdesc">' + h(txt) + "</div>"; } }
 function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
+  if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
   if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text">' + h(A.text != null ? A.text : one.text) + "</textarea></label>" : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
@@ -4750,8 +4781,8 @@ function details() {
     var p = A.cur.rule.split("|"), r = ruleFor(p[0], p[1]);
     if (one && (A.what.descriptions || A.what.tags)) b += '<p class="hint">Descriptions and product tags are shared by every ' + h(rName(p[0])) + " " + h(gName(p[1]).toLowerCase()) + ' listing, so this changes those too, but only the listings you picked are updated now.</p>';
     function fld(k, label, ta) { var v = rv(r.row, k, r[k]); return '<label class="f">' + label + (ta ? '<textarea data-rule="' + r.row + '" data-rk="' + k + '">' + h(v) + "</textarea>" : '<input data-rule="' + r.row + '" data-rk="' + k + '" value="' + h(v) + '">') + "</label>" + (cb.length > 1 ? '<button class="copy" type="button" data-copy="' + k + '">Use this for all ' + cb.length + " picked range/garment combinations</button>" : ""); }
-    if (ruleKinds.indexOf("titles") >= 0) b += fld("suffix", "Title ending (after the stem)");
-    if (ruleKinds.indexOf("descriptions") >= 0) b += fld("intro", "Range intro", 1) + fld("features", "Product features", 1) + fld("audience", "Who it's for", 1) + fld("closing", "Closing text (put legal or compliance wording here)", 1);
+    if (ruleKinds.indexOf("titles") >= 0) b += fld("suffix", "Title ending (after the stem)") + '<div id="pvT" class="pv"></div>';
+    if (ruleKinds.indexOf("descriptions") >= 0) b += fld("intro", "Range intro", 1) + fld("features", "Product features", 1) + fld("audience", "Who it's for", 1) + fld("closing", "Closing text (put legal or compliance wording here)", 1) + '<div id="pvD" class="pv"></div>';
     if (ruleKinds.indexOf("tags") >= 0) { var tg = rv(r.row, "tags", r.tags); b += '<label class="f">Product tags (5, 20 characters max)</label><div class="g2">' + [0,1,2,3,4].map(function (i) { return '<input class="inp" maxlength="20" data-rule="' + r.row + '" data-tag="' + i + '" value="' + h(tg[i]) + '">'; }).join("") + "</div>" + (cb.length > 1 ? '<button class="copy" type="button" data-copy="tags">Use these tags for all ' + cb.length + " picked combinations</button>" : ""); }
     if (ruleKinds.indexOf("supplier") >= 0) b += '<p class="hint">Do the swap in Printify first (My products › Replace), then record the new IDs here. Now: ' + h(r.bpName || "blueprint") + " (blueprint " + h(r.bp) + ", provider " + h(r.provider) + ").</p>" + fld("bp", "Printify blueprint ID (garment model)") + fld("provider", "Printify provider ID");
     sec(ruleKinds.length === 1 && ruleKinds[0] === "supplier" ? "Supplier" : "Range text", b);
@@ -4768,11 +4799,36 @@ function details() {
       list.map(function (c) { return '<label><input type="checkbox" data-colour="' + h(c) + '"' + (have.indexOf(c) >= 0 ? " checked" : "") + ">" + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ")</small>" : "") + "</label>"; }).join("") + "</div>";
     sec("Colours", cb2);
   }
+  if (A.what.mockups) out += '<p class="hint"><a href="/settings?part=pages">Manage which Canva pages become photos ›</a></p>';
+  if (A.what.tags) out += '<p class="hint"><a href="/settings?part=tags">Gag categories, tag phrases and seasonal tags ›</a> · <a href="/tags">Approve gag tags ›</a></p>';
+  if (A.what.taxonomy) { any = true; out += '<div class="sec"><h3>Category & attributes</h3><table class="ttab"><tr><th>Range and garment</th><th>Etsy category</th><th>Colour attributes</th></tr>' +
+    S0.rules.map(function (r) { var c = ""; RANGES.forEach(function (x) { if (x[2] === r.coll) c = x[0]; }); return "<tr><td>" + h(rName(c)) + " · " + h(gName(r.type)) + "</td><td>" + h(TAXO[r.type] || "") + "</td><td>" + h((r.primary || "—") + (r.secondary ? " / " + r.secondary : "")) + "</td></tr>"; }).join("") +
+    '</table><p class="hint">Etsy has no Maroon or Navy option, so the nearest Etsy colour is used (Maroon → Red, Navy → Blue). Changing these is rare; ask Claude if you need to.</p></div>'; }
+  if (A.what.shipping) { any = true; var cur = SHIP.current, list = SHIP.list || [];
+    out += '<div class="sec"><h3>Shipping</h3><p class="hint">Every listing currently uses: <b>' + h((list.filter(function (x) { return String(x.id) === String(cur); })[0] || {}).t || cur) + "</b>.</p>" +
+      (SHIP.note ? '<div class="warnbox">' + h(SHIP.note) + "</div>" : "") + '<p class="hint">Your Etsy shipping profiles:</p><div class="col">' + list.map(function (x) { return '<div class="tick"><span class="lbl">' + h(x.t) + "<small>" + h(x.id) + (String(x.id) === String(cur) ? " · in use" : "") + "</small></span></div>"; }).join("") +
+      '</div><p class="hint">Choosing a profile per range and garment (and switching live listings) is the next stage of Listings.</p></div>'; }
   if (!any) out += '<p class="hint">Nothing to fill in. Tap Next.</p>';
   $("view").innerHTML = out;
+  preview();
 }
 
+function saveCore() { var rows = Object.keys(A.rules), i = 0, b = $("go"); b.disabled = true; b.textContent = "Saving…";
+  (function next() { if (i >= rows.length) { A.done = { core: rows.length }; render(); return; }
+    var body = Object.assign({ kind: "rule", row: rows[i] }, A.rules[rows[i]]); i++;
+    fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't save"); next(); }); })
+      .catch(function (e) { A.err = e.message; b.disabled = false; b.textContent = "Save for new listings"; render(); }); })(); }
 function check() {
+  var wo = whatOn(), nRule = Object.keys(A.rules).length;
+  if (A.done && A.done.core) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">' + A.done.core + " range and garment text" + (A.done.core === 1 ? " was" : "s were") + " updated. New listings will use it; live listings were not changed. Undo is in Settings → Recent changes.</p></div>"; return; }
+  if (wo.every(function (x) { return VIEW_ONLY[x]; })) { $("view").innerHTML = '<p class="q">Nothing to save</p><p class="hint">Category & attributes and Shipping are for looking at for now.</p>'; return; }
+  var onlyRules = wo.every(function (x) { return RULE_ONLY[x] || VIEW_ONLY[x]; });
+  if (onlyRules && (!selKeys().length || A.coreOnly)) {
+    $("view").innerHTML = '<p class="q">Save for new listings</p><p class="hint">' + (nRule ? nRule + " range and garment text" + (nRule === 1 ? "" : "s") + " changed. Saved to Core only: listings built from now on use it; live listings stay as they are." : "You haven't changed anything yet. Go Back to edit.") + "</p>" +
+      (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") + (selKeys().length ? '<p class="hint"><a href="#" id="toLive">Update the ' + selKeys().length + " ticked live listings too ›</a></p>" : '<p class="hint">To change live listings as well, go Back to step 2 and tick them.</p>') +
+      (nRule ? '<div class="okbox" style="margin-top:10px"><button class="abtn go" type="button" id="go">Save for new listings</button></div>' : "");
+    if ($("go")) $("go").onclick = saveCore; if ($("toLive")) $("toLive").onclick = function (e) { e.preventDefault(); A.coreOnly = false; render(); };
+    return; }
   var ks = selKeys(), gs = {}, rs = {}, ts = {};
   ks.forEach(function (k) { var p = k.split("|"); gs[p[0]] = 1; rs[rName(p[0].slice(0, 2))] = 1; ts[gName(p[1])] = 1; });
   var w = WHAT.filter(function (x) { return A.what[x[0]]; }).map(function (x) { return x[0] === "mockups" && A.photo.mode === "one" ? "the " + Object.keys(A.photo.keys).map(function (k) { var p = k.split("#"); return p[0].toLowerCase().replace(/_/g, " ") + (p[1] !== "1" ? " " + p[1] : ""); }).join(" and ") + " photo" + (Object.keys(A.photo.keys).length === 1 ? "" : "s") : x[0] === "mockups" && A.photo.mode === "add" ? "add a new photo (" + (A.photo.name || "?") + ")" : x[1].toLowerCase(); });
@@ -4787,9 +4843,10 @@ function check() {
     (n > 1 ? '<label class="tick" style="margin-top:10px"><input type="checkbox" data-trialtick="1"' + (A.trial ? " checked" : "") + '><span class="lbl">Try it on one listing first<small>Updates ' + h(ks[0].replace("|", " ").toLowerCase()) + ' only. You check it on Etsy, then tap Carry on for the other ' + (n - 1) + '. Recommended.</small></span></label>' : "") +
     '<div class="okbox" style="margin-top:10px"><b>Ready?</b><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="abtn go" type="button" id="go">Confirm and start</button></div></div>';
   $("go").onclick = submit;
+  if (onlyRules && nRule) { var c2 = document.createElement("p"); c2.className = "hint"; c2.innerHTML = '<a href="#">Or save for new listings only (leave live listings as they are) ›</a>'; c2.firstChild.onclick = function (e) { e.preventDefault(); A.coreOnly = true; render(); }; $("view").appendChild(c2); }
 }
 function submit() {
-  var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn(), rules: A.rules, colours: {} };
+  var body = { listings: selKeys().map(function (k) { var p = k.split("|"); return { gag: p[0], garment: p[1] }; }), what: whatOn().filter(function (x) { return !VIEW_ONLY[x]; }), rules: A.rules, colours: {} };
   var one = single();
   if (A.what.mockups && A.photo.mode !== "all") body.photo = A.photo.mode === "one" ? { mode: "one", keys: Object.keys(A.photo.keys) } : A.photo;
   if (A.trial && body.listings.length > 1) body.trial = true;
@@ -4844,6 +4901,7 @@ document.addEventListener("input", function (e) {
   if (el.dataset.rule) { var row = el.dataset.rule; A.rules[row] = A.rules[row] || {};
     if (el.dataset.rk) A.rules[row][el.dataset.rk] = el.value;
     if (el.dataset.tag != null) { var r = S0.rules.filter(function (x) { return String(x.row) === row; })[0]; var tg = (A.rules[row].tags || r.tags).slice(); tg[Number(el.dataset.tag)] = el.value; A.rules[row].tags = tg; } }
+  if (el.dataset.rule || el.dataset.one) preview();
 });
 $("next").onclick = function () { A.step++; A.err = ""; render(); window.scrollTo(0, 0); };
 $("back").onclick = function () { A.step--; A.err = ""; render(); window.scrollTo(0, 0); };
