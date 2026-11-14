@@ -1612,6 +1612,7 @@ async function dashboardPage(env) {
     return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
+<div class="row"><span>Gags in Core</span><b>${((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-")).length}</b></div>
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
   }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
