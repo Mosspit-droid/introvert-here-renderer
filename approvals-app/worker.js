@@ -33,6 +33,7 @@ export default {
     ctx.waitUntil(amendWatch(env));
     ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
+    ctx.waitUntil(quickTick(env).catch(() => {}));
   },
 
   async fetch(request, env, ctx) {
@@ -157,6 +158,8 @@ export default {
       if (pathname === "/api/stars") return await starsApi(request, env);
       if (pathname === "/api/gag-target" && method === "POST") return await gagTarget(request, env);
       if (pathname === "/api/gag-clear" && method === "POST") return await gagClear(request, env);
+      if (pathname === "/api/quick-list" && method === "POST") return await quickList(request, env);
+      if (pathname === "/api/quick-dismiss" && method === "POST") { const L = ((await env.PENDING.get(QUICK_KEY, "json")) || []).filter((j) => !["done", "failed", "stuck"].includes(j.stage)); await env.PENDING.put(QUICK_KEY, JSON.stringify(L)); return json({ ok: true }); }
       if (pathname === "/api/backups" && method === "GET") return json(await backupList(env));
       if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
       if (pathname === "/api/search-data" && method === "GET") return await searchData(env);
@@ -785,6 +788,12 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .tiles .tile,.tiles .tile.primary{grid-column:span 1}
 .tiles .tile.tall{grid-row:span 2}
+.quickbar{display:flex;align-items:center;gap:16px;padding:18px 20px;margin:0 0 12px;border-radius:var(--r);background:var(--accent);color:#141413;text-decoration:none;border:2px solid var(--accent);transition:transform .15s}
+.quickbar:hover{transform:translateY(-2px)}
+.quickbar .ic{width:48px;height:48px;border-radius:13px;background:#141413;color:var(--accent);display:grid;place-items:center;flex:none}.quickbar .ic svg{width:28px;height:28px}
+.quickbar .nm{display:block;font:800 16px var(--display);letter-spacing:.08em;text-transform:uppercase}
+.quickbar .st{display:block;font-size:13px;margin-top:3px;color:#2b2a27}
+.quickbar .qgo{margin-left:auto;font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;padding:10px 16px;border-radius:99px;background:#141413;color:var(--accent)}
 @media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
@@ -1037,6 +1046,7 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
           swapOn = false; picked = []; rlDraw(); if (window.toast) window.toast("Swapped. Core updates in about a minute."); })
         .catch(function () { go.disabled = false; go.textContent = "Swap dates"; alert("Couldn't reach the app. Nothing was changed."); }); }; }
   var rlSort = "date";
+  function fromHref(h) { return h + (h.indexOf("?") >= 0 ? "&" : "?") + "from=" + rlCode; }
   function rlDraw() {
     var ST = data.stars || {};
     var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0 && String(g.text || "").trim(); }).map(function (g) { return { g: g, st: gagState(g, data) }; });
@@ -1048,8 +1058,8 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
       var ed = (data.editable || []).some(function (e) { return e.id === g.id; }), canDel = ed && !(st.first && st.first <= soon2);
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
       var stars = '<span class="rlstars">' + [1, 2, 3, 4, 5].map(function (k) { return '<button type="button" data-rate="' + k + '" data-id="' + esc2(g.id) + '" class="' + (k <= n ? "on" : "") + '" aria-label="' + k + ' stars">★</button>'; }).join("") + "</span>";
-      return '<div class="' + cls + '" data-id="' + esc2(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><a class="rltx" href="' + editHref(g, data) + '">' + esc2(String(g.text || "")) + '</a><span class="rld">' + esc2(st.t) + '</span><span class="rlside">' + stars +
-        '<span class="rlacts"><a href="' + editHref(g, data) + '">Edit</a>' + (canDel ? '<button type="button" class="del" data-del="' + esc2(g.id) + '">Delete</button>' : "") + "</span></span></div>"; }).join("") : '<p class="small">No gags written for this range yet.</p>';
+      return '<div class="' + cls + '" data-id="' + esc2(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><a class="rltx" href="' + fromHref(editHref(g, data)) + '">' + esc2(String(g.text || "")) + '</a><span class="rld">' + esc2(st.t) + '</span><span class="rlside">' + stars +
+        '<span class="rlacts"><a href="' + fromHref(editHref(g, data)) + '">Edit</a>' + (canDel ? '<button type="button" class="del" data-del="' + esc2(g.id) + '">Delete</button>' : "") + "</span></span></div>"; }).join("") : '<p class="small">No gags written for this range yet.</p>';
     rlBar(); }
   function showRange(code, name) {
     rlCode = code; swapOn = false; picked = [];
@@ -1073,6 +1083,8 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
       if (i >= 0) picked.splice(i, 1); else { if (picked.length >= 2) picked.shift(); picked.push(id); } rlDraw(); });
   }
   document.querySelectorAll("[data-rlist]").forEach(function (b) { b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); showRange(b.dataset.rlist, b.dataset.name); }); });
+  var reopen = new URLSearchParams(location.search).get("rlist");
+  if (RL && reopen) { var rb0 = document.querySelector('[data-rlist="' + reopen.replace(/[^A-Z]/g, "") + '"]'); if (rb0) setTimeout(function () { showRange(rb0.dataset.rlist, rb0.dataset.name); history.replaceState(null, "", "/"); }, 50); }
   if (RL) { document.getElementById("rlX").addEventListener("click", function () { RL.classList.remove("open"); }); RL.addEventListener("click", function (e) { if (e.target === RL) RL.classList.remove("open"); }); }
   // Sync to Core button in every page header.
   document.querySelectorAll("[data-sync]").forEach(function (b) { b.addEventListener("click", function () {
@@ -1180,7 +1192,7 @@ ${brandHeader(esc(g.stem || id))}
     <div class="row"><span>Status</span><b><span class="pill ${st[1]}">${esc(st[0])}</span></b></div>
     ${ed && ed.category ? `<div class="row"><span>Category</span><b>${esc(ed.category)}</b></div>` : ""}
     ${ed && ed.dates ? `<div class="row"><span>Releases</span><b>${esc(fmtDay(ed.dates[0]))}${ed.dates[3] && ed.dates[3] !== ed.dates[0] ? " → " + esc(fmtDay(ed.dates[3])) : ""}</b></div>` : ""}
-    <div class="gacts2">${ed ? `<a class="btn" href="/gags?edit=${encodeURIComponent(id)}">${icon("gags")}Edit gag</a>` : ""}<a class="btn" href="/amend">${icon("update")}Update listings</a></div>
+    <div class="gacts2"><a class="btn" id="backList" hidden>‹ Back to list</a><script>(function () { var f = (new URLSearchParams(location.search).get("from") || "").replace(/[^A-Z]/g, "").slice(0, 2); if (f) { var b = document.getElementById("backList"); b.href = "/?rlist=" + f; b.hidden = false; } })();</script>${ed ? `<a class="btn" href="/gags?edit=${encodeURIComponent(id)}">${icon("gags")}Edit gag</a>` : ""}<a class="btn" href="/amend">${icon("update")}Update listings</a></div>
   </div>
 </div>
 <h2>Listings</h2>
@@ -1641,6 +1653,7 @@ async function dashboardPage(env) {
   const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: Number(iso.slice(0, 4)) !== thisYear ? "numeric" : undefined, timeZone: "UTC" });
   // "Read" hides a card until it changes (new count or new first item), then it comes back.
   const dismissed = (await env.PENDING.get("dismissed", "json")) || {};
+  const quick = ((await env.PENDING.get(QUICK_KEY, "json")) || []).filter((j) => ["saving", "tags", "build"].includes(j.stage) || Date.now() - j.upd < 24 * 3600e3);
   const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
   const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
   // A tile turns red while its area needs attention, with the count as a badge (Barry, 14 Nov).
@@ -1728,7 +1741,11 @@ ${topBar("Dashboard")}
 .pbar{height:12px;border-radius:99px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;border-radius:99px;transition:width .4s}</style>
 ${trial ? `<h2>Waiting for you</h2>${trialCard(trial, amend)}` : ""}
 ${prog}
-${(() => { const cards = [need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
+${(() => { const QS = { saving: "Saving to Core…", tags: "Approving its tags…", build: "Building on Etsy (one garment at a time, about 15 minutes each)…" };
+  const quickCards = quick.map((j) => j.stage === "done" ? need("run", "✓", "Listed: " + esc(j.stem), "Built. Its video comes to Approvals; approve to go live and post.", "/approvals")
+    : ["failed", "stuck"].includes(j.stage) ? need("hot", "!", "List it now: " + esc(j.stem), esc(j.msg || "Something went wrong."), "/alerts")
+    : need("run", "…", "Listing now: " + esc(j.stem), esc(j.msg || QS[j.stage] || "") + " · " + esc(j.garments.map((t) => t.charAt(0) + t.slice(1).toLowerCase()).join(", ")), "/")).join("");
+  const cards = [quickCards, need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 (new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" }) === "Saturday" ? need("warn", weekReleases(gags).length, "Check next week's releases", "Read through the gags going out in the next 7 days", "/week") : "") +
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts") +
 (sale ? need("warn", sale.days || "!", sale.name + (sale.days ? " in " + sale.days + " day" + (sale.days === 1 ? "" : "s") : " is today"), "Worth an Etsy sale or discount code? Shop Manager → Marketing → Sales and discounts", "https://www.etsy.com/your/shops/me/sales-discounts") : "") +
@@ -1743,6 +1760,7 @@ need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (low
 <h2>Today <a class="small" href="/today" style="margin-left:auto;letter-spacing:.08em">Today view ›</a></h2>
 ${todayStrip}
 <h2>Studio</h2>
+<a class="quickbar" href="/gags?now=1"><span class="ic">${icon("gags")}</span><span><span class="nm">List a gag now</span><span class="st">Write it and it's built straight away, outside the weekly schedule. It comes to Approvals before it goes live.</span></span><span class="qgo">Start ›</span></a>
 <div class="tiles">
   ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true, true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
@@ -2114,6 +2132,8 @@ async function gagResult(request, env, ctx, url) {
     sv.doneAt = Date.now();
     await env.PENDING.put(SAVES_KEY, JSON.stringify(saves));
   }
+  const QJ = (await env.PENDING.get(QUICK_KEY, "json")) || [], qj = QJ.find((j) => j.ref === str(data.ref));
+  if (qj) { if (ok && str(data.gagId)) { qj.gagId = str(data.gagId); qj.stage = "tags"; } else { qj.stage = "failed"; qj.msg = str(data.message) || "Core refused the gag."; } qj.upd = Date.now(); await env.PENDING.put(QUICK_KEY, JSON.stringify(QJ)); }
   if (!ok) ctx.waitUntil(notify(env, url.origin, "Gag NOT saved" + (str(data.gagId) ? ": " + str(data.gagId) : ""), str(data.message) || "Open the app for details.", "x"));
   return json({ ok: true });
 }
@@ -2201,10 +2221,12 @@ function targetPlan(g, pre, target) {
   const plan = { pre, target, have: rows.length, written, add: [], remove: [], blocked: 0 };
   if (!coll || !rows.length) return plan;
   if (target > rows.length) {
-    const last = rows[rows.length - 1], prev = rows[rows.length - 2] || last;
+    // carry on from the latest-dated scheduled rows (a List it now gag has a newer number but today's date)
+    const dated = rows.filter((x) => (x.ds || []).length === 4 && x.ds.every(Boolean)).sort((x, y) => (x.ds[0] < y.ds[0] ? -1 : x.ds[0] > y.ds[0] ? 1 : 0));
+    const last = dated[dated.length - 1] || rows[rows.length - 1], prev = dated[dated.length - 2] || last;
     const ld = (last.ds || []).map(XL_DAY), pd = (prev.ds || []).map(XL_DAY);
     const step = ld[0] && pd[0] && ld[0] > pd[0] ? ld[0] - pd[0] : 7;
-    let num = Number(last.id.split("-")[1]), cur = ld.length === 4 && ld.every(Boolean) ? ld : null;
+    let num = Math.max(...rows.map((x) => Number(x.id.split("-")[1]) || 0)), cur = ld.length === 4 && ld.every(Boolean) ? ld : null;
     if (!cur) return Object.assign(plan, { error: "The last " + pre + " row has no dates to carry on from." });
     for (let i = rows.length; i < target; i++) { num++; cur = cur.map((x) => x + step); plan.add.push({ id: pre + "-" + String(num).padStart(5, "0"), coll, ds: cur.map(ISO_DAY), xl: cur.slice() }); }
   } else if (target < rows.length) {
@@ -2243,6 +2265,65 @@ async function gagTarget(request, env) {
   if (n) t[pre] = n; else delete t[pre];
   await env.PENDING.put("gag-targets", JSON.stringify(t));
   return json({ ok: true, targets: t, plan });
+}
+
+// List it now (Barry, 14 Nov): write a gag and have it built straight away, outside the weekly schedule.
+// 1. Save Gag ("now") adds a new row dated today for the garments picked. 2. Its tag row is added already approved,
+// so the builder freezes the tags at the start of its run. 3. The builder is run (one garment per run) until every
+// picked garment is built. The listings then go through Approvals as usual: approving puts them live and posts them.
+const QUICK_KEY = "quick-jobs";
+const GARMS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+async function quickList(request, env) {
+  if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
+  const d = await request.json().catch(() => ({}));
+  const garments = GARMS.filter((t) => Array.isArray(d.garments) && d.garments.includes(t));
+  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem = str(d.stem), collection = str(d.collection), category = str(d.category);
+  if (!text || !stem || !collection || !category) return json({ error: "Fill in the gag, range, title stem and category first." }, 400);
+  if (!garments.length) return json({ error: "Pick at least one garment." }, 400);
+  const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
+  if (L.some((j) => ["saving", "tags", "build"].includes(j.stage))) return json({ error: "Another List it now is still building. Wait for it to finish (it shows on the dashboard)." }, 409);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const dd = GARMS.map((t) => (garments.includes(t) ? today : ""));
+  const ref = crypto.randomUUID();
+  const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: "auto", tag13: "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false" };
+  const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return json({ error: "Make didn't accept it (" + res.status + "). Nothing was written." }, 502);
+  const saves = await loadSaves(env);
+  saves.unshift({ ref, action: "now", gagId: "", stem: "List it now: " + stem, text, status: "pending", at: Date.now() });
+  await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
+  L.unshift({ ref, stem, garments, stage: "saving", at: Date.now(), upd: Date.now(), runs: 0 });
+  await env.PENDING.put(QUICK_KEY, JSON.stringify(L.slice(0, 10)));
+  return json({ ok: true });
+}
+async function quickTick(env) {
+  const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
+  const j = L.find((x) => ["saving", "tags", "build"].includes(x.stage)); if (!j) return;
+  const now = Date.now(), save = () => env.PENDING.put(QUICK_KEY, JSON.stringify(L));
+  const fail = async (stage, msg) => { j.stage = stage; j.msg = msg; j.upd = now; await save();
+    const alerts = await loadAlerts(env); alerts.unshift({ id: crypto.randomUUID(), at: now, title: "List it now: " + j.stem + " needs a look", body: msg, link: "/", source: "app" }); await saveAlerts(env, alerts); };
+  if (j.stage === "saving") { if (now - j.at > 15 * 60e3) await fail("failed", "Core never confirmed the gag was saved. Check Gags → Recent saves."); return; }
+  if (j.stage === "tags") {
+    const row = [j.gagId, ...Array(12).fill(null), true, ...Array(15).fill(null)];   // APPROVED = TRUE: the builder freezes the suggested tags
+    const err = await amendHook(env, { action: "apply", ops: JSON.stringify([{ url: `${AMEND_XL}/tables/GAG_TAGS/rows/add`, method: "POST", values: [row] }]), delay: "1", run: "no" });
+    if (err) { if (now - j.upd > 30 * 60e3) await fail("stuck", "Couldn't add its tag row in Core."); return; }
+    j.stage = "build"; j.tagAt = now; j.upd = now; await save(); return;
+  }
+  // build: wait for the tag row, then run the builder whenever it's free, until every picked garment is in the registry
+  const g = await env.PENDING.get("gags", "json");
+  const sc = g && (g.sched || []).find((x) => x.id === j.gagId);
+  const done = sc && j.garments.every((t) => sc.b && sc.b[GARMS.indexOf(t)]);
+  if (done) { j.stage = "done"; j.upd = now; await save(); await notify(env, "", "Listed: " + j.stem, j.garments.length + " listing" + (j.garments.length === 1 ? "" : "s") + " built. The video comes to Approvals; approve it to go live and post.", "white_check_mark"); return; }
+  if (env.MAKE_GAGSYNC_HOOK && (!j.syncAt || now - j.syncAt > 9 * 60e3)) { j.syncAt = now; await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "quick" }) }).catch(() => {}); }
+  if (now - j.tagAt < 3 * 60e3) { await save(); return; }
+  if (j.runs >= j.garments.length * 2 + 2 || now - j.at > 4 * 3600e3) return await fail("stuck", "The builder ran " + j.runs + " times but not every garment was built. Check Alerts and Make.");
+  if (await env.PENDING.get("builder-stop")) { j.msg = "Waiting: the builder is stopped (Stop button)."; await save(); return; }
+  const lk = await env.PENDING.get("lock:builder", "json");
+  if (lk && !lk.passed && now - lk.at < 20 * 60e3) { await save(); return; }   // builder busy
+  if (j.lastRun && now - j.lastRun < 12 * 60e3) { await save(); return; }   // give the last run time to finish and Core to update
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return await fail("stuck", "The app has no Make key to start the builder.");
+  const r = await fetch(MAKE_API + "/scenarios/7896436/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: "{}" });
+  j.runs++; j.lastRun = now; j.upd = now; j.msg = r.ok ? "" : "Make said " + r.status + " when starting the builder; trying again shortly.";
+  await save();
 }
 
 async function gagSave(request, env) {
@@ -2293,7 +2374,7 @@ ${brandHeader("Gags")}
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
-    <div class="wzhead o-wzbar"><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
+    <div class="wzhead o-wzbar"><a class="btn wzlist" id="wzList" hidden>‹ Back to list</a><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
     <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
     <div class="card g-text o-text" data-st="1"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
@@ -2307,6 +2388,7 @@ ${brandHeader("Gags")}
       <div class="fld o-cat" data-st="4"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-season" data-st="5"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
+      <div class="fld o-garm" data-st="9"><b>Garments to list now</b><div class="chips" id="garmChips"></div><p class="small" style="margin:8px 0 0">Each garment is built one after another, about 15 minutes each. T-shirt only is quickest.</p></div>
       <div class="fld o-dates" data-st="6"><b>Release dates</b>
         <div class="four">
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
@@ -2335,7 +2417,8 @@ ${brandHeader("Gags")}
   .wznav{display:flex;gap:8px}.wznav .btn,.wznav .btn-main{flex:1;min-height:50px;margin:0;width:auto}
   #wzNext{border-color:var(--accent)}
   /* Keyboard open (Barry, 14 Nov): only the box being typed in and a small Next. */
-  body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
+  .wzlist{align-self:flex-start;min-height:40px;padding:0 16px}.wzlist[hidden],#backList[hidden]{display:none!important}
+  body.kb .wzlist,body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
   body.kb .wzhead{padding:6px 10px;gap:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;align-items:flex-start;pointer-events:none}
   body.kb .wznav{justify-content:flex-start;pointer-events:auto}
   body.kb #wzNext,body.kb #wzBack{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
@@ -2423,6 +2506,33 @@ ${GAG_WIZARD_SCRIPT}</script>`);
 // Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
 const GAG_WIZARD_SCRIPT = String.raw`(function () {
   var STEPS = ["Gag", "Range", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;
+  var NOW = new URLSearchParams(location.search).get("now") === "1", GSEL = { "T-SHIRT": 1 };
+  if (NOW) {
+    STEPS = ["Gag", "Range", "Title stem", "Category", "Garments"];
+    document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; });
+    document.querySelector(".o-garm").dataset.st = "5";
+    document.getElementById("save").textContent = "List it now";
+    var GN = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
+    var drawG = function () { document.getElementById("garmChips").innerHTML = GN.map(function (x) { return '<button type="button" class="chip' + (GSEL[x[0]] ? " on" : "") + '" data-garm="' + x[0] + '">' + x[1] + "</button>"; }).join(""); };
+    drawG();
+    document.getElementById("garmChips").addEventListener("click", function (e) { var b = e.target.closest("[data-garm]"); if (!b) return; if (GSEL[b.dataset.garm]) delete GSEL[b.dataset.garm]; else GSEL[b.dataset.garm] = 1; drawG(); });
+    document.title = "List it now";
+    document.getElementById("form").addEventListener("submit", function (e) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      var t = document.getElementById("text"), st = document.getElementById("stem");
+      if (typeof capsGag === "function") t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
+      var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
+      if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
+      if (!confirm("List " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's saved to Core and built straight away. It comes to Approvals before it goes live.")) return;
+      var sv = document.getElementById("save"); sv.disabled = true; sv.textContent = "Starting…";
+      fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g }) })
+        .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
+        .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); sv.disabled = false; sv.textContent = "List it now"; return; } location.href = "/"; })
+        .catch(function () { alert("Couldn't reach the app. Nothing was changed."); sv.disabled = false; sv.textContent = "List it now"; });
+    }, true);
+  }
+  var FROM = (new URLSearchParams(location.search).get("from") || "").replace(/[^A-Z]/g, "").slice(0, 2);
+  if (FROM) { var bl = document.getElementById("wzList"); bl.href = "/?rlist=" + FROM; bl.hidden = false; window.GAG_FROM = FROM; }
   function el(id) { return document.getElementById(id); }
   function need() {
     if (cur === 1 && !el("text").value.replace(/^[\s.…]+/, "").trim()) return "Type the gag first" + (document.querySelector('.tab.on[data-tab="edit"]') ? ", or pick one to edit." : ".");
@@ -2847,7 +2957,7 @@ $("form").addEventListener("submit", async (e) => {
   if (body.gagId && (window.starPick || (window.GAG_STARS || {})[body.gagId])) await fetch('/api/stars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: body.gagId, n: window.starPick || 0 }) }).catch(() => {});
   try { sessionStorage.setItem("gagTop", "1"); } catch (e) {}
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-  window.scrollTo(0, 0); location.reload();
+  window.scrollTo(0, 0); if (window.GAG_FROM) location.href = "/?rlist=" + window.GAG_FROM; else location.reload();
 });
 
 // ----- refresh + auto-update -----
