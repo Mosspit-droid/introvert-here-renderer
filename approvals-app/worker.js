@@ -2455,7 +2455,20 @@ ${brandHeader("Gags")}
   @media (max-width:820px){
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
-    .o-prev{order:1}.o-wzbar{order:2}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    /* Phone (Barry, 14 Nov): buttons pinned at the top on the right, text box first, preview under it (not floating). */
+    .o-wzbar{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-prev{order:5}.o-stem{order:6}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-garm{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .gL .g-prev{position:static}
+    .wzhead{margin:0;padding:8px 0;border-radius:0;gap:8px}
+    .wzbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.wzbar::-webkit-scrollbar{display:none}.wzbar button{flex:none;padding:6px 10px;font-size:12px}
+    .wznav{justify-content:flex-end}.wznav .btn,.wznav .btn-main{flex:none;min-height:46px;padding:0 18px}
+    #save{order:0;margin-right:auto!important}#wzBack{order:1}#wzNext{order:2}
+    body.kb .wzhead{align-items:flex-end;padding:6px 0;background:#0d0d0c;pointer-events:auto}
+    body.kb #text,body.kb #stem{scroll-margin-top:calc(var(--stick,62px) + 72px)}
+    body.kb .wznav{justify-content:flex-end}
+    body.kb .o-prev .card{padding:10px 12px}
+    #text{height:9.5em;min-height:7em}
+    body.kb .pagehead,body.kb .tabbar,body.kb #synced{display:none!important}
+
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
@@ -2640,10 +2653,12 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var a = document.activeElement, card = a && a.closest("[data-st]"); if (!card) return;
     var head = document.querySelector(".wzhead").getBoundingClientRect();
     window.scrollBy(0, card.getBoundingClientRect().top - head.bottom - 6);
-    if (a === t) t.style.height = Math.max(120, h - t.getBoundingClientRect().top - 24) + "px";
+    if (a === t && window.innerWidth > 820) t.style.height = Math.max(120, h - t.getBoundingClientRect().top - 24) + "px";
+    else if (a === t) t.style.height = "";
   }
-  document.addEventListener("focusin", function () { if (typing()) { document.body.classList.add("kb"); setTimeout(fit, 250); } });
-  document.addEventListener("focusout", function () { setTimeout(function () { if (!typing()) { document.body.classList.remove("kb"); fit(); } }, 150); });
+  var resz = function () { try { window.dispatchEvent(new Event("resize")); } catch (e) {} };   // re-measure the pinned header
+  document.addEventListener("focusin", function () { if (typing()) { document.body.classList.add("kb"); resz(); setTimeout(fit, 250); setTimeout(fit, 700); } });
+  document.addEventListener("focusout", function () { setTimeout(function () { if (!typing()) { document.body.classList.remove("kb"); resz(); fit(); } }, 150); });
   if (window.visualViewport) window.visualViewport.addEventListener("resize", function () { if (document.body.classList.contains("kb")) fit(); });
   ["text", "stem"].forEach(function (id) { el(id).addEventListener("input", function () { var m = document.querySelector(".wzmsg"); if (m) m.remove(); }); });
   el("wzBack").onclick = function () { go(cur - 1); };
