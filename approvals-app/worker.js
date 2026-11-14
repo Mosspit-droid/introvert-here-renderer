@@ -782,6 +782,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .need.quiet .big{color:var(--dim)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .tiles .tile,.tiles .tile.primary{grid-column:span 1}
+.tiles .tile.tall{grid-row:span 2}
 @media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
 .tile:hover{border-color:var(--frame);transform:translateY(-2px)}
@@ -911,7 +912,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/listings", "update", "Listings"]];
-const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/pricing", "price", "Pricing"], ["/check", "check", "Check Core"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -1615,8 +1616,8 @@ async function dashboardPage(env) {
   const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
   const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
   // A tile turns red while its area needs attention, with the count as a badge (Barry, 14 Nov).
-  const tile = (href, ic, nm, st, primary) => { const n = (typeof HOT === "object" && HOT[href]) || 0;
-    return `<a class="tile${primary ? " primary" : ""}${n ? " hot" : ""}" href="${href}" data-tile="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${n ? `<span class="hotb">${n === true ? "!" : n}</span>` : primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`; };
+  const tile = (href, ic, nm, st, primary, tall) => { const n = (typeof HOT === "object" && HOT[href]) || 0;
+    return `<a class="tile${primary ? " primary" : ""}${tall ? " tall" : ""}${n ? " hot" : ""}" href="${href}" data-tile="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${n ? `<span class="hotb">${n === true ? "!" : n}</span>` : primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`; };
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
   // Last planned release per range. The gags summary is re-sent whenever Core changes,
   // so use it when it is newer than the once-a-day summary.
@@ -1715,17 +1716,15 @@ need("warn", lowRanges.length, "Gags to write", esc(lowRanges.join(", ")) + (low
 ${todayStrip}
 <h2>Studio</h2>
 <div class="tiles">
-  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true)}
+  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true, true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
-  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
+  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true, true)}
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here")}
-  ${tile("/pricing", "price", "Pricing", tee ? `T-Shirt <b>£${Number(tee.price).toFixed(2)}</b>` : "Prices and margins")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
-  ${tile("/links", "links", "Links", "Key addresses")}
   ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved", true)}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
-  ${tile("/check", "check", "Check Core", "Core checks and tools")}
+  ${tile("/links", "links", "Links", "Key addresses")}
   ${tile("/settings", "tools", "Settings", "Tag system and product text", true)}
 </div>
 <h2 class="rngh">Ranges<button class="btn dsync" id="dashSync" type="button">${icon("sync")}Sync to Core</button></h2>
@@ -1749,7 +1748,7 @@ document.addEventListener("click", function (e) { var b = e.target.closest(".nre
 fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
   if (!g || !g.all || typeof gagIssues !== "function") return;
   var iss = gagIssues(g); if (!iss.length) return;
-  var ct = document.querySelector('[data-tile="/check"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); }
+  var ct = document.querySelector('[data-tile="/gags"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); }
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var gt = "Gag problem" + (iss.length === 1 ? "" : "s") + " to fix", gs = (iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80), sig = iss.length + "|" + gs;
   if ((window.DISMISSED || {})[gt] === sig) return;
@@ -2186,7 +2185,7 @@ ${brandHeader("Gags")}
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
-    <div class="wzhead o-wzbar"><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzBack">Back</button><button class="btn" type="button" id="wzNext">Next</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
+    <div class="wzhead o-wzbar"><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
     <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
     <div class="card g-text o-text" data-st="1"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
@@ -2229,8 +2228,8 @@ ${brandHeader("Gags")}
   #wzNext{border-color:var(--accent)}
   /* Keyboard open (Barry, 14 Nov): only the box being typed in and a small Next. */
   body.kb .wzbar,body.kb #save,body.kb .o-save,body.kb #wzBack,body.kb .o-tabs,body.kb #ideasBox,body.kb .o-text label>b,body.kb .o-text label>.small{display:none!important}
-  body.kb .wzhead{padding:6px 10px;gap:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;align-items:flex-end;pointer-events:none}
-  body.kb .wznav{justify-content:flex-end;pointer-events:auto}
+  body.kb .wzhead{padding:6px 10px;gap:0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;margin:0;align-items:flex-start;pointer-events:none}
+  body.kb .wznav{justify-content:flex-start;pointer-events:auto}
   body.kb #wzNext{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
   body.kb .o-text{padding:10px}body.kb .o-text textarea{margin-top:0}
   .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
@@ -3823,7 +3822,7 @@ async function priceTestApi(request, env) {
 async function searchData(env) {
   const [todos, orders, stats] = await Promise.all([todoLoad(env), env.PENDING.get("shop:orders", "json"), env.PENDING.get("stats", "json")]);
   const pages = [["Dashboard", "/"], ["Today", "/today"], ["Approvals", "/approvals"], ["Gags", "/gags"], ["Listings", "/listings"], ["Calendar", "/calendar"], ["Stats", "/stats"],
-    ["Tags", "/tags"], ["Orders", "/orders"], ["Pricing", "/pricing"], ["Links", "/links"], ["Credits", "/credits"], ["Check Core", "/check"], ["Weekly check", "/health"], ["Reviews", "/reviews"], ["Quiet listings", "/quiet"], ["To-do", "/todo"], ["Alerts", "/alerts"],
+    ["Tags", "/tags"], ["Orders", "/orders"], ["Links", "/links"], ["Credits", "/credits"], ["Check for problems", "/check"], ["Weekly check", "/health"], ["Reviews", "/reviews"], ["Quiet listings", "/quiet"], ["To-do", "/todo"], ["Alerts", "/alerts"],
     ["Move a whole range (dates)", "/settings?part=shift"], ["Settings: backups", "/settings"],
     ["Settings: tag system", "/settings"], ["Gag categories and tag phrases", "/settings?part=tags"], ["Seasonal tags", "/settings?part=tags"], ["Mockup pages", "/settings?part=pages"], ["Product text (new listings)", "/settings?part=text"],
     ["Settings: phone notifications", "/settings"], ["Settings: recent changes / undo", "/settings"]].map(([t, h]) => ({ t, h, k: "Page" }));
@@ -4123,7 +4122,7 @@ ${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shif
     <button class="btn-main" type="button" id="spGo" style="width:auto;padding:0 26px;margin-top:12px">Add seasonal phrase</button>
   </div>
   <div class="card ptext part-pages"><h2 style="margin-top:0">Mockup pages</h2>
-    <p class="small" style="margin:0">Which pages of each Canva mockup template become listing photos, and in what order. Names must match the Canva page names exactly. After changing a garment's pages, run Check Core → Check a mockup template for it.</p>
+    <p class="small" style="margin:0">Which pages of each Canva mockup template become listing photos, and in what order. Names must match the Canva page names exactly. After changing a garment's pages, run Check for problems → Check a mockup template for it.</p>
     <label>Range and garment<select id="mpR">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
     <div id="mpL"></div>
     <h3 class="sideh" style="margin-top:18px">Add a page</h3>
@@ -4231,7 +4230,7 @@ async function toolsPage(env) {
 .gchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .gchip{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid var(--frame);border-radius:12px;color:var(--text);text-decoration:none;font:700 13px var(--display);letter-spacing:.06em}
 </style>
-${brandHeader("Check Core", `<button class="btn" id="scanRefresh" type="button">${icon("sync")}Sync to Core</button>`)}
+${brandHeader("Check for problems", `<button class="btn" id="scanRefresh" type="button">${icon("sync")}Sync to Core</button>`)}
 <div class="frame" style="max-width:860px;margin-bottom:16px"><div class="card tcard">
   <h3>Check a mockup template</h3>
   <p>Run this after you publish a Canva mockup template. It compares the template with Core's page list and tells you if anything doesn't match, before you update any listings. About 3 Make credits. It leaves a copy called "TEMPLATE CHECK (safe to delete)" in Canva.</p>
