@@ -1,6 +1,7 @@
 # Introvert Here website: plan and launch checklist
 
-Status (14 Nov 2026): brand pages built into the shop worker (`shop/worker.js`). Not deployed yet.
+Status (14 Nov 2026): brand pages built into the shop worker (`shop/worker.js`). Not on the real shop yet.
+Preview (noindexed, same data as the shop): https://introvert-here-preview.mosspit.workers.dev (Cloudflare Worker "introvert-here-preview").
 
 ## What the site is now
 
