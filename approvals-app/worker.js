@@ -2109,6 +2109,7 @@ async function gagSave(request, env) {
   }
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return json({ error: "Make didn't accept the save (" + res.status + "). Nothing was written." }, 502);
+  if (str(d.season) && body.gagId) { const L = (await env.PENDING.get("season-locks", "json")) || {}; L[body.gagId] = str(d.season).slice(0, 40); await env.PENDING.put("season-locks", JSON.stringify(L)); }
   const saves = await loadSaves(env);
   saves.unshift({ ref: body.ref, action, gagId: body.gagId, stem: body.stem, text: body.text, status: "pending", at: Date.now() });
   await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
@@ -2118,6 +2119,10 @@ async function gagSave(request, env) {
 async function gagsPage(env) {
   const g = await env.PENDING.get("gags", "json");
   const catMap = await loadCategories(env);
+  // Gags the Best season option must never bump: already placed for an occasion, or tags approved/frozen.
+  const locks = (await env.PENDING.get("season-locks", "json")) || {};
+  const tagItems = (((await env.PENDING.get("tags", "json")) || {}).items) || [];
+  const lockIds = Array.from(new Set([...Object.keys(locks), ...tagItems.filter((t) => t.approved === true || t.approved === "True" || t.frozen).map((t) => t.id)]));
   if (g) g.categories = Array.from(new Set([...(g.categories || []), ...Object.values(catMap).flat()]));
   const saves = await loadSaves(env);
   const savesHtml = saves.length ? `<h3 class="sideh">Recent saves</h3><div class="saves">${saves.slice(0, 8).map((x) => {
@@ -2145,6 +2150,7 @@ ${brandHeader("Gags")}
       <div class="fld o-stem"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
       <div class="fld o-cat"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
+      <div class="fld o-season"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
       <div class="fld o-dates"><b>Release dates</b>
         <div class="four">
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
@@ -2171,7 +2177,7 @@ ${brandHeader("Gags")}
   @media (max-width:820px){
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
-    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .o-prev{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-stem{order:5}.o-range{order:6}.o-cat{order:7}.o-season{order:8}.o-dates{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
     .g-prev .card{padding:12px}
     .fld{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
     .o-save.fld{background:none;border:0;padding:0;backdrop-filter:none}
@@ -2221,8 +2227,10 @@ ${brandHeader("Gags")}
 <script>
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
+window.SEASON_LOCK = ${JSON.stringify(lockIds)};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
+${GAG_SEASON_SCRIPT}
 ${GAG_LAMPS_SCRIPT}</script>`);
 }
 
@@ -2235,6 +2243,56 @@ const GAG_LAMPS_SCRIPT = String.raw`(function () {
     new MutationObserver(upd).observe(src, { childList: true, subtree: true, characterData: true }); upd();
   }
   watch("pwarn", "lFit"); watch("spell", "lSpell");
+})();`;
+
+// "Best season" (Barry, 14 Nov): pick an occasion and the gag goes into the best slot of its range,
+// about three weeks before it; the gag already in that slot takes this gag's slot instead.
+const GAG_SEASON_SCRIPT = String.raw`(function () {
+  var box = $("seasonChips"), noteEl = $("seasonNote"); if (!box) return;
+  function nth(y, m, wd, n) { var d = new Date(Date.UTC(y, m, 1)); var off = (wd - d.getUTCDay() + 7) % 7; return new Date(Date.UTC(y, m, 1 + off + 7 * (n - 1))); }
+  function easter(y) { var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(Date.UTC(y, mo - 1, da)); }
+  function U(y, m, d) { return new Date(Date.UTC(y, m, d)); }
+  var OCC = [["Valentine's", function (y) { return U(y, 1, 14); }], ["World Introvert Day", function (y) { return U(y, 0, 2); }], ["New Year", function (y) { return U(y, 0, 1); }],
+    ["Mothering Sunday", function (y) { var e = easter(y); return U(y, e.getUTCMonth(), e.getUTCDate() - 21); }], ["World Book Day", function (y) { return nth(y, 2, 4, 1); }],
+    ["Father's Day", function (y) { return nth(y, 5, 0, 3); }], ["Summer", function (y) { return U(y, 5, 21); }], ["Book Lovers Day", function (y) { return U(y, 7, 9); }],
+    ["Back to school", function (y) { return U(y, 8, 1); }], ["Boss's Day", function (y) { return U(y, 9, 16); }], ["Halloween", function (y) { return U(y, 9, 31); }],
+    ["Christmas", function (y) { return U(y, 11, 25); }]];
+  var pickName = "", target = null, origDates = null;
+  function iso(d) { return d.toISOString().slice(0, 10); }
+  function nice(s) { return new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }); }
+  function draw() { box.innerHTML = '<button type="button" class="chip' + (pickName ? "" : " on") + '" data-o="">No season</button>' + OCC.map(function (o) { return '<button type="button" class="chip' + (pickName === o[0] ? " on" : "") + '" data-o="' + o[0] + '">' + o[0] + "</button>"; }).join(""); }
+  function find() {
+    target = null; origDates = null; noteEl.textContent = "";
+    if (!pickName) return;
+    var c = $("collection").value, pc = G && G.perCollection && G.perCollection[c];
+    if (!c || !pc) { noteEl.textContent = "Choose a range first."; return; }
+    var editingNow = (typeof mode !== "undefined" && mode === "edit") ? editing : null;
+    if (editingNow) origDates = editingNow.dates; else if (pc.next && pc.next.mode === "fill") origDates = pc.next.dates;
+    if (!origDates || !origDates.every(Boolean)) { noteEl.textContent = "There's no dated slot for this gag to swap from, so the season can't be applied. Save it normally and use Swap in the range list."; return; }
+    var occ = OCC.filter(function (o) { return o[0] === pickName; })[0][1], now = new Date(), soonest = iso(new Date(Date.now() + 21 * 864e5));
+    for (var y = now.getUTCFullYear(); y < now.getUTCFullYear() + 8 && !target; y++) {
+      var day = occ(y), lo = iso(new Date(day.getTime() - 42 * 864e5)), hi = iso(new Date(day.getTime() - 7 * 864e5)), aim = day.getTime() - 21 * 864e5;
+      if (hi < soonest) continue;
+      var best = null;
+      var LOCK = window.SEASON_LOCK || [];
+      (G.editable || []).forEach(function (e) { if (!e.id || e.id.indexOf(pc.prefix + "-") !== 0 || !e.dates || !e.dates.every(Boolean)) return; if (editingNow && e.id === editingNow.id) return; if (LOCK.indexOf(e.id) >= 0) return;
+        var f = e.dates[0]; if (f < lo || f > hi || f < soonest) return; var dist = Math.abs(new Date(f + "T12:00:00Z").getTime() - aim); if (!best || dist < best.dist) best = { e: e, dist: dist }; });
+      if (!editingNow) (G.empties || []).forEach(function (e) { if (e.id.indexOf(pc.prefix + "-") !== 0) return; var f = e.dates[0]; if (f < lo || f > hi || f < soonest) return;
+        var dist = Math.abs(new Date(f + "T12:00:00Z").getTime() - aim); if (!best || dist < best.dist) best = { e: { id: e.id, dates: e.dates, empty: true }, dist: dist }; });
+      if (best) { target = best.e; target._occ = iso(day); }
+    }
+    if (!target) { noteEl.textContent = "No free " + pc.prefix + " slot found before " + pickName + " in the next few years."; return; }
+    setDates(target.dates); datesTouched = true;
+    var wk = Math.round((new Date(target._occ + "T12:00:00Z") - new Date(target.dates[0] + "T12:00:00Z")) / (7 * 864e5));
+    noteEl.innerHTML = "Best slot: <b>" + nice(target.dates[0]) + "</b>, about " + wk + " week" + (wk === 1 ? "" : "s") + " before " + pickName + " (" + nice(target._occ) + "). " +
+      (target.empty ? "It fills the empty prepared row " + target.id + "." : target.id + " “" + (target.stem || "") + "” moves to this gag's slot (" + nice(origDates[0]) + ").");
+  }
+  window.seasonMove = function () { return target && origDates ? { target: target, dates: origDates, season: pickName } : null; };
+  box.addEventListener("click", function (e) { var b = e.target.closest("[data-o]"); if (!b) return; pickName = b.dataset.o; draw(); find(); if (!pickName && typeof slotInfo === "function") slotInfo(); });
+  $("collection").addEventListener("change", function () { if (pickName) setTimeout(find, 0); });
+  $("clear").addEventListener("click", function () { pickName = ""; target = null; noteEl.textContent = ""; draw(); });
+  document.querySelectorAll("[data-tab]").forEach(function (t) { t.addEventListener("click", function () { pickName = ""; target = null; noteEl.textContent = ""; draw(); }); });
+  draw();
 })();`;
 
 // Range and category buttons for /gags. The hidden <select>s stay the source of truth for the page script;
@@ -2466,9 +2524,16 @@ $("form").addEventListener("submit", async (e) => {
   const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value,
     tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value, datesFromSlot };
   $("save").disabled = true; $("save").textContent = "Sending to Core…";
+  const sw = window.seasonMove ? window.seasonMove() : null;
+  if (sw) { body.datesFromSlot = false; body.season = sw.season; if (sw.target.empty) { body.action = "fill"; body.gagId = sw.target.id; } }
   const res = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) { alert(out.error || "Couldn't save."); $("save").disabled = false; $("save").textContent = "Save to Core"; return; }
+  if (sw && !sw.target.empty) { // the gag that was in the seasonal slot takes this gag's old slot
+    const t = sw.target, mv = { action: "edit", gagId: t.id, collection: t.collection, category: t.category, text: t.text, stem: t.stem, d1: sw.dates[0], d2: sw.dates[1], d3: sw.dates[2], d4: sw.dates[3] };
+    const r2 = await fetch('/api/gag-save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mv) });
+    if (!r2.ok) alert("Saved, but " + t.id + " couldn't be moved out of the seasonal slot, so two gags now share it. Use Swap in the range list to sort it.");
+  }
   try { sessionStorage.setItem("gagTop", "1"); } catch (e) {}
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   window.scrollTo(0, 0); location.reload();

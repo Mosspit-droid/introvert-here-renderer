@@ -48,4 +48,6 @@ const all = gags.filter((g) => g.text).map((g) => ({ id: g.id, row: g.index + 2,
 const cutoff = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
 const sched = gags.filter((g) => g.text && g.dates.some((d) => d && d >= cutoff))
   .map((g) => ({ id: g.id, s: g.stem, d: g.dates, b: TYPES.map((t) => (built.has(`${g.id}-${t}`) ? 1 : 0)) }));
-return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable, all, sched }) };
+// Empty prepared rows with dates, so the gag tool's "Best season" option can drop a new gag into one.
+const empties = gags.filter((g) => !g.text && g.dates.every(Boolean) && g.dates[0] >= cutoff).map((g) => ({ id: g.id, dates: g.dates }));
+return { json: JSON.stringify({ at: Date.now(), collections, categories, perCollection, latestDate: latest, editable, all, sched, empties }) };
