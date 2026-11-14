@@ -1051,9 +1051,9 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     var ST = data.stars || {};
     var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0 && String(g.text || "").trim(); }).map(function (g) { return { g: g, st: gagState(g, data) }; });
     list.sort(function (a, b) { var ka = a.st.c === "live" ? "0" : (a.st.first ? "1" + a.st.first : "2"), kb = b.st.c === "live" ? "0" : (b.st.first ? "1" + b.st.first : "2"); return ka < kb ? -1 : ka > kb ? 1 : (a.g.id < b.g.id ? -1 : 1); });
-    if (rlSort === "stars") list.sort(function (a, b) { return (ST[b.g.id] || 0) - (ST[a.g.id] || 0); });
+    if (rlSort === "stars") list.sort(function (a, b) { var x = ST[a.g.id] || 9, y = ST[b.g.id] || 9; return x - y; });   // lowest rated first; unrated last
     var today = new Date().toISOString().slice(0, 10), soon2 = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
-    var sortBar = '<div class="rlsort">Sort by <button type="button" data-rlsort="date" class="' + (rlSort === "date" ? "on" : "") + '">Release date</button><button type="button" data-rlsort="stars" class="' + (rlSort === "stars" ? "on" : "") + '">Rating</button></div>';
+    var sortBar = '<div class="rlsort">Sort by <button type="button" data-rlsort="date" class="' + (rlSort === "date" ? "on" : "") + '">Release date</button><button type="button" data-rlsort="stars" class="' + (rlSort === "stars" ? "on" : "") + '">Lowest rated first</button></div>';
     document.getElementById("rlR").innerHTML = list.length ? sortBar + list.map(function (x) { var g = x.g, st = x.st, n = ST[g.id] || 0;
       var ed = (data.editable || []).some(function (e) { return e.id === g.id; }), canDel = ed && !(st.first && st.first <= soon2);
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
@@ -2393,7 +2393,8 @@ ${brandHeader("Gags")}
         <div class="four">
           <label>T-Shirt<input type="date" id="d1"></label><label>Long-Sleeve<input type="date" id="d2"></label>
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
-        </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p></div>
+        </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p>
+        <details class="pubnow" id="pubNow"><summary>Publish now instead…</summary><p class="small" style="margin:8px 0">Skips the schedule: it's saved with today's date and built straight away, then comes to Approvals before it goes live.</p><div class="chips" id="pubChips"></div><button class="btn pubgo" type="button" id="pubGo">Publish now</button></details></div>
       <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button><button class="btn" type="button" id="ideaSave">Save as idea</button></div>
     </div>
   </div>
@@ -2424,6 +2425,8 @@ ${brandHeader("Gags")}
   body.kb #wzNext,body.kb #wzBack{flex:none;min-height:40px;padding:0 22px;background:var(--card)}
   body.kb .o-text{padding:10px}body.kb .o-text textarea{margin-top:0}
   .wzmsg{color:var(--warn);font-size:14px;margin-top:8px}
+  .pubnow{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}.pubnow summary{cursor:pointer;font-size:13px;color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+  .pubgo{margin-top:12px;border-color:#e6b450;color:#e6b450;width:auto;padding:0 20px}
   #rangeCount{margin-top:14px;display:flex;flex-direction:column;gap:10px}
   .rc{font-size:14px}.rc b{font-weight:700}.rc .rch{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
   .rc .rbar{height:10px;border-radius:99px;background:var(--line);overflow:hidden}.rc .rbar i{display:block;height:100%;border-radius:99px;background:var(--ok)}
@@ -2507,29 +2510,31 @@ ${GAG_WIZARD_SCRIPT}</script>`);
 const GAG_WIZARD_SCRIPT = String.raw`(function () {
   var STEPS = ["Gag", "Range", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;
   var NOW = new URLSearchParams(location.search).get("now") === "1", GSEL = { "T-SHIRT": 1 };
+  var GN = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
+  function chipsFor(boxId) { var box = document.getElementById(boxId); var draw = function () { box.innerHTML = GN.map(function (x) { return '<button type="button" class="chip' + (GSEL[x[0]] ? " on" : "") + '" data-garm="' + x[0] + '">' + x[1] + "</button>"; }).join(""); };
+    draw(); box.addEventListener("click", function (e) { var b = e.target.closest("[data-garm]"); if (!b) return; if (GSEL[b.dataset.garm]) delete GSEL[b.dataset.garm]; else GSEL[b.dataset.garm] = 1; draw(); }); }
+  function quickGo(btn, label) {
+    var t = document.getElementById("text"), st = document.getElementById("stem");
+    if (typeof capsGag === "function") t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
+    var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
+    if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
+    if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's saved to Core with today's date and built straight away. It comes to Approvals before it goes live.")) return;
+    btn.disabled = true; btn.textContent = "Starting…";
+    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g }) })
+      .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
+      .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } location.href = "/"; })
+      .catch(function () { alert("Couldn't reach the app. Nothing was changed."); btn.disabled = false; btn.textContent = label; });
+  }
+  chipsFor("pubChips");
+  document.getElementById("pubGo").addEventListener("click", function () { quickGo(this, "Publish now"); });
   if (NOW) {
     STEPS = ["Gag", "Range", "Title stem", "Category", "Garments"];
     document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; });
     document.querySelector(".o-garm").dataset.st = "5";
     document.getElementById("save").textContent = "List it now";
-    var GN = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
-    var drawG = function () { document.getElementById("garmChips").innerHTML = GN.map(function (x) { return '<button type="button" class="chip' + (GSEL[x[0]] ? " on" : "") + '" data-garm="' + x[0] + '">' + x[1] + "</button>"; }).join(""); };
-    drawG();
-    document.getElementById("garmChips").addEventListener("click", function (e) { var b = e.target.closest("[data-garm]"); if (!b) return; if (GSEL[b.dataset.garm]) delete GSEL[b.dataset.garm]; else GSEL[b.dataset.garm] = 1; drawG(); });
+    chipsFor("garmChips"); document.getElementById("pubNow").style.display = "none";
     document.title = "List it now";
-    document.getElementById("form").addEventListener("submit", function (e) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      var t = document.getElementById("text"), st = document.getElementById("stem");
-      if (typeof capsGag === "function") t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
-      var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
-      if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
-      if (!confirm("List " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's saved to Core and built straight away. It comes to Approvals before it goes live.")) return;
-      var sv = document.getElementById("save"); sv.disabled = true; sv.textContent = "Starting…";
-      fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g }) })
-        .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
-        .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); sv.disabled = false; sv.textContent = "List it now"; return; } location.href = "/"; })
-        .catch(function () { alert("Couldn't reach the app. Nothing was changed."); sv.disabled = false; sv.textContent = "List it now"; });
-    }, true);
+    document.getElementById("form").addEventListener("submit", function (e) { e.preventDefault(); e.stopImmediatePropagation(); quickGo(document.getElementById("save"), "List it now"); }, true);
   }
   var FROM = (new URLSearchParams(location.search).get("from") || "").replace(/[^A-Z]/g, "").slice(0, 2);
   if (FROM) { var bl = document.getElementById("wzList"); bl.href = "/?rlist=" + FROM; bl.hidden = false; window.GAG_FROM = FROM; }
@@ -2910,7 +2915,7 @@ $("stem").addEventListener("input", () => checkLater("stem", "stemspell", "stem"
 
 // ----- tabs / edit picker -----
 document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => {
-  mode = b.dataset.tab; editing = null;
+  mode = b.dataset.tab; editing = null; { const pn = document.getElementById("pubNow"); if (pn) pn.style.display = mode === "edit" ? "none" : ""; }
   document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
   $("pick").style.display = mode === "edit" ? "block" : "none";
   $("collection").disabled = mode === "edit";
