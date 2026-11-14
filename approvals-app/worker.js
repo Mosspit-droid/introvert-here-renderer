@@ -3106,7 +3106,7 @@ async function fxRates(env) {
 async function pricingPage(env) {
   const fx = await fxRates(env);
   const data = await env.PENDING.get("pricing", "json");
-  const nav = `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
+  const nav = `<a class="btn" href="/listings">← Listings</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
   return shell(`
 <style>
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
@@ -3833,6 +3833,11 @@ async function settingsSave(request, env) {
       if (k === "suffix" && v.length > 60) return json({ error: "The title ending is too long (60 characters max)." }, 400);
       if (v !== String(rule[k] || "")) { ops.push(amendCell("PRODUCT_RULES", AMEND_RULE_COLS[k], rule.row, v)); rule[k] = v; }
     }
+    if (d.ship !== undefined) {
+      const v = str(d.ship); if (rule.ship) oldRule.ship = String(rule.ship);
+      if (!/^\d{6,15}$/.test(v)) return json({ error: "That isn't an Etsy shipping profile number." }, 400);
+      if (v !== String(rule.ship || "")) { ops.push(amendCell("PRODUCT_RULES", "SHIPPING_PROFILE_ID", rule.row, v)); rule.ship = v; }
+    }
     if (Array.isArray(d.tags)) {
       const tags = d.tags.slice(0, 5).map((t) => String(t || "").trim().toLowerCase());
       const bad = tags.find((t) => t.length > 20 || !/^[a-z0-9 '\-]*$/.test(t));
@@ -4233,8 +4238,8 @@ $("scanRefresh").addEventListener("click", async () => { $("scanOut").textConten
 const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
 const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
 const AMEND_GARMENTS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
-const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags", "video"];
-const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID" };
+const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags", "shipping", "video"];
+const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID", ship: "SHIPPING_PROFILE_ID" };
 const AMEND_TAG_COLS = ["PRODUCT_TAG_09", "PRODUCT_TAG_10", "PRODUCT_TAG_11", "PRODUCT_TAG_12", "PRODUCT_TAG_13"];
 const amendCell = (table, col, row, value) => ({ url: `${AMEND_XL}/tables/${table}/columns/${col}/dataBodyRange/cell(row=${Number(row)},column=0)`, value: String(value) });
 
@@ -4385,11 +4390,12 @@ async function amendApply2(request, env, given) {
     const r = S.rules.find((x) => x.row === Number(rowStr));
     const code = r && Object.keys(AMEND_COLL).find((k) => AMEND_COLL[k] === r.coll);
     if (!r || !combos.has(code + "|" + r.type)) throw new Error("A text change was for a range or garment you didn't pick.");
-    const allow = { suffix: "titles", intro: "descriptions", features: "descriptions", audience: "descriptions", closing: "descriptions", bp: "supplier", provider: "supplier" };
+    const allow = { suffix: "titles", intro: "descriptions", features: "descriptions", audience: "descriptions", closing: "descriptions", bp: "supplier", provider: "supplier", ship: "shipping" };
     for (const [k, col] of Object.entries(AMEND_RULE_COLS)) {
       if (typeof e[k] !== "string" || !what.has(allow[k])) continue;
       const v = e[k].trim();
       if ((k === "bp" || k === "provider") && !/^\d+$/.test(v)) throw new Error("Blueprint and provider must be Printify ID numbers.");
+      if (k === "ship" && !/^\d{6,15}$/.test(v)) throw new Error("That isn't an Etsy shipping profile number.");
       if (v !== String(r[k] ?? "")) { ops.push(amendCell("PRODUCT_RULES", col, r.row, v)); r[k] = v; }
     }
     if (Array.isArray(e.tags) && what.has("tags")) {
@@ -4459,7 +4465,7 @@ async function amendApply2(request, env, given) {
     for (const id of gagIds) for (const t of byGag[id]) { const r = S.regRows[id + "-" + t]; if (r !== undefined) ops.push(amendCell("LISTING_REGISTRY_TABLE", "VIDEO_STATUS", r, "")); }
   }
   const onlyVideo = what.size === 1 && what.has("video");
-  const text = what.has("titles") || what.has("descriptions") || what.has("tags");
+  const text = what.has("titles") || what.has("descriptions") || what.has("tags") || what.has("shipping");   // a text update re-sends shipping too
   const status = photoJob ? "AMENDMENT_REQUIRED_PHOTO" : what.has("print") ? "AMENDMENT_REQUIRED_REPRINT"
     : what.has("supplier") || what.has("colours") || (text && what.has("mockups")) ? "AMENDMENT_REQUIRED_COLOURS"
     : text ? "AMENDMENT_REQUIRED" : "AMENDMENT_REQUIRED_ARTWORK";
@@ -4641,12 +4647,12 @@ var WHAT = [
   ["descriptions","Description","Intro, features, who it's for, closing text. With a preview.","Listing text"],
   ["tags","Tags","The 5 product tags for a range and garment (gag tags live on the Tags page)","Listing text"],
   ["taxonomy","Category & attributes","The Etsy category and colour attributes each range and garment uses","Search"],
-  ["shipping","Shipping","Which Etsy shipping profile listings use","Shipping"],
-  ["colours","Colours & sizes","Add or take away colours (sizes come with each garment from Printify)","Variations"],
+  ["shipping","Shipping","What buyers pay for postage and the delivery time Etsy shows them, per range and garment","Shipping"],
+  ["colours","Colours & sizes","See each garment's sizes, and add or take away colours","Variations"],
   ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video","Production"],
   ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace)","Production"]];
-var VIEW_ONLY = { taxonomy: 1, shipping: 1 };
-var RULE_ONLY = { titles: 1, descriptions: 1, tags: 1 };
+var VIEW_ONLY = { taxonomy: 1 };
+var RULE_ONLY = { titles: 1, descriptions: 1, tags: 1, shipping: 1 };
 var STAT = { AMENDMENT_REQUIRED:"Updating", AMENDMENT_REQUIRED_PHOTO:"Updating one photo", AMENDMENT_REQUIRED_ARTWORK:"Updating mockups", AMENDMENT_REQUIRED_REPRINT:"Updating print", AMENDMENT_REQUIRED_COLOURS:"Updating" };
 function gName(t) { for (var i = 0; i < GARM.length; i++) if (GARM[i][0] === t) return GARM[i][1]; return t; }
 function rName(c) { for (var i = 0; i < RANGES.length; i++) if (RANGES[i][0] === c) return RANGES[i][1]; return c; }
@@ -4710,11 +4716,8 @@ function drill() {
 function what() {
   var grp = "", rows = WHAT.map(function (w) { var head = w[3] !== grp ? '<p class="grp">' + h(w[3]) + "</p>" : ""; grp = w[3];
     return head + '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>" +
-      (w[0] === "taxonomy" ? '<a class="tick" href="/pricing" style="text-decoration:none;color:var(--text)"><span class="lbl">Pricing ›<small>Prices, margins and price changes on live listings (its own page)</small></span></a>' : ""); }).join("");
+      (w[0] === "tags" ? '<p class="grp">Price</p><a class="tick" href="/pricing" style="text-decoration:none;color:var(--text)"><span class="lbl">Price ›<small>Prices per garment and size, profit after fees and postage, and changing prices on live listings (opens Pricing)</small></span></a>' : ""); }).join("");
   $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">In the same order as Etsy\'s edit page. Tick one or more.</p><div class="col">' + rows + "</div>";
-  return;
-  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">Tick as many as you like. They run together, in the right order.</p><div class="col">' +
-    WHAT.map(function (w) { return '<label class="tick"><input type="checkbox" data-what="' + w[0] + '"' + (A.what[w[0]] ? " checked" : "") + '><span class="lbl">' + w[1] + "<small>" + w[2] + "</small></span></label>"; }).join("") + "</div>";
 }
 
 function pickerFor(kind, list, label) {   // list of ids; A.cur[kind] = selected id
@@ -4797,17 +4800,23 @@ function details() {
     var list = Object.keys(avail).sort(function (a, b) { return (have.indexOf(b) >= 0) - (have.indexOf(a) >= 0) || a.localeCompare(b); });
     cb2 += '<p class="hint">Ticked colours are on every ' + h(rName(code)) + ' listing. Untick to remove, tick to add. Garments that don\'t offer a colour are skipped. Main colour: ' + h(rules[0] ? rules[0].primary : "") + ".</p><div class=\"sw\">" +
       list.map(function (c) { return '<label><input type="checkbox" data-colour="' + h(c) + '"' + (have.indexOf(c) >= 0 ? " checked" : "") + ">" + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ")</small>" : "") + "</label>"; }).join("") + "</div>";
-    sec("Colours", cb2);
+    var SZ = S0.sizes || {};
+    cb2 += '<p class="grp" style="margin-top:14px">Sizes</p><table class="ttab"><tr><th>Garment</th><th>Sizes on Etsy</th></tr>' + rules.map(function (r) { var z = SZ[r.bp] || []; return "<tr><td>" + h(gName(r.type)) + "</td><td>" + (z.length ? h(z.join(", ")) : '<span class="small">Tap Sync to Core to load</span>') + "</td></tr>"; }).join("") +
+      '</table><p class="hint">Sizes come with the garment model from Printify, so every listing gets all of them. Bigger sizes (2XL and up) cost more; their extra price is set on the Pricing page.</p>';
+    sec("Colours & sizes", cb2);
   }
   if (A.what.mockups) out += '<p class="hint"><a href="/settings?part=pages">Manage which Canva pages become photos ›</a></p>';
   if (A.what.tags) out += '<p class="hint"><a href="/settings?part=tags">Gag categories, tag phrases and seasonal tags ›</a> · <a href="/tags">Approve gag tags ›</a></p>';
   if (A.what.taxonomy) { any = true; out += '<div class="sec"><h3>Category & attributes</h3><table class="ttab"><tr><th>Range and garment</th><th>Etsy category</th><th>Colour attributes</th></tr>' +
     S0.rules.map(function (r) { var c = ""; RANGES.forEach(function (x) { if (x[2] === r.coll) c = x[0]; }); return "<tr><td>" + h(rName(c)) + " · " + h(gName(r.type)) + "</td><td>" + h(TAXO[r.type] || "") + "</td><td>" + h((r.primary || "—") + (r.secondary ? " / " + r.secondary : "")) + "</td></tr>"; }).join("") +
     '</table><p class="hint">Etsy has no Maroon or Navy option, so the nearest Etsy colour is used (Maroon → Red, Navy → Blue). Changing these is rare; ask Claude if you need to.</p></div>'; }
-  if (A.what.shipping) { any = true; var cur = SHIP.current, list = SHIP.list || [];
-    out += '<div class="sec"><h3>Shipping</h3><p class="hint">Every listing currently uses: <b>' + h((list.filter(function (x) { return String(x.id) === String(cur); })[0] || {}).t || cur) + "</b>.</p>" +
-      (SHIP.note ? '<div class="warnbox">' + h(SHIP.note) + "</div>" : "") + '<p class="hint">Your Etsy shipping profiles:</p><div class="col">' + list.map(function (x) { return '<div class="tick"><span class="lbl">' + h(x.t) + "<small>" + h(x.id) + (String(x.id) === String(cur) ? " · in use" : "") + "</small></span></div>"; }).join("") +
-      '</div><p class="hint">Choosing a profile per range and garment (and switching live listings) is the next stage of Listings.</p></div>'; }
+  if (A.what.shipping) { any = true; var slist = (SHIP.list || []).filter(function (x) { return !x.hide; });
+    var srows = cb.map(function (c) { var q = c.split("|"), r = ruleFor(q[0], q[1]); if (!r) return ""; var v = String(rv(r.row, "ship", r.ship || SHIP.current));
+      return "<tr><td>" + h(rName(q[0])) + " · " + h(gName(q[1])) + '</td><td><select class="inp" style="font:500 14px Montserrat,sans-serif;width:100%" data-rule="' + r.row + '" data-rk="ship">' + slist.map(function (x) { return '<option value="' + h(x.id) + '"' + (String(x.id) === v ? " selected" : "") + ">" + h(x.p || x.t) + "</option>"; }).join("") + "</select></td></tr>"; }).join("");
+    out += '<div class="sec"><h3>Shipping</h3><div class="okbox" style="margin-bottom:10px"><b>What this is.</b> A shipping profile is the postage rule Etsy shows a buyer: what they pay for delivery and how long Etsy says it will take. Printify posts the order the same way whichever you pick. <b>Recommended: free postage.</b> Your prices already include it, and Etsy favours free-postage listings in UK and US search.</div>' +
+      '<table class="ttab"><tr><th>Range and garment</th><th>Shipping profile</th></tr>' + srows + "</table>" +
+      (cb.length > 1 ? '<button class="copy" type="button" data-shipall="1">Use the first one for all ' + cb.length + "</button>" : "") +
+      (SHIP.note ? '<div class="warnbox" style="margin-top:10px">' + SHIP.note + "</div>" : "") + "</div>"; }
   if (!any) out += '<p class="hint">Nothing to fill in. Tap Next.</p>';
   $("view").innerHTML = out;
   preview();
@@ -4820,11 +4829,11 @@ function saveCore() { var rows = Object.keys(A.rules), i = 0, b = $("go"); b.dis
       .catch(function (e) { A.err = e.message; b.disabled = false; b.textContent = "Save for new listings"; render(); }); })(); }
 function check() {
   var wo = whatOn(), nRule = Object.keys(A.rules).length;
-  if (A.done && A.done.core) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">' + A.done.core + " range and garment text" + (A.done.core === 1 ? " was" : "s were") + " updated. New listings will use it; live listings were not changed. Undo is in Settings → Recent changes.</p></div>"; return; }
-  if (wo.every(function (x) { return VIEW_ONLY[x]; })) { $("view").innerHTML = '<p class="q">Nothing to save</p><p class="hint">Category & attributes and Shipping are for looking at for now.</p>'; return; }
+  if (A.done && A.done.core) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">' + A.done.core + " range and garment setting" + (A.done.core === 1 ? " was" : "s were") + " updated. New listings will use it; live listings were not changed. Undo is in Settings → Recent changes.</p></div>"; return; }
+  if (wo.every(function (x) { return VIEW_ONLY[x]; })) { $("view").innerHTML = '<p class="q">Nothing to save</p><p class="hint">Category & attributes is for looking at for now.</p>'; return; }
   var onlyRules = wo.every(function (x) { return RULE_ONLY[x] || VIEW_ONLY[x]; });
   if (onlyRules && (!selKeys().length || A.coreOnly)) {
-    $("view").innerHTML = '<p class="q">Save for new listings</p><p class="hint">' + (nRule ? nRule + " range and garment text" + (nRule === 1 ? "" : "s") + " changed. Saved to Core only: listings built from now on use it; live listings stay as they are." : "You haven't changed anything yet. Go Back to edit.") + "</p>" +
+    $("view").innerHTML = '<p class="q">Save for new listings</p><p class="hint">' + (nRule ? nRule + " range and garment setting" + (nRule === 1 ? "" : "s") + " changed. Saved to Core only: listings built from now on use it; live listings stay as they are." : "You haven't changed anything yet. Go Back to edit.") + "</p>" +
       (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") + (selKeys().length ? '<p class="hint"><a href="#" id="toLive">Update the ' + selKeys().length + " ticked live listings too ›</a></p>" : '<p class="hint">To change live listings as well, go Back to step 2 and tick them.</p>') +
       (nRule ? '<div class="okbox" style="margin-top:10px"><button class="abtn go" type="button" id="go">Save for new listings</button></div>' : "");
     if ($("go")) $("go").onclick = saveCore; if ($("toLive")) $("toLive").onclick = function (e) { e.preventDefault(); A.coreOnly = false; render(); };
@@ -4867,6 +4876,7 @@ document.addEventListener("click", function (e) {
   if (t.dataset.colpick) { var ks = keys(function (k) { return k.split("|")[1] === t.dataset.colpick; }); setMany(ks, st(ks) !== "all"); render(); }
   if (t.dataset.drill) { A.drill.push(t.dataset.drill); A.q = ""; render(); }
   if (t.dataset.crumb) { A.drill = A.drill.slice(0, Number(t.dataset.crumb)); render(); }
+  if (t.dataset.shipall) { var sel = document.querySelectorAll('select[data-rk="ship"]'); if (sel.length) { var v0 = sel[0].value; Array.prototype.forEach.call(sel, function (x) { x.value = v0; A.rules[x.dataset.rule] = A.rules[x.dataset.rule] || {}; A.rules[x.dataset.rule].ship = v0; }); t.textContent = "Done ✓"; } }
   if (t.dataset.copy) {
     var p = A.cur.rule.split("|"), src = ruleFor(p[0], p[1]), k = t.dataset.copy;
     var v = rv(src.row, k, src[k]);
