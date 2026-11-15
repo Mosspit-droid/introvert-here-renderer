@@ -13,13 +13,17 @@ def line(coll):
 def update(lid, coll, ptype, dry=False):
     d = etsy("/listings/%s" % lid, "GET"); d = d if isinstance(d, dict) else json.loads(d)
     desc = html.unescape(d["description"])
-    if "Tap the shop name above" in desc: return "already has it"
+    import re
+    want = line(coll)
+    if want in desc and ("\n\n" + want + "\n\n") in desc: return "already up to date"
+    desc = re.sub(r"\n*[^\n]*Tap the shop name above for[^\n]*\n*", "\n", desc)   # take out an older version of the line
     rule = [r for r in am["rules"] if r["coll"] == coll and r["type"] == ptype][0]
     closing = html.unescape(str(rule["closing"] or "")).strip()
     first = closing.split("\n")[0].strip()
     i = desc.find(first) if first else -1
     if i < 0: return "closing text not found - skipped"
-    new = desc[:i] + line(coll) + "\n" + desc[i:]
+    head = desc[:i].rstrip("\n")
+    new = head + "\n\n" + want + "\n\n" + desc[i:]
     if dry: return new
     r = etsy("/shops/65435151/listings/%s" % lid, "PATCH", body={"description": new})
     r = r if isinstance(r, dict) else json.loads(r)
