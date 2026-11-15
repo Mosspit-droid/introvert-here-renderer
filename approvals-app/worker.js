@@ -256,7 +256,8 @@ async function lockOp(request, env) {
 }
 
 function checkSecret(request, env) {
-  return !!env.INGEST_SECRET && safeEqual(request.headers.get("X-Ingest-Secret") || "", env.INGEST_SECRET);
+  const got = request.headers.get("X-Ingest-Secret") || "";   // INGEST_SECRET_NEXT is accepted too while the key is being changed
+  return (!!env.INGEST_SECRET && safeEqual(got, env.INGEST_SECRET)) || (!!env.INGEST_SECRET_NEXT && safeEqual(got, env.INGEST_SECRET_NEXT));
 }
 
 async function ingest(request, env, ctx, url) {
