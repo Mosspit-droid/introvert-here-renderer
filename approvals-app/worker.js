@@ -4243,6 +4243,17 @@ async function settingsSave(request, env) {
       tags.forEach((t, i) => { if (t !== String(old[i] || "")) ops.push(amendCell("PRODUCT_RULES", AMEND_TAG_COLS[i], rule.row, t)); });
       rule.tags = tags;
     }
+  } else if (d.kind === "range") {
+    S = await env.PENDING.get("amend", "json");
+    const rr = ((S && S.rules) || []).filter((r) => r.coll === str(d.coll));
+    if (!rr.length) return json({ error: "That range isn't in the app's copy of Core. Tap Sync to Core and try again." }, 400);
+    const v = { lead: String(d.lead || "").replace(/\s+/g, " ").trim(), live: str(d.live).toUpperCase() === "Y" ? "Y" : "N", rname: String(d.rname || "").replace(/\s+/g, " ").trim() };
+    if (v.lead.length > 90) return json({ error: "Keep the lead line under 90 characters." }, 400);
+    if (!v.rname) return json({ error: "Give the range the name buyers should see." }, 400);
+    const COLS = { lead: "CROSS_SELL_LEAD", live: "RANGE_LIVE", rname: "RANGE_NAME" };
+    const old = { kind: "range", coll: rr[0].coll, lead: rr[0].lead || "", live: rr[0].live || "N", rname: rr[0].rname || rr[0].coll };
+    rr.forEach((r) => Object.keys(COLS).forEach((k) => { if (String(r[k] || "") !== v[k]) { ops.push(amendCell("PRODUCT_RULES", COLS[k], r.row, v[k])); r[k] = v[k]; } }));
+    d.__log = ["Cross-selling: " + old.rname, old];
   } else return json({ error: "Unknown request" }, 400);
   if (!ops.length) return json({ ok: true, unchanged: true });
   const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
@@ -4362,6 +4373,40 @@ async function categorySave(d, env) {
   return json({ ok: true, added: anchors.length + flavours.length });
 }
 
+// Cross-selling line (Barry, 15 Nov): one per range, just before the closing text of every new listing.
+function crossSellLine(ranges, own) {
+  const r0 = ranges.find((r) => r.coll === own); if (!r0 || !String(r0.lead || "").trim()) return "";
+  const names = ranges.filter((r) => r.coll !== own && String(r.live || "").trim().toUpperCase() === "Y").map((r) => String(r.rname || r.coll).trim());
+  if (!names.length) return "";
+  const list = names.length === 1 ? names[0] : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  return String(r0.lead).trim() + " Tap the shop name above for " + list + (/[.!?]$/.test(list) ? "" : ".");
+}
+function crossRanges(S) { const seen = {}, out = []; ((S && S.rules) || []).forEach((r) => { if (!seen[r.coll]) { seen[r.coll] = 1; out.push({ coll: r.coll, lead: r.lead || "", live: r.live || "", rname: r.rname || "" }); } }); return out; }
+function crossSellCard(S) {
+  const R = crossRanges(S);
+  if (!R.length || R.every((r) => r.lead === undefined)) return "";
+  return `<div class="card ptext part-text" id="xsell"><h2 style="margin-top:0">Cross-selling line</h2>
+    <p class="small" style="margin:0">Every new listing's description ends with a line pointing buyers to your other ranges, just before the closing text. Etsy links don't work in descriptions, so it tells them to tap the shop name. A range only appears in the others' lines while <b>Live</b> is Yes. Changes apply to new listings; live listings change through Listings → Descriptions.</p>
+    ${R.map((r, i) => `<div class="xs" data-coll="${esc(r.coll)}" style="border-top:1px solid var(--line);margin-top:14px;padding-top:12px">
+      <div class="g3"><label>Shown as<input data-f="rname" value="${esc(r.rname)}"></label><label style="grid-column:span 2">Lead line<input data-f="lead" value="${esc(r.lead)}" maxlength="90"></label></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px"><label style="display:flex;gap:8px;align-items:center;margin:0">Live<select data-f="live" style="width:auto;margin:0"><option value="Y"${String(r.live).toUpperCase() === "Y" ? " selected" : ""}>Yes</option><option value="N"${String(r.live).toUpperCase() === "Y" ? "" : " selected"}>No</option></select></label><button class="btn" type="button" data-xsave style="width:auto;padding:0 18px">Save</button></div>
+      <p class="small xsprev" style="margin:8px 0 0"></p></div>`).join("")}
+  </div>
+  <script>(function () { var box = document.getElementById("xsell"); if (!box) return;
+    function rows() { return Array.prototype.map.call(box.querySelectorAll(".xs"), function (d) { var o = { coll: d.dataset.coll }; d.querySelectorAll("[data-f]").forEach(function (x) { o[x.dataset.f] = x.value; }); return o; }); }
+    function line(R, own) { var r0 = R.filter(function (r) { return r.coll === own; })[0]; if (!r0 || !r0.lead.trim()) return "(no line: the lead is empty)";
+      var n = R.filter(function (r) { return r.coll !== own && r.live === "Y"; }).map(function (r) { return (r.rname || r.coll).trim(); }); if (!n.length) return "(no line: no other range is live)";
+      var l = n.length === 1 ? n[0] : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return r0.lead.trim() + " Tap the shop name above for " + l + (/[.!?]$/.test(l) ? "" : ".") ; }
+    function draw() { var R = rows(); box.querySelectorAll(".xs").forEach(function (d) { d.querySelector(".xsprev").textContent = "Reads: " + line(R, d.dataset.coll); }); }
+    box.addEventListener("input", draw); box.addEventListener("change", draw); draw();
+    box.addEventListener("click", function (e) { var b = e.target.closest("[data-xsave]"); if (!b) return; var d = b.closest(".xs"), o = { kind: "range", coll: d.dataset.coll }; d.querySelectorAll("[data-f]").forEach(function (x) { o[x.dataset.f] = x.value; });
+      b.disabled = true; b.textContent = "Saving…";
+      fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(o) }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Couldn't save"); }); })
+        .then(function () { b.textContent = "Saved ✓"; if (window.toast) toast("Saved to Core"); setTimeout(function () { b.disabled = false; b.textContent = "Save"; }, 1500); })
+        .catch(function (er) { alert(er.message); b.disabled = false; b.textContent = "Save"; }); });
+  })();</script>`;
+}
+
 async function settingsPage(env, part) {
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   const S = await env.PENDING.get("amend", "json");
@@ -4460,6 +4505,7 @@ ${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shif
     <div class="g3"><label>Position<input id="mpP" type="number" min="1" max="40"></label><label style="grid-column:span 2">Page name<input id="mpN" placeholder="OS_26_TS_EXTRA_MAROON"></label></div>
     <button class="btn-main" type="button" id="mpGo" style="width:auto;padding:0 26px;margin-top:12px">Add page</button>
   </div>
+${crossSellCard(S)}
   <div class="card ptext part-text"><h2 style="margin-top:0">Product text</h2>
     <p class="small" style="margin:0">What new listings are built with, for each range and garment. Saving changes Core only: listings already live keep their text. To change live listings as well, use Update listings → Descriptions.</p>
     <label>Range and garment<select id="pr">${rules.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join("")}</select></label>
@@ -5177,10 +5223,15 @@ function rv(row, k, def) { var d = A.rules[row]; return d && d[k] != null ? d[k]
 function allCombos() { return S0.rules.map(function (r) { var c = ""; RANGES.forEach(function (x) { if (x[2] === r.coll) c = x[0]; }); return c + "|" + r.type; }); }
 function sampleGag(code) { var ks = selKeys().filter(function (k) { return k.indexOf(code + "-") === 0; }); var g = ks.length ? gagOf(ks[0].split("|")[0]) : null;
   if (!g) S0.gags.some(function (x) { if (x.id.indexOf(code + "-") === 0) { g = x; return true; } return false; }); return g; }
+function crossLine(own) {   // same rule as the listing builder
+  var seen = {}, R = []; S0.rules.forEach(function (r) { if (!seen[r.coll]) { seen[r.coll] = 1; R.push(r); } });
+  var r0 = R.filter(function (r) { return r.coll === own; })[0]; if (!r0 || !String(r0.lead || "").trim()) return "";
+  var n = R.filter(function (r) { return r.coll !== own && String(r.live || "").toUpperCase() === "Y"; }).map(function (r) { return String(r.rname || r.coll).trim(); }); if (!n.length) return "";
+  var l = n.length === 1 ? n[0] : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return String(r0.lead).trim() + " Tap the shop name above for " + l + (/[.!?]$/.test(l) ? "" : ".") + "\n"; }
 function preview() { var t = $("pvT"), d = $("pvD"); if (!t && !d) return; var p = (A.cur.rule || "").split("|"), r = ruleFor(p[0], p[1]); if (!r) return; var g = sampleGag(p[0]);
   var stem = (single() && A.stem != null) ? A.stem : (g ? g.stem : "Your Title Stem"), title = stem + " " + rv(r.row, "suffix", r.suffix);
   if (t) { var n = title.length; t.innerHTML = '<div class="pvlbl">Etsy title · ' + n + "/140 characters" + (n > 140 ? ' <b style="color:#ff8a85">too long</b>' : "") + '</div><div class="pvbox"><span class="pvseen">' + h(title.slice(0, 45)) + "</span>" + h(title.slice(45)) + '</div><div class="small">Highlighted: roughly what shows in Etsy search on a phone.</div>'; }
-  if (d) { var txt = (g ? g.text : "... YOUR GAG TEXT") + "\n\n" + rv(r.row, "intro", r.intro) + "\n" + rv(r.row, "features", r.features) + "\n" + rv(r.row, "audience", r.audience) + "\n" + rv(r.row, "closing", r.closing);
+  if (d) { var txt = (g ? g.text : "... YOUR GAG TEXT") + "\n\n" + rv(r.row, "intro", r.intro) + "\n" + rv(r.row, "features", r.features) + "\n" + rv(r.row, "audience", r.audience) + "\n" + crossLine(r.coll) + rv(r.row, "closing", r.closing);
     d.innerHTML = '<div class="pvlbl">Etsy description' + (g ? " (shown with " + h(g.id) + ")" : "") + '</div><div class="pvbox pvdesc">' + h(txt) + "</div>"; } }
 function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
