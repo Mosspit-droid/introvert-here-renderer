@@ -4459,6 +4459,8 @@ ${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shif
 .catc summary{cursor:pointer;font-weight:600}.catc[open]{flex-basis:100%}.catc .small{margin-top:6px;line-height:1.6}
 @media (max-width:700px){.setrow{flex-direction:column;align-items:flex-start}.ptags{grid-template-columns:1fr 1fr}}
 </style>
+<nav class="setnav">${[["system", "System"], ["tags", "Tags setup"], ["text", "Product text & cross-selling"], ["pages", "Mockup pages"], ["shift", "Move a range"]].map(([k, t]) => `<a href="/settings${k === "system" ? "" : "?part=" + k}" class="${(/^[a-z]+$/.test(part) ? part : "system") === k ? "on" : ""}">${t}</a>`).join("")}</nav>
+<style>.setnav{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 14px}.setnav a{font:600 14px var(--body);padding:9px 14px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);text-decoration:none}.setnav a.on{background:var(--accent);border-color:var(--accent);color:#141413}</style>
 <div class="setw">
   ${setLog.length ? `<div class="card part-system"><h2 style="margin-top:0">Recent changes</h2>${setLog.slice(0, 8).map((e) => `<div class="setrow"><div><b style="font:600 14px var(--body)">${esc(e.label)}</b><p class="small">${esc(when(e.at))}</p></div>${e.undo ? `<button class="btn" type="button" data-undo="${esc(e.id)}" style="width:auto">Undo</button>` : ""}</div>`).join("")}</div>` : ""}
   <div class="card part-system part-tags"><h2 style="margin-top:0">Tag system</h2>
