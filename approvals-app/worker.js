@@ -2403,11 +2403,11 @@ ${brandHeader("Gags")}
     <div class="wzhead o-wzbar"><a class="btn wzlist" id="wzList" hidden>‹ Back to list</a><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
     <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
-    <div class="card g-text o-text" data-st="1"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
+    <div class="card g-text o-text" data-st="2"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="boxes"></div><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
       <details id="ideasBox" class="ideas"><summary>Ideas inbox <span id="ideasN" class="small"></span></summary><div id="ideasL"></div></details></div>
     <div class="card g-side">
-      <div class="fld o-range" data-st="2"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
+      <div class="fld o-range" data-st="1"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div><div id="rangeCount"></div></div>
       <div class="fld o-stem" data-st="3"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
       <div class="fld o-stars" data-st="5"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
@@ -2470,6 +2470,20 @@ ${brandHeader("Gags")}
   /* The whole preview card is the black print area; the gag sits in it with margins (Barry, 13 Nov). */
   .g-prev .card{background:#000!important;box-shadow:0 12px 28px rgba(0,0,0,.65);padding:14px 16px 18px}
   .gL .g-prev .prevhead{margin-bottom:6px}
+  /* Exclusive (Barry, 15 Nov): cream page like the finished print, three boxes left-aligned. */
+  .g-prev .card.ex{background:#ECE3CF!important}
+  .card.ex .sideh{color:#5a5345}.card.ex .lamp{color:#5a5345;border-color:#c9bea6}.card.ex .lamp::before{background:#b4a98f}
+  .card.ex .lamp.ok{color:#2e7d4f;border-color:#2e7d4f}.card.ex .lamp.ok::before{background:#2e7d4f}
+  .card.ex .lamp.bad{color:#b3261e;border-color:#b3261e}.card.ex .lamp.bad::before{background:#b3261e}
+  .expage{position:absolute;top:0;width:3951px;height:4919px;transform-origin:top left;background:#ECE3CF;overflow:hidden}
+  .expage>*{position:absolute;margin:0}
+  .expage .exr{height:14px;background:#000;left:175.5px;width:3600px}
+  .expage .ext{white-space:pre-wrap;overflow-wrap:break-word;letter-spacing:-0.04em;text-align:left}
+  .expage .ext.ph{opacity:.18}.expage .ext.over{color:#b3261e}
+  #boxes{display:flex;flex-direction:column;gap:14px}#boxes:empty{display:none}
+  #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
+  .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
+  body.kb #boxes label>.small{display:none}
   .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
   .g-side{display:flex;flex-direction:column;gap:18px}
@@ -2477,7 +2491,7 @@ ${brandHeader("Gags")}
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
     /* Phone (Barry, 14 Nov): buttons pinned at the top on the right, text box first, preview under it (not floating). */
-    .o-wzbar{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-prev{order:5}.o-stem{order:6}.o-range{order:6}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-garm{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .o-wzbar{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-prev{order:5}.o-stem{order:6}.o-range{order:3}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-garm{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
     .gL .g-prev{position:static}
     .wzhead{margin:0;padding:8px 0;border-radius:0;gap:8px}
     .wzbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.wzbar::-webkit-scrollbar{display:none}.wzbar button{flex:none;padding:6px 10px;font-size:12px}
@@ -2536,7 +2550,7 @@ ${brandHeader("Gags")}
   .result:hover{background:var(--bg)}
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&family=Anton&family=Newsreader:ital,opsz,wght@1,6..72,400&display=swap" rel="stylesheet">
 <script>
 let G = ${JSON.stringify(g || null).replace(/</g, "\\u003c")};
 window.GAG_CATS = ${JSON.stringify(catMap).replace(/</g, "\\u003c")};
@@ -2544,17 +2558,89 @@ window.SEASON_LOCK = ${JSON.stringify(lockIds)};
 window.CAT_WORDS = ${JSON.stringify(catWords).replace(/</g, "\\u003c")};
 window.GAG_STARS = ${JSON.stringify((await env.PENDING.get(STARS_KEY, "json")) || {})};
 window.GAG_TARGETS = ${JSON.stringify((await env.PENDING.get("gag-targets", "json")) || {})};
+window.TEXT_RULES = ${JSON.stringify((((await env.PENDING.get("text-rules", "json")) || {}).rules) || {}).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
 ${GAG_SEASON_SCRIPT}
 ${GAG_EXTRA_SCRIPT}
 ${GAG_LAMPS_SCRIPT}
+${GAG_BOXES_SCRIPT}
 ${GAG_WIZARD_SCRIPT}</script>`);
 }
 
+// Gag boxes per range, from Core's GAG_TEXT_RULES (Barry, 15 Nov). One-box ranges keep the classic gag box;
+// a range with several boxes (EXCLUSIVE: headline, body, footer) gets one box each and a preview laid out like its Canva print page.
+const GAG_BOXES_SCRIPT = String.raw`(function () {
+  var R = window.TEXT_RULES || {}, col = document.getElementById("collection"), main = document.getElementById("text"), boxes = document.getElementById("boxes"), shown = "", stemTouched = false;
+  // Canva page E001_EX_T-SHIRT_TEMPLATES, in its own units (read 15 Nov).
+  var EX = { w: 3951, h: 4919, logo: [0, 175.5, 3621.9, 836.3], rules: [2360, 3781.5],
+    GAG_HEADER: { top: 1080, left: 175.5, width: 3600, font: "Anton", size: 533.34, lh: 1.02, style: "normal", color: "#000" },
+    GAG_BODY: { top: 2460, left: 175.5, width: 3600, font: "Newsreader", size: 254, lh: 1.25, style: "italic", color: "#111" },
+    GAG_FOOTER: { top: 3939.5, left: 1700, width: 2075.5, font: "Anton", size: 166.333, lh: 1.25, style: "normal", color: "#000" } };
+  function rules() { var r = R[col.value] || []; return r.length > 1 || (r[0] && r[0].col !== "GAG_TEXT") ? r : null; }
+  window.isMulti = function () { return !!rules(); };
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function vals() { var o = {}; boxes.querySelectorAll("textarea[data-col]").forEach(function (t) { o[t.dataset.col] = t.value.replace(/\r/g, "").replace(/\s+$/, ""); }); return o; }
+  window.boxParts = function () { return rules() ? vals() : null; };
+  window.boxesMissing = function () { var r = rules(); if (!r) return ""; var v = vals(), m = r.filter(function (x) { return x.req && !String(v[x.col] || "").trim(); });
+    return m.length ? "Fill in the " + m.map(function (x) { return x.label.replace(/\s*\(.*$/, "").toLowerCase(); }).join(" and ") + "." : ""; };
+  function join() { var r = rules(), v = vals(); main.value = r.map(function (x) { return v[x.col] || ""; }).filter(function (t) { return t.trim(); }).join("\n\n"); }
+  function render() {
+    var ed = typeof editing !== "undefined" ? editing : null, r = rules(), key = r ? col.value + "|" + (ed ? ed.id : "") : "";
+    if (key === shown) return; shown = key;
+    var lab = main.closest("label");
+    if (!r) { boxes.innerHTML = ""; lab.style.display = ""; main.required = true; return; }
+    lab.style.display = "none"; main.required = false;
+    var parts = (ed && ed.parts) || null, old = parts ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);
+    boxes.innerHTML = r.map(function (x, i) {
+      var v = parts ? parts[x.col] || "" : (old && old[i]) || "";
+      return '<label><b>' + esc(x.label) + '</b> <span class="small">(' + x.lines + " line" + (x.lines === 1 ? "" : "s") + " max" + (x.case === "UPPER" ? ", capitals" : "") + ')</span>' +
+        '<textarea data-col="' + esc(x.col) + '" data-case="' + esc(x.case) + '" rows="' + Math.min(4, x.lines + 1) + '" spellcheck="true">' + esc(v) + '</textarea></label><div class="bxn" data-n="' + esc(x.col) + '"></div>';
+    }).join("");
+    join();
+  }
+  boxes.addEventListener("input", function (e) {
+    var t = e.target; if (!t.dataset || !t.dataset.col) return;
+    if (t.dataset.case === "UPPER") { var u = t.value.toUpperCase(); if (u !== t.value) { var a = t.selectionStart, b = t.selectionEnd; t.value = u; t.setSelectionRange(a, b); } }
+    if (t.dataset.col === "GAG_HEADER" && !stemTouched && typeof properStem === "function") { var st = document.getElementById("stem"); st.value = properStem(t.value.replace(/\s+/g, " ")).trim().slice(0, 60); if (typeof stemNote === "function") stemNote(); }
+    join(); var m = document.querySelector(".wzmsg"); if (m) m.remove();
+    if (typeof preview === "function") preview(); if (typeof checkLater === "function") checkLater("text", "spell", "gag");
+  });
+  document.getElementById("stem").addEventListener("input", function (e) { if (e.isTrusted) stemTouched = true; });
+  document.getElementById("form").addEventListener("reset", function () { stemTouched = false; setTimeout(function () { shown = "-"; render(); window.exPreview(); }, 0); });
+  col.addEventListener("change", function () { render(); });
+  // Preview: the whole print page, scaled to fit, boxes where Canva has them. Lines are counted as the browser wraps them.
+  window.exPreview = function () {
+    render();
+    var card = document.querySelector(".g-prev .card"), stage = document.getElementById("stage"), pbox = document.getElementById("pbox"), page = document.getElementById("expage"), r = rules();
+    card.classList.toggle("ex", !!r);
+    if (!r || col.value !== "EXCLUSIVE") { if (page) page.remove(); pbox.style.display = ""; return false; }
+    pbox.style.display = "none";
+    if (!page) { page = document.createElement("div"); page.id = "expage"; page.className = "expage"; stage.appendChild(page); }
+    var v = vals(), html = '<img src="/assets/ex-logo.png" alt="" style="top:' + EX.logo[0] + 'px;left:' + EX.logo[1] + 'px;width:' + EX.logo[2] + 'px;height:' + EX.logo[3] + 'px">' +
+      EX.rules.map(function (t) { return '<div class="exr" style="top:' + t + 'px"></div>'; }).join("");
+    r.forEach(function (x) { var L = EX[x.col]; if (!L) return; var t = v[x.col] || "";
+      html += '<div class="ext' + (t.trim() ? "" : " ph") + '" data-c="' + esc(x.col) + '" style="top:' + L.top + 'px;left:' + L.left + 'px;width:' + L.width + 'px;font:' + L.style + " 400 " + L.size + "px/" + L.lh + " '" + L.font + "'," + (L.font === "Anton" ? "Impact,sans-serif" : "Georgia,serif") + ';color:' + L.color + '">' + esc(t.trim() ? t : x.label.replace(/\s*\(.*$/, "")) + "</div>"; });
+    page.innerHTML = html;
+    var sc = Math.min(stage.clientWidth / EX.w, Math.min(560, window.innerHeight * 0.62) / EX.h);
+    page.style.transform = "scale(" + sc + ")"; page.style.left = Math.max(0, (stage.clientWidth - EX.w * sc) / 2) + "px";
+    stage.style.height = EX.h * sc + "px";
+    var warn = [];
+    r.forEach(function (x) { var L = EX[x.col], d = page.querySelector('[data-c="' + x.col + '"]'), n = boxes.querySelector('[data-n="' + x.col + '"]'), t = v[x.col] || "";
+      if (!d || !n) return; if (!t.trim()) { n.textContent = ""; n.className = "bxn"; return; }
+      var lines = Math.round(d.scrollHeight / (L.size * L.lh)), name = x.label.replace(/\s*\(.*$/, "");
+      if (lines > x.lines) { d.classList.add("over"); warn.push(name + " runs to " + lines + " lines on the shirt; it holds " + x.lines + "."); }
+      n.textContent = lines + " of " + x.lines + " line" + (x.lines === 1 ? "" : "s"); n.className = "bxn" + (lines > x.lines ? " bad" : ""); });
+    var any = r.some(function (x) { return String(v[x.col] || "").trim(); });
+    document.getElementById("pwarn").innerHTML = warn.length ? '<div class="status bad">' + warn.join("<br>") + "</div>" : any ? '<div class="status ok">Fits the print.</div>' : "";
+    return true;
+  };
+  if (document.fonts) Promise.all([document.fonts.load("400 100px Anton", "W"), document.fonts.load("italic 400 100px Newsreader", "W")]).then(function () { if (window.isMulti()) window.exPreview(); }).catch(function () {});
+})();`;
+
 // Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
 const GAG_WIZARD_SCRIPT = String.raw`(function () {
-  var STEPS = ["Gag", "Range", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;
+  var STEPS = ["Range", "Gag", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;   // range first (Barry, 15 Nov): the range decides which boxes the gag step shows
   var NOW = new URLSearchParams(location.search).get("now") === "1", GSEL = { "T-SHIRT": 1 };
   var GN = [["T-SHIRT", "T-Shirt"], ["LONG-SLEEVE", "Long-Sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]];
   function chipsFor(boxId) { var box = document.getElementById(boxId); var draw = function () { box.innerHTML = GN.map(function (x) { return '<button type="button" class="chip' + (GSEL[x[0]] ? " on" : "") + '" data-garm="' + x[0] + '">' + x[1] + "</button>"; }).join(""); };
@@ -2604,7 +2690,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     laterPopup(keys, boxes, function (later) { GSEL = {}; keys.forEach(function (k) { GSEL[k] = 1; }); quickGo(document.getElementById("save"), "Publish now", later); });
   }, true);
   if (NOW) {
-    STEPS = ["Gag", "Range", "Title stem", "Category", "Garments"];
+    STEPS = ["Range", "Gag", "Title stem", "Category", "Garments"];
     document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; });
     document.querySelector(".o-garm").dataset.st = "5";
     document.getElementById("save").textContent = "List it now";
@@ -2618,20 +2704,22 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   if (FROM) { var bl = document.getElementById("wzList"); bl.href = "/?rlist=" + FROM; bl.hidden = false; window.GAG_FROM = FROM; }
   function el(id) { return document.getElementById(id); }
   function need() {
-    if (cur === 1 && !el("text").value.replace(/^[\s.…]+/, "").trim()) return "Type the gag first" + (document.querySelector('.tab.on[data-tab="edit"]') ? ", or pick one to edit." : ".");
-    if (cur === 2 && !el("collection").value) return "Pick a range.";
+    if (cur === 1 && document.querySelector('.tab.on[data-tab="edit"]') && !el("collection").value) return "Pick a gag to edit.";
+    if (cur === 1 && !el("collection").value) return "Pick a range.";
+    if (cur === 2 && window.boxesMissing && window.boxesMissing()) return window.boxesMissing();
+    if (cur === 2 && !el("text").value.replace(/^[\s.…]+/, "").trim()) return "Type the gag first.";
     if (cur === 3 && !el("stem").value.trim()) return "Give it a title stem.";
     return "";
   }
   function go(n) {
     cur = Math.max(1, Math.min(STEPS.length, n));
     Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.classList.toggle("cur", Number(x.dataset.st) === cur); });
-    document.body.classList.toggle("noprev", [1, 3, STEPS.length].indexOf(cur) < 0);   // phone: preview only on the text, title stem and last steps
+    document.body.classList.toggle("noprev", [2, 3, STEPS.length].indexOf(cur) < 0);   // phone: preview only on the text, title stem and last steps
     el("wzBar").innerHTML = STEPS.map(function (s, i) { return '<button type="button" data-go="' + (i + 1) + '" class="' + (i + 1 === cur ? "on" : i + 1 < cur ? "done" : "") + '">' + (i + 1) + ". " + s + "</button>"; }).join("");
         el("wzNext").style.display = cur === STEPS.length ? "none" : "";
     el("wzBack").style.display = cur === 1 ? "none" : "";
     var m = document.querySelector(".wzmsg"); if (m) m.remove();
-    var f = document.querySelector(".gR [data-st='" + cur + "'] input:not([type=hidden]):not([type=date]), .gR [data-st='" + cur + "'] textarea");
+    var f = document.querySelector(".gR [data-st='" + cur + "'] input:not([type=hidden]):not([type=date]), .gR [data-st='" + cur + "'] #boxes textarea, .gR [data-st='" + cur + "'] textarea:not(.hid *)");
     if (f && f.offsetParent && cur <= 3 && !el("search").offsetParent) f.focus({ preventScroll: true });
     else if (document.body.classList.contains("kb") && document.activeElement) document.activeElement.blur();
     window.scrollTo(0, 0); if (document.body.classList.contains("kb")) setTimeout(fit, 30);
@@ -2647,12 +2735,12 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var sel = el("collection").value, T = window.GAG_TARGETS || {};
     box.innerHTML = Object.keys(G.perCollection).map(function (c) {
       var pre = G.perCollection[c].prefix, rows = (G.all || []).concat(G.empties || []).filter(function (x) { return new RegExp("^" + pre + "-\\d+$").test(x.id); }), n = rows.filter(function (x) { return String(x.text || "").trim(); }).length, t = Number(T[pre]) || 0;
-      var on = c === sel, name = { IH: "Introvert Here", SH: "SHHH.", PC: "Per Contract", OS: "Off The Shelf" }[pre] || c;
+      var on = c === sel, name = { IH: "Introvert Here", SH: "SHHH.", PC: "Per Contract", OS: "Off The Shelf", EX: "Exclusive" }[pre] || c;
       if (!on && sel) return "";
       return '<div class="rc' + (on ? " sel" : "") + '"><div class="rch"><span><b>' + n + "</b> gags in " + name.replace(/</g, "&lt;") + "</span>" +
         (t ? "<span>" + (n >= t ? "Target reached ✓" : "<b>" + (t - n) + "</b> to go to " + t) + "</span>" : "") + "</div>" +
-        (t ? '<div class="rbar"><i style="width:' + Math.min(100, Math.round(n / t * 100)) + '%"></i></div>' : "") + (on ? '<div class="small" style="margin-top:6px">' + rows.length + " spaces in Core · " + (rows.length - n) + " empty</div>" : "") +
-        (on ? '<div style="margin-top:6px"><button type="button" data-target="' + pre + '">' + (t ? "Change target" : "Set a target") + "</button></div>" : "") + "</div>";
+        (t ? '<div class="rbar"><i style="width:' + Math.min(100, Math.round(n / t * 100)) + '%"></i></div>' : "") + (on && pre !== "EX" ? '<div class="small" style="margin-top:6px">' + rows.length + " spaces in Core · " + (rows.length - n) + " empty</div>" : "") +
+        (on && pre !== "EX" ? '<div style="margin-top:6px"><button type="button" data-target="' + pre + '">' + (t ? "Change target" : "Set a target") + "</button></div>" : "") + "</div>";
     }).join("");
   }
   el("rangeCount").addEventListener("click", function (e) { var b = e.target.closest("[data-target]"); if (!b) return; var pre = b.dataset.target, cur = (window.GAG_TARGETS || {})[pre] || "";
@@ -2667,7 +2755,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
       post(false).then(function (k) { if (k.error) return alert(k.error); window.GAG_TARGETS = k.targets; counts();
         if (msg && window.toast) window.toast("Sent to Core. Tap Sync to Core in a minute to see the new numbers."); }); }); });
   el("collection").addEventListener("change", function () { setTimeout(counts, 0); });
-  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); });
+  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); if (cur === 1 && !document.querySelector('.tab.on[data-tab="edit"]')) setTimeout(function () { if (el("collection").value) go(2); }, 120); });
   counts();
   function typing() { var a = document.activeElement; return a && a.closest && a.closest(".gR") && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "date" && a.type !== "checkbox")); }
   function fit() {   // text box fills what's left above the keyboard
@@ -2689,7 +2777,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   el("form").addEventListener("reset", function () { setTimeout(function () { go(1); }, 0); });
   el("clear").addEventListener("click", function () { setTimeout(function () { if (!el("text").value) go(1); }, 0); });
   // Picking a gag to edit goes back to its text.
-  el("results").addEventListener("click", function (e) { if (e.target.closest(".result")) setTimeout(function () { go(1); }, 0); });
+  el("results").addEventListener("click", function (e) { if (e.target.closest(".result")) setTimeout(function () { go(2); }, 0); });
   go(1);
 })();`;
 
@@ -2804,7 +2892,7 @@ const GAG_SEASON_SCRIPT = String.raw`(function () {
 // Range and category buttons for /gags. The hidden <select>s stay the source of truth for the page script;
 // the buttons set them and fire "change". Categories are grouped by how Core's gags are filed today.
 const GAG_CHIPS_SCRIPT = String.raw`(function () {
-  var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"] };
+  var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"], "EXCLUSIVE": ["Exclusive", "#d8262c"] };
   var CATS = window.GAG_CATS || {
     "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking"],
     "SHHH.": ["Alternative Communication", "Sensory Issues"],
@@ -2820,19 +2908,19 @@ const GAG_CHIPS_SCRIPT = String.raw`(function () {
     var all = Array.prototype.map.call(cat.options, function (o) { return o.value; }).filter(Boolean);
     var mine = (CATS[col.value] || []).filter(function (c) { return all.indexOf(c) >= 0; });
     if (cat.value && mine.indexOf(cat.value) < 0) mine.push(cat.value);
-    var list = showAll ? all : mine;
+    var list = showAll || !mine.length ? all : mine;
     cc.innerHTML = list.map(function (c) { return '<button type="button" class="chip' + (cat.value === c ? " on" : "") + '" data-c="' + esc(c) + '">' + esc(c) + "</button>"; }).join("") +
       '<button type="button" class="chip more" data-more="1">' + (showAll ? "Just this range" : "Show all categories") + "</button>";
   }
   rc.addEventListener("click", function (e) { var b = e.target.closest("[data-r]"); if (!b || col.disabled) return; if (col.value !== b.dataset.r) { cat.value = ""; showAll = false; } pick(col, b.dataset.r); });
   cc.addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; if (b.dataset.more) { showAll = !showAll; draw(); return; } pick(cat, b.dataset.c); });
   var tx = $("text");
-  function lead() { if (!tx.value.trim()) { tx.value = "... "; tx.dispatchEvent(new Event("input", { bubbles: true })); } }
+  function lead() { if (window.isMulti && window.isMulti()) return; if (!tx.value.trim()) { tx.value = "... "; tx.dispatchEvent(new Event("input", { bubbles: true })); } }
   tx.addEventListener("focus", function () { lead(); setTimeout(function () { if (tx.value === "... ") tx.setSelectionRange(4, 4); }, 0); });
   $("clear").addEventListener("click", function () { setTimeout(lead, 0); });
   $("form").addEventListener("submit", function (e) {
     var t = tx.value.replace(/^\s+/, "");
-    if (t && !/^(\.\.\.|…)/.test(t)) { tx.value = "... " + t; tx.dispatchEvent(new Event("input", { bubbles: true })); }
+    if (t && !(window.isMulti && window.isMulti()) && !/^(\.\.\.|…)/.test(t)) { tx.value = "... " + t; tx.dispatchEvent(new Event("input", { bubbles: true })); }
     var miss = !col.value ? "Choose a range." : !cat.value ? "Choose a gag category." : "";
     if (miss) { e.preventDefault(); e.stopImmediatePropagation(); if (window.toast) toast(miss, true); else alert(miss); }
   }, true);
@@ -2854,6 +2942,10 @@ let mode = "new", editing = null;
 function opts(sel, items, placeholder) {
   sel.innerHTML = '<option value="">' + placeholder + '</option>' + items.map((x) => '<option>' + x.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</option>').join('');
 }
+// Ranges with their own boxes in GAG_TEXT_RULES (e.g. EXCLUSIVE) are added even before they have a gag in Core.
+if (G) Object.keys(window.TEXT_RULES || {}).forEach((c) => { if ((G.collections || []).indexOf(c) < 0 && c === "EXCLUSIVE") {
+  G.collections.push(c); const n = (G.all || []).filter((x) => /^EX-\d+$/.test(x.id)).reduce((m, x) => Math.max(m, Number(x.id.slice(3))), 0);
+  G.perCollection[c] = G.perCollection[c] && G.perCollection[c].prefix ? G.perCollection[c] : { prefix: "EX", next: { mode: "append", id: "EX-" + String(n + 1).padStart(5, "0"), dates: [null, null, null, null] }, emptyLeft: 0 }; } });
 if (G) { opts($("collection"), G.collections, "Choose…"); opts($("category"), G.categories, "Choose…"); }
 
 let datesTouched = false;
@@ -2873,6 +2965,7 @@ function slotInfo() {
   const c = $("collection").value, pc = G && G.perCollection[c];
   if (!c || !pc) { note(""); return; }
   const n = pc.next;
+  if (window.isMulti && window.isMulti()) { note("New " + (c === "EXCLUSIVE" ? "Exclusive" : c) + " gag " + n.id + ". Exclusive gags are made on demand, not on the weekly schedule.", "small"); setDates([]); return; }
   note(n.mode === "fill"
     ? "Fills prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left) \u2014 its dates are filled in below."
     : "No empty " + (pc.prefix || "") + " rows left \u2014 adds a new row at the bottom as " + n.id + ", dated the day after the latest date in Core.", "small");
@@ -2891,6 +2984,7 @@ function measureW() {
   m.textContent = "WWWWWWWWWWWW"; document.body.appendChild(m); wAt100 = m.getBoundingClientRect().width; m.remove();
 }
 function preview() {
+  if (window.exPreview && window.exPreview()) return;
   if (!wAt100) return;
   const width = BOX[$("collection").value] || 509;
   const fs = width / wAt100 * 100;
@@ -3025,9 +3119,10 @@ $("form").addEventListener("submit", async (e) => {
   let datesFromSlot = false;
   if (mode !== "edit") { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : "";
     datesFromSlot = !datesTouched && ["d1","d2","d3","d4"].every((k, i) => $(k).value === (pc.next.dates[i] || "")); }
-  $("text").value = capsGag($("text").value); $("stem").value = properStem($("stem").value).trim();
+  if (window.isMulti && window.isMulti() && !window.EX_SAVE_READY) { alert("Saving Exclusive gags switches on in the next step, once Core has the three new columns (headline, body, footer). The preview is ready to try now."); return; }
+  if (!(window.isMulti && window.isMulti())) $("text").value = capsGag($("text").value); $("stem").value = properStem($("stem").value).trim();
   if ($("pwarn").querySelector('.bad') && !confirm("The preview shows a problem with the line breaks. Save anyway?")) return;
-  const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value,
+  const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value, parts: window.boxParts ? window.boxParts() : null,
     tag12: $("tag12").value, tag13: $("tag13").value, d1: $("d1").value, d2: $("d2").value, d3: $("d3").value, d4: $("d4").value, datesFromSlot };
   $("save").disabled = true; $("save").textContent = "Sending to Core…";
   const sw = window.seasonMove ? window.seasonMove() : null;
