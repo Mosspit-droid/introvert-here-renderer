@@ -34,6 +34,7 @@ export default {
     ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
     ctx.waitUntil(quickTick(env).catch(() => {}));
+    ctx.waitUntil(copyWatchTick(env).catch(() => {}));
   },
 
   async fetch(request, env, ctx) {
@@ -113,6 +114,7 @@ export default {
       if (pathname === "/health" && method === "GET") return authed ? await healthPage(env) : redirect("/");
       if (pathname === "/quiet" && method === "GET") return authed ? await quietPage(env) : redirect("/");
       if (pathname === "/reviews" && method === "GET") return authed ? await reviewsPage(env) : redirect("/");
+      if (pathname === "/copywatch" && method === "GET") return authed ? await copyWatchPage(env) : redirect("/");
       if (pathname === "/today" && method === "GET") return authed ? await todayPage(env) : redirect("/");
       if (pathname === "/calendar" && method === "GET") {
         return authed ? await calendarPage(env) : redirect("/");
@@ -159,6 +161,7 @@ export default {
       if (pathname === "/api/gag-target" && method === "POST") return await gagTarget(request, env);
       if (pathname === "/api/gag-clear" && method === "POST") return await gagClear(request, env);
       if (pathname === "/api/quick-list" && method === "POST") return await quickList(request, env);
+      if (pathname === "/api/copywatch" && method === "POST") return await copyWatchApi(request, env);
       if (pathname === "/api/quick-dismiss" && method === "POST") { const L = ((await env.PENDING.get(QUICK_KEY, "json")) || []).filter((j) => !["done", "failed", "stuck"].includes(j.stage)); await env.PENDING.put(QUICK_KEY, JSON.stringify(L)); return json({ ok: true }); }
       if (pathname === "/api/backups" && method === "GET") return json(await backupList(env));
       if (pathname === "/api/price-test" && method === "POST") return await priceTestApi(request, env);
@@ -945,7 +948,7 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/listings", "update", "Listings"]];
-const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/copywatch", "search", "Copy watch"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -1668,6 +1671,7 @@ async function dashboardPage(env) {
   const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: Number(iso.slice(0, 4)) !== thisYear ? "numeric" : undefined, timeZone: "UTC" });
   // "Read" hides a card until it changes (new count or new first item), then it comes back.
   const dismissed = (await env.PENDING.get("dismissed", "json")) || {};
+  const copyNew = (((await env.PENDING.get(COPY_KEY, "json")) || {}).hits || []).filter((h) => h.status === "new");
   const quick = ((await env.PENDING.get(QUICK_KEY, "json")) || []).filter((j) => ["saving", "tags", "build"].includes(j.stage) || Date.now() - j.upd < 24 * 3600e3);
   const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
   const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
@@ -1768,6 +1772,7 @@ ${(() => { const QS = { saving: "Saving to Core…", tags: "Approving its tags�
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts") +
 (sale ? need("warn", sale.days || "!", sale.name + (sale.days ? " in " + sale.days + " day" + (sale.days === 1 ? "" : "s") : " is today"), "Worth an Etsy sale or discount code? Shop Manager → Marketing → Sales and discounts", "https://www.etsy.com/your/shops/me/sales-discounts") : "") +
 (newReviews.length ? need("run", newReviews.length, "New Etsy review" + (newReviews.length === 1 ? "" : "s"), esc("★".repeat(Number(newReviews[0].rating) || 0) + " " + (newReviews[0].text || "")).slice(0, 70), "/reviews") : "") +
+(copyNew.length ? need("hot", copyNew.length, "Possible cop" + (copyNew.length === 1 ? "y" : "ies") + " on Etsy", esc(copyNew[0].title).slice(0, 70), "/copywatch") : "") +
 (quiet.length && new Date().getUTCDate() <= 7 ? need("warn", quiet.length, "Quiet listings to refresh", "Live 60+ days with under 10 views. Monthly look.", "/quiet") : "") +
 (isSunday ? need(health.issues.length ? "warn" : "run", health.issues.length || "✓", "Weekly check", health.issues.length ? esc(health.issues[0].t) + (health.issues.length > 1 ? " and " + (health.issues.length - 1) + " more" : "") : "Next two weeks look ready", "/health") : ""),
 (watch.warned && busy.length ? need("warn", busy.length, "Updates stuck", "Stopped at " + esc(watch.sig.split(",")[0]) + " · tap to restart", "/amend") : "") + need("run", watch.warned || showProg ? 0 : busy.length, "Updates running", busy.length ? esc(busy.slice(0, 2).map((g) => g.stem || g.id).join(", ")) + (busy.length > 2 ? " and " + (busy.length - 2) + " more" : "") : "None running", "/amend"),
@@ -3946,6 +3951,83 @@ function reviewDraft(r) {
   if (n === 4) return "Thank you for taking the time to leave a review. We're really glad you like it. If there's anything we could have done better, do send us a message; we read every one.\n\n— Introvert Here";
   return "Thank you for your honest review, and we're sorry it wasn't quite right. Please send us a message through Etsy so we can put it right for you.\n\n— Introvert Here";
 }
+// Copy watch (Barry, 15 Nov): once a week, search Etsy for the wording of every live gag and flag other shops'
+// listings that contain it. One gag per 5-minute tick, two searches each, through the Make "Etsy tool".
+const COPY_KEY = "copywatch", OWN_SHOP = 65435151;
+const cwNorm = (s) => String(s || "").replace(/&#39;|&rsquo;|’|'/g, "").replace(/&[a-z#0-9]+;/gi, " ").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function cwLines(text) { return String(text || "").split(/\n+/).map((l) => cwNorm(l.replace(/^\s*(\.\.\.|…)/, ""))).filter((l) => l.split(" ").length >= 3); }
+function cwMatch(gag, listing) {
+  const T = " " + cwNorm([listing.title, listing.description, (listing.tags || []).join(" ")].join(" ")) + " ";
+  const full = cwNorm(String(gag.text || "").replace(/^\s*(\.\.\.|…)/, ""));
+  if (full.split(" ").length >= 4 && T.includes(" " + full + " ")) return "whole gag";
+  const lines = cwLines(gag.text).filter((l) => T.includes(" " + l + " "));
+  if (lines.some((l) => l.split(" ").length >= 6) || lines.length >= 2) return lines.length + " line" + (lines.length === 1 ? "" : "s") + " of the gag";
+  return "";
+}
+async function etsySearch(env, token, keywords) {
+  const r = await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ responsive: true, data: { path: "/listings/active", method: "GET", qs: [{ key: "keywords", value: keywords }, { key: "limit", value: "50" }] } }) });
+  const j = await r.json().catch(() => ({})); let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  if (!b || !Array.isArray(b.results)) throw new Error("Etsy search failed (" + r.status + ")");
+  return b.results;
+}
+async function copyWatchTick(env, force) {
+  const W = (await env.PENDING.get(COPY_KEY, "json")) || { checked: {}, hits: [], ignore: {} };
+  const S = await env.PENDING.get("amend", "json"); if (!S || !S.gags) return;
+  const now = Date.now(), live = S.gags.filter((g) => (g.live || []).length && String(g.text || "").trim());
+  const due = live.filter((g) => !W.checked[g.id] || now - W.checked[g.id] > 7 * 864e5).sort((a, b) => (W.checked[a.id] || 0) - (W.checked[b.id] || 0));
+  if (!due.length) return;
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
+  const g = due[0], lines = cwLines(g.text).sort((a, b) => b.split(" ").length - a.split(" ").length);
+  const queries = [...new Set([lines[0] && lines[0].split(" ").slice(0, 6).join(" "), lines[1] && lines[1].split(" ").slice(0, 6).join(" "), cwNorm(g.stem)].filter((q) => q && q.split(" ").length >= 2))].slice(0, 2);
+  const seen = {};
+  try {
+    for (const q of queries) for (const L of await etsySearch(env, token, q)) {
+      if (Number(L.shop_id) === OWN_SHOP || seen[L.listing_id] || W.ignore[L.listing_id]) continue; seen[L.listing_id] = 1;
+      const why = cwMatch(g, L); if (!why) continue;
+      if (W.hits.some((h) => String(h.listing) === String(L.listing_id))) continue;
+      W.hits.unshift({ gag: g.id, stem: g.stem, text: g.text, listing: L.listing_id, shop: L.shop_id, title: String(L.title || "").replace(/&#39;/g, "'").replace(/&amp;/g, "&"), url: String(L.url || "https://www.etsy.com/listing/" + L.listing_id).split("?")[0], why, at: now, status: "new" });
+    }
+  } catch (e) { W.err = String(e.message || e); W.errAt = now; }
+  W.checked[g.id] = now; W.last = now; W.hits = W.hits.slice(0, 200);
+  await env.PENDING.put(COPY_KEY, JSON.stringify(W));
+}
+async function copyWatchApi(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const W = (await env.PENDING.get(COPY_KEY, "json")) || { checked: {}, hits: [], ignore: {} };
+  if (d.action === "recheck") { W.checked = {}; await env.PENDING.put(COPY_KEY, JSON.stringify(W)); return json({ ok: true }); }
+  const h = W.hits.find((x) => String(x.listing) === String(d.listing)); if (!h) return json({ error: "Not found" }, 404);
+  if (d.action === "notcopy") { W.ignore[h.listing] = 1; W.hits = W.hits.filter((x) => x !== h); }
+  else if (d.action === "reported") { h.status = "reported"; h.doneAt = Date.now(); }
+  else if (d.action === "gone") { W.ignore[h.listing] = 1; W.hits = W.hits.filter((x) => x !== h); }
+  else return json({ error: "Unknown action" }, 400);
+  await env.PENDING.put(COPY_KEY, JSON.stringify(W));
+  return json({ ok: true });
+}
+async function copyWatchPage(env) {
+  const W = (await env.PENDING.get(COPY_KEY, "json")) || { checked: {}, hits: [], ignore: {} };
+  const S = await env.PENDING.get("amend", "json"), G = await env.PENDING.get("gags", "json");
+  const live = ((S && S.gags) || []).filter((g) => (g.live || []).length).length, done = Object.keys(W.checked || {}).length;
+  const firstRel = (id) => { const a = ((G && G.all) || []).find((x) => x.id === id); const ds = ((a && a.ds) || []).filter(Boolean).sort(); return ds[0] || ""; };
+  const card = (h) => `<div class="card cw" data-l="${esc(h.listing)}"><div class="small">${esc(h.gag)} · ${esc(h.stem || "")} · found ${esc(new Date(h.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))} · matches ${esc(h.why)}</div>
+    <h3 style="margin:6px 0">${esc(h.title)}</h3><div class="gagtx">${esc(h.text)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><a class="btn" href="${esc(h.url)}" target="_blank" rel="noopener">Open their listing</a>${h.status === "new" ? `<button class="btn" type="button" data-a="reported">I've reported it</button>` : `<span class="small" style="align-self:center">Reported ${esc(new Date(h.doneAt || h.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" }))}</span><button class="btn" type="button" data-a="gone">It's been taken down</button>`}<button class="btn" type="button" data-a="notcopy">Not a copy</button></div>
+    ${h.status === "new" ? `<details style="margin-top:10px"><summary class="small">How to report it, and your evidence</summary><p class="small">On their listing, scroll to the bottom and tap <b>Report this item to Etsy</b> → <b>It infringes my intellectual property</b>. Etsy asks for the original: give your listing and these details.</p><p class="small" style="white-space:pre-wrap;user-select:all;background:var(--field);padding:10px;border-radius:10px">Original work: "${esc(String(h.text || "").replace(/\s+/g, " "))}"
+Written by Introvert Here (Mosspit Studios), gag ${esc(h.gag)}, first released ${esc(firstRel(h.gag) || "on Etsy")}, kept in our dated design records since before release.
+Our shop: https://www.etsy.com/shop/IntrovertHereShop</p></details>` : ""}</div>`;
+  const nw = W.hits.filter((h) => h.status === "new"), rep = W.hits.filter((h) => h.status === "reported");
+  return shell(`${brandHeader("Copy watch")}
+<style>.cw h3{font-size:16px}.gagtx{white-space:pre-line;font-size:14px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px}</style>
+<div class="card"><p style="margin:0">Once a week the app searches Etsy for the wording of each of your <b>${live}</b> live gags and lists other shops' listings that contain it. ${done ? `Checked so far this round: <b>${Math.min(done, live)}</b> of ${live}.` : "The first round is running now (one gag every 5 minutes)."}${W.last ? " Last check " + esc(when(W.last)) + "." : ""}${W.err && W.errAt > (W.last || 0) - 600000 ? ` <span style="color:var(--warn)">Last search problem: ${esc(W.err)}</span>` : ""}</p>
+<p class="small" style="margin:8px 0 0">"Not a copy" hides a match for good. Common phrases can match by chance, so do look before reporting. Amazon isn't covered yet.</p>
+<button class="btn" type="button" id="cwAll" style="margin-top:10px">Check everything again now</button></div>
+<h2>Possible copies${nw.length ? " (" + nw.length + ")" : ""}</h2>${nw.length ? nw.map(card).join("") : `<div class="card empty">${icon("check")}Nothing found${done ? "" : " yet"}.</div>`}
+${rep.length ? `<h2>Reported, waiting for Etsy</h2>${rep.map(card).join("")}` : ""}
+<script>document.addEventListener("click", function (e) { var b = e.target.closest("[data-a]"), all = e.target.closest("#cwAll"); if (!b && !all) return;
+  var body = all ? { action: "recheck" } : { action: b.dataset.a, listing: b.closest(".cw").dataset.l }; (b || all).disabled = true;
+  fetch("/api/copywatch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(function (r) { return r.json(); }).then(function (j) { if (j.error) { alert(j.error); return; } if (all && window.toast) toast("A full check has started: one gag every 5 minutes."); setTimeout(function () { location.reload(); }, all ? 1200 : 200); }); });</script>`);
+}
+
 async function reviewsPage(env) {
   const R = await reviewsCheck(env, false); const st = await env.PENDING.get("stats", "json");
   const byListing = {}; ((st && st.listings) || []).forEach((l) => { if (l.listingId) byListing[String(l.listingId)] = l; });
