@@ -5348,13 +5348,16 @@ function details() {
     var code = A.cur.col, rules = S0.rules.filter(function (r) { return r.coll === rColl(code); });
     var prof = S0.profiles.filter(function (p) { return rules[0] && p.name === rules[0].profile; })[0];
     var have = A.colours[code] || String(prof ? prof.colours : "").split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-    var avail = {}; rules.forEach(function (r) { (S0.colours[r.bp] || []).forEach(function (c) { (avail[c] = avail[c] || []).push(gName(r.type)); }); });
+    // Global Fulfillment (15 Nov): Charcoal isn't eligible on sweatshirts/hoodies, so the builder leaves it off them.
+    var GFX = { SWEATSHIRT: { Charcoal: 1 }, HOODIE: { Charcoal: 1 } };
+    var avail = {}; rules.forEach(function (r) { (S0.colours[r.bp] || []).forEach(function (c) { if (GFX[r.type] && GFX[r.type][c]) return; (avail[c] = avail[c] || []).push(gName(r.type)); }); });
     var list = Object.keys(avail).sort(function (a, b) { return (have.indexOf(b) >= 0) - (have.indexOf(a) >= 0) || a.localeCompare(b); });
     cb2 += '<p class="hint">Ticked colours are on every ' + h(rName(code)) + ' listing. Untick to remove, tick to add. Garments that don\'t offer a colour are skipped. Main colour: ' + h(rules[0] ? rules[0].primary : "") + ".</p><div class=\"sw\">" +
       list.map(function (c) { return '<label><input type="checkbox" data-colour="' + h(c) + '"' + (have.indexOf(c) >= 0 ? " checked" : "") + ">" + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ")</small>" : "") + "</label>"; }).join("") + "</div>";
     var SZ = S0.sizes || {};
-    cb2 += '<p class="grp" style="margin-top:14px">Sizes</p><table class="ttab"><tr><th>Garment</th><th>Sizes on Etsy</th></tr>' + rules.map(function (r) { var z = SZ[r.bp] || []; return "<tr><td>" + h(gName(r.type)) + "</td><td>" + (z.length ? h(z.join(", ")) : '<span class="small">Tap Sync to Core to load</span>') + "</td></tr>"; }).join("") +
-      '</table><p class="hint">Sizes come with the garment model from Printify, so every listing gets all of them. Bigger sizes (2XL and up) cost more; their extra price is set on the Pricing page.</p>';
+    cb2 += '<p class="grp" style="margin-top:14px">Sizes</p><table class="ttab"><tr><th>Garment</th><th>Sizes on Etsy</th></tr>' + rules.map(function (r) { var z = SZ[r.bp] || []; var gfz = (r.type === "SWEATSHIRT" || r.type === "HOODIE"); if (gfz) z = z.filter(function (x) { return x !== "4XL" && x !== "5XL"; });
+      return "<tr><td>" + h(gName(r.type)) + "</td><td>" + (z.length ? h(z.join(", ")) + (gfz ? ' <span class="small">(3XL in Black only; no Charcoal)</span>' : "") : '<span class="small">Tap Sync to Core to load</span>') + "</td></tr>"; }).join("") +
+      '</table><p class="hint">Sizes come with the garment model from Printify, so every listing gets all of them. Bigger sizes (2XL and up) cost more; their extra price is set on the Pricing page. Sweatshirts and hoodies leave out Charcoal and non-Black 3XL so Printify prints UK and EU orders locally (Global Fulfillment).</p>';
     sec("Colours & sizes", cb2);
   }
   if (A.what.mockups) out += '<p class="hint"><a href="/settings?part=pages">Manage which Canva pages become photos ›</a></p>';
