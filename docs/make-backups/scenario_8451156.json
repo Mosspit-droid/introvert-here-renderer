@@ -411,7 +411,7 @@
     "headers": [
      {
       "name": "X-Ingest-Secret",
-      "value": "bsE2mNFGdDitEVobSZjdqLdScul6uz5V"
+      "value": "REDACTED_INGEST_SECRET"
      }
     ],
     "timeout": 30,
@@ -444,7 +444,7 @@
     "headers": [
      {
       "name": "X-Ingest-Secret",
-      "value": "bsE2mNFGdDitEVobSZjdqLdScul6uz5V"
+      "value": "REDACTED_INGEST_SECRET"
      }
     ],
     "timeout": 30,
