@@ -3977,6 +3977,7 @@ async function copyWatchTick(env, force) {
   const now = Date.now(), live = S.gags.filter((g) => (g.live || []).length && String(g.text || "").trim());
   const due = live.filter((g) => !W.checked[g.id] || now - W.checked[g.id] > 7 * 864e5).sort((a, b) => (W.checked[a.id] || 0) - (W.checked[b.id] || 0));
   if (!due.length) return;
+  if (W.errAt && now - W.errAt < 30 * 60e3) return;   // after a failed search, wait half an hour before trying again
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
   const g = due[0], lines = cwLines(g.text).sort((a, b) => b.split(" ").length - a.split(" ").length);
   const queries = [...new Set([lines[0] && lines[0].split(" ").slice(0, 6).join(" "), lines[1] && lines[1].split(" ").slice(0, 6).join(" "), cwNorm(g.stem)].filter((q) => q && q.split(" ").length >= 2))].slice(0, 2);
@@ -3988,8 +3989,8 @@ async function copyWatchTick(env, force) {
       if (W.hits.some((h) => String(h.listing) === String(L.listing_id))) continue;
       W.hits.unshift({ gag: g.id, stem: g.stem, text: g.text, listing: L.listing_id, shop: L.shop_id, title: String(L.title || "").replace(/&#39;/g, "'").replace(/&amp;/g, "&"), url: String(L.url || "https://www.etsy.com/listing/" + L.listing_id).split("?")[0], why, at: now, status: "new" });
     }
-  } catch (e) { W.err = String(e.message || e); W.errAt = now; }
-  W.checked[g.id] = now; W.last = now; W.hits = W.hits.slice(0, 200);
+  } catch (e) { W.err = String(e.message || e) + (/401|403/.test(String(e.message)) ? " (the app's Make key can't start scenarios: it needs scenarios:run, see Credits)" : ""); W.errAt = now; await env.PENDING.put(COPY_KEY, JSON.stringify(W)); return; }
+  delete W.errAt; W.checked[g.id] = now; W.last = now; W.hits = W.hits.slice(0, 200);
   await env.PENDING.put(COPY_KEY, JSON.stringify(W));
 }
 async function copyWatchApi(request, env) {
