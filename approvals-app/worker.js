@@ -4480,7 +4480,7 @@ function crossSellCard(S) {
     function rows() { return Array.prototype.map.call(box.querySelectorAll(".xs"), function (d) { var o = { coll: d.dataset.coll }; d.querySelectorAll("[data-f]").forEach(function (x) { o[x.dataset.f] = x.value; }); return o; }); }
     function line(R, own) { var r0 = R.filter(function (r) { return r.coll === own; })[0]; if (!r0 || !r0.lead.trim()) return "(no line: the lead is empty)";
       var n = R.filter(function (r) { return r.coll !== own && r.live === "Y"; }).map(function (r) { return (r.rname || r.coll).trim(); }); if (!n.length) return "(no line: no other range is live)";
-      var l = n.length === 1 ? n[0] : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return r0.lead.trim() + " Tap the shop name above for " + l + (/[.!?]$/.test(l) ? "" : ".") ; }
+      return r0.lead.trim() + " Have a look at our other ranges: " + n.join(" · ") + " (each with a link to its shop section)"; }
     function draw() { var R = rows(); box.querySelectorAll(".xs").forEach(function (d) { d.querySelector(".xsprev").textContent = "Reads: " + line(R, d.dataset.coll); }); }
     box.addEventListener("input", draw); box.addEventListener("change", draw); draw();
     box.addEventListener("click", function (e) { var b = e.target.closest("[data-xsave]"); if (!b) return; var d = b.closest(".xs"), o = { kind: "range", coll: d.dataset.coll }; d.querySelectorAll("[data-f]").forEach(function (x) { o[x.dataset.f] = x.value; });
@@ -5312,8 +5312,8 @@ function sampleGag(code) { var ks = selKeys().filter(function (k) { return k.ind
 function crossLine(own) {   // same rule as the listing builder
   var seen = {}, R = []; S0.rules.forEach(function (r) { if (!seen[r.coll]) { seen[r.coll] = 1; R.push(r); } });
   var r0 = R.filter(function (r) { return r.coll === own; })[0]; if (!r0 || !String(r0.lead || "").trim()) return "";
-  var n = R.filter(function (r) { return r.coll !== own && String(r.live || "").toUpperCase() === "Y"; }).map(function (r) { return String(r.rname || r.coll).trim(); }); if (!n.length) return "";
-  var l = n.length === 1 ? n[0] : n.slice(0, -1).join(", ") + " and " + n[n.length - 1]; return "\n" + String(r0.lead).trim() + " Tap the shop name above for " + l + (/[.!?]$/.test(l) ? "" : ".") + "\n\n"; }
+  var n = R.filter(function (r) { return r.coll !== own && String(r.live || "").toUpperCase() === "Y"; }).map(function (r) { var nm = String(r.rname || r.coll).trim(), sid = String(r.section || "").trim(); return sid ? nm + ": https://www.etsy.com/shop/IntrovertHereShop?section_id=" + sid : nm; }); if (!n.length) return "";
+  return "\n" + String(r0.lead).trim() + " Have a look at our other ranges:\n" + n.join("\n") + "\n\n"; }
 function preview() { var t = $("pvT"), d = $("pvD"); if (!t && !d) return; var p = (A.cur.rule || "").split("|"), r = ruleFor(p[0], p[1]); if (!r) return; var g = sampleGag(p[0]);
   var stem = (single() && A.stem != null) ? A.stem : (g ? g.stem : "Your Title Stem"), title = stem + " " + rv(r.row, "suffix", r.suffix);
   if (t) { var n = title.length; t.innerHTML = '<div class="pvlbl">Etsy title · ' + n + "/140 characters" + (n > 140 ? ' <b style="color:#ff8a85">too long</b>' : "") + '</div><div class="pvbox"><span class="pvseen">' + h(title.slice(0, 45)) + "</span>" + h(title.slice(45)) + '</div><div class="small">Highlighted: roughly what shows in Etsy search on a phone.</div>'; }
