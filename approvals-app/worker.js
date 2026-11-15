@@ -3187,13 +3187,14 @@ async function linksPage(env) {
 .qside{position:sticky;top:calc(var(--stick,96px) + 10px)}
 .qside h3{margin:0 0 10px;font:800 12px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 .qside h3.second{margin-top:18px}
-.qks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.qk span{max-width:100%;overflow-wrap:anywhere}
 .qk{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:100px;padding:14px 8px 18px;border:2px solid rgba(242,240,235,.5);border-radius:16px;background:var(--card);color:var(--text);text-decoration:none;font:800 11px var(--display);letter-spacing:.1em;text-transform:uppercase;overflow:hidden;text-align:center}
 .qk:hover{border-color:var(--frame)}
 .qk svg{width:36px;height:36px}
 .qk::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:var(--b)}
-@media (max-width:860px){.lwrap{grid-template-columns:1fr}.qside{position:static}.qks{grid-template-columns:repeat(4,1fr)}}
-@media (max-width:480px){.qks{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:860px){.lwrap{grid-template-columns:minmax(0,1fr)}.qside{position:static;min-width:0}.qks{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:480px){.qks{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.qk{min-height:88px;padding:12px 4px 16px;font-size:10px;letter-spacing:.06em}.qk svg{width:30px;height:30px}}
 </style>
 ${brandHeader("Links")}
 <div class="lwrap">
