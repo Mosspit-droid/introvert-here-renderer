@@ -63,6 +63,46 @@ const TEXT_BOX_PRESETS = {
 const GRID_COLUMNS = 12;
 const LINE_HEIGHT = 1.2;
 
+// EXCLUSIVE. (EX): the gag is a newspaper bill on an A-board
+// (backgrounds/EX.jpg) behind a wire grille (backgrounds/EX-front.png, laid
+// over the text). The gag arrives as one block with blank lines between its
+// three parts: HEADLINE, then BODY, then FOOTER ("In other news..."). Each
+// part has its own box, font and size, in black ink; a rule appears under the
+// headline and under the body as each finishes. Only the typewriter reveal is
+// used. Boxes are sized for Core's GAG_TEXT_RULES limits (headline 2 x 10 W,
+// body 4 x 16 W, footer 4 x 18 W).
+const EX_LAYOUT = {
+  headline: { left: 110, top: 360, width: 860, font: "400 120px 'Anton'", lineHeight: 1.0, letterSpacing: '0em' },
+  rule1: { left: 110, top: 612, width: 860, height: 6 },
+  body: { left: 110, top: 628, width: 860, font: "italic 400 50px 'Newsreader'", lineHeight: 1.2, letterSpacing: '0em' },
+  rule2: { left: 110, top: 880, width: 860, height: 4 },
+  footer: { left: 490, top: 896, width: 480, font: "400 30px 'Anton'", lineHeight: 1.2, letterSpacing: '0.01em' },
+  ink: '#1b1814',
+};
+
+// Splits EX gag lines into [headline, body, footer] on blank lines. Anything
+// after the third part is kept with the footer, so no words are ever lost.
+function splitExParts(textLines) {
+  const parts = [[]];
+  for (const line of textLines) {
+    if (line === '') {
+      if (parts[parts.length - 1].length) parts.push([]);
+    } else {
+      parts[parts.length - 1].push(line);
+    }
+  }
+  if (!parts[parts.length - 1].length) parts.pop();
+  while (parts.length > 3) {
+    const extra = parts.pop();
+    parts[2] = parts[2].concat(extra);
+  }
+  return { headline: parts[0] || [], body: parts[1] || [], footer: parts[2] || [] };
+}
+
+function isExCollection(collection) {
+  return String(collection || '').toUpperCase().slice(0, 2) === 'EX';
+}
+
 // Video styles, so the posts don't all look the same. Each video gets one
 // of each, picked from its product code (so a re-render looks the same) unless
 // the spec names them. The text always sits in the same branded box.
@@ -101,6 +141,7 @@ function buildPage(spec) {
     collection,
     textBox: textBoxOverride,
     backgroundImageUrl,
+    frontImageUrl,
     productImages,
     charIntervalMs = 55,
     holdAfterTypingMs,
@@ -130,7 +171,10 @@ function buildPage(spec) {
     typeof line === 'string' && (line.trim().length === 0 || line.trim() === '[BLANKLINE]') ? '' : line
   );
 
+  const isEx = isExCollection(collection);
   const variant = pickVariant(spec);
+  if (isEx) variant.textStyle = 'type'; // EX is typewriter only
+  const exParts = isEx ? splitExParts(textLines) : null;
 
   // Rough length of the text phase (the page itself decides the real timing;
   // this is only used for the safety timeout). Blank lines count as nothing.
@@ -166,6 +210,10 @@ function buildPage(spec) {
     textBoxWidth: textBox.width,
     gridColumns: GRID_COLUMNS,
     lineHeight: LINE_HEIGHT,
+    isEx,
+    exParts,
+    exLayout: EX_LAYOUT,
+    frontImageUrl: frontImageUrl || null,
   };
 
   const html = `<!doctype html>
@@ -265,13 +313,44 @@ function buildPage(spec) {
   .textbox .ch {
     visibility: hidden;
   }
+  /* EXCLUSIVE.: the wire grille sits over the text; text is ink on the bill. */
+  .front-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .textbox.ex {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    letter-spacing: 0;
+    text-align: left;
+    color: ${EX_LAYOUT.ink};
+    mix-blend-mode: multiply;
+  }
+  .textbox.ex .ex-box {
+    position: absolute;
+    white-space: normal;
+  }
+  .textbox.ex .ex-box div { white-space: normal; }
+  .textbox.ex .ex-rule {
+    position: absolute;
+    background: ${EX_LAYOUT.ink};
+    opacity: 0.9;
+    visibility: hidden;
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400${isEx ? '&family=Anton&family=Newsreader:ital,opsz,wght@1,6..72,400' : ''}&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="stage" id="stage">
-    <div class="textbox" id="textbox"></div>
+    <div class="textbox${isEx ? ' ex' : ''}" id="textbox"></div>
+    ${isEx && frontImageUrl ? `<img class="front-image" id="front" src="${frontImageUrl}" />` : ''}
   </div>
 <script>
 (function () {
@@ -310,6 +389,38 @@ function buildPage(spec) {
       return '<div class="line">' + chars + '</div>';
     });
     textbox.innerHTML = linesHtml.join('');
+  }
+
+  // EXCLUSIVE.: three boxes (headline, body, footer) plus two rules. Each
+  // rule carries the number of characters that must be typed before it shows
+  // (i.e. when the part above it has finished).
+  function renderExHidden() {
+    const L = SPEC.exLayout;
+    const P = SPEC.exParts;
+    let count = 0;
+    const box = (lines, cfg) => {
+      const inner = lines.map((line) => {
+        const chars = line.split('').map((ch) => '<span class="ch">' + (ch === ' ' ? ' ' : escapeHtml(ch)) + '</span>').join('');
+        count += line.length;
+        return '<div class="line">' + chars + '</div>';
+      }).join('');
+      return '<div class="ex-box" style="left:' + cfg.left + 'px;top:' + cfg.top + 'px;width:' + cfg.width + 'px;font:' + cfg.font +
+        ';line-height:' + cfg.lineHeight + ';letter-spacing:' + cfg.letterSpacing + '">' + inner + '</div>';
+    };
+    const rule = (cfg, after) => '<div class="ex-rule" data-after="' + after + '" style="left:' + cfg.left + 'px;top:' + cfg.top +
+      'px;width:' + cfg.width + 'px;height:' + cfg.height + 'px"></div>';
+    let html = box(P.headline, L.headline);
+    html += rule(L.rule1, count);
+    html += box(P.body, L.body);
+    html += rule(L.rule2, count);
+    html += box(P.footer, L.footer);
+    textbox.innerHTML = html;
+  }
+
+  function showRulesUpTo(revealed) {
+    textbox.querySelectorAll('.ex-rule').forEach((r) => {
+      if (revealed >= Number(r.dataset.after)) r.style.visibility = 'visible';
+    });
   }
 
   function escapeHtml(ch) {
@@ -357,19 +468,24 @@ function buildPage(spec) {
     // so the very first frame is already using Montserrat Regular, not a
     // fallback font that then swaps mid-recording.
     if (document.fonts) {
-      try { await document.fonts.load("400 100px 'Montserrat'", 'W'); } catch (e) {}
+      const faces = SPEC.isEx
+        ? ["400 100px 'Anton'", "italic 400 100px 'Newsreader'"]
+        : ["400 100px 'Montserrat'"];
+      for (const f of faces) { try { await document.fonts.load(f, 'W'); } catch (e) {} }
       try { await document.fonts.ready; } catch (e) {}
-      if (!document.fonts.check("400 100px 'Montserrat'", 'W')) {
-        console.error('[font] Montserrat did not load - text size would be wrong');
+      for (const f of faces) {
+        if (!document.fonts.check(f, 'W')) console.error('[font] ' + f + ' did not load - text size would be wrong');
       }
     }
-    fitFontToGrid();
+    if (!SPEC.isEx) fitFontToGrid();
 
     const bg = makeImageEl(SPEC.backgroundImageUrl);
     bg.classList.add('first');
     await waitForImageLoad(bg);
+    const front = document.getElementById('front');
+    if (front) await waitForImageLoad(front);
 
-    renderFullLinesHidden();
+    if (SPEC.isEx) renderExHidden(); else renderFullLinesHidden();
     const V = SPEC.variant;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const lineEls = Array.from(textbox.querySelectorAll('div.line'));
@@ -392,9 +508,11 @@ function buildPage(spec) {
       t.style.animationDuration = '800ms';
       t.classList.add('active', 'zooming');
       textbox.style.visibility = 'hidden';
+      if (front) front.style.visibility = 'hidden';
       await sleep(800);
       t.remove();
       textbox.style.visibility = 'visible';
+      if (front) front.style.visibility = 'visible';
     }
     if (!window.__START_MS__) window.__START_MS__ = Date.now();
     bg.classList.add('active');
@@ -403,6 +521,7 @@ function buildPage(spec) {
       for (let i = 1; i <= spans.length; i++) {
         await sleep(SPEC.charIntervalMs);
         revealCharsUpTo(i);
+        if (SPEC.isEx) showRulesUpTo(i);
       }
     } else if (V.textStyle === 'words') {
       // A word ends after a space or at the end of a line.
@@ -435,6 +554,7 @@ function buildPage(spec) {
     // Cut to the product photo sequence.
     bg.classList.remove('active');
     textbox.style.display = 'none';
+    if (front) front.style.display = 'none';
 
     for (const product of SPEC.productImages) {
       const img = makeImageEl(product.url);
