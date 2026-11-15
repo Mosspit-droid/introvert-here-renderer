@@ -2589,9 +2589,9 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
     var ed = typeof editing !== "undefined" ? editing : null, r = rules(), key = r ? col.value + "|" + (ed ? ed.id : "") : "";
     if (key === shown) return; shown = key;
     var lab = main.closest("label");
-    if (!r) { boxes.innerHTML = ""; lab.style.display = ""; main.required = true; return; }
+    if (!r) { var had = !!boxes.innerHTML; boxes.innerHTML = ""; lab.style.display = ""; main.required = true; if (had && !ed) { main.value = "... "; } return; }
     lab.style.display = "none"; main.required = false;
-    var parts = (ed && ed.parts) || null, old = parts ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);
+    var parts = (ed && ed.parts) || null, old = parts || !ed ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);   // only an existing gag being edited is split into boxes
     boxes.innerHTML = r.map(function (x, i) {
       var v = parts ? parts[x.col] || "" : (old && old[i]) || "";
       return '<label><b>' + esc(x.label) + '</b> <span class="small">(' + x.lines + " line" + (x.lines === 1 ? "" : "s") + " max" + (x.case === "UPPER" ? ", capitals" : "") + ')</span>' +
@@ -2614,8 +2614,9 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
     render();
     var card = document.querySelector(".g-prev .card"), stage = document.getElementById("stage"), pbox = document.getElementById("pbox"), page = document.getElementById("expage"), r = rules();
     card.classList.toggle("ex", !!r);
-    if (!r || col.value !== "EXCLUSIVE") { if (page) page.remove(); pbox.style.display = ""; return false; }
-    pbox.style.display = "none";
+    var pl = document.getElementById("plogo");
+    if (!r || col.value !== "EXCLUSIVE") { if (page) page.remove(); pbox.style.display = ""; if (pl) pl.style.visibility = ""; return false; }
+    pbox.style.display = "none"; if (pl) pl.style.visibility = "hidden";
     if (!page) { page = document.createElement("div"); page.id = "expage"; page.className = "expage"; stage.appendChild(page); }
     var v = vals(), html = '<img src="/assets/ex-logo.png" alt="" style="top:' + EX.logo[0] + 'px;left:' + EX.logo[1] + 'px;width:' + EX.logo[2] + 'px;height:' + EX.logo[3] + 'px">' +
       EX.rules.map(function (t) { return '<div class="exr" style="top:' + t + 'px"></div>'; }).join("");
@@ -2953,6 +2954,7 @@ function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (
 ["d1","d2","d3","d4"].forEach((k) => $(k).addEventListener("input", () => { datesTouched = true; }));
 
 const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS" };
+const PRINT = { IH: { src: "/assets/print-logo-ih.png", h: 607, top: 1000 }, SH: { src: "/assets/print-logo-sh.png", h: 946, top: 1230 }, PC: { src: "/assets/print-logo-pc.png", h: 835, top: 1230 }, OS: { src: "/assets/print-logo-os.png", h: 805, top: 1000 } };
 function setLook(coll) {
   const c = CODE[coll] || "IH";
   document.body.dataset.coll = c;
@@ -3001,13 +3003,20 @@ function preview() {
   // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
   // The gag frame (12 W x 9 lines) is centred in the black card with side margins, as large as fits
   // the card's width and about a third of the screen's height.
-  const lh = fs * 1.2, frameH = lh * 9, side = 24;
+  const lh = fs * 1.2, frameH = lh * 9;
   box.style.height = frameH + "px";
+  // The whole print page (Barry, 15 Nov): range logo at the top and the 12 W x 9 line gag box where Canva puts it.
+  // Page 3951 x 4919; gag box 3440 wide at left 250; top 1000 (IH, OS) or 1230 (SHHH., Per Contract). Logo heights from the print files.
+  const P = PRINT[CODE[$("collection").value] || "IH"] || PRINT.IH, u = width / 3440;
   const stage = $("stage"); stage.style.width = "100%";
-  const scale = Math.min(1, (stage.clientWidth - 2 * side) / width, Math.min(320, window.innerHeight * 0.36) / frameH);
-  box.style.transform = "scale(" + scale + ")"; box.style.top = "4px";
-  box.style.left = Math.max(side, (stage.clientWidth - width * scale) / 2) + "px";
-  stage.style.height = (Math.max(frameH, box.scrollHeight) * scale + 8) + "px";
+  const scale = Math.min(stage.clientWidth / (3951 * u), Math.min(560, window.innerHeight * 0.62) / (4919 * u));
+  const x0 = Math.max(0, (stage.clientWidth - 3951 * u * scale) / 2);
+  let logo = $("plogo"); if (!logo) { logo = document.createElement("img"); logo.id = "plogo"; logo.alt = ""; stage.insertBefore(logo, box); }
+  if (logo.dataset.src !== P.src) { logo.src = P.src; logo.dataset.src = P.src; }
+  logo.style.cssText = "position:absolute;display:block;top:0;left:" + x0 + "px;width:" + (3951 * u * scale) + "px;height:" + (P.h * u * scale) + "px";
+  box.style.transform = "scale(" + scale + ")"; box.style.top = (P.top * u * scale) + "px";
+  box.style.left = (x0 + 250 * u * scale) + "px";
+  stage.style.height = (4919 * u * scale) + "px";
   const warn = [];
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
