@@ -2988,8 +2988,8 @@ function measureW() {
 function preview() {
   if (window.exPreview && window.exPreview()) return;
   if (!wAt100) return;
-  const width = BOX[$("collection").value] || 509;
-  const fs = width / wAt100 * 100;
+  // Print box (Barry, 15 Nov): 3440 wide, Montserrat 262.39, right-aligned, as in every range's Canva print template.
+  const width = 3440, fs = 262.39;
   const box = $("pbox"); box.style.width = width + "px"; box.style.fontSize = fs.toFixed(2) + "px";
   const lines = $("text").value.replace(/\r/g, "").split("\n");
   box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
@@ -3007,7 +3007,7 @@ function preview() {
   box.style.height = frameH + "px";
   // The whole print page (Barry, 15 Nov): range logo at the top and the 12 W x 9 line gag box where Canva puts it.
   // Page 3951 x 4919; gag box 3440 wide at left 250; top 1000 (IH, OS) or 1230 (SHHH., Per Contract). Logo heights from the print files.
-  const P = PRINT[CODE[$("collection").value] || "IH"] || PRINT.IH, u = width / 3440;
+  const P = PRINT[CODE[$("collection").value] || "IH"] || PRINT.IH, u = 1;
   const stage = $("stage"); stage.style.width = "100%";
   const scale = Math.min(stage.clientWidth / (3951 * u), Math.min(560, window.innerHeight * 0.62) / (4919 * u));
   const x0 = Math.max(0, (stage.clientWidth - 3951 * u * scale) / 2);
