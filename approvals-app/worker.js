@@ -2623,7 +2623,10 @@ ${brandHeader("Gags")}
     ${savesHtml ? `<div class="card g-saves o-saves">${savesHtml}</div>` : ""}
   </div>
   <div class="gcol gR">
-    <div class="wzhead o-wzbar"><a class="btn wzlist" id="wzList" hidden>‹ Back to list</a><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div></div>
+    <div class="wzhead o-wzbar"><a class="btn wzlist" id="wzList" hidden>‹ Back to list</a><div class="wzbar" id="wzBar"></div><div class="wznav"><button class="btn" type="button" id="wzNext">Next</button><button class="btn" type="button" id="wzBack">Back</button><button class="btn-main" type="submit" form="form" id="save">Save to Core</button></div>
+      <div class="exint" id="exInt" hidden><label><input type="checkbox" id="exIntCk"><span><b>Introvert angle:</b> the joke lands on avoiding people, plans or small talk</span></label>
+        <div class="exintw" id="exIntW">Where's the introvert? The news is the setup; the introvert is the punchline.</div>
+        <div class="small exinte">cancelled plans · staying in · avoiding people · dreading small talk · relief when events are called off</div></div></div>
     <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
     <div class="card g-text o-text" data-st="2"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
@@ -2719,6 +2722,11 @@ ${brandHeader("Gags")}
   .exadd{display:flex;gap:8px;margin-top:8px}.exadd input{margin:0}.exadd .btn{width:auto;margin:0;min-height:44px;padding:0 16px}
   .exchk label{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:14.5px}.exchk input{width:22px;height:22px;margin:0;flex:none}
   #exHash .chip{min-height:40px;font-weight:600}
+  .exint{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--field)}.exint[hidden]{display:none!important}
+  .exint label{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.35;cursor:pointer}.exint input{width:22px;height:22px;margin:1px 0 0;flex:none}
+  .exintw{color:var(--warn);font-size:13px;margin-top:6px}.exint.ok .exintw{display:none}.exinte{margin-top:4px;opacity:.75}
+  #save:disabled{opacity:.45;cursor:not-allowed}
+  body.kb .exint{display:none!important}
   .draftnote{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #e6b450;border-radius:12px;background:rgba(230,180,80,.12);font-size:14px}.draftnote .btn{width:auto;min-height:38px;padding:0 14px;margin:0}
   #boxes{display:flex;flex-direction:column;gap:14px}#boxes:empty{display:none}
   #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
@@ -3021,11 +3029,28 @@ const GAG_EX_SCRIPT = String.raw`(function () {
   el("exHash").addEventListener("click", function (e) { var b = e.target.closest("[data-h]"); if (!b) return; HASHON[b.dataset.h] = !HASHON[b.dataset.h]; drawHash(); });
   el("exHashGo").addEventListener("click", function () { var h = hashOf(el("exHashAdd").value); if (h.length < 3) return; HASH[h] = 1; HASHON[h] = true; delete AUTO[h]; el("exHashAdd").value = ""; drawHash(); });
   el("exUse").addEventListener("click", function (e) { var b = e.target.closest("[data-u]"); if (!b) return; useBy = Number(b.dataset.u); drawUse(); });
+  // Introvert check (Barry, 16 Nov): EX only. Save / List it now stay off until it's ticked, and the tick clears
+  // whenever the headline, body or footer changes, so it's a check on the final wording. Never saved anywhere.
+  function intSync() {
+    var ex = document.getElementById("collection").value === "EXCLUSIVE", ok = el("exIntCk").checked;
+    el("exInt").hidden = !ex; el("exInt").classList.toggle("ok", ok);
+    var sv = el("save"), block = ex && !ok;   // only undo a block this check set, never one the save itself set
+    if (block && !sv.disabled) { sv.disabled = true; sv.dataset.intBlock = "1"; }
+    else if (!block && sv.dataset.intBlock) { sv.disabled = false; delete sv.dataset.intBlock; }
+    sv.title = block ? "Tick the introvert angle first" : "";
+  }
+  el("exIntCk").addEventListener("change", intSync);
+  document.getElementById("boxes").addEventListener("input", function (e) { if (e.target && e.target.dataset && e.target.dataset.col && el("exIntCk").checked) { el("exIntCk").checked = false; intSync(); } });
+  document.getElementById("collection").addEventListener("change", function () { el("exIntCk").checked = false; setTimeout(intSync, 0); });
+  window.exIntOk = function () { return el("exIntCk").checked; };
+  setInterval(intSync, 1000);   // catches range changes made by other scripts (draft restore, edit picker)
+  intSync();
   window.exStepShown = all;
   window.exReady = function () {
     var tt = topicTags(); if (!tt[0] || !tt[1]) return "Add both topic tags.";
     if (!checkTag(1) || !checkTag(2)) return "Fix the topic tags first.";
     if (Array.prototype.some.call(document.querySelectorAll(".exck"), function (c) { return !c.checked; })) return "Tick all three checks first.";
+    if (!el("exIntCk").checked) return "Where's the introvert? Tick the introvert angle first.";
     return "";
   };
   window.exMeta = function () { var T = window.exTopic && window.exTopic(); return { topic: T ? T.t : "", flags: T ? T.f || [] : [], topicTags: topicTags(), hashtags: Object.keys(HASH).filter(function (h) { return HASHON[h]; }), useBy: useBy, checks: true }; };
