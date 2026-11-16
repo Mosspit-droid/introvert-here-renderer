@@ -1784,8 +1784,13 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   // Tags approve themselves 2 days before release; only real problems (title too long for a tag, clashing tags) need you.
   const tagsDue = (tags && tags.items || []).filter((t) => !t.approved && t.due && t.due <= in7 && (String(t.band || "").toUpperCase() === "RED" || (t.status && t.status !== "READY" && !/awaiting approval/i.test(t.status))));
   // today strip: today's releases and views since the previous daily read
-  const todayIso = (daily && daily.today) || new Date().toISOString().slice(0, 10);
-  const todays = (daily && daily.upcoming || []).filter((u) => u.date === todayIso);
+  const todayIso = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  // Built / not built comes from the live Core copy (re-sent whenever Core changes), not the morning's daily check,
+  // so a gag built or re-coded during the day shows correctly (Barry, 16 Nov: Legal Thriller showed "not built yet").
+  const SCHED_TYPES = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+  const todays = gags && Array.isArray(gags.sched) && (!daily || (gags.receivedAt || 0) > (daily.at || 0))
+    ? gags.sched.flatMap((g) => (g.d || []).map((d, i) => d === todayIso ? { gag: g.id, title: g.s, type: SCHED_TYPES[i], built: !!(g.b && g.b[i]) } : null).filter(Boolean))
+    : (daily && daily.upcoming || []).filter((u) => u.date === todayIso);
   const days = Object.keys(hist || {}).sort();
   const sumDay = (d) => Object.values((hist || {})[d] || {}).reduce((a, v) => a + (Number(v[0]) || 0), 0);
   const viewsDelta = days.length >= 2 ? sumDay(days[days.length - 1]) - sumDay(days[days.length - 2]) : null;
