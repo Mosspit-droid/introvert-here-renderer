@@ -343,6 +343,7 @@ async function result(request, env, ctx, url) {
   item.updatedAt = Date.now();
   await saveItems(env, items);
 
+  if (ok && /^EX-/.test(str(item.product))) ctx.waitUntil(exFeature(env, item).catch(async (e) => { const a = await loadAlerts(env); a.unshift({ id: crypto.randomUUID(), at: Date.now(), title: "Couldn't feature " + item.product + " on Etsy", body: String(e.message || e).slice(0, 300) + ". It's live; feature it by hand in Shop Manager if you want it at the top.", link: "/approvals", source: "app" }); await saveAlerts(env, a); }));
   if (ok) {
     ctx.waitUntil(notify(env, url.origin, item.product + " is live", item.social === false ? "Live on Etsy with its new video (not posted to social)." : /^EX-/.test(str(item.product)) ? "Live on Etsy and posted to Instagram and Facebook." : "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
   } else {
@@ -2423,6 +2424,38 @@ async function quickList(request, env) {
 // Exclusive reminders (Barry, 16 Nov): 1 hour and 4 hours after it's waiting in Approvals, and once at its use-by
 // time if it still isn't approved. Never publishes anything itself.
 const EX_META_KEY = "ex-meta";
+// Feature a newly live Exclusive on Etsy (Barry, 16 Nov, option 1): it takes featured spot 1, the previous Exclusive
+// spot 2, older Exclusives are unfeatured (never more than 2), and Barry's own featured picks move down in their order.
+async function etsyTool(env, path, method, form, qs) {
+  const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
+  const data = { path, method }; if (qs) data.qs = Object.entries(qs).map(([key, value]) => ({ key, value: String(value) })); if (form) { data.body = Object.entries(form).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&"); data.bodyType = "raw"; data.header = [{ key: "Content-Type", value: "application/x-www-form-urlencoded" }]; }
+  const r = await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
+  const j = await r.json().catch(() => ({})); if (j.error) throw new Error("Etsy said: " + String(j.error.message || "error").slice(0, 160));
+  let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  return b;
+}
+async function exFeature(env, item) {
+  const id = Number((/\/listing\/\\?(\d+)/.exec(String(item.listingUrl || "")) || [])[1]); if (!id) throw new Error("No Etsy listing number on the card");
+  const M = (await env.PENDING.get(EX_META_KEY, "json")) || {}, gagId = str(item.product).replace(/-T-SHIRT$/, "");
+  if (M[gagId]) { M[gagId].listingId = id; M[gagId].liveAt = Date.now(); } else M[gagId] = { listingId: id, liveAt: Date.now(), done: true };
+  await env.PENDING.put(EX_META_KEY, JSON.stringify(M));
+  const exIds = new Set(Object.values(M).map((m) => Number(m.listingId)).filter(Boolean));
+  const feat = ((await etsyTool(env, "/shops/65435151/listings/featured", "GET", null, { limit: 25 })) || {}).results || [];
+  feat.sort((a, b) => (a.featured_rank ?? 99) - (b.featured_rank ?? 99));
+  const prevEx = feat.filter((x) => exIds.has(Number(x.listing_id)) && Number(x.listing_id) !== id).sort((a, b) => ((M[Object.keys(M).find((k) => Number(M[k].listingId) === Number(b.listing_id))] || {}).liveAt || 0) - ((M[Object.keys(M).find((k) => Number(M[k].listingId) === Number(a.listing_id))] || {}).liveAt || 0));
+  const keepEx = prevEx.slice(0, 1).map((x) => Number(x.listing_id)), dropEx = prevEx.slice(1).map((x) => Number(x.listing_id));
+  const others = feat.filter((x) => !exIds.has(Number(x.listing_id))).map((x) => Number(x.listing_id));
+  const want = [id, ...keepEx, ...others].slice(0, 10), cur = Object.fromEntries(feat.map((x) => [Number(x.listing_id), x.featured_rank]));
+  // Move from the bottom up so two listings never ask for the same spot at once; drop old Exclusives first.
+  for (const l of dropEx) await etsyTool(env, "/shops/65435151/listings/" + l, "PATCH", { featured_rank: -1 });
+  let bumped = 0;
+  for (let i = want.length - 1; i >= 0; i--) {
+    if (cur[want[i]] === i) continue;
+    try { await etsyTool(env, "/shops/65435151/listings/" + want[i], "PATCH", { featured_rank: i }); }
+    catch (e) { if (i < 4) throw e; await etsyTool(env, "/shops/65435151/listings/" + want[i], "PATCH", { featured_rank: -1 }); bumped++; }   // Etsy may only allow 4 featured
+  }
+  await logSetting(env, "Featured " + item.product + " on Etsy (spot 1)" + (dropEx.length ? "; unfeatured " + dropEx.length + " older Exclusive" : "") + (bumped ? "; " + bumped + " of your featured picks dropped off (Etsy's limit)" : ""), null);
+}
 async function exTick(env) {
   const M = (await env.PENDING.get(EX_META_KEY, "json")) || {}; const ids = Object.keys(M).filter((k) => !M[k].done); if (!ids.length) return;
   const items = await loadItems(env), now = Date.now(); let changed = false;
