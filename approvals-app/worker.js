@@ -59,6 +59,7 @@ export default {
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
       if (pathname === "/api/pricing-sync" && method === "POST") return await pricingSync(request, env);
       if (pathname === "/api/amend-sync" && method === "POST") return await amendSync(request, env);
+      if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
@@ -159,7 +160,6 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
-      if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
       if (pathname === "/api/headlines" && method === "GET") return json(await headlinesGet(env, url.searchParams.get("fresh") === "1"));
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
