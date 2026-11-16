@@ -2645,10 +2645,11 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   window.isMulti = function () { return !!rules(); };
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function vals() { var o = {}; boxes.querySelectorAll("textarea[data-col]").forEach(function (t) { o[t.dataset.col] = t.value.replace(/\r/g, "").replace(/\s+$/, ""); }); return o; }
-  window.boxParts = function () { return rules() ? vals() : null; };
+  window.boxParts = function () { if (!rules()) return null; var v = vals(); Object.keys(v).forEach(function (k) { v[k] = v[k].replace(/\n[ \t]*(\n[ \t]*)+/g, "\n").trim(); }); return v; };
   window.boxesMissing = function () { var r = rules(); if (!r) return ""; var v = vals(), m = r.filter(function (x) { return x.req && !String(v[x.col] || "").trim(); });
     return m.length ? "Fill in the " + m.map(function (x) { return x.label.replace(/\s*\(.*$/, "").toLowerCase(); }).join(" and ") + "." : ""; };
-  function join() { var r = rules(), v = vals(); main.value = r.map(function (x) { return v[x.col] || ""; }).filter(function (t) { return t.trim(); }).join("\n\n"); }
+  // One blank line between parts and none inside a part: the video splits GAG_TEXT on blank lines (EX thread, 16 Nov).
+  function join() { var r = rules(), v = vals(); main.value = r.map(function (x) { return String(v[x.col] || "").replace(/\n[ \t]*(\n[ \t]*)+/g, "\n").trim(); }).filter(function (t) { return t.trim(); }).join("\n\n"); }
   function render() {
     var ed = typeof editing !== "undefined" ? editing : null, r = rules(), key = r ? col.value + "|" + (ed ? ed.id : "") : "";
     if (key === shown) return; shown = key;
