@@ -167,10 +167,22 @@ function localBackground(collection) {
   return `data:image/jpeg;base64,${fs.readFileSync(file).toString('base64')}`;
 }
 
+// Optional see-through layer drawn OVER the text (backgrounds/<code>-front.png),
+// e.g. the wire grille on the EXCLUSIVE. news-bill board.
+function localFront(collection) {
+  const code = String(collection || '').toUpperCase().slice(0, 2);
+  if (!/^[A-Z]{2}$/.test(code)) return null;
+  const file = path.join(__dirname, 'backgrounds', `${code}-front.png`);
+  if (!fs.existsSync(file)) return null;
+  return `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
+}
+
 async function inlineImages(spec) {
   const local = localBackground(spec.collection);
   if (local) console.log(`[render-once] using built-in background for ${spec.collection}`);
   const backgroundImageUrl = local || (await fetchAsDataUri(spec.backgroundImageUrl));
+  const frontImageUrl = localFront(spec.collection);
+  if (frontImageUrl) console.log(`[render-once] using front overlay for ${spec.collection}`);
 
   const productImages = await Promise.all(
     (spec.productImages || []).map(async (img) => ({
@@ -179,7 +191,7 @@ async function inlineImages(spec) {
     }))
   );
 
-  return { ...spec, backgroundImageUrl, productImages };
+  return { ...spec, backgroundImageUrl, frontImageUrl, productImages };
 }
 
 async function main() {
@@ -206,6 +218,7 @@ async function main() {
   const {
     textLines,
     backgroundImageUrl,
+    frontImageUrl,
     productImages,
     charIntervalMs,
     holdAfterTypingMs,
@@ -226,6 +239,7 @@ async function main() {
   const { html, totalDurationMs, variant } = buildPage({
     textLines,
     backgroundImageUrl,
+    frontImageUrl,
     productImages,
     charIntervalMs,
     holdAfterTypingMs,
