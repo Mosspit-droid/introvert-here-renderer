@@ -938,7 +938,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .rlstars{display:flex;gap:2px}.rlstars button{background:none;border:0;padding:2px;font-size:20px;line-height:1;color:rgba(242,240,235,.25);cursor:pointer}.rlstars button.on{color:#f0c870}
 .rlacts{display:flex;gap:6px}.rlacts a,.rlacts button{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--field);color:var(--text);text-decoration:none;cursor:pointer}
 .rlacts .del{color:#ff9a8a;border-color:rgba(255,154,138,.4)}
-.rlsort{display:flex;gap:6px;align-items:center;margin:0 0 10px;font-size:13px;color:var(--muted)}.rlsort button{font:600 13px var(--body);padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}.rlsort button.on{background:var(--accent);color:#141413;border-color:var(--accent)}
+.rlsort{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:13px;color:var(--muted)}.rlsort button{font:600 13px var(--body);padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--field);color:var(--muted);cursor:pointer}.rlsort button.on{background:var(--accent);color:#141413;border-color:var(--accent)}
 .st-live .rld{color:#7fd39a}.st-soon .rld{color:#f0c870}.st-later .rld{color:#f08a85}
 @media (max-width:600px){.rlhead,.sheet .pane .rlrow{grid-template-columns:70px minmax(0,1fr)}.rld{text-align:left}.rlside{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}}
 .rlbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;margin:0 0 10px;border:1px solid var(--line);border-radius:12px;background:rgba(14,14,13,.97)}
@@ -1127,8 +1127,9 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     var list = (data.all || []).filter(function (g) { return g.id.indexOf(rlCode + "-") === 0 && String(g.text || "").trim(); }).map(function (g) { return { g: g, st: gagState(g, data) }; });
     list.sort(function (a, b) { var ka = a.st.c === "live" ? "0" : (a.st.first ? "1" + a.st.first : "2"), kb = b.st.c === "live" ? "0" : (b.st.first ? "1" + b.st.first : "2"); return ka < kb ? -1 : ka > kb ? 1 : (a.g.id < b.g.id ? -1 : 1); });
     if (rlSort === "stars") list.sort(function (a, b) { var x = ST[a.g.id] || 9, y = ST[b.g.id] || 9; return x - y; });   // lowest rated first; unrated last
+    if (rlSort === "code") list.sort(function (a, b) { return a.g.id < b.g.id ? -1 : a.g.id > b.g.id ? 1 : 0; });   // IH-00001, IH-00002… (Barry, 16 Nov)
     var today = new Date().toISOString().slice(0, 10), soon2 = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
-    var sortBar = '<div class="rlsort">Sort by <button type="button" data-rlsort="date" class="' + (rlSort === "date" ? "on" : "") + '">Release date</button><button type="button" data-rlsort="stars" class="' + (rlSort === "stars" ? "on" : "") + '">Lowest rated first</button></div>';
+    var sortBar = '<div class="rlsort">Sort by <button type="button" data-rlsort="date" class="' + (rlSort === "date" ? "on" : "") + '">Release date</button><button type="button" data-rlsort="stars" class="' + (rlSort === "stars" ? "on" : "") + '">Lowest rated first</button><button type="button" data-rlsort="code" class="' + (rlSort === "code" ? "on" : "") + '">Code order</button></div>';
     document.getElementById("rlR").innerHTML = list.length ? sortBar + list.map(function (x) { var g = x.g, st = x.st, n = ST[g.id] || 0;
       var ed = (data.editable || []).some(function (e) { return e.id === g.id; }), canDel = ed && !(st.first && st.first <= soon2);
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
