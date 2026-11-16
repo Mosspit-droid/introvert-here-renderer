@@ -19,4 +19,4 @@ second argument to make just one range, e.g. `shhh` or `exclusive`.
   the frame (EXCLUSIVE.: of the white border) and the N.
 - The same four logos are in Canva, Z001_IH_SH_DESIGN_ASSETS pages 9–12.
 
-Find Your Range graphic (2000 x 2500, six ranges in a 2 x 3 grid): `node find-your-range/build.js find-your-range`. Wording lives at the top of build.js.
+Find Your Range graphic (2000 x 2000 square, six ranges in a 2 x 3 grid): `node find-your-range/build.js find-your-range`. Wording lives at the top of build.js.

@@ -29,13 +29,14 @@ const head=`<div class="top"><div class="pre">INTROVERT HERE... PRESENTS</div><d
 const foot=(m)=>`<div class="foot" style="margin:${m}px 108px 0"><div class="prod">TEES<span>•</span>LONG SLEEVES<span>•</span>SWEATSHIRTS<span>•</span>HOODIES</div><div class="tag">Six ranges. One entirely reasonable desire to be left the hell alone.</div></div>`;
 // Six ranges as a 2 x 3 grid (Barry, 16 Nov); logos at the same scale as the earlier four-range image.
 const row=r=>`<div class="card${r.w?' w':''}" style="--c:${r.c};height:270px;display:flex;align-items:center"><div style="width:820px;display:flex;justify-content:center">${img(r.logo)}</div>${tx(r)}</div>`;
-const tile=r=>`<div class="card${r.w?' w':''}" style="--c:${r.c};padding:30px 44px 34px;display:flex;flex-direction:column;align-items:center"><div style="height:${Math.round(1393*K*0.92)}px;display:flex;align-items:center">${img(r.logo,K)}</div><div style="align-self:stretch;margin-top:22px">${tx(r)}</div></div>`;
+const tile=r=>`<div class="card${r.w?' w':''}" style="--c:${r.c};padding:14px 40px 20px;display:flex;flex-direction:column;align-items:center"><div style="height:${Math.round(1355*K)}px;display:flex;align-items:center">${img(r.logo,K)}</div><div style="align-self:stretch;margin-top:12px">${tx(r)}</div></div>`;
 const L={
- B:[2500,`${head}<div style="padding:44px 90px 0;display:grid;grid-template-columns:1fr 1fr;gap:34px">${R.map(tile).join('')}</div>${foot(40)}`],
+ B:[2000,`${head}<div style="padding:30px 90px 0;display:grid;grid-template-columns:1fr 1fr;gap:18px 30px">${R.map(tile).join('')}</div>${foot(18)}`],
 };
 (async()=>{const b=await chromium.launch();
 for(const [n,[H,body]] of Object.entries(L)){const p=await b.newPage({viewport:{width:2000,height:H}});
- const extra=n==='B'?'.h{font-size:40px}.s{font-size:29px}.k,.f{font-size:25px}.tx{text-align:center}':'';
+ // Square (Barry, 16 Nov): logos unchanged; header, gaps and text tightened to fit 2000 x 2000.
+ const extra=n==='B'?'body{background:linear-gradient(#1c1d1f 0,#1c1d1f 250px,#26272a 250px,#46474a 2000px)}.top{height:250px;padding:44px 90px 0}.pre{font-size:26px}.big{font-size:78px;margin-top:12px}.sub{font-size:28px;margin-top:14px}.h{font-size:38px;margin-top:8px}.s{font-size:26px;margin-top:6px}.k,.f{font-size:22px}.rule{margin:10px 0 10px}.tx{text-align:center}.foot{padding-top:18px}.prod{font-size:32px}.tag{font-size:26px;margin-top:10px}':'';
  await p.setContent(`<!doctype html><html><head><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800&display=block" rel="stylesheet"><style>${css(H)}${extra}</style></head><body>${body}</body></html>`,{waitUntil:'networkidle'});
  await p.evaluate(()=>document.fonts.ready);
  const info=await p.evaluate(()=>({over:[...document.querySelectorAll('.h,.s,.f,.prod,.tag')].filter(e=>e.scrollWidth>e.clientWidth+1||e.getBoundingClientRect().right>1990).map(e=>e.textContent),h:document.body.scrollHeight}));
