@@ -2373,6 +2373,16 @@ const GARMS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
 // Trade-mark blocklist for Exclusive topic tags (Barry's tags plan, 16 Nov). Editable later in Settings; this is the
 // starting list of names Etsy is known to take listings down for.
 const TAG_BLOCK_DEFAULT = ["disney", "marvel", "pixar", "star wars", "harry potter", "hogwarts", "pokemon", "nintendo", "lego", "barbie", "nike", "adidas", "apple", "iphone", "netflix", "coca cola", "starbucks", "mcdonalds", "olympic", "olympics", "super bowl", "world cup", "fifa", "premier league", "champions league", "nfl", "nba", "eurovision", "glastonbury", "wimbledon", "strictly", "bake off", "love island", "x factor", "taylor swift", "swiftie", "beyonce", "beatles", "friends", "the simpsons", "simpsons", "minecraft", "fortnite", "peppa pig", "bluey", "hello kitty", "ikea", "amazon", "google", "tesla", "chatgpt", "openai", "tiktok", "instagram", "facebook", "youtube", "game of thrones", "stranger things", "squid game"];
+async function blocklistSave(d, env) {
+  let L = await tagBlocklist(env);
+  const t = String(d.add || d.remove || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").trim();
+  if (!t || t.length > 40) return json({ error: "Type a word or name (up to 40 letters)." }, 400);
+  if (d.add) { if (L.includes(t)) return json({ error: "“" + t + "” is already on the list." }, 400); L = [...L, t].sort(); }
+  else L = L.filter((x) => x !== t);
+  await env.PENDING.put("tag-blocklist", JSON.stringify(L));
+  if (!d.isUndo) await logSetting(env, (d.add ? "Added “" + t + "” to" : "Removed “" + t + "” from") + " the trade-mark blocklist", d.add ? { kind: "blocklist", remove: t } : { kind: "blocklist", add: t });
+  return json({ ok: true, list: L });
+}
 async function tagBlocklist(env) { const L = await env.PENDING.get("tag-blocklist", "json"); return Array.isArray(L) && L.length ? L : TAG_BLOCK_DEFAULT; }
 function exCheck(ex, block) {
   if (!ex || typeof ex !== "object") return "Fill in the Topic & checks step first.";
@@ -3305,7 +3315,7 @@ const GAG_CHIPS_SCRIPT = String.raw`(function () {
     "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking"],
     "SHHH.": ["Alternative Communication", "Sensory Issues"],
     "PER CONTRACT": ["Quiet Quitting", "Corporate Nonsense", "Off The Clock", "Burnout", "Workplace"],
-    "OFF THE SHELF": ["Book Lover", "Escapism"] };
+    "OFF THE SHELF": ["Book Lover", "Escapism"], "EXCLUSIVE": ["Topical"] };
   var col = $("collection"), cat = $("category"), rc = $("rangeChips"), cc = $("catChips"), showAll = false, last = "";
   function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function pick(sel, v) { sel.value = v; sel.dispatchEvent(new Event("change", { bubbles: true })); draw(); }
@@ -4804,6 +4814,7 @@ async function settingsSave(request, env) {
   if (["phrase-toggle", "season-toggle", "season-add"].includes(d.kind)) return await poolSave(d, env);
   if (["page-save", "page-add", "page-del"].includes(d.kind)) return await pageSave(d, env);
   if (d.kind === "shift") return await rangeShift(d, env);
+  if (d.kind === "blocklist") return await blocklistSave(d, env);
   if (d.kind === "restore") return await restoreCore(d, env);
   const cs = Object.assign({}, SETTINGS_DEFAULT, (await env.PENDING.get(SETTINGS_KEY, "json")) || {});
   let S = null, rule = null;
@@ -5022,13 +5033,14 @@ async function settingsPage(env, part) {
     const a = Math.min(...(on.length ? on : l).map((x) => x.a)), e = (on.length ? on : l).map((x) => x.e);
     return `<div class="catrng"><b>${esc(sn.replace(/_/g, " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()))}</b> <span class="small">${l.map((x) => md(x.a) + "–" + md(x.e)).filter((v, i, arr) => arr.indexOf(v) === i).join(", ")}</span><div class="catchips">${l.map((x) => chip(x, "season-toggle")).join("")}</div></div>`; }).join("");
   const pages = ((S && S.pages) || []).map((p, i) => Object.assign({ i }, p));
-  const RN0 = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const RN0 = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf", "EXCLUSIVE": "Exclusive" };
+  const blockList = await tagBlocklist(env);
   const catHtml = Object.entries(cats).map(([rng, list]) => `<div class="catrng"><b>${esc(RN0[rng] || rng)}</b><div class="catchips">${list.map((c) => {
     const p = pool[c] || []; const fl = p.filter((x) => x.c === "F").length;
     const rows = byPool[c] || []; const n = rows.length ? rows.filter((x) => x.c === "F" && x.on).length : fl;
     return `<details class="catc"><summary>${esc(c)} <span class="small">${n ? n + " phrases" : ""}</span></summary><div class="catchips">${rows.length ? rows.map((x) => chip(x, "phrase-toggle")).join("") : '<span class="small">' + (p.length ? p.map((x) => esc(x.t)).join(" · ") : "Phrases load after the next Sync to Core.") + "</span>"}</div></details>`; }).join("")}</div></div>`).join("");
   const allCats = Object.values(cats).flat();
-  const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf" };
+  const RN = { "INTROVERT HERE…": "Introvert Here", "SHHH.": "SHHH.", "PER CONTRACT": "Per Contract", "OFF THE SHELF": "Off The Shelf", "EXCLUSIVE": "Exclusive" };
   const rules = ((S && S.rules) || []).map((r) => ({ row: r.row, name: (RN[r.coll] || r.coll) + " · " + garmentName(r.type), suffix: r.suffix || "", intro: r.intro || "", features: r.features || "", audience: r.audience || "", closing: r.closing || "", tags: Array.isArray(r.tags) ? r.tags : [] }));
   const onoff = (k, title, help) => `<div class="setrow"><div><b>${title}</b><p class="small">${help}</p></div>
     <div class="seg" data-k="${k}"><button type="button" data-v="ON" class="${cs[k] === "ON" ? "on" : ""}">On</button><button type="button" data-v="OFF" class="${cs[k] !== "ON" ? "on" : ""}">Off</button></div></div>`;
@@ -5048,6 +5060,7 @@ ${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shif
 .numset{display:flex;gap:8px;flex:none}.numset input{width:84px;min-height:46px;padding:0 12px;font:16px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext label{display:block;margin:14px 0 0;font-weight:700}.ptext textarea,.ptext input,.ptext select{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:12px;font:15px var(--body);border:1.5px solid var(--line);border-radius:12px;background:var(--field);color:var(--text)}
 .ptext textarea{min-height:110px;resize:vertical;white-space:pre-wrap}.ptags{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ph.blk{display:inline-flex;gap:6px;align-items:center}.ph.blk button{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:0 2px;line-height:1}
 .ph{border:1px solid var(--line);border-radius:99px;padding:6px 12px;background:rgba(255,255,255,.04);color:var(--text);font:500 13px var(--body);cursor:pointer}
 .ph.off{opacity:.45;text-decoration:line-through}
 .more{margin-top:8px}.more summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:10px 0}
@@ -5089,6 +5102,15 @@ ${part !== "system" ? `<p class="small" style="margin:0 0 12px">${part === "shif
     <label>Category<select id="paC">${allCats.map((c) => `<option>${esc(c)}</option>`).join("")}</select></label>
     <label>New flavour phrases (one per line)<textarea id="paF"></textarea></label>
     <button class="btn-main" type="button" id="paGo" style="width:auto;padding:0 26px">Add phrases</button>
+  </div>
+  <div class="card ptext part-tags"><h2 style="margin-top:0">Trade-mark blocklist (Exclusive)</h2>
+    <p class="small" style="margin:0">Exclusive topic tags that contain any of these are refused, because Etsy takes listings down for other people's trade marks. Tap × to remove one.</p>
+    <div class="catchips" id="blkL" style="margin-top:10px">${blockList.map((b) => `<span class="ph blk">${esc(b)}<button type="button" data-blk="${esc(b)}" aria-label="Remove">×</button></span>`).join("")}</div>
+    <div style="display:flex;gap:8px;margin-top:12px"><input id="blkN" placeholder="Add a name or word, e.g. paddington" autocomplete="off" autocapitalize="none" style="margin:0"><button class="btn" type="button" id="blkGo" style="width:auto;margin:0;padding:0 18px">Add</button></div>
+    <p class="small" style="margin-top:8px">Matches whole words, so "apple" blocks "apple watch" but not "pineapple".</p>
+    <script>(function(){function post(b){return fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({kind:"blocklist"},b))}).then(function(r){return r.json();});}
+      document.getElementById("blkL").addEventListener("click",function(e){var b=e.target.closest("[data-blk]");if(!b)return;if(!confirm("Remove “"+b.dataset.blk+"” from the blocklist?"))return;post({remove:b.dataset.blk}).then(function(j){if(j.error)return alert(j.error);b.parentNode.remove();});});
+      document.getElementById("blkGo").addEventListener("click",function(){var v=document.getElementById("blkN").value;post({add:v}).then(function(j){if(j.error)return alert(j.error);location.reload();});});})();</script>
   </div>
   <div class="card ptext part-tags"><h2 style="margin-top:0">Seasonal tags</h2>
     <p class="small" style="margin:0">Live listings swap these in automatically each morning while they're in season (see the Calendar). Tap a phrase to switch it off or back on.</p>
