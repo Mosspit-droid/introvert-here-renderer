@@ -2886,7 +2886,8 @@ ${GAG_PREVIEW_SCRIPT}</script>`);
 // Gag boxes per range, from Core's GAG_TEXT_RULES (Barry, 15 Nov). One-box ranges keep the classic gag box;
 // a range with several boxes (EXCLUSIVE: headline, body, footer) gets one box each and a preview laid out like its Canva print page.
 const GAG_BOXES_SCRIPT = String.raw`(function () {
-  var R = window.TEXT_RULES || {}, col = document.getElementById("collection"), main = document.getElementById("text"), boxes = document.getElementById("boxes"), shown = "", stemTouched = false;
+  var R = window.TEXT_RULES || {}, col = document.getElementById("collection"), main = document.getElementById("text"), boxes = document.getElementById("boxes"), shown = "", stemTouched = false, KEEP = {};
+  window.boxKeepClear = function () { KEEP = {}; };
   // Canva page E001_EX_T-SHIRT_TEMPLATES, in its own units (read 15 Nov).
   var EX = { w: 3951, h: 4919, logo: [0, 175.5, 3621.9, 836.3], rules: [2360, 3781.5],
     GAG_HEADER: { top: 1080, left: 175.5, width: 3600, font: "Anton", size: 533.34, lh: 1.02, style: "normal", color: "#000" },
@@ -2903,13 +2904,16 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   function join() { var r = rules(), v = vals(); main.value = r.map(function (x) { return String(v[x.col] || "").replace(/\n[ \t]*(\n[ \t]*)+/g, "\n").trim(); }).filter(function (t) { return t.trim(); }).join("\n\n"); }
   function render() {
     var ed = typeof editing !== "undefined" ? editing : null, r = rules(), key = r ? col.value + "|" + (ed ? ed.id : "") : "";
-    if (key === shown) return; shown = key;
+    if (key === shown) return;
+    var before = vals(), prevColl = shown.split("|")[0], prevEd = shown.split("|")[1];
+    if (prevColl && !prevEd && col.value && Object.keys(before).some(function (k) { return before[k].trim(); })) KEEP[prevColl] = before;   // never throw typed words away when the boxes are rebuilt
+    shown = key;
     var lab = main.closest("label");
     if (!r) { var had = !!boxes.innerHTML; boxes.innerHTML = ""; lab.style.display = ""; main.required = true; if (had && !ed) { main.value = "... "; } return; }
     lab.style.display = "none"; main.required = false;
     var parts = (ed && ed.parts) || null, old = parts || !ed ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);   // only an existing gag being edited is split into boxes
     boxes.innerHTML = (col.value === "EXCLUSIVE" ? newsBox() : "") + r.map(function (x, i) {
-      var v = parts ? parts[x.col] || "" : (old && old[i]) || "";
+      var v = parts ? parts[x.col] || "" : old ? old[i] || "" : (!ed && KEEP[col.value] && KEEP[col.value][x.col]) || "";
       return '<label><b>' + esc(x.label) + '</b> <span class="small">(' + x.lines + " line" + (x.lines === 1 ? "" : "s") + " max" + (x.case === "UPPER" ? ", capitals" : "") + ')</span>' +
         '<textarea data-col="' + esc(x.col) + '" data-case="' + esc(x.case) + '" rows="' + Math.min(4, x.lines + 1) + '" spellcheck="true">' + esc(v) + '</textarea></label><div class="bxn" data-n="' + esc(x.col) + '"></div>';
     }).join("");
@@ -2996,7 +3000,7 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
   };
   function snap() {
     if (restoring || (typeof mode !== "undefined" && mode === "edit")) return;
-    if (!window.gagDirty()) { try { localStorage.removeItem(KEY); } catch (e) {} return; }
+    if (!window.gagDirty()) return;   // an empty form never wipes the draft: only Save, Discard or Clear do
     var d = { at: Date.now(), collection: el("collection").value, category: el("category").value, text: el("text").value, parts: boxVals(), stem: el("stem").value,
       dates: ["d1", "d2", "d3", "d4"].map(function (k) { return el(k).value; }), touched: typeof datesTouched !== "undefined" && datesTouched, stars: window.starPick || 0, ex: window.exState ? window.exState() : null, now: new URLSearchParams(location.search).get("now") === "1" };
     try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
@@ -3005,8 +3009,19 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
   ["input", "change", "click"].forEach(function (ev) { el("form").addEventListener(ev, later, true); });
   document.addEventListener("visibilitychange", function () { if (document.hidden) snap(); });
   window.addEventListener("pagehide", snap);
-  window.gagDraftClear = function () { clearTimeout(t); restoring = true; try { localStorage.removeItem(KEY); } catch (e) {} };
-  el("clear").addEventListener("click", function () { setTimeout(function () { if (!window.gagDirty()) window.gagDraftClear(), restoring = false; }, 50); });
+  window.gagDraftClear = function () { clearTimeout(t); restoring = true; if (window.boxKeepClear) window.boxKeepClear(); try { localStorage.removeItem(KEY); } catch (e) {} };
+  el("clear").addEventListener("click", function () { setTimeout(function () { if (!window.gagDirty()) { window.gagDraftClear(); restoring = false; document.querySelectorAll(".draftnote").forEach(function (n) { n.remove(); }); } }, 50); });
+  // If the form ever goes blank without you pressing Clear, offer the last draft back straight away (no reload needed).
+  setInterval(function () {
+    if (restoring || document.querySelector(".draftnote") || window.gagDirty() || (typeof mode !== "undefined" && mode === "edit")) return;
+    var d = null; try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+    if (!d || Date.now() - d.at > 14 * 864e5) return;
+    var note = document.createElement("div"); note.className = "draftnote";
+    note.innerHTML = "<span>The form went blank. Your gag from " + new Date(d.at).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) + " is safe.</span><button type=\"button\" class=\"btn\" data-back=\"1\">Bring it back</button><button type=\"button\" class=\"btn\" data-bin=\"1\">Bin it</button>";
+    var gr = document.querySelector(".gR"); gr.insertBefore(note, gr.children[1] || null);
+    note.querySelector("[data-back]").onclick = function () { note.remove(); restore(); };
+    note.querySelector("[data-bin]").onclick = function () { if (!confirm("Throw that gag away for good?")) return; window.gagDraftClear(); restoring = false; note.remove(); };
+  }, 1500);
   function fire(x, ev) { x.dispatchEvent(new Event(ev, { bubbles: true })); }
   function restore() {
     var d = null; try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
