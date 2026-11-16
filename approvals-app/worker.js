@@ -3171,7 +3171,7 @@ function preview() {
   // wraps them (16 Nov; was ink tip to tip) - real pixels, not a character count. Same font settings as
   // the Canva print box: Montserrat Regular, letter spacing -0.04em.
   const limit = inkW("WWWWWWWWWWWW");
-  [...box.children].forEach((d, i) => { const t = lines[i] || ""; if (t.trim() && inkW(t) > limit + 0.01) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
+  [...box.children].forEach((d, i) => { const t = lines[i] || ""; if (t.trim() && inkW(t.replace(/\s+$/, "")) > limit + 0.01) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
   // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
   // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
   // The gag frame (12 W x 9 lines) is centred in the black card with side margins, as large as fits
