@@ -35,6 +35,7 @@ export default {
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
     ctx.waitUntil(quickTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
+    ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
   },
 
   async fetch(request, env, ctx) {
@@ -154,6 +155,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/headlines" && method === "GET") return json(await headlinesGet(env, url.searchParams.get("fresh") === "1"));
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
       if (pathname === "/api/ideas") return await ideasApi(request, env);
@@ -2352,6 +2354,56 @@ async function quickTick(env) {
   await save();
 }
 
+// Today's headlines for the Exclusive gag step (Barry, 16 Nov): BBC top stories + Google Trends UK, free feeds,
+// fetched by the app itself (no Make credits), kept for an hour. Each item is flagged if it looks like it names a
+// person or involves a tragedy, the two things Exclusive gags never touch.
+const NEWS_KEY = "headlines";
+const NEWS_TRAGIC = /\b(dead|dies|died|death|deaths|killed|kill|killing|murder\w*|stabb\w*|shot|shooting|crash(es|ed)?|attack\w*|war|wars|bomb\w*|terror\w*|flood\w*|fire|blaze|victim\w*|abuse\w*|cancer|suicide|missing|earthquake|injur\w*|rape\w*|assault\w*|funeral|tribute\w*|hostage\w*|genocide|tragedy|tragic|famine|disaster|fatal\w*|mourn\w*|grief|grieving|inquest|manslaughter|explosion|airstrike\w*|massacre)\b/i;
+const NEWS_NOT_NAMES = /^(Prime Minister|Premier League|Champions League|New York|Black Friday|Bank Of England|White House|Downing Street|Northern Ireland|United States|United Kingdom|European Union|Labour Party|Conservative Party|Home Office|High Court|Supreme Court|World Cup|Formula One|Grand Prix|South Africa|North Korea|South Korea|Middle East|Hong Kong|Los Angeles|Royal Mail|Great British|Bake Off|Strictly Come|Come Dancing|I'm A|Get Me|Six Nations|Ryder Cup|Met Office|Office For|National Trust|Wall Street|Silicon Valley|Red Cross|Boxing Day|Christmas Day|New Year|Bonfire Night|St Andrew|Eurovision Song|Song Contest|BBC One|Channel Four|Sky News|Big Ben|Old Trafford|Wembley Stadium|Apple TV|Prime Video|Champions Trophy|Test Match)$/i;
+const NEWS_STOP = /^(The|A|An|In|On|At|Of|For|And|To|By|As|Why|How|What|When|Who|Where|After|Before|Over|Under|From|With|But|Or|New|More|Live|Watch|Week|Is|Are|Was|Will|Can)$/;
+function newsFlags(...parts) {
+  const f = [], t = parts.join(" ");
+  if (NEWS_TRAGIC.test(t)) f.push("tragedy");
+  if (parts.some(nameIn)) f.push("name");
+  return f;
+}
+function nameIn(t) {
+  const words = String(t).replace(/[‘’]/g, "'").split(/\s+/);
+  for (let i = 1; i < words.length - 1; i++) {   // two capitalised words together, not at the start: probably a name
+    const a = words[i].replace(/[^A-Za-z'-]/g, ""), b = words[i + 1].replace(/[^A-Za-z'-]/g, "");
+    if (/[.:!?]$/.test(words[i - 1]) || /[.:,;!?]$/.test(words[i])) continue;   // a new sentence or clause, not a name
+    if (/^[A-Z][a-z'-]{1,}$/.test(a) && /^[A-Z][a-z'-]{2,}$/.test(b) && !NEWS_STOP.test(a) && !NEWS_NOT_NAMES.test(a + " " + b)) return true;
+  }
+  return false;
+}
+function xmlText(x) { return String(x || "").replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, "&").trim(); }
+function xmlTag(block, tag) { const m = new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + tag + ">").exec(block); return m ? xmlText(m[1]) : ""; }
+function xmlItems(xml, tag) { return String(xml).split(new RegExp("<" + tag + "(?:\\s[^>]*)?>")).slice(1).map((b) => b.split("</" + tag + ">")[0]); }
+async function headlinesGet(env, force) {
+  const c = (await env.PENDING.get(NEWS_KEY, "json")) || null, now = Date.now();
+  if (c && !force && now - c.at < 55 * 60e3) return c;
+  if (c && force && now - c.at < 2 * 60e3) return c;
+  const get = (u) => fetch(u, { headers: { "User-Agent": "Mozilla/5.0 (compatible; IntrovertHereApp/1.0)", Accept: "application/rss+xml, application/xml, text/xml" }, cf: { cacheTtl: 600 } }).then((r) => r.ok ? r.text() : Promise.reject(new Error(String(r.status))));
+  const out = { at: now, bbc: (c && c.bbc) || [], trends: (c && c.trends) || [], err: [] };
+  const [b, g] = await Promise.allSettled([get("https://feeds.bbci.co.uk/news/rss.xml?edition=uk"), get("https://trends.google.com/trending/rss?geo=GB")]);
+  if (b.status === "fulfilled") {
+    const L = xmlItems(b.value, "item").map((it) => ({ t: xmlTag(it, "title"), d: xmlTag(it, "description"), u: xmlTag(it, "link") })).filter((x) => x.t).slice(0, 15);
+    if (L.length) out.bbc = L.map((x) => Object.assign(x, { f: newsFlags(x.t, x.d) })); else out.err.push("BBC feed was empty");
+  } else out.err.push("BBC feed didn't answer (" + b.reason.message + ")");
+  if (g.status === "fulfilled") {
+    const L = xmlItems(g.value, "item").map((it) => {
+      const news = xmlItems(it, "ht:news_item").map((n) => ({ t: xmlTag(n, "ht:news_item_title"), u: xmlTag(n, "ht:news_item_url"), s: xmlTag(n, "ht:news_item_source") })).filter((n) => n.t).slice(0, 2);
+      return { q: xmlTag(it, "title"), n: xmlTag(it, "ht:approx_traffic"), news };
+    }).filter((x) => x.q).slice(0, 15);
+    if (L.length) out.trends = L.map((x) => Object.assign(x, { f: Array.from(new Set(newsFlags(...x.news.map((n) => n.t)).concat(/^[a-z]+ [a-z]+$/i.test(x.q) && x.news.some((n) => n.t.toLowerCase().includes(x.q.toLowerCase()) && newsFlags("x " + n.t.slice(n.t.toLowerCase().indexOf(x.q.toLowerCase()), n.t.toLowerCase().indexOf(x.q.toLowerCase()) + x.q.length)).includes("name")) ? ["name"] : []))) }));
+    else out.err.push("Google Trends was empty");
+  } else out.err.push("Google Trends didn't answer (" + g.reason.message + ")");
+  if (!out.err.length) delete out.err;
+  if (!out.bbc.length && !out.trends.length && c) return Object.assign(c, { err: out.err });
+  await env.PENDING.put(NEWS_KEY, JSON.stringify(out));
+  return out;
+}
+
 async function gagSave(request, env) {
   if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
   const d = await request.json();
@@ -2484,6 +2536,17 @@ ${brandHeader("Gags")}
   #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
   .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
   body.kb #boxes label>.small{display:none}
+  .news{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--field)}
+  .news summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  #newsL{max-height:360px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:6px}
+  .nh{font:700 11px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:8px 0 2px}
+  .ni{text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--text);font:14px Montserrat,sans-serif;cursor:pointer;display:block;width:100%}
+  .ni b{font-weight:600}.ni .nd{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+  .nb{display:inline-block;margin-left:6px;font:700 10px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:99px;border:1px solid var(--warn);color:var(--warn);vertical-align:2px}
+  .topic{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:2px solid #d8262c;border-radius:12px}.topic>div{flex:1;font-size:14px}.topic .btn{width:auto;min-height:36px;padding:0 12px;margin:0}
+  .topic .warnt{color:var(--warn);margin-top:4px}
+  #topicPick:empty{display:none}
+  body.kb .news{display:none}
   .gcol{display:flex;flex-direction:column;gap:16px;min-width:0}
   .tabs{display:flex;gap:8px}.tabs .btn{flex:1}
   .g-side{display:flex;flex-direction:column;gap:18px}
@@ -2592,13 +2655,41 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
     if (!r) { var had = !!boxes.innerHTML; boxes.innerHTML = ""; lab.style.display = ""; main.required = true; if (had && !ed) { main.value = "... "; } return; }
     lab.style.display = "none"; main.required = false;
     var parts = (ed && ed.parts) || null, old = parts || !ed ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);   // only an existing gag being edited is split into boxes
-    boxes.innerHTML = r.map(function (x, i) {
+    boxes.innerHTML = (col.value === "EXCLUSIVE" ? newsBox() : "") + r.map(function (x, i) {
       var v = parts ? parts[x.col] || "" : (old && old[i]) || "";
       return '<label><b>' + esc(x.label) + '</b> <span class="small">(' + x.lines + " line" + (x.lines === 1 ? "" : "s") + " max" + (x.case === "UPPER" ? ", capitals" : "") + ')</span>' +
         '<textarea data-col="' + esc(x.col) + '" data-case="' + esc(x.case) + '" rows="' + Math.min(4, x.lines + 1) + '" spellcheck="true">' + esc(v) + '</textarea></label><div class="bxn" data-n="' + esc(x.col) + '"></div>';
     }).join("");
-    join();
+    join(); if (col.value === "EXCLUSIVE") newsFill();
   }
+  // Today's headlines (Barry, 16 Nov): tap one to make it the topic; the gag itself is still yours to write.
+  var NEWS = null, TOPIC = null;
+  function newsBox() { return '<details class="news" open><summary>Today’s headlines <span class="small" id="newsAt"></span></summary><div id="newsL"><div class="small">Loading…</div></div></details><div id="topicPick"></div>'; }
+  function badge(f) { return (f || []).map(function (x) { return '<span class="nb ' + x + '">' + (x === "name" ? "names someone?" : "tragedy?") + "</span>"; }).join(""); }
+  function newsFill() {
+    var L = document.getElementById("newsL"); if (!L) return; topicDraw();
+    if (!NEWS) { fetch("/api/headlines").then(function (r) { return r.json(); }).then(function (j) { NEWS = j; newsFill(); }).catch(function () { L.innerHTML = '<div class="small">Couldn’t load the headlines right now.</div>'; }); return; }
+    var at = document.getElementById("newsAt"); if (at && NEWS.at) at.textContent = "· updated " + new Date(NEWS.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    var h = "";
+    if ((NEWS.trends || []).length) h += '<div class="nh">Trending searches in the UK</div>' + NEWS.trends.slice(0, 10).map(function (x, i) { return '<button type="button" class="ni" data-news="g' + i + '"><b>' + esc(x.q) + "</b>" + (x.n ? ' <span class="small">' + esc(x.n) + " searches</span>" : "") + badge(x.f) + (x.news && x.news[0] ? '<span class="nd">' + esc(x.news[0].t) + "</span>" : "") + "</button>"; }).join("");
+    if ((NEWS.bbc || []).length) h += '<div class="nh">Top UK headlines (BBC)</div>' + NEWS.bbc.slice(0, 10).map(function (x, i) { return '<button type="button" class="ni" data-news="b' + i + '"><b>' + esc(x.t) + "</b>" + badge(x.f) + "</button>"; }).join("");
+    L.innerHTML = h || '<div class="small">No headlines yet' + (NEWS.err ? " (" + esc(NEWS.err.join("; ")) + ")" : "") + ". They refresh every hour.</div>";
+  }
+  function topicDraw() {
+    var t = document.getElementById("topicPick"); if (!t) return;
+    t.innerHTML = TOPIC ? '<div class="topic"><div><span class="small">Topic</span> <b>' + esc(TOPIC.t) + "</b>" + badge(TOPIC.f) + (TOPIC.tags.length ? '<div class="small">Suggested topic tags: ' + TOPIC.tags.map(esc).join(", ") + "</div>" : "") +
+      ((TOPIC.f || []).length ? '<div class="small warnt">Remember: no names, no tragedy, nothing about who people are.</div>' : "") + '</div><button type="button" class="btn" data-topic-x="1">✕</button></div>' : "";
+  }
+  window.exTopic = function () { return TOPIC; };
+  boxes.addEventListener("click", function (e) {
+    var x = e.target.closest("[data-topic-x]"); if (x) { TOPIC = null; topicDraw(); var d = boxes.querySelector(".news"); if (d) d.open = true; return; }
+    var b = e.target.closest("[data-news]"); if (!b || !NEWS) return;
+    var k = b.dataset.news, i = Number(k.slice(1)), yr = String(new Date().getFullYear());
+    if (k[0] === "g") { var g = NEWS.trends[i], q = g.q.toLowerCase().trim(); TOPIC = { t: g.q, f: g.f, tags: [q.slice(0, 20)].concat((q + " " + yr).length <= 20 && q.indexOf(yr) < 0 ? [q + " " + yr] : []) }; }
+    else { var n = NEWS.bbc[i]; TOPIC = { t: n.t, f: n.f, tags: [] }; }
+    topicDraw(); var d = boxes.querySelector(".news"); if (d) d.open = false;
+    var h = boxes.querySelector('textarea[data-col="GAG_HEADER"]'); if (h) h.focus();
+  });
   boxes.addEventListener("input", function (e) {
     var t = e.target; if (!t.dataset || !t.dataset.col) return;
     if (t.dataset.case === "UPPER") { var u = t.value.toUpperCase(); if (u !== t.value) { var a = t.selectionStart, b = t.selectionEnd; t.value = u; t.setSelectionRange(a, b); } }
