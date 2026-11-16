@@ -146,6 +146,7 @@ export default {
       if (pathname === "/api/approve" && method === "POST") return await approveItem(request, env);
       if (pathname === "/api/remake" && method === "POST") return await remakeItem(request, env, ctx);
       if (pathname === "/api/reject" && method === "POST") return await makeAction(request, env, "reject");
+      if (pathname === "/api/scrap" && method === "POST") return await scrapListing(request, env);
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
@@ -542,6 +543,60 @@ async function remakeItem(request, env, ctx) {
   return json({ ok: true });
 }
 
+// Scrap a listing that isn't live (Barry, 16 Nov): Printify product (which also removes the Etsy draft), its Core
+// registry and listing-tags rows, and the Approvals card. Optionally clears the gag (text, title, status, tags) so it
+// can be rewritten in the same space - only when none of its other garments are built.
+async function scrapListing(request, env) {
+  const d = await readBody(request);
+  const items = await loadItems(env), item = items[str(d.row)];
+  if (!item || item.code !== str(d.code)) return json({ error: "That card has changed - refresh the page." }, 409);
+  if (!["pending", "rejected"].includes(item.status)) return json({ error: "Only listings that haven't gone live can be scrapped here." }, 409);
+  const product = str(item.product), WB = CORE_ITEM + "/workbook", regIdx = Number(item.row) - 2, done = [];
+  try {
+    const rr = await coreTool(env, WB + "/tables/LISTING_REGISTRY_TABLE/rows/itemAt(index=" + regIdx + ")?$select=values");
+    const v = rr && rr.values && rr.values[0];
+    if (!v || str(v[0]) !== product) return json({ error: "Core's registry has changed since this card was made. Nothing was deleted; ask Claude to scrap it." }, 409);
+    const pid = str(v[8]).replace(/\\/g, ""), eid = str(v[6]).replace(/\D/g, "");
+    if (pid) { try { await coreTool(env, "/v1/shops/27154106/products/" + pid + ".json", "DELETE"); done.push("Printify"); } catch (e) { if (!/404|not found/i.test(e.message)) throw e; } }
+    if (eid) {   // normally already gone with the Printify product; this catches a draft left behind
+      const token = await env.SECRETS.get("make_token");
+      await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data: { path: "/listings/" + eid, method: "DELETE" } }) }).catch(() => {});
+      done.push("Etsy");
+    }
+    const lt = await coreTool(env, WB + "/tables/LISTING_TAGS/columns/PRODUCT_CODE/dataBodyRange?$select=values");
+    const lti = ((lt && lt.values) || []).map((x, i) => (str(x[0]) === product ? i : -1)).filter((i) => i >= 0).reverse();
+    for (const i of lti) await coreTool(env, WB + "/tables/LISTING_TAGS/rows/itemAt(index=" + i + ")", "DELETE");
+    await coreTool(env, WB + "/tables/LISTING_REGISTRY_TABLE/rows/itemAt(index=" + regIdx + ")", "DELETE");
+    done.push("Core registry");
+    // Approvals cards are keyed by registry row: everything below the deleted row moves up one.
+    const out = {};
+    for (const [k, it] of Object.entries(items)) { const n = Number(k); if (n === Number(item.row)) continue; if (n > Number(item.row)) { it.row = String(n - 1); out[String(n - 1)] = it; } else out[k] = it; }
+    await saveItems(env, out);
+    let gagMsg = "";
+    if (d.clearGag) {
+      const gagId = product.replace(/-(T-SHIRT|LONG-SLEEVE|SWEATSHIRT|HOODIE)$/, "");
+      const reg = await coreTool(env, WB + "/tables/LISTING_REGISTRY_TABLE/columns/PRODUCT_CODE/dataBodyRange?$select=values");
+      const others = ((reg && reg.values) || []).map((x) => str(x[0])).filter((c) => c.indexOf(gagId + "-") === 0);
+      if (others.length) gagMsg = " The gag was kept: " + others.join(", ") + " still use it.";
+      else {
+        const ids = await coreTool(env, WB + "/tables/GAGS_TABLE/columns/GAG_ID/dataBodyRange?$select=values");
+        const gi = ((ids && ids.values) || []).findIndex((x) => str(x[0]) === gagId);
+        if (gi >= 0) {
+          const ops = [];
+          GAG_CLEAR_COLS.concat(["GAG_HEADER", "GAG_BODY", "GAG_FOOTER"]).forEach((c) => ops.push(amendCell("GAGS_TABLE", c, gi, "")));
+          TAG_CLEAR_COLS.forEach((c) => ops.push(amendCell("GAG_TAGS", c, gi, "")));
+          const err = await amendHook(env, { action: "apply", ops: JSON.stringify(ops), delay: "1", run: "no" });
+          gagMsg = err ? " The gag couldn't be cleared - ask Claude." : " " + gagId + " is cleared; write the new version and it fills that space.";
+        }
+      }
+      if (env.MAKE_GAGSYNC_HOOK) await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "scrap" }) }).catch(() => {});
+    }
+    await logSetting(env, "Scrapped listing " + product + (d.clearGag ? " (gag cleared)" : ""), null);
+    return json({ ok: true, message: product + " scrapped." + gagMsg });
+  } catch (e) {
+    return json({ error: "Scrapping stopped part-way" + (done.length ? " (done: " + done.join(", ") + ")" : "") + ": " + e.message + ". Ask Claude to finish it." }, 502);
+  }
+}
 async function makeAction(request, env, action) {
   if (!env.MAKE_ACTION_HOOK) return json({ error: "MAKE_ACTION_HOOK is not set" }, 500);
   const data = await readBody(request);
@@ -1992,6 +2047,11 @@ document.querySelectorAll("[data-remake]").forEach((b) => b.addEventListener("cl
 document.querySelectorAll("[data-reject]").forEach((b) => b.addEventListener("click", () => { if (tickedWith(b) && $("bulkRej")) return $("bulkRej").onclick(); const d = cardOf(b);
   ask("Reject " + d.product + " without a new video?", "It's marked REJECTED in Core and no new video is made until you tap Make new video.", "Reject", async () => {
     try { await post("/api/reject", d); toast("Rejected"); setTimeout(() => location.reload(), 900); } catch (err) { toast(err.message, true); } }); }));
+document.querySelectorAll("[data-scrap]").forEach((b) => b.addEventListener("click", () => { const d = cardOf(b);
+  ask("Scrap " + d.product + "?", "Deletes it from Printify and Etsy (it isn't live), and removes it from Core's listing registry and listing tags. This can't be undone.", "Scrap it", async () => {
+    const clear = $("askSoc").checked; toast("Scrapping " + d.product + "… (about 30 seconds)");
+    try { const r = await post("/api/scrap", { row: d.row, code: d.code, product: d.product, clearGag: clear }); toast(r.message || "Scrapped"); setTimeout(() => location.reload(), 2500); } catch (err) { toast(err.message, true); } },
+    { on: true, label: "Also clear the gag in Core so you can rewrite it (only if none of its other garments are built)" }); }));
 document.querySelectorAll("[data-remove]").forEach((b) => b.addEventListener("click", async () => { const d = cardOf(b); await post("/api/mark", { row: d.row, code: d.code, status: "removed" }).catch(() => {}); toast("Hidden"); setTimeout(() => location.reload(), 700); }));
 document.querySelectorAll("[data-rerender]").forEach((b) => b.addEventListener("click", async () => { const c = b.closest(".card");
   b.disabled = true; try { await post("/api/rerender", { row: c.dataset.row, code: c.dataset.code, product: c.dataset.product }); toast("New video requested"); setTimeout(() => location.reload(), 900); } catch (err) { toast(err.message, true); b.disabled = false; } }));
@@ -2050,7 +2110,7 @@ function pendingCard(i) {
       ${oneDrive && i.hasVideo ? `<a href="${esc(oneDrive)}" target="_blank" rel="noopener">Video in OneDrive</a>` : ""}
     </div>
     <div class="abig"><button class="btn-main" data-approve type="button">${icon("check")}Approve</button><button class="btn" data-remake type="button">${icon("sync")}Remake</button></div>
-    <div class="asmall"><button class="link-btn" data-reject type="button">Reject without a new video</button><button class="link-btn" data-remove type="button">Hide from list</button></div>
+    <div class="asmall"><button class="link-btn" data-reject type="button">Reject without a new video</button><button class="link-btn" data-remove type="button">Hide from list</button><button class="link-btn" data-scrap type="button">Scrap listing</button></div>
   </div>
 </div></div>`;
 }
@@ -3090,7 +3150,9 @@ $("collection").addEventListener("change", () => { slotInfo(); preview(); });
 let wAt100 = null;
 const inkCtx = document.createElement("canvas").getContext("2d");
 function inkW(t) { inkCtx.font = "400 100px Montserrat, sans-serif"; try { inkCtx.letterSpacing = "-4px"; } catch (e) {}
-  const m = inkCtx.measureText(t); return (m.actualBoundingBoxLeft || 0) + (m.actualBoundingBoxRight || m.width); }
+  // Full letter widths, the way Canva wraps (16 Nov): ink-edge measuring let "STENOGRAPHER FOR ONE" pass, but the
+  // mockup template's box (exactly 12 capital Ws) pushed ONE onto its own line.
+  return inkCtx.measureText(t).width; }
 function measureW() {
   const m = document.createElement('span');
   m.style.cssText = "position:absolute;left:-9999px;white-space:nowrap;font-family:Montserrat,sans-serif;font-weight:400;font-size:100px;letter-spacing:-0.04em";
@@ -3105,11 +3167,11 @@ function preview() {
   const lines = $("text").value.replace(/\r/g, "").split("\n");
   box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
   const over = [];
-  // Width rule (Barry, 13 Nov): a line may be as wide as 12 capital Ws, measured from the leftmost
-  // tip of the ink to the rightmost tip - real pixels, not a character count. Same font settings as
+  // Width rule (Barry, 13 Nov): a line may be as wide as 12 capital Ws, measured by full letter widths as Canva
+  // wraps them (16 Nov; was ink tip to tip) - real pixels, not a character count. Same font settings as
   // the Canva print box: Montserrat Regular, letter spacing -0.04em.
   const limit = inkW("WWWWWWWWWWWW");
-  [...box.children].forEach((d, i) => { const t = lines[i] || ""; if (t.trim() && inkW(t) > limit + 0.5) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
+  [...box.children].forEach((d, i) => { const t = lines[i] || ""; if (t.trim() && inkW(t) > limit + 0.01) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
   // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
   // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
   // The gag frame (12 W x 9 lines) is centred in the black card with side margins, as large as fits
