@@ -34,6 +34,7 @@ export default {
     ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
     ctx.waitUntil(quickTick(env).catch(() => {}));
+    ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
   },
@@ -2220,7 +2221,8 @@ async function gagResult(request, env, ctx, url) {
     await env.PENDING.put(SAVES_KEY, JSON.stringify(saves));
   }
   const QJ = (await env.PENDING.get(QUICK_KEY, "json")) || [], qj = QJ.find((j) => j.ref === str(data.ref));
-  if (qj) { if (ok && str(data.gagId)) { qj.gagId = str(data.gagId); qj.stage = "tags"; qj.newRow = /new row/i.test(str(data.message)); } else { qj.stage = "failed"; qj.msg = str(data.message) || "Core refused the gag."; } qj.upd = Date.now(); await env.PENDING.put(QUICK_KEY, JSON.stringify(QJ)); }
+  if (qj) { if (ok && str(data.gagId)) { qj.gagId = str(data.gagId); qj.stage = "tags"; qj.newRow = /new row/i.test(str(data.message));
+      if (qj.ex) { const M = (await env.PENDING.get(EX_META_KEY, "json")) || {}; M[qj.gagId] = Object.assign({}, qj.ex, { stem: qj.stem, at: qj.at }); await env.PENDING.put(EX_META_KEY, JSON.stringify(M)); } } else { qj.stage = "failed"; qj.msg = str(data.message) || "Core refused the gag."; } qj.upd = Date.now(); await env.PENDING.put(QUICK_KEY, JSON.stringify(QJ)); }
   if (!ok) ctx.waitUntil(notify(env, url.origin, "Gag NOT saved" + (str(data.gagId) ? ": " + str(data.gagId) : ""), str(data.message) || "Open the app for details.", "x"));
   return json({ ok: true });
 }
@@ -2360,6 +2362,20 @@ async function gagTarget(request, env) {
 // picked garment is built. The listings then go through Approvals as usual: approving puts them live and posts them.
 const QUICK_KEY = "quick-jobs";
 const GARMS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+// Trade-mark blocklist for Exclusive topic tags (Barry's tags plan, 16 Nov). Editable later in Settings; this is the
+// starting list of names Etsy is known to take listings down for.
+const TAG_BLOCK_DEFAULT = ["disney", "marvel", "pixar", "star wars", "harry potter", "hogwarts", "pokemon", "nintendo", "lego", "barbie", "nike", "adidas", "apple", "iphone", "netflix", "coca cola", "starbucks", "mcdonalds", "olympic", "olympics", "super bowl", "world cup", "fifa", "premier league", "champions league", "nfl", "nba", "eurovision", "glastonbury", "wimbledon", "strictly", "bake off", "love island", "x factor", "taylor swift", "swiftie", "beyonce", "beatles", "friends", "the simpsons", "simpsons", "minecraft", "fortnite", "peppa pig", "bluey", "hello kitty", "ikea", "amazon", "google", "tesla", "chatgpt", "openai", "tiktok", "instagram", "facebook", "youtube", "game of thrones", "stranger things", "squid game"];
+async function tagBlocklist(env) { const L = await env.PENDING.get("tag-blocklist", "json"); return Array.isArray(L) && L.length ? L : TAG_BLOCK_DEFAULT; }
+function exCheck(ex, block) {
+  if (!ex || typeof ex !== "object") return "Fill in the Topic & checks step first.";
+  if (ex.checks !== true) return "Tick all three checks first.";
+  const tt = (Array.isArray(ex.topicTags) ? ex.topicTags : []).map((t) => String(t || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").trim());
+  if (tt.length !== 2 || !tt[0] || !tt[1]) return "Add both topic tags.";
+  if (tt.some((t) => t.length > 20)) return "A topic tag is longer than 20 letters.";
+  const hit = tt.map((t) => block.find((b) => (" " + t + " ").indexOf(" " + b + " ") >= 0)).find(Boolean);
+  if (hit) return "“" + hit + "” is on the trade-mark blocklist.";
+  return { topic: str(ex.topic).slice(0, 160), flags: (ex.flags || []).map(str).slice(0, 4), topicTags: tt, hashtags: (Array.isArray(ex.hashtags) ? ex.hashtags : []).map((h) => "#" + String(h).toLowerCase().replace(/[^a-z0-9]/g, "")).filter((h) => h.length > 2).slice(0, 15), useBy: [24, 48, 72].includes(Number(ex.useBy)) ? Number(ex.useBy) : 48 };
+}
 // Multi-box ranges (EXCLUSIVE): the three parts go to GAGS columns GAG_HEADER / GAG_BODY / GAG_FOOTER via Save Gag.
 // No blank lines inside a part: GAG_TEXT joins them with exactly one blank line, which the video splits on.
 function gagParts(p) {
@@ -2375,6 +2391,11 @@ async function quickList(request, env) {
   const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem = str(d.stem), collection = str(d.collection), category = str(d.category);
   if (!text || !stem || !collection || !category) return json({ error: "Fill in the gag, range, title stem and category first." }, 400);
   if (!garments.length) return json({ error: "Pick at least one garment." }, 400);
+  let ex = null;
+  if (collection === "EXCLUSIVE") {
+    ex = exCheck(d.ex, await tagBlocklist(env)); if (typeof ex === "string") return json({ error: ex }, 400);
+    garments.splice(0, garments.length, "T-SHIRT"); d.later = {};
+  }
   const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
   if (L.some((j) => ["saving", "tags", "build"].includes(j.stage))) return json({ error: "Another List it now is still building. Wait for it to finish (it shows on the dashboard)." }, 409);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
@@ -2382,15 +2403,35 @@ async function quickList(request, env) {
   for (const [k, v] of Object.entries(later)) if (!GARMS.includes(k) || garments.includes(k) || !/^\d{4}-\d{2}-\d{2}$/.test(String(v)) || String(v) <= today) return json({ error: "The later release dates need to be after today." }, 400);
   const dd = GARMS.map((t) => (garments.includes(t) ? today : later[t] ? String(later[t]) : ""));
   const ref = crypto.randomUUID();
-  const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: "auto", tag13: "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false", ...gagParts(d.parts) };
+  const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: ex ? ex.topicTags[0] : "auto", tag13: ex ? ex.topicTags[1] : "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false", ...gagParts(d.parts) };
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return json({ error: "Make didn't accept it (" + res.status + "). Nothing was written." }, 502);
   const saves = await loadSaves(env);
   saves.unshift({ ref, action: "now", gagId: "", stem: "List it now: " + stem, text, status: "pending", at: Date.now() });
   await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
-  L.unshift({ ref, stem, garments, stage: "saving", at: Date.now(), upd: Date.now(), runs: 0 });
+  L.unshift({ ref, stem, garments, stage: "saving", at: Date.now(), upd: Date.now(), runs: 0, ...(ex ? { ex } : {}) });
   await env.PENDING.put(QUICK_KEY, JSON.stringify(L.slice(0, 10)));
   return json({ ok: true });
+}
+// Exclusive reminders (Barry, 16 Nov): 1 hour and 4 hours after it's waiting in Approvals, and once at its use-by
+// time if it still isn't approved. Never publishes anything itself.
+const EX_META_KEY = "ex-meta";
+async function exTick(env) {
+  const M = (await env.PENDING.get(EX_META_KEY, "json")) || {}; const ids = Object.keys(M).filter((k) => !M[k].done); if (!ids.length) return;
+  const items = await loadItems(env), now = Date.now(); let changed = false;
+  for (const id of ids) {
+    const m = M[id], it = Object.values(items).find((x) => x.product === id + "-T-SHIRT");
+    if (it && it.status !== "pending") { m.done = true; changed = true; continue; }
+    if (now - m.at > 14 * 864e5) { m.done = true; changed = true; continue; }
+    const left = m.at + m.useBy * 3600e3 - now, hrs = Math.max(0, Math.round(left / 3600e3));
+    if (it && !m.readyAt) { m.readyAt = now; changed = true; }
+    if (m.readyAt && !m.r1 && now - m.readyAt >= 3600e3) { m.r1 = now; changed = true; await notify(env, "", "Exclusive waiting: " + m.stem, "Ready to approve. Use-by in about " + hrs + " hours.", "hourglass"); }
+    if (m.readyAt && !m.r4 && now - m.readyAt >= 4 * 3600e3) { m.r4 = now; changed = true; await notify(env, "", "Still waiting: " + m.stem, "The Exclusive T-shirt is in Approvals. Use-by in about " + hrs + " hours.", "hourglass"); }
+    if (!m.expired && left <= 0) { m.expired = now; changed = true;
+      const alerts = await loadAlerts(env); alerts.unshift({ id: crypto.randomUUID(), at: now, title: "Exclusive past its use-by: " + m.stem, body: "It's " + m.useBy + " hours since it was made and it hasn't been approved. Approve it if the topic is still fresh, or tap Scrap listing on its Approvals card.", link: "/approvals", source: "app" }); await saveAlerts(env, alerts);
+      await notify(env, "", "Use-by passed: " + m.stem, "Approve it if it's still fresh, or scrap it from Approvals.", "warning"); }
+  }
+  if (changed) await env.PENDING.put(EX_META_KEY, JSON.stringify(M));
 }
 async function quickTick(env) {
   const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
@@ -2546,6 +2587,15 @@ ${brandHeader("Gags")}
       <div class="fld o-cat" data-st="4"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
       <input type="hidden" id="tag12" value="auto"><input type="hidden" id="tag13" value="auto">
       <div class="fld o-season" data-st="5"><b>Best season <span class="small" style="font-weight:400">(optional)</span></b><div class="chips" id="seasonChips"></div><div id="seasonNote" class="small" style="margin-top:8px"></div></div>
+      <div class="fld o-extopic" data-st="9"><b>Topic &amp; checks</b>
+        <div id="exTopicNow" class="small"></div>
+        <div class="extags"><label>Topic tag 1 <span class="small excnt" id="exc1"></span><input id="ext1" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false"></label><div class="exw" id="exw1"></div>
+          <label>Topic tag 2 <span class="small excnt" id="exc2"></span><input id="ext2" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false"></label><div class="exw" id="exw2"></div></div>
+        <div class="exsec"><b class="small">All 13 Etsy tags</b><div id="ex13"></div></div>
+        <div class="exsec"><b class="small">Hashtags for Instagram and Facebook <span style="font-weight:400">(tap to switch on or off)</span></b><div class="chips" id="exHash"></div><div class="exadd"><input id="exHashAdd" placeholder="Add a hashtag" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn" type="button" id="exHashGo">Add</button></div><div class="small">Events are fine; never a person's name.</div></div>
+        <div class="exsec"><b class="small">Use by</b><div class="chips" id="exUse"></div><p class="small" style="margin:6px 0 0">You get a reminder 1 hour and 4 hours after it's ready to approve. If it still isn't approved by the use-by time, the app tells you so you can scrap it.</p></div>
+        <div class="exsec exchk"><b class="small">Before it's made</b><label><input type="checkbox" class="exck"> No names: it isn't about a real person</label><label><input type="checkbox" class="exck"> No tragedy: nobody died or got hurt</label><label><input type="checkbox" class="exck"> It's about what happened, not who people are</label></div>
+        <p class="small" style="margin:10px 0 0">T-shirt only. It's built straight away and nothing goes live until you approve it in Approvals.</p></div>
       <div class="fld o-garm" data-st="9"><b>Garments to list now</b><div class="chips" id="garmChips"></div><p class="small" style="margin:8px 0 0">Each garment is built one after another, about 15 minutes each. T-shirt only is quickest.</p></div>
       <div class="fld o-dates" data-st="6"><b>Release dates</b>
         <div class="four">
@@ -2612,6 +2662,13 @@ ${brandHeader("Gags")}
   .expage .exr{height:14px;background:#000;left:175.5px;width:3600px}
   .expage .ext{white-space:pre-wrap;overflow-wrap:break-word;letter-spacing:-0.04em;text-align:left}
   .expage .ext.ph{opacity:.18}.expage .ext.over{color:#b3261e}
+  .extags label{display:block;margin-top:10px}.excnt{float:right}.excnt.bad,.exw .bad{color:var(--warn)}.exw{font-size:13px;margin-top:4px;min-height:0}
+  .exsec{margin-top:16px}.exsec>b{display:block;margin-bottom:6px}
+  #ex13{display:flex;flex-wrap:wrap;gap:6px}#ex13 span{font-size:12.5px;padding:5px 9px;border-radius:99px;border:1px solid var(--line);background:var(--field)}
+  #ex13 span.k{border-color:#d8262c}#ex13 span.miss{border-style:dashed;color:var(--warn)}#ex13 i{font-style:normal;color:var(--muted);font-size:11px;margin-right:4px}
+  .exadd{display:flex;gap:8px;margin-top:8px}.exadd input{margin:0}.exadd .btn{width:auto;margin:0;min-height:44px;padding:0 16px}
+  .exchk label{display:flex;gap:10px;align-items:center;padding:8px 0;font-size:14.5px}.exchk input{width:22px;height:22px;margin:0;flex:none}
+  #exHash .chip{min-height:40px;font-weight:600}
   .draftnote{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #e6b450;border-radius:12px;background:rgba(230,180,80,.12);font-size:14px}.draftnote .btn{width:auto;min-height:38px;padding:0 14px;margin:0}
   #boxes{display:flex;flex-direction:column;gap:14px}#boxes:empty{display:none}
   #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
@@ -2702,6 +2759,8 @@ window.SEASON_LOCK = ${JSON.stringify(lockIds)};
 window.CAT_WORDS = ${JSON.stringify(catWords).replace(/</g, "\\u003c")};
 window.GAG_STARS = ${JSON.stringify((await env.PENDING.get(STARS_KEY, "json")) || {})};
 window.GAG_TARGETS = ${JSON.stringify((await env.PENDING.get("gag-targets", "json")) || {})};
+window.EX_TAGSET = ${JSON.stringify((await env.PENDING.get("ex-tagset", "json")) || { product: [], gag: [] }).replace(/</g, "\\u003c")};
+window.TAG_BLOCK = ${JSON.stringify(await tagBlocklist(env)).replace(/</g, "\\u003c")};
 window.TEXT_RULES = ${JSON.stringify((((await env.PENDING.get("text-rules", "json")) || {}).rules) || {}).replace(/</g, "\\u003c")};
 ${GAGS_SCRIPT}
 ${GAG_CHIPS_SCRIPT}
@@ -2709,6 +2768,7 @@ ${GAG_SEASON_SCRIPT}
 ${GAG_EXTRA_SCRIPT}
 ${GAG_LAMPS_SCRIPT}
 ${GAG_BOXES_SCRIPT}
+${GAG_EX_SCRIPT}
 ${GAG_WIZARD_SCRIPT}
 ${GAG_DRAFT_SCRIPT}</script>`);
 }
@@ -2828,7 +2888,7 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
     if (restoring || (typeof mode !== "undefined" && mode === "edit")) return;
     if (!window.gagDirty()) { try { localStorage.removeItem(KEY); } catch (e) {} return; }
     var d = { at: Date.now(), collection: el("collection").value, category: el("category").value, text: el("text").value, parts: boxVals(), stem: el("stem").value,
-      dates: ["d1", "d2", "d3", "d4"].map(function (k) { return el(k).value; }), touched: typeof datesTouched !== "undefined" && datesTouched, stars: window.starPick || 0, now: new URLSearchParams(location.search).get("now") === "1" };
+      dates: ["d1", "d2", "d3", "d4"].map(function (k) { return el(k).value; }), touched: typeof datesTouched !== "undefined" && datesTouched, stars: window.starPick || 0, ex: window.exState ? window.exState() : null, now: new URLSearchParams(location.search).get("now") === "1" };
     try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
   }
   function later() { clearTimeout(t); t = setTimeout(snap, 400); }
@@ -2853,6 +2913,7 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
       if (d.stem) { el("stem").value = d.stem; fire(el("stem"), "input"); }
       if (d.touched && d.dates) { ["d1", "d2", "d3", "d4"].forEach(function (k, i) { el(k).value = d.dates[i] || ""; }); try { datesTouched = true; } catch (e) {} }
       if (d.stars) window.starPick = d.stars;
+      if (d.ex && window.exRestore && el("collection").value === "EXCLUSIVE") window.exRestore(d.ex);
     } catch (e) {}
     restoring = false;
     var note = document.createElement("div"); note.className = "draftnote";
@@ -2862,6 +2923,65 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
     setTimeout(function () { var w = document.querySelector("[data-go='2']"); if (w) w.click(); }, 50);
   }
   setTimeout(restore, 150);
+})();`;
+
+// Exclusive "create now" step (Barry, 16 Nov): two topic tags (checked against the trade-mark blocklist), the full
+// 13-tag preview, hashtags to approve, a use-by time and the three checks. Always T-shirt only, never auto-published.
+const GAG_EX_SCRIPT = String.raw`(function () {
+  var USE = [24, 48, 72], useBy = 48, HASH = {}, HASHON = {}, AUTO = {}, lastTopic = "";
+  function el(id) { return document.getElementById(id); }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function norm(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").replace(/^ /, ""); }
+  function blocked(t) { var s = " " + norm(t).trim() + " "; return (window.TAG_BLOCK || []).filter(function (b) { return b && s.indexOf(" " + b + " ") >= 0; })[0] || ""; }
+  function titleTag() { var s = String(el("stem").value || "").replace(/\s+/g, " ").trim().toLowerCase(); if (s.length <= 20) return s; return s.split(" ").reduce(function (a, b) { return b.length > a.length ? b : a; }, "").slice(0, 20); }
+  function topicTags() { return [norm(el("ext1").value).trim(), norm(el("ext2").value).trim()]; }
+  function checkTag(i) {
+    var inp = el("ext" + i), v = norm(inp.value); if (v !== inp.value) { var a = inp.selectionStart; inp.value = v; try { inp.setSelectionRange(a, a); } catch (e) {} }
+    var t = v.trim(), c = el("exc" + i), w = el("exw" + i), b = blocked(t), other = topicTags()[2 - i];
+    c.textContent = t.length + "/20"; c.className = "small excnt" + (t.length > 20 ? " bad" : "");
+    var msg = t.length > 20 ? "Too long for Etsy (20 letters at most)." : b ? "“" + b + "” is a trade mark (on the blocklist), so Etsy could take the listing down." : t && t === other ? "Same as the other topic tag." : "";
+    w.innerHTML = msg ? '<span class="bad">' + esc(msg) + "</span>" : ""; return !msg;
+  }
+  function draw13() {
+    var T = window.EX_TAGSET || {}, tt = topicTags(), all = [];
+    (T.product || []).forEach(function (x) { all.push(["Product", x]); });
+    (T.gag || []).forEach(function (x) { all.push(["Topical", x]); });
+    all.push(["Title", titleTag()]); all.push(["Topic", tt[0]]); all.push(["Topic", tt[1]]);
+    el("ex13").innerHTML = all.map(function (x) { return '<span class="' + (x[0] === "Topic" ? "k" : "") + (x[1] ? "" : " miss") + '"><i>' + x[0] + "</i>" + esc(x[1] || "missing") + "</span>"; }).join("") +
+      '<div class="small" style="flex-basis:100%;margin-top:4px">The five Topical ones are the likeliest; the tag engine makes the final pick when it builds.</div>';
+  }
+  function hashOf(t) { return "#" + String(t || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+  function drawHash() {
+    // Hashtags made from the topic tags follow the tags: change a tag and its old hashtag goes (unless you added it yourself).
+    var tt = topicTags(), want = {}; tt.forEach(function (t) { var h = hashOf(t); if (h.length > 2 && !blocked(t)) want[h] = 1; });
+    Object.keys(AUTO).forEach(function (h) { if (!want[h]) { delete HASH[h]; delete HASHON[h]; delete AUTO[h]; } });
+    Object.keys(want).forEach(function (h) { if (!(h in HASH)) { HASH[h] = 1; HASHON[h] = true; AUTO[h] = 1; } });
+    ["#introverthere", "#introvert", "#topicalhumour"].forEach(function (h) { if (!(h in HASHON)) { HASH[h] = 1; HASHON[h] = h === "#introverthere"; } });
+    el("exHash").innerHTML = Object.keys(HASH).map(function (h) { return '<button type="button" class="chip' + (HASHON[h] ? " on" : "") + '" data-h="' + esc(h) + '">' + esc(h) + "</button>"; }).join("");
+  }
+  function drawUse() { el("exUse").innerHTML = USE.map(function (h) { return '<button type="button" class="chip' + (useBy === h ? " on" : "") + '" data-u="' + h + '">' + h + " hours</button>"; }).join(""); }
+  function topicLine() {
+    var T = window.exTopic && window.exTopic();
+    el("exTopicNow").innerHTML = T ? "Topic: <b>" + esc(T.t) + "</b>" + ((T.f || []).length ? ' <span style="color:var(--warn)">(' + T.f.map(function (f) { return f === "name" ? "may name someone" : "may involve a tragedy"; }).join(", ") + ")</span>" : "") : "No headline picked. Type your own topic tags.";
+    if (T && T.t !== lastTopic) { lastTopic = T.t; if (!el("ext1").value && T.tags[0]) el("ext1").value = T.tags[0]; if (!el("ext2").value && T.tags[1]) el("ext2").value = T.tags[1]; }
+  }
+  function all() { topicLine(); checkTag(1); checkTag(2); draw13(); drawHash(); drawUse(); }
+  ["ext1", "ext2"].forEach(function (id) { el(id).addEventListener("input", function () { checkTag(1); checkTag(2); draw13(); drawHash(); }); });
+  el("stem").addEventListener("input", draw13);
+  el("exHash").addEventListener("click", function (e) { var b = e.target.closest("[data-h]"); if (!b) return; HASHON[b.dataset.h] = !HASHON[b.dataset.h]; drawHash(); });
+  el("exHashGo").addEventListener("click", function () { var h = hashOf(el("exHashAdd").value); if (h.length < 3) return; HASH[h] = 1; HASHON[h] = true; delete AUTO[h]; el("exHashAdd").value = ""; drawHash(); });
+  el("exUse").addEventListener("click", function (e) { var b = e.target.closest("[data-u]"); if (!b) return; useBy = Number(b.dataset.u); drawUse(); });
+  window.exStepShown = all;
+  window.exReady = function () {
+    var tt = topicTags(); if (!tt[0] || !tt[1]) return "Add both topic tags.";
+    if (!checkTag(1) || !checkTag(2)) return "Fix the topic tags first.";
+    if (Array.prototype.some.call(document.querySelectorAll(".exck"), function (c) { return !c.checked; })) return "Tick all three checks first.";
+    return "";
+  };
+  window.exMeta = function () { var T = window.exTopic && window.exTopic(); return { topic: T ? T.t : "", flags: T ? T.f || [] : [], topicTags: topicTags(), hashtags: Object.keys(HASH).filter(function (h) { return HASHON[h]; }), useBy: useBy, checks: true }; };
+  window.exState = function () { return { t1: el("ext1").value, t2: el("ext2").value, hash: HASH, on: HASHON, auto: AUTO, useBy: useBy }; };
+  window.exRestore = function (d) { if (!d) return; el("ext1").value = d.t1 || ""; el("ext2").value = d.t2 || ""; HASH = d.hash || {}; HASHON = d.on || {}; AUTO = d.auto || {}; useBy = d.useBy || 48; all(); };
+  all();
 })();`;
 
 // Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
@@ -2877,9 +2997,10 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
     if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
     var lt = Object.keys(later || {}), nice = function (iso) { return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
-    if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's built straight away and comes to Approvals before it goes live." + (lt.length ? String.fromCharCode(10) + "Then: " + lt.map(function (k) { return GN.filter(function (x) { return x[0] === k; })[0][1] + " " + nice(later[k]); }).join(", ") + "." : ""))) return;
+    if (document.getElementById("collection").value === "EXCLUSIVE") { if (!confirm("Make " + st.value + " now?" + String.fromCharCode(10, 10) + "Exclusive T-shirt. It's built straight away and waits in Approvals; nothing goes live until you approve it.")) return; }
+    else if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's built straight away and comes to Approvals before it goes live." + (lt.length ? String.fromCharCode(10) + "Then: " + lt.map(function (k) { return GN.filter(function (x) { return x[0] === k; })[0][1] + " " + nice(later[k]); }).join(", ") + "." : ""))) return;
     btn.disabled = true; btn.textContent = "Starting…";
-    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {}, parts: window.boxParts ? window.boxParts() : null }) })
+    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {}, parts: window.boxParts ? window.boxParts() : null, ex: document.getElementById("collection").value === "EXCLUSIVE" && window.exMeta ? window.exMeta() : null }) })
       .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
       .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } if (window.gagDraftClear) window.gagDraftClear(); location.href = "/"; })
       .catch(function () { alert("Couldn't reach the app. Nothing was changed."); btn.disabled = false; btn.textContent = label; });
@@ -2909,7 +3030,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   }
   window.quickLater = laterPopup;
   document.getElementById("form").addEventListener("submit", function (e) {
-    if (NOW || !Object.keys(NOWSET).length) return;
+    if (NOW || !Object.keys(NOWSET).length || document.getElementById("collection").value === "EXCLUSIVE") return;
     e.preventDefault(); e.stopImmediatePropagation();
     var keys = GN.map(function (x) { return x[0]; }).filter(function (k) { return NOWSET[k]; }), boxes = {};
     DIDS.forEach(function (id, i) { var v = document.getElementById(id).value; if (v) boxes[GN[i][0]] = v; });
@@ -2922,10 +3043,17 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     document.getElementById("save").textContent = "List it now";
     chipsFor("garmChips"); document.getElementById("nowHint").style.display = "none";
     document.title = "List it now";
-    document.getElementById("form").addEventListener("submit", function (e) { e.preventDefault(); e.stopImmediatePropagation();
+    document.getElementById("form").addEventListener("submit", function (e) { if (document.getElementById("collection").value === "EXCLUSIVE") return; e.preventDefault(); e.stopImmediatePropagation();
       var keys = Object.keys(GSEL); if (!keys.length) { alert("Pick at least one garment."); return; }
       window.quickLater(keys, null, function (later) { quickGo(document.getElementById("save"), "List it now", later); }); }, true);
   }
+  // Exclusive gets its own last step and always lists now, T-shirt only (Barry, 16 Nov).
+  document.getElementById("form").addEventListener("submit", function (e) {
+    if (document.getElementById("collection").value !== "EXCLUSIVE") return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var w = window.exReady ? window.exReady() : ""; if (w) { alert(w); return; }
+    GSEL = { "T-SHIRT": 1 }; quickGo(document.getElementById("save"), "List it now", {});
+  }, true);
   var FROM = (new URLSearchParams(location.search).get("from") || "").replace(/[^A-Z]/g, "").slice(0, 2);
   if (FROM) { var bl = document.getElementById("wzList"); bl.href = "/?rlist=" + FROM; bl.hidden = false; window.GAG_FROM = FROM; }
   function el(id) { return document.getElementById(id); }
@@ -3005,6 +3133,20 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   // Picking a gag to edit goes back to its text.
   el("results").addEventListener("click", function (e) { if (e.target.closest(".result")) setTimeout(function () { go(2); }, 0); });
   go(1);
+  // Steps depend on the range: Exclusive swaps Rating/Season/Dates for one "Topic & checks" step.
+  var BASE_STEPS = STEPS.slice(), EX_STEPS = ["Range", "Gag", "Title stem", "Category", "Topic & checks"];
+  Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.dataset.ost = x.dataset.st; });
+  function rangeSteps() {
+    var ex = el("collection").value === "EXCLUSIVE";
+    Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.dataset.st = x.dataset.ost; });
+    if (ex) { STEPS = EX_STEPS; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; }); document.querySelector(".o-extopic").dataset.st = "5"; el("save").textContent = "List it now"; }
+    else { STEPS = BASE_STEPS; el("save").textContent = NOW ? "List it now" : Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }
+    go(Math.min(cur, STEPS.length));
+  }
+  el("collection").addEventListener("change", rangeSteps);
+  el("wzBar").addEventListener("click", function () { if (cur === 5 && window.exStepShown && el("collection").value === "EXCLUSIVE") window.exStepShown(); });
+  el("wzNext").addEventListener("click", function () { setTimeout(function () { if (cur === 5 && window.exStepShown && el("collection").value === "EXCLUSIVE") window.exStepShown(); }, 0); });
+  rangeSteps();
 })();`;
 
 // Status lights in the preview header; the full warnings sit under the text box and only show when something's wrong.
