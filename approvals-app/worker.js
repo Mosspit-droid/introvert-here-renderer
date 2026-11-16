@@ -2659,7 +2659,7 @@ async function gagsPage(env) {
   return shell(`
 ${brandHeader("Gags")}
 <div class="small" id="synced">${g ? "Core read " + esc(when(g.at)) : "Not read from Core yet. Tap Sync to Core."}</div>
-<form id="form" class="gwrap">
+<form id="form" class="gwrap" autocomplete="off">
   <div class="gacts o-acts"><a class="btn link" href="/check">${icon("check")}Check for problems</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button></div>
   <div class="gcol gL">
     <div class="frame g-prev o-prev"><div class="card"><div class="prevhead"><h3 class="sideh">Preview</h3><span class="lamp" id="lFit">Fits</span><span class="lamp" id="lSpell">Spelling</span></div><div id="stage"><div id="pbox"></div></div></div></div>
@@ -2996,11 +2996,15 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
   function realText(v) { return String(v || "").replace(/^[\s.…]+/, "").trim(); }
   window.gagDirty = function () {
     var b = boxVals(); if (Object.keys(b).some(function (k) { return b[k].trim(); })) return true;
-    return !!(realText(el("text").value) || el("stem").value.trim() || el("category").value || (el("pick") && el("pick").style.display === "block" && typeof editing !== "undefined" && editing));
+    var multi = window.isMulti && window.isMulti();
+    return !!((!multi && realText(el("text").value)) || el("stem").value.trim() || el("category").value || (el("pick") && el("pick").style.display === "block" && typeof editing !== "undefined" && editing));
   };
+  function gagEmpty() { var b = boxVals(), multi = window.isMulti && window.isMulti(); return multi ? !Object.keys(b).some(function (k) { return b[k].trim(); }) : !realText(el("text").value); }
+  function draftHasGag(d) { return !!(d && (realText(d.text) || Object.keys(d.parts || {}).some(function (k) { return String(d.parts[k] || "").trim(); }))); }
   function snap() {
     if (restoring || (typeof mode !== "undefined" && mode === "edit")) return;
     if (!window.gagDirty()) return;   // an empty form never wipes the draft: only Save, Discard or Clear do
+    if (gagEmpty()) { var old0 = null; try { old0 = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {} if (draftHasGag(old0)) return; }   // never replace a saved gag with blank boxes
     var d = { at: Date.now(), collection: el("collection").value, category: el("category").value, text: el("text").value, parts: boxVals(), stem: el("stem").value,
       dates: ["d1", "d2", "d3", "d4"].map(function (k) { return el(k).value; }), touched: typeof datesTouched !== "undefined" && datesTouched, stars: window.starPick || 0, ex: window.exState ? window.exState() : null, now: new URLSearchParams(location.search).get("now") === "1" };
     try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
@@ -3013,9 +3017,9 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
   el("clear").addEventListener("click", function () { setTimeout(function () { if (!window.gagDirty()) { window.gagDraftClear(); restoring = false; document.querySelectorAll(".draftnote").forEach(function (n) { n.remove(); }); } }, 50); });
   // If the form ever goes blank without you pressing Clear, offer the last draft back straight away (no reload needed).
   setInterval(function () {
-    if (restoring || document.querySelector(".draftnote") || window.gagDirty() || (typeof mode !== "undefined" && mode === "edit")) return;
+    if (restoring || document.querySelector(".draftnote") || !gagEmpty() || (typeof mode !== "undefined" && mode === "edit")) return;
     var d = null; try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
-    if (!d || Date.now() - d.at > 14 * 864e5) return;
+    if (!d || !draftHasGag(d) || Date.now() - d.at > 14 * 864e5) return;
     var note = document.createElement("div"); note.className = "draftnote";
     note.innerHTML = "<span>The form went blank. Your gag from " + new Date(d.at).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) + " is safe.</span><button type=\"button\" class=\"btn\" data-back=\"1\">Bring it back</button><button type=\"button\" class=\"btn\" data-bin=\"1\">Bin it</button>";
     var gr = document.querySelector(".gR"); gr.insertBefore(note, gr.children[1] || null);
@@ -3027,12 +3031,17 @@ const GAG_DRAFT_SCRIPT = String.raw`(function () {
     var d = null; try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
     if (!d || Date.now() - d.at > 14 * 864e5) return;
     if (new URLSearchParams(location.search).get("edit")) return;   // opening a specific gag to edit: leave the draft for later
-    if (window.gagDirty()) return;
+    var cur = boxVals(), curHas = Object.keys(cur).some(function (k) { return cur[k].trim(); }) || (!(window.isMulti && window.isMulti()) && realText(el("text").value) && realText(el("text").value) !== realText(d.text));
+    if (curHas) return;   // only skip if there are real typed words on screen (the browser refilling stray fields doesn't count)
     restoring = true;
     try {
       if (d.collection && Array.prototype.some.call(el("collection").options, function (o) { return o.value === d.collection; })) { el("collection").value = d.collection; fire(el("collection"), "change"); }
       var multi = window.isMulti && window.isMulti();
-      if (multi) { document.querySelectorAll("#boxes textarea[data-col]").forEach(function (x) { if (d.parts && d.parts[x.dataset.col] != null) { x.value = d.parts[x.dataset.col]; fire(x, "input"); } }); }
+      if (multi) {
+        var P = d.parts || {}, hasP = Object.keys(P).some(function (k) { return String(P[k] || "").trim(); });
+        var bits = hasP ? null : String(d.text || "").replace(/^[\s.…]+$/, "").split(/\n\s*\n/);
+        document.querySelectorAll("#boxes textarea[data-col]").forEach(function (x, i) { var v = hasP ? P[x.dataset.col] : bits && bits[i]; if (v != null && v !== "") { x.value = v; fire(x, "input"); } });
+      }
       else if (realText(d.text)) { el("text").value = d.text; fire(el("text"), "input"); }
       if (d.category) { if (!Array.prototype.some.call(el("category").options, function (o) { return o.value === d.category; })) { var o = document.createElement("option"); o.value = o.textContent = d.category; el("category").appendChild(o); } el("category").value = d.category; fire(el("category"), "change"); }
       if (d.stem) { el("stem").value = d.stem; fire(el("stem"), "input"); }
