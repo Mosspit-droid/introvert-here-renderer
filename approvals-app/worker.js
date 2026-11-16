@@ -860,6 +860,11 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .need.hot{border-color:var(--frame);box-shadow:inset 0 0 0 1px var(--frame)}
 .need.warn .big{color:var(--warn)}
 .need.run .big{color:var(--info)}
+.qd{display:inline-flex;gap:6px;align-items:center}.qd i{width:13px;height:13px;border-radius:50%;border:2px solid var(--info);box-sizing:border-box}
+.qd[data-s="2"] i:nth-child(1),.qd[data-s="3"] i:nth-child(-n+2){background:var(--info)}
+.qd[data-s="1"] i:nth-child(1),.qd[data-s="2"] i:nth-child(2),.qd[data-s="3"] i:nth-child(3){animation:qdp 1.2s ease-in-out infinite}
+@keyframes qdp{0%,100%{background:transparent}50%{background:var(--info)}}
+@media (prefers-reduced-motion:reduce){.qd i{animation:none!important}}
 .need.quiet .big{color:var(--dim)}
 .tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .tiles .tile,.tiles .tile.primary{grid-column:span 1}
@@ -1844,7 +1849,7 @@ ${prog}
 ${(() => { const QS = { saving: "Saving to Core…", tags: "Approving its tags…", build: "Building on Etsy (one garment at a time, about 15 minutes each)…" };
   const quickCards = quick.map((j) => j.stage === "done" ? need("run", "✓", "Listed: " + esc(j.stem), "Built. Its video comes to Approvals; approve to go live and post.", "/approvals")
     : ["failed", "stuck"].includes(j.stage) ? need("hot", "!", "List it now: " + esc(j.stem), esc(j.msg || "Something went wrong."), "/alerts")
-    : need("run", "…", "Listing now: " + esc(j.stem), esc(j.msg || QS[j.stage] || "") + " · " + esc(j.garments.map((t) => t.charAt(0) + t.slice(1).toLowerCase()).join(", ")), "/")).join("");
+    : need("run", '<span class="qd" data-s="' + ({ saving: 1, tags: 2, build: 3 }[j.stage] || 1) + '" aria-label="Step ' + ({ saving: 1, tags: 2, build: 3 }[j.stage] || 1) + ' of 3"><i></i><i></i><i></i></span>', "Listing now: " + esc(j.stem), esc(j.msg || QS[j.stage] || "") + " · " + esc(j.garments.map((t) => t.charAt(0) + t.slice(1).toLowerCase()).join(", ")), "/")).join("");
   const cards = [quickCards, need("hot", pending.length, "Videos to approve", pending.length ? "Oldest waiting " + ago(oldest) : "All caught up", "/approvals"),
 (new Date().toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" }) === "Saturday" ? need("warn", weekReleases(gags).length, "Check next week's releases", "Read through the gags going out in the next 7 days", "/week") : "") +
 need("warn", alerts.length, "Alerts", alerts.length ? esc(alerts[0].title).slice(0, 60) : "Nothing to look at", "/alerts") +
