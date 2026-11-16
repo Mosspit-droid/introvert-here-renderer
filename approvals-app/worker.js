@@ -2349,6 +2349,12 @@ async function quickTick(env) {
   const sc = g && (g.sched || []).find((x) => x.id === j.gagId);
   const done = sc && j.garments.every((t) => sc.b && sc.b[GARMS.indexOf(t)]);
   if (done) { j.stage = "done"; j.upd = now; await save(); await notify(env, "", "Listed: " + j.stem, j.garments.length + " listing" + (j.garments.length === 1 ? "" : "s") + " built. The video comes to Approvals; approve it to go live and post.", "white_check_mark"); return; }
+  // Make sure its tags are approved before the builder looks (16 Nov: the row add once left APPROVED = FALSE, so the builder skipped it).
+  if (sc && sc.r && !j.apprAt) {
+    const err = await amendHook(env, { action: "apply", ops: JSON.stringify([amendCell("GAG_TAGS", "APPROVED", sc.r - 2, "TRUE")]), delay: "1", run: "no" });
+    if (!err) { j.apprAt = now; j.tagAt = now; }
+    await save(); return;
+  }
   if (env.MAKE_GAGSYNC_HOOK && (!j.syncAt || now - j.syncAt > 9 * 60e3)) { j.syncAt = now; await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "quick" }) }).catch(() => {}); }
   if (now - j.tagAt < 3 * 60e3) { await save(); return; }
   if (j.runs >= j.garments.length * 2 + 2 || now - j.at > 4 * 3600e3) return await fail("stuck", "The builder ran " + j.runs + " times but not every garment was built. Check Alerts and Make.");
