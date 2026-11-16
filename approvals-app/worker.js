@@ -344,7 +344,7 @@ async function result(request, env, ctx, url) {
   await saveItems(env, items);
 
   if (ok) {
-    ctx.waitUntil(notify(env, url.origin, item.product + " is live", item.social === false ? "Live on Etsy with its new video (not posted to social)." : "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
+    ctx.waitUntil(notify(env, url.origin, item.product + " is live", item.social === false ? "Live on Etsy with its new video (not posted to social)." : /^EX-/.test(str(item.product)) ? "Live on Etsy and posted to Instagram and Facebook." : "Live on Etsy and posted to Pinterest, Instagram and Facebook.", "white_check_mark", "low"));
   } else {
     ctx.waitUntil(notify(env, url.origin, item.product + ": approval FAILED" + (item.result.step ? " at " + item.result.step : ""), item.result.message || "Open the app for details.", "x"));
   }
@@ -520,7 +520,14 @@ async function approveItem(request, env) {
   if (!item || item.code !== str(data.code)) return json({ error: "That item has changed. Refresh the page." }, 409);
   if (item.status !== "pending") return json({ error: "This one has already been handled." }, 409);
   const social = str(data.social) !== "no";
-  const res = await fetch(approveUrl(item, social), { method: "GET" });
+  // Exclusive (Barry, 16 Nov): Instagram + Facebook only (Make skips Pinterest when ex=1), with the hashtags approved in the gag tool.
+  let extra = "";
+  if (/^EX-/.test(str(item.product))) {
+    const M = (await env.PENDING.get(EX_META_KEY, "json")) || {}, m = M[str(item.product).replace(/-T-SHIRT$/, "")] || {};
+    const tags = (m.hashtags && m.hashtags.length ? m.hashtags : ["#introverthere"]).join(" ");
+    extra = "&ex=1&hashtags=" + encodeURIComponent(tags);
+  }
+  const res = await fetch(approveUrl(item, social) + extra, { method: "GET" });
   if (!res.ok) return json({ error: "Make didn't accept the approval (" + res.status + "). Nothing was changed." }, 502);
   item.status = "approved"; item.approvedAt = Date.now(); item.updatedAt = Date.now(); item.social = social;
   await saveItems(env, items);
@@ -2007,7 +2014,7 @@ function approve(d) {
     const social = $("askSoc").checked ? "yes" : "no";
     try { await post("/api/approve", { row: d.row, code: d.code, social }); toast(social === "no" ? "Approved: video only, not posted to social" : "Approved: going live"); setTimeout(() => location.reload(), 1200); }
     catch (err) { d.card.style.opacity = ""; d.card.style.transform = ""; toast(err.message, true); }
-  }, { on: !posted, label: "Also post to Pinterest, Instagram and Facebook" });
+  }, { on: !posted, label: /^EX-/.test(d.product) ? "Also post to Instagram and Facebook (with its hashtags)" : "Also post to Pinterest, Instagram and Facebook" });
 }
 function remake(d) {
   ask("Remake the video for " + d.product + "?", "This video is rejected and a new one is made from what's in Core and on the Etsy listing now. It'll appear here in a few minutes.", "Remake", async () => {
