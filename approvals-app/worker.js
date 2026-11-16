@@ -2612,6 +2612,7 @@ ${brandHeader("Gags")}
   .expage .exr{height:14px;background:#000;left:175.5px;width:3600px}
   .expage .ext{white-space:pre-wrap;overflow-wrap:break-word;letter-spacing:-0.04em;text-align:left}
   .expage .ext.ph{opacity:.18}.expage .ext.over{color:#b3261e}
+  .draftnote{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #e6b450;border-radius:12px;background:rgba(230,180,80,.12);font-size:14px}.draftnote .btn{width:auto;min-height:38px;padding:0 14px;margin:0}
   #boxes{display:flex;flex-direction:column;gap:14px}#boxes:empty{display:none}
   #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
   .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
@@ -2708,7 +2709,8 @@ ${GAG_SEASON_SCRIPT}
 ${GAG_EXTRA_SCRIPT}
 ${GAG_LAMPS_SCRIPT}
 ${GAG_BOXES_SCRIPT}
-${GAG_WIZARD_SCRIPT}</script>`);
+${GAG_WIZARD_SCRIPT}
+${GAG_DRAFT_SCRIPT}</script>`);
 }
 
 // Gag boxes per range, from Core's GAG_TEXT_RULES (Barry, 15 Nov). One-box ranges keep the classic gag box;
@@ -2811,6 +2813,57 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   if (document.fonts) Promise.all([document.fonts.load("400 100px Anton", "W"), document.fonts.load("italic 400 100px Newsreader", "W")]).then(function () { if (window.isMulti()) window.exPreview(); }).catch(function () {});
 })();`;
 
+// Unsaved draft (Barry, 16 Nov): everything typed or picked is kept in this browser as you go and put back when the
+// page opens again, so a reload, a tab switch on the tablet or a crash never loses a gag. Cleared once it's saved.
+const GAG_DRAFT_SCRIPT = String.raw`(function () {
+  var KEY = "gagDraft:v1", t = null, restoring = false;
+  function el(id) { return document.getElementById(id); }
+  function boxVals() { var o = {}; document.querySelectorAll("#boxes textarea[data-col]").forEach(function (x) { o[x.dataset.col] = x.value; }); return o; }
+  function realText(v) { return String(v || "").replace(/^[\s.…]+/, "").trim(); }
+  window.gagDirty = function () {
+    var b = boxVals(); if (Object.keys(b).some(function (k) { return b[k].trim(); })) return true;
+    return !!(realText(el("text").value) || el("stem").value.trim() || el("category").value || (el("pick") && el("pick").style.display === "block" && typeof editing !== "undefined" && editing));
+  };
+  function snap() {
+    if (restoring || (typeof mode !== "undefined" && mode === "edit")) return;
+    if (!window.gagDirty()) { try { localStorage.removeItem(KEY); } catch (e) {} return; }
+    var d = { at: Date.now(), collection: el("collection").value, category: el("category").value, text: el("text").value, parts: boxVals(), stem: el("stem").value,
+      dates: ["d1", "d2", "d3", "d4"].map(function (k) { return el(k).value; }), touched: typeof datesTouched !== "undefined" && datesTouched, stars: window.starPick || 0, now: new URLSearchParams(location.search).get("now") === "1" };
+    try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function later() { clearTimeout(t); t = setTimeout(snap, 400); }
+  ["input", "change", "click"].forEach(function (ev) { el("form").addEventListener(ev, later, true); });
+  document.addEventListener("visibilitychange", function () { if (document.hidden) snap(); });
+  window.addEventListener("pagehide", snap);
+  window.gagDraftClear = function () { clearTimeout(t); restoring = true; try { localStorage.removeItem(KEY); } catch (e) {} };
+  el("clear").addEventListener("click", function () { setTimeout(function () { if (!window.gagDirty()) window.gagDraftClear(), restoring = false; }, 50); });
+  function fire(x, ev) { x.dispatchEvent(new Event(ev, { bubbles: true })); }
+  function restore() {
+    var d = null; try { d = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
+    if (!d || Date.now() - d.at > 14 * 864e5) return;
+    if (new URLSearchParams(location.search).get("edit")) return;   // opening a specific gag to edit: leave the draft for later
+    if (window.gagDirty()) return;
+    restoring = true;
+    try {
+      if (d.collection && Array.prototype.some.call(el("collection").options, function (o) { return o.value === d.collection; })) { el("collection").value = d.collection; fire(el("collection"), "change"); }
+      var multi = window.isMulti && window.isMulti();
+      if (multi) { document.querySelectorAll("#boxes textarea[data-col]").forEach(function (x) { if (d.parts && d.parts[x.dataset.col] != null) { x.value = d.parts[x.dataset.col]; fire(x, "input"); } }); }
+      else if (realText(d.text)) { el("text").value = d.text; fire(el("text"), "input"); }
+      if (d.category) { if (!Array.prototype.some.call(el("category").options, function (o) { return o.value === d.category; })) { var o = document.createElement("option"); o.value = o.textContent = d.category; el("category").appendChild(o); } el("category").value = d.category; fire(el("category"), "change"); }
+      if (d.stem) { el("stem").value = d.stem; fire(el("stem"), "input"); }
+      if (d.touched && d.dates) { ["d1", "d2", "d3", "d4"].forEach(function (k, i) { el(k).value = d.dates[i] || ""; }); try { datesTouched = true; } catch (e) {} }
+      if (d.stars) window.starPick = d.stars;
+    } catch (e) {}
+    restoring = false;
+    var note = document.createElement("div"); note.className = "draftnote";
+    note.innerHTML = "<span>Your unsaved gag from " + new Date(d.at).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }) + " is back.</span><button type=\"button\" class=\"btn\">Discard it</button>";
+    var gr = document.querySelector(".gR"); gr.insertBefore(note, gr.children[1] || null);
+    note.querySelector("button").onclick = function () { if (!confirm("Throw away the restored gag?")) return; window.gagDraftClear(); location.reload(); };
+    setTimeout(function () { var w = document.querySelector("[data-go='2']"); if (w) w.click(); }, 50);
+  }
+  setTimeout(restore, 150);
+})();`;
+
 // Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
 const GAG_WIZARD_SCRIPT = String.raw`(function () {
   var STEPS = ["Range", "Gag", "Title stem", "Category", "Rating & season", "Dates"], cur = 1;   // range first (Barry, 15 Nov): the range decides which boxes the gag step shows
@@ -2828,7 +2881,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     btn.disabled = true; btn.textContent = "Starting…";
     fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {}, parts: window.boxParts ? window.boxParts() : null }) })
       .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
-      .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } location.href = "/"; })
+      .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } if (window.gagDraftClear) window.gagDraftClear(); location.href = "/"; })
       .catch(function () { alert("Couldn't reach the app. Nothing was changed."); btn.disabled = false; btn.textContent = label; });
   }
   // "Now" on a release date (Barry, 14 Nov): publish that garment straight away; a pop-up spaces out the rest.
@@ -3319,6 +3372,7 @@ $("form").addEventListener("submit", async (e) => {
   }
   if (body.gagId && (window.starPick || (window.GAG_STARS || {})[body.gagId])) await fetch('/api/stars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: body.gagId, n: window.starPick || 0 }) }).catch(() => {});
   try { sessionStorage.setItem("gagTop", "1"); } catch (e) {}
+  if (window.gagDraftClear) window.gagDraftClear();
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
   window.scrollTo(0, 0); if (window.GAG_FROM) location.href = "/?rlist=" + window.GAG_FROM; else location.reload();
 });
@@ -3343,7 +3397,9 @@ setInterval(async () => {
   try {
     const s = await (await fetch('/api/gags-state')).json(); const sig = JSON.stringify(s);
     if (last === null) { last = sig; return; }
-    const typing = document.activeElement && ["TEXTAREA","INPUT","SELECT"].includes(document.activeElement.tagName) && $("text").value;
+    // Reload only when the form is untouched and the page is on screen (Barry, 16 Nov: the old check only looked at
+    // whether the cursor was in a box, so tapping a chip or closing the keyboard let a Core change wipe a half-written gag).
+    const typing = (window.gagDirty && window.gagDirty()) || document.hidden;
     if (sig !== last && !typing) location.reload();
     else if (sig !== last && typing) {
       // Core changed while you're typing: pick up the new row info without reloading the page.
