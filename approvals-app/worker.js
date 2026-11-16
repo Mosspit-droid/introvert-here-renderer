@@ -2159,7 +2159,7 @@ async function gagResult(request, env, ctx, url) {
     await env.PENDING.put(SAVES_KEY, JSON.stringify(saves));
   }
   const QJ = (await env.PENDING.get(QUICK_KEY, "json")) || [], qj = QJ.find((j) => j.ref === str(data.ref));
-  if (qj) { if (ok && str(data.gagId)) { qj.gagId = str(data.gagId); qj.stage = "tags"; } else { qj.stage = "failed"; qj.msg = str(data.message) || "Core refused the gag."; } qj.upd = Date.now(); await env.PENDING.put(QUICK_KEY, JSON.stringify(QJ)); }
+  if (qj) { if (ok && str(data.gagId)) { qj.gagId = str(data.gagId); qj.stage = "tags"; qj.newRow = /new row/i.test(str(data.message)); } else { qj.stage = "failed"; qj.msg = str(data.message) || "Core refused the gag."; } qj.upd = Date.now(); await env.PENDING.put(QUICK_KEY, JSON.stringify(QJ)); }
   if (!ok) ctx.waitUntil(notify(env, url.origin, "Gag NOT saved" + (str(data.gagId) ? ": " + str(data.gagId) : ""), str(data.message) || "Open the app for details.", "x"));
   return json({ ok: true });
 }
@@ -2339,6 +2339,9 @@ async function quickTick(env) {
     const alerts = await loadAlerts(env); alerts.unshift({ id: crypto.randomUUID(), at: now, title: "List it now: " + j.stem + " needs a look", body: msg, link: "/", source: "app" }); await saveAlerts(env, alerts); };
   if (j.stage === "saving") { if (now - j.at > 15 * 60e3) await fail("failed", "Core never confirmed the gag was saved. Check Gags → Recent saves."); return; }
   if (j.stage === "tags") {
+    // A gag that filled an empty prepared row already has its GAG_TAGS row (the two sheets line up row for row): adding one
+    // would push every tag row below it out of line. Only a brand-new row at the end gets a new tag row.
+    if (j.newRow === false) { j.stage = "build"; j.tagAt = now; j.upd = now; await save(); return; }
     const row = [j.gagId, ...Array(12).fill(null), true, ...Array(15).fill(null)];   // APPROVED = TRUE: the builder freezes the suggested tags
     const err = await amendHook(env, { action: "apply", ops: JSON.stringify([{ url: `${AMEND_XL}/tables/GAG_TAGS/rows/add`, method: "POST", values: [row] }]), delay: "1", run: "no" });
     if (err) { if (now - j.upd > 30 * 60e3) await fail("stuck", "Couldn't add its tag row in Core."); return; }
