@@ -157,6 +157,9 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
+      if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
+      if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
       if (pathname === "/api/headlines" && method === "GET") return json(await headlinesGet(env, url.searchParams.get("fresh") === "1"));
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
@@ -2403,6 +2406,37 @@ function gagParts(p) {
   const o = { partHeader: c(p.GAG_HEADER), partBody: c(p.GAG_BODY), partFooter: c(p.GAG_FOOTER) };
   return o.partHeader || o.partBody || o.partFooter ? o : {};
 }
+// Mockup preview (Barry, 16 Nov): Make fills the range's Canva mockup template with this gag, exports every page small
+// and sends the image links back. Nothing goes to Printify or Etsy. Each preview leaves one "PREVIEW (safe to delete)"
+// design in Canva (Canva won't let automations delete designs); the image links last about a day.
+const MOCKUP_TPL_FALLBACK = { "EXCLUSIVE|T-SHIRT": "EAHbCPz3Dy8" };
+async function mockupPreviewStart(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const coll = str(d.collection), type = GARMS.includes(str(d.type)) ? str(d.type) : "T-SHIRT";
+  const S = (await env.PENDING.get("amend", "json")) || {};
+  const rule = (S.rules || []).find((r) => r.coll === coll && r.type === type);
+  const tpl = (rule && rule.tpl) || MOCKUP_TPL_FALLBACK[coll + "|" + type];
+  if (!tpl) return json({ error: "No mockup template is set for that range and garment yet." }, 400);
+  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+  const parts = gagParts(d.parts);
+  if (!text.replace(/^[\s.…]+/, "") && !parts.partHeader) return json({ error: "Write the gag first." }, 400);
+  const hook = await env.PENDING.get("mockup-hook", "json"); if (!hook) return json({ error: "The preview automation isn't set up." }, 500);
+  const pages = (S.pages || []).filter((x) => x.coll === coll && x.type === type).sort((a, b) => a.pos - b.pos).map((x) => ({ pos: Number(x.pos), name: x.name }));
+  const ref = crypto.randomUUID(), label = (str(d.label) || "Preview").slice(0, 40);
+  const res = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, tpl, label, text, ...parts }) });
+  if (!res.ok) return json({ error: "Make didn't accept the preview (" + res.status + ")." }, 502);
+  await env.PENDING.put("preview:" + ref, JSON.stringify({ at: Date.now(), coll, type, pages, status: "pending" }), { expirationTtl: 86400 });
+  return json({ ok: true, ref });
+}
+async function mockupPreviewResult(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await readBody(request); const ref = str(d.ref).replace(/[^a-z0-9-]/gi, "");
+  const P = await env.PENDING.get("preview:" + ref, "json"); if (!P) return json({ ok: true, ignored: true });
+  const r = d.result && typeof d.result === "object" ? d.result : {};
+  P.status = r.ok ? "done" : "failed"; P.urls = Array.isArray(r.urls) ? r.urls.map(String).slice(0, 40) : []; P.designId = str(d.designId); P.doneAt = Date.now();
+  await env.PENDING.put("preview:" + ref, JSON.stringify(P), { expirationTtl: 86400 });
+  return json({ ok: true });
+}
 async function quickList(request, env) {
   if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
   const d = await request.json().catch(() => ({}));
@@ -2657,7 +2691,7 @@ ${brandHeader("Gags")}
           <label>Sweatshirt<input type="date" id="d3"></label><label>Hoodie<input type="date" id="d4"></label>
         </div><p class="small" style="margin:8px 0 0">Leave all four empty to save the gag to the backlog. It won't release until it has dates.</p>
         <p class="small" id="nowHint" style="margin:10px 0 0">Tap <b>Now</b> on a garment to publish it straight away instead of waiting for its date.</p></div>
-      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button><button class="btn" type="button" id="ideaSave">Save as idea</button></div>
+      <div class="fld o-save" style="display:flex;gap:10px"><button class="btn" type="button" id="clear">Clear</button><button class="btn" type="button" id="ideaSave">Save as idea</button><button class="btn" type="button" id="mpGo">Preview mockups</button></div>
     </div>
   </div>
 </form>
@@ -2728,6 +2762,14 @@ ${brandHeader("Gags")}
   .exintw{color:var(--warn);font-size:13px;margin-top:6px}.exint.ok .exintw{display:none}.exinte{margin-top:4px;opacity:.75}
   #save:disabled{opacity:.45;cursor:not-allowed}
   body.kb .exint{display:none!important}
+  .mpm{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.72);display:flex;align-items:flex-start;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 12px 16px;overflow:auto}
+  .mpm .box{width:100%;max-width:980px;background:#151514;border:1px solid var(--line);border-radius:16px;padding:16px}
+  .mpm .mph{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}.mpm .mph h3{margin:0;font-size:17px}
+  .mpm .mph .btn{width:auto;margin:0;min-height:40px;padding:0 16px}
+  .mpgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+  .mpgrid a{display:block;text-decoration:none;color:var(--muted);font-size:11.5px}.mpgrid img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#222;display:block}
+  .mpgrid span{display:block;margin-top:4px;word-break:break-all}.mpgrid a.unused{opacity:.45}
+  .mpst{font-size:14px;color:var(--muted)}
   .draftnote{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid #e6b450;border-radius:12px;background:rgba(230,180,80,.12);font-size:14px}.draftnote .btn{width:auto;min-height:38px;padding:0 14px;margin:0}
   #boxes{display:flex;flex-direction:column;gap:14px}#boxes:empty{display:none}
   #boxes label>b{display:inline}#boxes textarea{min-height:0;height:auto}
@@ -2829,7 +2871,8 @@ ${GAG_LAMPS_SCRIPT}
 ${GAG_BOXES_SCRIPT}
 ${GAG_EX_SCRIPT}
 ${GAG_WIZARD_SCRIPT}
-${GAG_DRAFT_SCRIPT}</script>`);
+${GAG_DRAFT_SCRIPT}
+${GAG_PREVIEW_SCRIPT}</script>`);
 }
 
 // Gag boxes per range, from Core's GAG_TEXT_RULES (Barry, 15 Nov). One-box ranges keep the classic gag box;
@@ -3058,6 +3101,53 @@ const GAG_EX_SCRIPT = String.raw`(function () {
   window.exState = function () { return { t1: el("ext1").value, t2: el("ext2").value, hash: HASH, on: HASHON, auto: AUTO, useBy: useBy }; };
   window.exRestore = function (d) { if (!d) return; el("ext1").value = d.t1 || ""; el("ext2").value = d.t2 || ""; HASH = d.hash || {}; HASHON = d.on || {}; AUTO = d.auto || {}; useBy = d.useBy || 48; all(); };
   all();
+})();`;
+
+// Mockup preview button (Barry, 16 Nov).
+const GAG_PREVIEW_SCRIPT = String.raw`(function () {
+  var G2 = [["T-SHIRT", "T-shirt"], ["LONG-SLEEVE", "Long-sleeve"], ["SWEATSHIRT", "Sweatshirt"], ["HOODIE", "Hoodie"]], timer = null;
+  function el(id) { return document.getElementById(id); }
+  function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function close(m) { clearTimeout(timer); m.remove(); }
+  function start(m, type) {
+    var coll = el("collection").value, multi = window.isMulti && window.isMulti();
+    var text = el("text").value; if (!multi && typeof capsGag === "function") text = capsGag(text);
+    var st = m.querySelector(".mpst"), grid = m.querySelector(".mpgrid"); grid.innerHTML = ""; st.textContent = "Asking Canva to make the " + G2.filter(function (g) { return g[0] === type; })[0][1].toLowerCase() + " mockups… about a minute.";
+    m.querySelectorAll("[data-mt]").forEach(function (b) { b.classList.toggle("on", b.dataset.mt === type); });
+    fetch("/api/mockup-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ collection: coll, type: type, text: text, parts: window.boxParts ? window.boxParts() : null, label: el("stem").value || "Preview" }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        if (j.error) { st.textContent = j.error; return; }
+        var t0 = Date.now();
+        (function poll() {
+          fetch("/api/mockup-preview?ref=" + encodeURIComponent(j.ref)).then(function (r) { return r.json(); }).then(function (P) {
+            if (!document.body.contains(m)) return;
+            if (P.status === "done") {
+              var names = {}; (P.pages || []).forEach(function (p) { names[p.pos] = p.name; });
+              st.textContent = P.urls.length + " pages. Faded ones aren't used on Etsy. Tap one to see it full size. (These links last about a day.)";
+              grid.innerHTML = P.urls.map(function (u, i) { var n = names[i + 1]; return '<a href="' + esc(u) + '" target="_blank" rel="noopener" class="' + (n ? "" : "unused") + '"><img src="' + esc(u) + '" alt="" loading="lazy"><span>' + (i + 1) + ". " + esc(n || "not used") + "</span></a>"; }).join("");
+              return;
+            }
+            if (P.status === "failed") { st.textContent = "Canva didn't finish the mockups. Try again in a minute."; return; }
+            if (Date.now() - t0 > 180000) { st.textContent = "It's taking longer than usual. Close this and try again, or check Alerts."; return; }
+            st.textContent = "Making the mockups in Canva… " + Math.round((Date.now() - t0) / 1000) + "s";
+            timer = setTimeout(poll, 4000);
+          }).catch(function () { timer = setTimeout(poll, 6000); });
+        })();
+      }).catch(function () { st.textContent = "Couldn't reach the app."; });
+  }
+  el("mpGo").addEventListener("click", function () {
+    var coll = el("collection").value; if (!coll) return alert("Pick a range first.");
+    var multi = window.isMulti && window.isMulti(), parts = window.boxParts ? window.boxParts() : null;
+    if (multi ? !(parts && parts.GAG_HEADER) : !el("text").value.replace(/^[\s.…]+/, "").trim()) return alert("Write the gag first.");
+    var garms = coll === "EXCLUSIVE" ? G2.slice(0, 1) : G2;
+    var m = document.createElement("div"); m.className = "mpm";
+    m.innerHTML = '<div class="box"><div class="mph"><h3>Mockup preview</h3><button class="btn" type="button" data-mx="1">Close</button></div>' +
+      '<div class="chips">' + garms.map(function (g) { return '<button type="button" class="chip" data-mt="' + g[0] + '">' + g[1] + "</button>"; }).join("") + "</div>" +
+      '<p class="mpst" style="margin:10px 0 0"></p><div class="mpgrid"></div><p class="small" style="margin-top:12px">Made in Canva from this range’s real mockup template. Nothing goes to Printify or Etsy. Each preview leaves a “PREVIEW (safe to delete)” design in Canva.</p></div>';
+    document.body.appendChild(m);
+    m.addEventListener("click", function (e) { if (e.target === m || e.target.closest("[data-mx]")) return close(m); var b = e.target.closest("[data-mt]"); if (b) { clearTimeout(timer); start(m, b.dataset.mt); } });
+    start(m, "T-SHIRT");
+  });
 })();`;
 
 // Gag tool steps (Barry, 14 Nov). Every field stays on the page (so saving works as before); only the current step shows.
@@ -4205,7 +4295,7 @@ render();
 // on the gag list the Gags sync keeps in KV.
 
 const TOOLS = {
-  reprice: { hook: "MAKE_TOOL_REPRICE_HOOK", name: "Re-price listings" }, // also called by the Pricing scenario (8451335) when "update live listings" is ticked
+  // (Re-price used to live here; since 16 Nov the Pricing scenario 8451335 re-prices live listings itself.)
 };
 async function toolRun(request, env) {
   const d = await request.json();
