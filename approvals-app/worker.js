@@ -892,7 +892,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile.primary .st{color:#c9c6bf}.tile.primary .st b{color:var(--text)}
 .tile.hot{border-color:#e0605a;background:rgba(150,40,34,.32)}.tile.hot:hover{border-color:#ff8a85}
 .tile.hot .ic{background:#e0605a;color:#fff}
-.hotb{position:absolute;right:14px;top:14px;min-width:30px;height:30px;padding:0 9px;border-radius:99px;background:#e0605a;color:#fff;font:800 13px var(--display);display:grid;place-items:center;letter-spacing:.04em}
+.hotw{display:block;margin-top:6px;color:#ffb3ae;font-size:14px;font-weight:600}.hotb{position:absolute;right:14px;top:14px;min-width:30px;height:30px;padding:0 9px;border-radius:99px;background:#e0605a;color:#fff;font:800 13px var(--display);display:grid;place-items:center;letter-spacing:.04em}
 .need{position:relative}.nread{margin-left:auto;flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 .ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1895,7 +1895,7 @@ document.addEventListener("click", function (e) { var b = e.target.closest(".nre
 fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
   if (!g || !g.all || typeof gagIssues !== "function") return;
   var iss = gagIssues(g); if (!iss.length) return;
-  var ct = document.querySelector('[data-tile="/gags"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); }
+  var ct = document.querySelector('[data-tile="/gags"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); var nm = ct.querySelector(".nm"); if (nm) nm.insertAdjacentHTML("afterend", '<span class="hotw">' + iss.length + " gag problem" + (iss.length === 1 ? "" : "s") + " to fix (see Needs you, above)</span>"); }
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var gt = "Gag problem" + (iss.length === 1 ? "" : "s") + " to fix", gs = (iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80), sig = iss.length + "|" + gs;
   if ((window.DISMISSED || {})[gt] === sig) return;
