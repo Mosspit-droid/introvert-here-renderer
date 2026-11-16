@@ -193,7 +193,7 @@ export default {
       if (pathname === "/api/amend-restart" && method === "POST") return await amendRestart(env);
       if (pathname === "/api/amend-data" && method === "GET") return json((await env.PENDING.get("amend", "json")) || null);
       if (pathname === "/api/pricing-refresh" && method === "POST") return await pricingRefresh(env);
-      if (pathname === "/api/pricing-state" && method === "GET") return json((await env.PENDING.get("pricing", "json")) || null);
+      if (pathname === "/api/pricing-state" && method === "GET") { const P = await env.PENDING.get("pricing", "json"); return json(P ? Object.assign(P, { reprice: await env.PENDING.get("reprice-status", "json") }) : null); }
       return new Response("Not found", { status: 404 });
     } catch (err) {
       console.error(err);
@@ -314,6 +314,7 @@ async function alert(request, env, ctx, url) {
   if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
   const data = await readBody(request);
   const title = str(data.title) || "Make warning";
+  if (str(data.source) === "Pricing" && /^Prices updated/.test(title)) { const R = (await env.PENDING.get("reprice-status", "json")) || {}; R.doneAt = Date.now(); R.title = title; R.body = str(data.body); await env.PENDING.put("reprice-status", JSON.stringify(R)); }
   const alerts = await loadAlerts(env);
   alerts.unshift({
     id: crypto.randomUUID(),
@@ -4037,6 +4038,8 @@ async function pricingSave(request, env) {
   const cur = (await env.PENDING.get("pricing", "json")) || {};
   cur.pendingSave = { at: Date.now(), reprice: !!d.reprice };
   await env.PENDING.put("pricing", JSON.stringify(cur));
+  // Kept apart from "pricing" (which each sync replaces) so the page can show the live update until Make says it's done.
+  if (d.reprice) await env.PENDING.put("reprice-status", JSON.stringify({ startedAt: Date.now() }));
   return json({ ok: true });
 }
 
@@ -4060,9 +4063,11 @@ async function fxRates(env) {
 async function pricingPage(env) {
   const fx = await fxRates(env);
   const data = await env.PENDING.get("pricing", "json");
+  if (data) data.reprice = await env.PENDING.get("reprice-status", "json");
   const nav = `<a class="btn" href="/listings">← Listings</a><a class="btn" href="/stats">📈 Stats</a><button class="btn" id="refresh" type="button">${icon("sync")}Sync to Core</button>`;
   return shell(`
 <style>
+.rsbox{border-left:4px solid var(--line)}.rsbox.wait{border-left-color:#e6b450}.rsbox.ok{border-left-color:var(--ok)}.rsbox.bad{border-left-color:var(--warn)}.rsbox .small{margin-top:4px}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 @media (max-width:760px){.pgrid{grid-template-columns:1fr}}
 .pcard h3{margin:0 0 10px;font-size:18px}
@@ -4116,7 +4121,13 @@ function render() {
   if (!D || !D.garments) { $("app").innerHTML = '<div class="card empty">No pricing data yet. Tap “Sync to Core”.</div>'; return; }
   const s = D.settings;
   $("synced").textContent = "Core read " + new Date(D.receivedAt).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) + (D.pendingSave ? " · saving…" : "") + (D.lastSave ? " · last saved " + D.lastSave : "");
-  let html = '<div class="card" style="margin:14px 0"><h3 style="margin:0 0 6px">Settings</h3>' +
+  // Live-listing price update status (Barry, 16 Nov: the old message vanished when the page refreshed).
+  const RS = D.reprice, hm = (t) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  let html = !RS || !RS.startedAt ? "" : !RS.doneAt || RS.doneAt < RS.startedAt
+    ? (Date.now() - RS.startedAt > 45 * 60e3 ? '<div class="card rsbox bad" style="margin:14px 0"><b>Live listings update didn\u2019t report back.</b><div class="small">Started ' + hm(RS.startedAt) + '. Check Alerts, or ask Claude to look at the Pricing run in Make.</div></div>'
+      : '<div class="card rsbox wait" style="margin:14px 0"><b>Updating live listings\u2026</b><div class="small">Started ' + hm(RS.startedAt) + '. It takes 10 to 15 minutes; you\u2019ll get an alert when it\u2019s done.</div></div>')
+    : '<div class="card rsbox ok" style="margin:14px 0"><b>\u2713 ' + RS.title.replace(/</g, "&lt;") + '</b><div class="small">Finished ' + hm(RS.doneAt) + '. ' + String(RS.body || "").replace(/</g, "&lt;") + '</div></div>';
+  html += '<div class="card" style="margin:14px 0"><h3 style="margin:0 0 6px">Settings</h3>' +
     '<div class="prow"><label>Profit you want per item (£)</label><input id="s_target" type="number" step="0.5" value="' + s.target + '"></div>' +
     '<div class="prow"><label>US dollars per £1 (Printify bills in dollars)</label><input id="s_rate" type="number" step="0.01" value="' + s.rate + '"></div>' +
     '<div class="prow"><label>Card foreign-currency fee (0.03 = 3%)</label><input id="s_card" type="number" step="0.005" value="' + s.card + '"></div>' +
@@ -4181,7 +4192,8 @@ async function save() {
   $("msg").textContent = r.ok ? (reprice ? "Saved to Core. Live listings are being updated now (a few minutes); you'll get an alert when it's done." : "Saved to Core. New listings will use these prices.") : (j.error || "Something went wrong.");
   if (r.ok) setTimeout(poll, 8000);
 }
-async function poll() { const r = await fetch("/api/pricing-state"); if (r.ok) { const d = await r.json(); if (d && (!D || d.receivedAt !== D.receivedAt)) { D = d; render(); return; } } setTimeout(poll, 8000); }
+async function poll() { const r = await fetch("/api/pricing-state"); if (r.ok) { const d = await r.json(); const rk = (x) => JSON.stringify((x && x.reprice) || null); if (d && (!D || d.receivedAt !== D.receivedAt || rk(d) !== rk(D))) { D = d; render(); } } setTimeout(poll, D && D.reprice && D.reprice.startedAt && !(D.reprice.doneAt > D.reprice.startedAt) ? 15000 : 60000); }
+setTimeout(poll, 15000);
 $("refresh").addEventListener("click", async () => { $("refresh").disabled = true; $("refresh").textContent = "Syncing…"; await fetch("/api/pricing-refresh", { method: "POST" }); setTimeout(poll, 6000); });
 render();
 </script>`);
