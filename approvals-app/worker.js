@@ -4424,7 +4424,7 @@ function gagIssuesFn(g) {
     const st = String(x.stem || "");
     if (/[\r\n\t]/.test(st)) issues.push({ t: "Line break in title stem", d: JSON.stringify(st), ids: [x.id] });
     else if (/^\s|\s$|\s{2,}/.test(st)) issues.push({ t: "Stray spaces in title stem", d: "“" + st + "”", ids: [x.id] });
-    if (!/^\s*(\.\.\.|…)/.test(String(x.text || ""))) issues.push({ t: "Missing the opening ...", d: "", ids: [x.id] });
+    if (!/^EX-/.test(String(x.id || "")) && !/^\s*(\.\.\.|…)/.test(String(x.text || ""))) issues.push({ t: "Missing the opening ...", d: "", ids: [x.id] });
     [x.t12, x.t13].forEach((t) => { if (t && String(t).trim().length > 20) issues.push({ t: "Custom tag over 20 characters", d: "“" + t + "”", ids: [x.id] }); });
   });
   const B = all.map((x) => ({ id: x.id, n: norm(x.text), t: String(x.text || "") }));
