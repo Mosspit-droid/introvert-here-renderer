@@ -2423,17 +2423,25 @@ async function mockupPreviewStart(request, env) {
   const hook = await env.PENDING.get("mockup-hook", "json"); if (!hook) return json({ error: "The preview automation isn't set up." }, 500);
   const pages = (S.pages || []).filter((x) => x.coll === coll && x.type === type).sort((a, b) => a.pos - b.pos).map((x) => ({ pos: Number(x.pos), name: x.name }));
   const ref = crypto.randomUUID(), label = (str(d.label) || "Preview").slice(0, 40);
-  const res = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, tpl, label, text, ...parts }) });
+  const pos = pages.map((x) => x.pos).filter((n) => Number.isInteger(n) && n > 0);
+  const pagesPart = pos.length ? ',"pages":[' + pos.join(",") + "]" : "";
+  const res = await fetch(hook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ref, tpl, label, text, pagesPart, ...parts }) });
   if (!res.ok) return json({ error: "Make didn't accept the preview (" + res.status + ")." }, 502);
   await env.PENDING.put("preview:" + ref, JSON.stringify({ at: Date.now(), coll, type, pages, status: "pending" }), { expirationTtl: 86400 });
   return json({ ok: true, ref });
 }
 async function mockupPreviewResult(request, env) {
   if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
-  const d = await readBody(request); const ref = str(d.ref).replace(/[^a-z0-9-]/gi, "");
+  const raw = await request.text();
+  let d = {};
+  try { d = /json/i.test(request.headers.get("Content-Type") || "") ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw)); } catch (e) { d = {}; }
+  await env.PENDING.put("preview-debug", JSON.stringify({ at: Date.now(), type: request.headers.get("Content-Type") || "", raw: raw.slice(0, 1500) }), { expirationTtl: 86400 * 3 });
+  const ref = str(d.ref).replace(/[^a-z0-9-]/gi, "");
   const P = await env.PENDING.get("preview:" + ref, "json"); if (!P) return json({ ok: true, ignored: true });
-  const r = d.result && typeof d.result === "object" ? d.result : {};
-  P.status = r.ok ? "done" : "failed"; P.urls = Array.isArray(r.urls) ? r.urls.map(String).slice(0, 40) : []; P.designId = str(d.designId); P.doneAt = Date.now();
+  let r = d.result;
+  if (typeof r === "string") { try { r = JSON.parse(r); } catch (e) { r = {}; } }
+  if (!r || typeof r !== "object") r = {};
+  P.status = r.ok ? "done" : "failed"; P.urls = Array.isArray(r.urls) ? r.urls.map(String).slice(0, 40) : []; P.designId = str(d.designId); P.doneAt = Date.now(); P.exportStatus = str(r.status);
   await env.PENDING.put("preview:" + ref, JSON.stringify(P), { expirationTtl: 86400 });
   return json({ ok: true });
 }
