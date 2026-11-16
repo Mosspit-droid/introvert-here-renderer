@@ -2369,10 +2369,11 @@ function newsFlags(...parts) {
 }
 function nameIn(t) {
   const words = String(t).replace(/[‘’]/g, "'").split(/\s+/);
-  for (let i = 1; i < words.length - 1; i++) {   // two capitalised words together, not at the start: probably a name
-    const a = words[i].replace(/[^A-Za-z'-]/g, ""), b = words[i + 1].replace(/[^A-Za-z'-]/g, "");
-    if (/[.:!?]$/.test(words[i - 1]) || /[.:,;!?]$/.test(words[i])) continue;   // a new sentence or clause, not a name
-    if (/^[A-Z][a-z'-]{1,}$/.test(a) && /^[A-Z][a-z'-]{2,}$/.test(b) && !NEWS_STOP.test(a) && !NEWS_NOT_NAMES.test(a + " " + b)) return true;
+  for (let i = 0; i < words.length - 1; i++) {   // two capitalised words together: probably a name
+    const a = words[i].replace(/[^A-Za-z'-]/g, "").replace(/'s$/, ""), b = words[i + 1].replace(/[^A-Za-z'-]/g, "").replace(/'s$/, "");
+    if ((i > 0 && /[.:!?]$/.test(words[i - 1])) || /[.:,;!?]$/.test(words[i])) continue;   // a new sentence or clause, not a name
+    const cap = (w, n) => new RegExp("^[A-Z][A-Za-z'-]{" + n + ",}$").test(w) && /[a-z]/.test(w);   // also McCaffrey, CeeDee, O'Neill
+    if (cap(a, 1) && cap(b, 2) && !NEWS_STOP.test(a) && !NEWS_NOT_NAMES.test(a + " " + b)) return true;
   }
   return false;
 }
