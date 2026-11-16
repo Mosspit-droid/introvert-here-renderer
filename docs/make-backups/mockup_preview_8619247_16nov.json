@@ -1,0 +1,415 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "mapper": {},
+   "module": "gateway:CustomWebHook",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "From the app: preview this gag's mockups"
+    }
+   },
+   "parameters": {
+    "hook": 4119857,
+    "maxResults": 1
+   }
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "title": "PREVIEW (safe to delete) {{1.label}}",
+    "select": "map",
+    "dataset": [
+     {
+      "key": "GAG_ID",
+      "value": {
+       "text": "{{ifempty(1.label; \"PREVIEW\")}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_TEXT",
+      "value": {
+       "text": "{{ifempty(1.text; \" \")}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_HEADER",
+      "value": {
+       "text": "{{ifempty(1.partHeader; \" \")}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_BODY",
+      "value": {
+       "text": "{{ifempty(1.partBody; \" \")}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_FOOTER",
+      "value": {
+       "text": "{{ifempty(1.partFooter; \" \")}}",
+       "type": "text"
+      }
+     }
+    ],
+    "brandTemplateId": "{{1.tpl}}"
+   },
+   "module": "canva:autofillDesign",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Canva: fill the mockup template with the gag"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "url": "/v1/exports",
+    "body": "{\"design_id\":\"{{2.id}}\",\"format\":{\"type\":\"png\",\"width\":900{{1.pagesPart}}}}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Export every page (small)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 4,
+   "mapper": {
+    "duration": "30"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1200,
+     "y": 0,
+     "name": "Wait"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 5,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1500,
+     "y": 0,
+     "name": "Check export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 6,
+   "mapper": {
+    "duration": "{{if(5.body.job.status = \"success\"; 1; 25)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "Wait"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 7,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Check export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 8,
+   "mapper": {
+    "duration": "{{if(7.body.job.status = \"success\"; 1; 30)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2400,
+     "y": 0,
+     "name": "Wait"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 9,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2700,
+     "y": 0,
+     "name": "Check export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 10,
+   "mapper": {
+    "input": [
+     {
+      "name": "checks",
+      "value": "{{add(emptyarray; 5.body.job; 7.body.job; 9.body.job)}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "const checks = Array.isArray(input.checks) ? input.checks : [];\nlet best = null;\nfor (const c of checks) if (c && c.status === \"success\" && Array.isArray(c.urls)) best = c;\nreturn { json: JSON.stringify({ ok: !!best, urls: best ? best.urls : [], status: (checks[checks.length - 1] || {}).status || \"unknown\" }) };"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3000,
+     "y": 0,
+     "name": "Pick the finished export"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 11,
+   "mapper": {
+    "url": "https://mosspit-approvals.mosspit.workers.dev/api/mockup-preview-result",
+    "method": "post",
+    "headers": [
+     {
+      "name": "X-Ingest-Secret",
+      "value": "REDACTED"
+     }
+    ],
+    "timeout": 30,
+    "contentType": "urlEncoded",
+    "shareCookies": false,
+    "parseResponse": true,
+    "allowRedirects": true,
+    "stopOnHttpError": false,
+    "urlEncodedBodyContent": [
+     {
+      "name": "ref",
+      "value": "{{1.ref}}"
+     },
+     {
+      "name": "designId",
+      "value": "{{2.id}}"
+     },
+     {
+      "name": "result",
+      "value": "{{10.result.json}}"
+     }
+    ],
+    "requestCompressedContent": true
+   },
+   "module": "http:MakeRequest",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 3300,
+     "y": 0,
+     "name": "Send the images to the app"
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  },
+  {
+   "id": 12,
+   "mapper": {
+    "url": "/v1/folders",
+    "body": "{\"name\":\"PREVIEW BIN (safe to delete)\",\"parent_folder_id\":\"root\"}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "canva:makeApiCall",
+   "onerror": [
+    {
+     "id": 112,
+     "mapper": null,
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 3600,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3600,
+     "y": 0,
+     "name": "Make a throwaway folder"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 13,
+   "mapper": {
+    "url": "/v1/folders/move",
+    "body": "{\"item_id\":\"{{2.id}}\",\"to_folder_id\":\"{{12.body.folder.id}}\"}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "canva:makeApiCall",
+   "onerror": [
+    {
+     "id": 113,
+     "mapper": null,
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 3900,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3900,
+     "y": 0,
+     "name": "Move the preview into it"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 14,
+   "mapper": {
+    "url": "/v1/folders/{{12.body.folder.id}}",
+    "method": "DELETE",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "onerror": [
+    {
+     "id": 114,
+     "mapper": null,
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 4200,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 4200,
+     "y": 0,
+     "name": "Delete the folder (preview goes to Canva Bin)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  }
+ ],
+ "name": "Introvert Here: Approvals App \u2014 Mockup preview",
+ "metadata": {
+  "instant": true,
+  "version": 1,
+  "scenario": {
+   "dlq": false,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": false,
+   "confidential": false,
+   "freshVariables": false,
+   "autoCommitTriggerLast": true
+  }
+ }
+}
