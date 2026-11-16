@@ -17,3 +17,7 @@ id = "63ad737faf1143ea9fab08feab432837"
 # Re-reads Core while listing updates are running (see amendWatch in worker.js).
 [triggers]
 crons = ["*/5 * * * *"]
+
+# Cloudflare built-in AI (free daily allowance): suggests EX topic tags and hashtags from the gag.
+[ai]
+binding = "AI"

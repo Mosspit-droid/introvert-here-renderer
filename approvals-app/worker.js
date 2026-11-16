@@ -160,6 +160,7 @@ export default {
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
+      if (pathname === "/api/ex-suggest" && method === "POST") return await exSuggest(request, env);
       if (pathname === "/api/headlines" && method === "GET") return json(await headlinesGet(env, url.searchParams.get("fresh") === "1"));
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
@@ -2376,7 +2377,7 @@ const QUICK_KEY = "quick-jobs";
 const GARMS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
 // Trade-mark blocklist for Exclusive topic tags (Barry's tags plan, 16 Nov). Editable later in Settings; this is the
 // starting list of names Etsy is known to take listings down for.
-const TAG_BLOCK_DEFAULT = ["disney", "marvel", "pixar", "star wars", "harry potter", "hogwarts", "pokemon", "nintendo", "lego", "barbie", "nike", "adidas", "apple", "iphone", "netflix", "coca cola", "starbucks", "mcdonalds", "olympic", "olympics", "super bowl", "world cup", "fifa", "premier league", "champions league", "nfl", "nba", "eurovision", "glastonbury", "wimbledon", "strictly", "bake off", "love island", "x factor", "taylor swift", "swiftie", "beyonce", "beatles", "friends", "the simpsons", "simpsons", "minecraft", "fortnite", "peppa pig", "bluey", "hello kitty", "ikea", "amazon", "google", "tesla", "chatgpt", "openai", "tiktok", "instagram", "facebook", "youtube", "game of thrones", "stranger things", "squid game"];
+const TAG_BLOCK_DEFAULT = ["disney", "marvel", "pixar", "star wars", "harry potter", "hogwarts", "pokemon", "nintendo", "lego", "barbie", "nike", "adidas", "apple", "iphone", "netflix", "coca cola", "starbucks", "mcdonalds", "olympic", "olympics", "super bowl", "world cup", "fifa", "premier league", "champions league", "nfl", "nba", "eurovision", "glastonbury", "wimbledon", "strictly", "bake off", "love island", "x factor", "taylor swift", "swiftie", "beyonce", "beatles", "friends", "the simpsons", "simpsons", "minecraft", "fortnite", "peppa pig", "bluey", "hello kitty", "ikea", "amazon", "google", "tesla", "chatgpt", "openai", "tiktok", "instagram", "facebook", "youtube", "game of thrones", "stranger things", "squid game", "james bond", "007"];
 async function blocklistSave(d, env) {
   let L = await tagBlocklist(env);
   const t = String(d.add || d.remove || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").trim();
@@ -2592,6 +2593,45 @@ function nameIn(t) {
 function xmlText(x) { return String(x || "").replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCharCode(Number(n))).replace(/&amp;/g, "&").trim(); }
 function xmlTag(block, tag) { const m = new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + tag + ">").exec(block); return m ? xmlText(m[1]) : ""; }
 function xmlItems(xml, tag) { return String(xml).split(new RegExp("<" + tag + "(?:\\s[^>]*)?>")).slice(1).map((b) => b.split("</" + tag + ">")[0]); }
+// Topic tags + hashtags from the gag itself (Barry, 16 Nov: "these should be autofilled"). Cloudflare's built-in AI
+// (free daily allowance) reads the gag; if it's unavailable, keywords are picked from the headline instead.
+const EX_SUGGEST_SYS = "You suggest Etsy search tags for a funny topical T-shirt about today's news. Reply with JSON only, no other text: " +
+  "{\"tags\":[\"...\",\"...\"],\"hashtags\":[\"...\",\"...\",\"...\"]}. tags: exactly 2 short phrases a shopper would type into Etsy search to find a gift about this news topic, " +
+  "lowercase, each at most 20 characters including spaces (for example \"spy gift\", \"snow day\", \"secret agent\"). hashtags: 3 short topical hashtags without the # sign. " +
+  "Never use brand names, trade marks, film, TV or game franchises, sports competitions, or the names of real people or characters. Never mention introverts (that's added separately).";
+const EX_STOP = new Set("a an the of to in on at for by with and or but is are was were be been has have had his her its their our your my this that these those it he she they we you i as from into over after before about than then so not no new newly just all every everyone planet other news says said say".split(" "));
+function exWordTags(d, isBlocked) {
+  const words = (t) => String(t || "").toLowerCase().replace(/[’']s\b/g, "").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w && !EX_STOP.has(w));
+  const head = words(d.header), all = words([d.header, d.body, d.footer].join(" ")), n = {};
+  all.forEach((w) => { n[w] = (n[w] || 0) + 1; });
+  const out = [];
+  for (let i = 0; i < head.length - 1; i++) { const t = head[i] + " " + head[i + 1]; if (t.length <= 20 && !isBlocked(t)) { out.push(t); break; } }
+  const best = Object.keys(n).filter((w) => w.length > 2 && !out.some((o) => o.split(" ").includes(w)) && !isBlocked(w)).sort((a, b) => n[b] - n[a] || head.indexOf(b) - head.indexOf(a))[0];
+  if (best) out.push((best + " gift").length <= 20 ? best + " gift" : best.slice(0, 20));
+  return out;
+}
+async function exSuggest(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const text = [d.header, d.body, d.footer].map((x) => str(x)).filter(Boolean).join("\n").slice(0, 900);
+  if (!text) return json({ tags: [], hashtags: [] });
+  const block = await tagBlocklist(env);
+  const clean = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").trim();
+  const isBlocked = (t) => block.some((b) => b && (" " + clean(t) + " ").includes(" " + b + " "));
+  let tags = [], hashtags = [], src = "words";
+  if (env.AI) {
+    try {
+      const r = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { messages: [{ role: "system", content: EX_SUGGEST_SYS }, { role: "user", content: text }], max_tokens: 200 });
+      const m = String((r && r.response) || "").match(/\{[\s\S]*\}/); const j = m ? JSON.parse(m[0]) : {};
+      tags = (Array.isArray(j.tags) ? j.tags : []).map(clean); hashtags = (Array.isArray(j.hashtags) ? j.hashtags : []).map((h) => String(h).toLowerCase().replace(/[^a-z0-9]/g, ""));
+      src = "ai";
+    } catch (e) { src = "words"; }
+  }
+  const seen = new Set(); tags = tags.filter((t) => t && t.length <= 20 && !isBlocked(t) && !/introvert/.test(t) && !seen.has(t) && seen.add(t));
+  const strip = (t) => block.reduce((a, b) => b ? a.replace(new RegExp("\\b" + b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi"), " ") : a, String(t || ""));   // blocked names never feed the keyword pick
+  if (tags.length < 2) exWordTags({ header: strip(d.header), body: strip(d.body), footer: strip(d.footer) }, isBlocked).forEach((t) => { if (tags.length < 2 && !seen.has(t)) { seen.add(t); tags.push(t); } });
+  const hs = new Set(); hashtags = hashtags.filter((h) => h.length >= 3 && h.length <= 30 && !/introvert/.test(h) && !isBlocked(h) && !hs.has(h) && hs.add(h)).slice(0, 3).map((h) => "#" + h);
+  return json({ tags: tags.slice(0, 2), hashtags, src });
+}
 async function headlinesGet(env, force) {
   const c = (await env.PENDING.get(NEWS_KEY, "json")) || null, now = Date.now();
   if (c && !force && now - c.at < 55 * 60e3) return c;
@@ -2687,6 +2727,7 @@ ${brandHeader("Gags")}
         <div id="exTopicNow" class="small"></div>
         <div class="extags"><label>Topic tag 1 <span class="small excnt" id="exc1"></span><input id="ext1" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false"></label><div class="exw" id="exw1"></div>
           <label>Topic tag 2 <span class="small excnt" id="exc2"></span><input id="ext2" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false"></label><div class="exw" id="exw2"></div></div>
+        <div class="exsug"><button class="btn" type="button" id="exSug">Suggest tags from my gag</button> <span class="small" id="exSugN"></span></div>
         <div class="exsec"><b class="small">All 13 Etsy tags</b><div id="ex13"></div></div>
         <div class="exsec"><b class="small">Hashtags for Instagram and Facebook <span style="font-weight:400">(tap to switch on or off)</span></b><div class="chips" id="exHash"></div><div class="exadd"><input id="exHashAdd" placeholder="Add a hashtag" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn" type="button" id="exHashGo">Add</button></div><div class="small">Events are fine; never a person's name.</div></div>
         <div class="exsec"><b class="small">Use by</b><div class="chips" id="exUse"></div><p class="small" style="margin:6px 0 0">You get a reminder 1 hour and 4 hours after it's ready to approve. If it still isn't approved by the use-by time, the app tells you so you can scrap it.</p></div>
@@ -2758,7 +2799,7 @@ ${brandHeader("Gags")}
   .expage .exr{height:14px;background:#000;left:175.5px;width:3600px}
   .expage .ext{white-space:pre-wrap;overflow-wrap:break-word;letter-spacing:-0.04em;text-align:left}
   .expage .ext.ph{opacity:.18}.expage .ext.over{color:#b3261e}
-  .extags label{display:block;margin-top:10px}.excnt{float:right}.excnt.bad,.exw .bad{color:var(--warn)}.exw{font-size:13px;margin-top:4px;min-height:0}
+  .exsug{margin-top:10px}.extags label{display:block;margin-top:10px}.excnt{float:right}.excnt.bad,.exw .bad{color:var(--warn)}.exw{font-size:13px;margin-top:4px;min-height:0}
   .exsec{margin-top:16px}.exsec>b{display:block;margin-bottom:6px}
   #ex13{display:flex;flex-wrap:wrap;gap:6px}#ex13 span{font-size:12.5px;padding:5px 9px;border-radius:99px;border:1px solid var(--line);background:var(--field)}
   #ex13 span.k{border-color:#d8262c}#ex13 span.miss{border-style:dashed;color:var(--warn)}#ex13 i{font-style:normal;color:var(--muted);font-size:11px;margin-right:4px}
@@ -3088,7 +3129,7 @@ const GAG_EX_SCRIPT = String.raw`(function () {
   function drawHash() {
     // Hashtags made from the topic tags follow the tags: change a tag and its old hashtag goes (unless you added it yourself).
     var tt = topicTags(), want = {}; tt.forEach(function (t) { var h = hashOf(t); if (h.length > 2 && !blocked(t)) want[h] = 1; });
-    Object.keys(AUTO).forEach(function (h) { if (!want[h]) { delete HASH[h]; delete HASHON[h]; delete AUTO[h]; } });
+    Object.keys(AUTO).forEach(function (h) { if (!want[h] && AUTO[h] !== 2) { delete HASH[h]; delete HASHON[h]; delete AUTO[h]; } });
     Object.keys(want).forEach(function (h) { if (!(h in HASH)) { HASH[h] = 1; HASHON[h] = true; AUTO[h] = 1; } });
     ["#introverthere", "#introvert", "#topicalhumour"].forEach(function (h) { if (!(h in HASHON)) { HASH[h] = 1; HASHON[h] = h === "#introverthere"; } });
     el("exHash").innerHTML = Object.keys(HASH).map(function (h) { return '<button type="button" class="chip' + (HASHON[h] ? " on" : "") + '" data-h="' + esc(h) + '">' + esc(h) + "</button>"; }).join("");
@@ -3099,7 +3140,25 @@ const GAG_EX_SCRIPT = String.raw`(function () {
     el("exTopicNow").innerHTML = T ? "Topic: <b>" + esc(T.t) + "</b>" + ((T.f || []).length ? ' <span style="color:var(--warn)">(' + T.f.map(function (f) { return f === "name" ? "may name someone" : "may involve a tragedy"; }).join(", ") + ")</span>" : "") : "No headline picked. Type your own topic tags.";
     if (T && T.t !== lastTopic) { lastTopic = T.t; if (!el("ext1").value && T.tags[0]) el("ext1").value = T.tags[0]; if (!el("ext2").value && T.tags[1]) el("ext2").value = T.tags[1]; }
   }
-  function all() { topicLine(); checkTag(1); checkTag(2); draw13(); drawHash(); drawUse(); }
+  var sugKey = "";
+  function suggest(force) {
+    var P = window.boxParts ? window.boxParts() || {} : {}, key = [P.GAG_HEADER, P.GAG_BODY, P.GAG_FOOTER].join("|");
+    if (!key.replace(/\|/g, "").trim()) { el("exSugN").textContent = "Write the gag first."; return; }
+    if (!force && (key === sugKey || el("ext1").value.trim() || el("ext2").value.trim())) return;
+    sugKey = key; el("exSug").disabled = true; el("exSugN").textContent = "Reading your gag…";
+    fetch("/api/ex-suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ header: P.GAG_HEADER, body: P.GAG_BODY, footer: P.GAG_FOOTER }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        el("exSug").disabled = false;
+        if (!j.tags || !j.tags.length) { el("exSugN").textContent = "No ideas this time. Type your own."; return; }
+        if (force || !el("ext1").value.trim()) el("ext1").value = j.tags[0] || "";
+        if (force || !el("ext2").value.trim()) el("ext2").value = j.tags[1] || "";
+        (j.hashtags || []).forEach(function (h) { if (!(h in HASH)) { HASH[h] = 1; HASHON[h] = true; AUTO[h] = 2; } });
+        el("exSugN").textContent = "Suggested from your gag. Change them if you like.";
+        checkTag(1); checkTag(2); draw13(); drawHash();
+      }).catch(function () { el("exSug").disabled = false; el("exSugN").textContent = "Couldn’t suggest right now. Type your own."; });
+  }
+  el("exSug").addEventListener("click", function () { suggest(true); });
+  function all() { topicLine(); checkTag(1); checkTag(2); draw13(); drawHash(); drawUse(); if (!(window.exTopic && window.exTopic())) suggest(false); }
   ["ext1", "ext2"].forEach(function (id) { el(id).addEventListener("input", function () { checkTag(1); checkTag(2); draw13(); drawHash(); }); });
   el("stem").addEventListener("input", draw13);
   el("exHash").addEventListener("click", function (e) { var b = e.target.closest("[data-h]"); if (!b) return; HASHON[b.dataset.h] = !HASHON[b.dataset.h]; drawHash(); });
