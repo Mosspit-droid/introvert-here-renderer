@@ -2299,6 +2299,14 @@ async function gagTarget(request, env) {
 // picked garment is built. The listings then go through Approvals as usual: approving puts them live and posts them.
 const QUICK_KEY = "quick-jobs";
 const GARMS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+// Multi-box ranges (EXCLUSIVE): the three parts go to GAGS columns GAG_HEADER / GAG_BODY / GAG_FOOTER via Save Gag.
+// No blank lines inside a part: GAG_TEXT joins them with exactly one blank line, which the video splits on.
+function gagParts(p) {
+  if (!p || typeof p !== "object") return {};
+  const c = (v) => String(v || "").replace(/\r\n?/g, "\n").replace(/\n[ \t]*(\n[ \t]*)+/g, "\n").trim();
+  const o = { partHeader: c(p.GAG_HEADER), partBody: c(p.GAG_BODY), partFooter: c(p.GAG_FOOTER) };
+  return o.partHeader || o.partBody || o.partFooter ? o : {};
+}
 async function quickList(request, env) {
   if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
   const d = await request.json().catch(() => ({}));
@@ -2313,7 +2321,7 @@ async function quickList(request, env) {
   for (const [k, v] of Object.entries(later)) if (!GARMS.includes(k) || garments.includes(k) || !/^\d{4}-\d{2}-\d{2}$/.test(String(v)) || String(v) <= today) return json({ error: "The later release dates need to be after today." }, 400);
   const dd = GARMS.map((t) => (garments.includes(t) ? today : later[t] ? String(later[t]) : ""));
   const ref = crypto.randomUUID();
-  const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: "auto", tag13: "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false" };
+  const body = { ref, action: "now", gagId: "", collection, category, text, stem, tag12: "auto", tag13: "auto", d1: dd[0], d2: dd[1], d3: dd[2], d4: dd[3], datesFromSlot: "false", ...gagParts(d.parts) };
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return json({ error: "Make didn't accept it (" + res.status + "). Nothing was written." }, 502);
   const saves = await loadSaves(env);
@@ -2413,10 +2421,11 @@ async function gagSave(request, env) {
   const body = {
     ref: crypto.randomUUID(), action, gagId: str(d.gagId), collection: str(d.collection), category: str(d.category),
     text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: "auto", tag13: "auto", // seasonal tags: always rotated by the tag engine (Barry, 10 Nov 2026)
-    d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4), datesFromSlot: d.datesFromSlot ? "true" : "false",
+    d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4), datesFromSlot: d.datesFromSlot ? "true" : "false", ...gagParts(d.parts),
   };
-  if (!body.text || !body.collection || !body.category || !body.stem || ![body.d1, body.d2, body.d3, body.d4].every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))) {
-    return json({ error: "Please fill in the gag, collection, category, title stem and all four dates." }, 400);
+  const ds = [body.d1, body.d2, body.d3, body.d4];   // all four dates, or none (backlog; Exclusive gags have no schedule)
+  if (!body.text || !body.collection || !body.category || !body.stem || !(ds.every((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)) || ds.every((x) => !x))) {
+    return json({ error: "Please fill in the gag, collection, category, title stem and all four dates (or leave all four empty)." }, 400);
   }
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return json({ error: "Make didn't accept the save (" + res.status + "). Nothing was written." }, 502);
@@ -2741,13 +2750,13 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     draw(); box.addEventListener("click", function (e) { var b = e.target.closest("[data-garm]"); if (!b) return; if (GSEL[b.dataset.garm]) delete GSEL[b.dataset.garm]; else GSEL[b.dataset.garm] = 1; draw(); }); }
   function quickGo(btn, label, later) {
     var t = document.getElementById("text"), st = document.getElementById("stem");
-    if (typeof capsGag === "function") t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
+    if (typeof capsGag === "function" && !(window.isMulti && window.isMulti())) t.value = capsGag(t.value); if (typeof properStem === "function") st.value = properStem(st.value).trim();
     var g = Object.keys(GSEL); if (!g.length) { alert("Pick at least one garment."); return; }
     if (!t.value.replace(/^[ .…]+/, "").trim() || !st.value || !document.getElementById("collection").value || !document.getElementById("category").value) { alert("Fill in the gag, range, title stem and category first."); return; }
     var lt = Object.keys(later || {}), nice = function (iso) { return new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
     if (!confirm("Publish " + st.value + " now on " + g.length + " garment" + (g.length === 1 ? "" : "s") + "?" + String.fromCharCode(10, 10) + "It's built straight away and comes to Approvals before it goes live." + (lt.length ? String.fromCharCode(10) + "Then: " + lt.map(function (k) { return GN.filter(function (x) { return x[0] === k; })[0][1] + " " + nice(later[k]); }).join(", ") + "." : ""))) return;
     btn.disabled = true; btn.textContent = "Starting…";
-    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {} }) })
+    fetch("/api/quick-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t.value, stem: st.value, collection: document.getElementById("collection").value, category: document.getElementById("category").value, garments: g, later: later || {}, parts: window.boxParts ? window.boxParts() : null }) })
       .then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
       .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't start."); btn.disabled = false; btn.textContent = label; return; } location.href = "/"; })
       .catch(function () { alert("Couldn't reach the app. Nothing was changed."); btn.disabled = false; btn.textContent = label; });
@@ -3221,7 +3230,6 @@ $("form").addEventListener("submit", async (e) => {
   let datesFromSlot = false;
   if (mode !== "edit") { const pc = G && G.perCollection[$("collection").value]; if (!pc) { alert("Choose a collection."); return; } action = pc.next.mode; gagId = pc.next.mode === "fill" ? pc.next.id : "";
     datesFromSlot = !datesTouched && ["d1","d2","d3","d4"].every((k, i) => $(k).value === (pc.next.dates[i] || "")); }
-  if (window.isMulti && window.isMulti() && !window.EX_SAVE_READY) { alert("Saving Exclusive gags switches on in the next step, once Core has the three new columns (headline, body, footer). The preview is ready to try now."); return; }
   if (!(window.isMulti && window.isMulti())) $("text").value = capsGag($("text").value); $("stem").value = properStem($("stem").value).trim();
   if ($("pwarn").querySelector('.bad') && !confirm("The preview shows a problem with the line breaks. Save anyway?")) return;
   const body = { action, gagId, collection: $("collection").value, category: $("category").value, text: $("text").value, stem: $("stem").value, parts: window.boxParts ? window.boxParts() : null,
