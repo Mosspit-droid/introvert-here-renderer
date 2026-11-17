@@ -163,6 +163,7 @@ export default {
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
       if (pathname === "/api/ex-suggest" && method === "POST") return await exSuggest(request, env);
+      if (pathname === "/api/news-brief" && method === "POST") return await newsBrief(request, env);
       if (pathname === "/api/headlines" && method === "GET") return json(await headlinesGet(env, url.searchParams.get("fresh") === "1"));
       if (pathname === "/api/gag-swap" && method === "POST") return await gagSwap(request, env);
       if (pathname === "/api/settings" && method === "POST") return await settingsSave(request, env);
@@ -2658,7 +2659,7 @@ function exWordTags(d, isBlocked) {
 }
 async function exSuggest(request, env) {
   const d = await request.json().catch(() => ({}));
-  const text = [d.header, d.body, d.footer].map((x) => str(x)).filter(Boolean).join("\n").slice(0, 900);
+  const text = ((str(d.topic) ? "News topic: " + str(d.topic) + "\n" : "") + [d.header, d.body, d.footer].map((x) => str(x)).filter(Boolean).join("\n")).slice(0, 1100);
   if (!text) return json({ tags: [], hashtags: [] });
   const block = await tagBlocklist(env);
   const clean = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9 &'-]/g, " ").replace(/\s+/g, " ").trim();
@@ -2677,6 +2678,36 @@ async function exSuggest(request, env) {
   if (tags.length < 2) exWordTags({ header: strip(d.header), body: strip(d.body), footer: strip(d.footer) }, isBlocked).forEach((t) => { if (tags.length < 2 && !seen.has(t)) { seen.add(t); tags.push(t); } });
   const hs = new Set(); hashtags = hashtags.filter((h) => h.length >= 3 && h.length <= 30 && !/introvert/.test(h) && !isBlocked(h) && !hs.has(h) && hs.add(h)).slice(0, 3).map((h) => "#" + h);
   return json({ tags: tags.slice(0, 2), hashtags, src });
+}
+// Headline summary (Barry, 17 Nov: "saves having to Google"). Reads the story's page and has Cloudflare's built-in AI
+// write 2-3 plain sentences. Cached for two days. Falls back to the feed's own one-line description.
+async function newsBrief(request, env) {
+  const d = await request.json().catch(() => ({}));
+  const u = str(d.u), t = str(d.t).slice(0, 300), desc = str(d.d).slice(0, 600);
+  if (!/^https:\/\//.test(u)) return json({ brief: desc, src: "feed" });
+  const key = "brief:" + Array.from(new Uint8Array(await crypto.subtle.digest("SHA-1", new TextEncoder().encode(u)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const hit = await env.PENDING.get(key, "json"); if (hit) return json(hit);
+  let text = "";
+  try {
+    const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0 (compatible; IntrovertHereApp/1.0)", Accept: "text/html" }, redirect: "follow", cf: { cacheTtl: 3600 } });
+    if (r.ok) {
+      const html = (await r.text()).slice(0, 400000);
+      text = (html.match(/<p[\s>][\s\S]*?<\/p>/gi) || []).map((p) => p.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;|&#x27;/g, "'").replace(/&quot;|&ldquo;|&rdquo;/g, '"').replace(/\s+/g, " ").trim())
+        .filter((p) => p.length > 60 && !/cookie|subscribe|sign up|newsletter|copyright|all rights reserved/i.test(p)).slice(0, 14).join("\n").slice(0, 5000);
+    }
+  } catch (e) {}
+  let brief = "";
+  if (env.AI && (text || desc)) {
+    try {
+      const r = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", { max_tokens: 220, messages: [
+        { role: "system", content: "Summarise this news story for a busy reader in 2 or 3 short, plain British English sentences: what happened, who or what it involves, and why people are talking about it. No opinions, no lists, no preamble." },
+        { role: "user", content: "Headline: " + t + "\n" + (desc ? "Summary line: " + desc + "\n" : "") + (text ? "Article:\n" + text : "") }] });
+      brief = String((r && r.response) || "").replace(/^\s*(here is|here's)[^:]*:\s*/i, "").trim();
+    } catch (e) {}
+  }
+  const out = brief ? { brief, src: "ai" } : { brief: desc || (text ? text.split("\n")[0].slice(0, 400) : ""), src: desc ? "feed" : text ? "page" : "none" };
+  if (out.brief) await env.PENDING.put(key, JSON.stringify(out), { expirationTtl: 2 * 86400 });
+  return json(out);
 }
 async function headlinesGet(env, force) {
   const c = (await env.PENDING.get(NEWS_KEY, "json")) || null, now = Date.now();
@@ -2872,6 +2903,12 @@ ${brandHeader("Gags")}
   .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
   body.kb #boxes label>.small{display:none}
   .news{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--field)}
+  .hlbrief{position:fixed;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:0}
+  .hlbrief.fixed{position:fixed;inset:auto 0 0 0;max-height:75vh;padding:0;background:none}
+  .hlbin{position:relative;width:100%;max-height:100%;overflow:auto;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+  .hlbk{font:700 12px Montserrat,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#ff8a8a;margin-right:44px}.hlbt{font:700 21px/1.25 Montserrat,sans-serif;margin:6px 44px 8px 0}
+  .hlbs{font:16px/1.5 Montserrat,sans-serif;margin:10px 0}.hlbr{border-top:1px solid var(--line);padding-top:8px;margin-top:4px}.hlbn{font-size:14px;margin-top:6px}
+  .hlba{display:flex;gap:10px;margin-top:14px}.hlba .btn-main,.hlba .btn{flex:1;margin:0}.hlbx{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--field);color:var(--text);font-size:16px;cursor:pointer}
   .exhl{position:absolute;z-index:5;box-sizing:border-box;padding:110px 150px 100px;background:rgba(20,20,20,.94);color:#fff;border-radius:60px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
   .exhlk{font:700 110px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#ff8a8a;margin-bottom:40px}
   .exhlt{font:700 190px/1.15 Montserrat,sans-serif}.exhld{font:400 130px/1.3 Montserrat,sans-serif;color:#d8d8d8;margin-top:40px}
@@ -3037,13 +3074,41 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   NW.addEventListener("click", function (e) {
     var x = e.target.closest("[data-topic-x]"); if (x) { TOPIC = null; topicDraw(); window.exPreview(); return; }
     var b = e.target.closest("[data-news]"); if (!b || !NEWS) return;
-    var k = b.dataset.news, i = Number(k.slice(1)), yr = String(new Date().getFullYear());
+    briefOpen(b.dataset.news);
+  });
+  // Tap a headline: a short summary opens in front of the preview, with "Use this headline" (Barry, 17 Nov).
+  var BRIEFS = {};
+  function briefOpen(k) {
+    var i = Number(k.slice(1)), it = k[0] === "g" ? NEWS.trends[i] : NEWS.bbc[i]; if (!it) return;
+    var title = k[0] === "g" ? it.q : it.t, rel = k[0] === "g" ? (it.news || []) : [], u = k[0] === "g" ? (rel[0] && rel[0].u) : it.u, d = k[0] === "g" ? (rel[0] ? rel[0].t : "") : (it.d || "");
+    var old = document.getElementById("hlBrief"); if (old) old.remove();
+    var host = document.querySelector(".g-prev"), inPrev = host && host.offsetParent;
+    var m = document.createElement("div"); m.id = "hlBrief"; m.className = "hlbrief" + (inPrev ? "" : " fixed");
+    m.innerHTML = '<div class="hlbin"><button type="button" class="hlbx" data-bx="1" aria-label="Close">✕</button>' +
+      '<div class="hlbk">' + (k[0] === "g" ? "Trending in the UK" + (it.n ? " · " + esc(it.n) + " searches" : "") : "BBC News") + "</div>" +
+      '<h3 class="hlbt">' + esc(title) + "</h3>" + badge(it.f) + ((it.f || []).length ? '<div class="small warnt">Careful: no names, no tragedy, nothing about who people are.</div>' : "") +
+      '<p class="hlbs" id="hlbS">' + (BRIEFS[k] ? esc(BRIEFS[k]) : '<span class="small">Reading the story…</span>') + "</p>" +
+      (rel.length ? '<div class="hlbr"><div class="small">In the news</div>' + rel.map(function (n) { return '<div class="hlbn">' + esc(n.t) + (n.s ? ' <span class="small">· ' + esc(n.s) + "</span>" : "") + "</div>"; }).join("") + "</div>" : "") +
+      '<div class="hlba"><button type="button" class="btn-main" data-buse="' + k + '">Use this headline</button><button type="button" class="btn" data-bx="1">Close</button></div></div>';
+    document.body.appendChild(m);
+    if (inPrev) {   // sit exactly over the preview, but never under the sticky bars at the top of the page
+      var rc = host.getBoundingClientRect(), bars = 0;
+      document.querySelectorAll(".topbar,.pagehead,.gtop").forEach(function (x) { var q = x.getBoundingClientRect(); if (getComputedStyle(x).position !== "static" && q.top < 200) bars = Math.max(bars, q.bottom); });
+      m.style.left = rc.left + "px"; m.style.width = rc.width + "px"; m.style.top = Math.max(rc.top, bars + 8) + "px"; m.style.bottom = Math.max(8, window.innerHeight - rc.bottom) + "px";
+    }
+    m.addEventListener("click", function (e) { if (e.target.closest("[data-bx]") || e.target === m) { m.remove(); return; } var ub = e.target.closest("[data-buse]"); if (ub) { m.remove(); usePick(ub.dataset.buse); } });
+    if (!BRIEFS[k]) fetch("/api/news-brief", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ u: u || "", t: title, d: d }) }).then(function (r) { return r.json(); }).then(function (j) {
+      BRIEFS[k] = j.brief || d || "No summary available for this one."; var S = document.getElementById("hlbS"); if (S && document.getElementById("hlBrief") === m) S.textContent = BRIEFS[k];
+    }).catch(function () { var S = document.getElementById("hlbS"); if (S) S.textContent = d || "Couldn’t read the story right now."; });
+  }
+  function usePick(k) {
+    var i = Number(k.slice(1)), yr = String(new Date().getFullYear());
     if (k[0] === "g") { var g = NEWS.trends[i], q = g.q.toLowerCase().trim(); TOPIC = { t: g.q, d: g.news && g.news[0] ? g.news[0].t : "", f: g.f, tags: [q.slice(0, 20)].concat((q + " " + yr).length <= 20 && q.indexOf(yr) < 0 ? [q + " " + yr] : []) }; }
-    else { var n = NEWS.bbc[i]; TOPIC = { t: n.t, d: "", f: n.f, tags: [] }; }
+    else { var n = NEWS.bbc[i]; TOPIC = { t: n.t, d: n.d || "", f: n.f, tags: [] }; }
     HL_SHOW = true; topicDraw(); window.exPreview();
     var w = document.querySelector("#wzBar [data-go='2']"); if (w) w.click();   // straight on to writing
     setTimeout(function () { var h = boxes.querySelector('textarea[data-col="GAG_HEADER"]'); if (h) h.focus(); }, 60);
-  });
+  }
   // The headline over the logo in the preview can be closed (it comes back when you pick another).
   document.getElementById("stage").addEventListener("click", function (e) { if (e.target.closest("[data-hlx]")) { HL_SHOW = false; window.exPreview(); } });
   boxes.addEventListener("input", function (e) {
@@ -3205,7 +3270,7 @@ const GAG_EX_SCRIPT = String.raw`(function () {
     if (!key.replace(/\|/g, "").trim()) { el("exSugN").textContent = "Write the gag first."; return; }
     if (!force && (key === sugKey || el("ext1").value.trim() || el("ext2").value.trim())) return;
     sugKey = key; el("exSug").disabled = true; el("exSugN").textContent = "Reading your gag…";
-    fetch("/api/ex-suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ header: P.GAG_HEADER, body: P.GAG_BODY, footer: P.GAG_FOOTER }) })
+    fetch("/api/ex-suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ header: P.GAG_HEADER, body: P.GAG_BODY, footer: P.GAG_FOOTER, topic: (window.exTopic && window.exTopic() || {}).t || "" }) })
       .then(function (r) { return r.json(); }).then(function (j) {
         el("exSug").disabled = false;
         if (!j.tags || !j.tags.length) { el("exSugN").textContent = "No ideas this time. Type your own."; return; }
@@ -3217,7 +3282,7 @@ const GAG_EX_SCRIPT = String.raw`(function () {
       }).catch(function () { el("exSug").disabled = false; el("exSugN").textContent = "Couldn’t suggest right now. Type your own."; });
   }
   el("exSug").addEventListener("click", function () { suggest(true); });
-  function all() { topicLine(); checkTag(1); checkTag(2); draw13(); drawHash(); drawUse(); if (!(window.exTopic && window.exTopic())) suggest(false); }
+  function all() { topicLine(); checkTag(1); checkTag(2); draw13(); drawHash(); drawUse(); suggest(false); }   // suggest() only fills empty tags
   ["ext1", "ext2"].forEach(function (id) { el(id).addEventListener("input", function () { checkTag(1); checkTag(2); draw13(); drawHash(); }); });
   el("stem").addEventListener("input", draw13);
   el("exHash").addEventListener("click", function (e) { var b = e.target.closest("[data-h]"); if (!b) return; HASHON[b.dataset.h] = !HASHON[b.dataset.h]; drawHash(); });
