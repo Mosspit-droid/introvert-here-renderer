@@ -42,6 +42,12 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 - The long-sleeve has no Purple pages: Purple must fall back to Navy there (or the long-sleeve gets its own list),
   otherwise a third of IP long-sleeve listings get a lead colour with no photos.
 
+## Video (Make 7696096 and the renderer)
+- Module 18 maps product-code prefixes to collections (SH-, PC-, OS-, and EX- since 16 Nov); anything else is treated as
+  INTROVERT HERE…. It needs an `IP-` entry mapping to IP's COLLECTION name, or IP videos look up the wrong rows.
+- The renderer uses `backgrounds/IP.jpg` when it exists (code = first 2 letters of the collection). There is no IP background
+  yet; without one it falls back to the background URL Make sends. In-person logos for it: `brand-logos/main-collections/in-person-stacked.png`.
+
 ## Global Fulfillment points (from a check of UK and EU printers' catalogues, 16 Nov)
 1. Navy 3XL on sweatshirts and hoodies is carried as widely as Black 3XL (UK 2/3, EU 2/2). "3XL in Black only" also removes
    Navy 3XL from Per Contract and would from IP; it could be "Black or Navy".
