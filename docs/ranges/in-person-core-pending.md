@@ -41,9 +41,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
   folded front 23–25, AGM 26, size guide 27, Find Your Range 28.
 - MOCKUP_PAGES IP HOODIE (14 rows): 1, 2, 3, 4, 7, 10, 13, 16, 17, 18, 23, 26, 27, 28
 - VIDEO_SLOT1 / VIDEO_SLOT2: 10, 11
-- Barry to check: size guide page 27 shows S–3XL, but IP hoodies get no 3XL under the "3XL in Black only" Global
-  Fulfillment rule (IP has no Black) unless that rule allows Navy; page 12 (Dark Heather hanging back) is framed tighter
-  than pages 10–11.
+- Checked with Barry: size guide S–3XL stays as is; page framing fine.
 
 ## Make (photo modules 700 and 711)
 - HERO_COLOURS for IP, in page order: Purple, Navy, Dark Heather.
