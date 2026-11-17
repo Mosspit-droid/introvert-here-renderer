@@ -182,15 +182,25 @@ function buildPage(spec) {
   const totalWords = textLines.reduce((sum, line) => sum + line.split(/\s+/).filter(Boolean).length, 0);
   const textLineCount = textLines.filter((l) => l.length).length;
   // Once the whole gag is showing, hold it long enough to read.
-  const hold = Number.isFinite(holdAfterTypingMs) ? holdAfterTypingMs : 1400 + totalChars * 15;
-  const revealMs = { type: totalChars * charIntervalMs, lines: textLineCount * 650, punch: textLineCount * 500 + 900, words: totalWords * 190 }[variant.textStyle];
+  // Etsy keeps only the first 15 seconds of a listing video (and the Instagram / Facebook reels are posted from Etsy's
+  // copy), so every video is fitted inside VIDEO_MAX_MS (Barry, 17 Nov: a long EXCLUSIVE gag ran 22s and lost its mockups).
+  // EXCLUSIVE videos are typewriter only, with no mockups at the end, by choice.
+  const VIDEO_MAX_MS = 14500;
+  const usedImages = isEx ? [] : productImages;
+  if (isEx) variant.teaser = false;
+  const baseHold = Number.isFinite(holdAfterTypingMs) ? holdAfterTypingMs : 1400 + totalChars * 15;
+  const baseReveal = { type: totalChars * charIntervalMs, lines: textLineCount * 650, punch: textLineCount * 500 + 900, words: totalWords * 190 }[variant.textStyle];
   const teaserMs = variant.teaser ? 800 : 0;
-  const textPhaseDurationMs = teaserMs + revealMs + hold;
-
-  const productPhaseDurationMs = productImages.reduce(
+  const productPhaseDurationMs = usedImages.reduce(
     (sum, img) => sum + Number(img.durationMs || 0),
     0
   );
+  // pace < 1 speeds up the reveal and the reading pause just enough to fit; never faster than 0.35x.
+  const room = VIDEO_MAX_MS - productPhaseDurationMs - teaserMs;
+  const pace = baseReveal + baseHold > room ? Math.max(0.35, room / (baseReveal + baseHold)) : 1;
+  const hold = Math.round(Math.max(1500, baseHold * pace));
+  const revealMs = Math.round(baseReveal * pace);
+  const textPhaseDurationMs = teaserMs + revealMs + hold;
 
   const totalDurationMs = textPhaseDurationMs + productPhaseDurationMs;
 
@@ -199,11 +209,12 @@ function buildPage(spec) {
   const clientSpec = {
     textLines,
     backgroundImageUrl,
-    productImages: productImages.map((img) => ({
+    productImages: usedImages.map((img) => ({
       url: img.url,
       durationMs: Number(img.durationMs || 0),
     })),
-    charIntervalMs,
+    charIntervalMs: charIntervalMs * pace,
+    pace,
     holdAfterTypingMs: hold,
     textPhaseDurationMs,
     variant,
@@ -534,7 +545,7 @@ function buildPage(spec) {
         });
       });
       for (const n of ends) {
-        await sleep(190);
+        await sleep(190 * SPEC.pace);
         revealCharsUpTo(n);
       }
     } else {
@@ -543,18 +554,20 @@ function buildPage(spec) {
       const last = V.textStyle === 'punch' && shown.length > 1 ? shown[shown.length - 1] : null;
       if (last) last.classList.add('punch');
       for (const el of shown) {
-        if (el === last) await sleep(650); // the comic beat
+        if (el === last) await sleep(650 * SPEC.pace); // the comic beat
         el.classList.add('in');
-        await sleep(V.textStyle === 'punch' ? 450 : 650);
+        await sleep((V.textStyle === 'punch' ? 450 : 650) * SPEC.pace);
       }
     }
 
     await sleep(SPEC.holdAfterTypingMs);
 
-    // Cut to the product photo sequence.
-    bg.classList.remove('active');
-    textbox.style.display = 'none';
-    if (front) front.style.display = 'none';
+    // Cut to the product photo sequence (EXCLUSIVE has none: it ends on the finished front page).
+    if (SPEC.productImages.length) {
+      bg.classList.remove('active');
+      textbox.style.display = 'none';
+      if (front) front.style.display = 'none';
+    }
 
     for (const product of SPEC.productImages) {
       const img = makeImageEl(product.url);
