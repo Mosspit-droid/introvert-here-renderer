@@ -2764,6 +2764,7 @@ ${brandHeader("Gags")}
     <div class="card g-side">
       <div class="fld o-range" data-st="1"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
         <div id="slot" class="small" style="display:none"></div><div id="rangeCount"></div></div>
+      <div class="fld o-news" data-st="9" id="newsWrap"></div>
       <div class="fld o-stem" data-st="3"><label><b>Title stem</b><input id="stem" required maxlength="60" autocapitalize="words" autocomplete="off"><span class="small" id="stemnote" style="display:block;margin-top:10px"></span></label><div id="stemspell"></div></div>
       <div class="fld o-stars" data-st="5"><b>Your rating <span class="small" style="font-weight:400">(optional: your best gags get the best seasonal slots)</span></b><div class="chips" id="starChips"></div></div>
       <div class="fld o-cat" data-st="4"><b>Gag category</b><div class="chips" id="catChips"><span class="small">Choose a range first.</span></div><select id="category" class="hid" tabindex="-1" aria-hidden="true"></select></div>
@@ -2871,6 +2872,10 @@ ${brandHeader("Gags")}
   .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
   body.kb #boxes label>.small{display:none}
   .news{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--field)}
+  .exhl{position:absolute;z-index:5;box-sizing:border-box;padding:110px 150px 100px;background:rgba(20,20,20,.94);color:#fff;border-radius:60px;box-shadow:0 30px 90px rgba(0,0,0,.35)}
+  .exhlk{font:700 110px Montserrat,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#ff8a8a;margin-bottom:40px}
+  .exhlt{font:700 190px/1.15 Montserrat,sans-serif}.exhld{font:400 130px/1.3 Montserrat,sans-serif;color:#d8d8d8;margin-top:40px}
+  .exhlx{position:absolute;top:50px;right:60px;width:230px;height:230px;border-radius:50%;border:0;background:#fff;color:#111;font:700 120px Montserrat,sans-serif;cursor:pointer;line-height:230px;padding:0}
   .news summary{cursor:pointer;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   #newsL{max-height:360px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:6px}
   .nh{font:700 11px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:8px 0 2px}
@@ -2888,7 +2893,7 @@ ${brandHeader("Gags")}
     .gwrap{display:flex;flex-direction:column;align-items:stretch;gap:12px}
     .gcol,.g-side{display:contents}
     /* Phone (Barry, 14 Nov): buttons pinned at the top on the right, text box first, preview under it (not floating). */
-    .o-wzbar{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-prev{order:5}.o-stem{order:6}.o-range{order:3}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-garm{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
+    .o-wzbar{order:1}.o-tabs{order:2}.o-pick{order:3}.o-text{order:4}.o-prev{order:5}.o-stem{order:6}.o-range{order:3}.o-news{order:3}.o-cat{order:7}.o-stars{order:7}.o-season{order:8}.o-dates{order:8}.o-garm{order:8}.o-save{order:9}.o-acts{order:10}.o-saves{order:11}
     .gL .g-prev{position:static}
     .wzhead{margin:0;padding:8px 0;border-radius:0;gap:8px}
     .wzbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.wzbar::-webkit-scrollbar{display:none}.wzbar button{flex:none;padding:6px 10px;font-size:12px}
@@ -2999,7 +3004,8 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
     if (!r) { var had = !!boxes.innerHTML; boxes.innerHTML = ""; lab.style.display = ""; main.required = true; if (had && !ed) { main.value = "... "; } return; }
     lab.style.display = "none"; main.required = false;
     var parts = (ed && ed.parts) || null, old = parts || !ed ? null : main.value.replace(/^[ .…]+$/, "").split(/\n\s*\n/);   // only an existing gag being edited is split into boxes
-    boxes.innerHTML = (col.value === "EXCLUSIVE" ? newsBox() : "") + r.map(function (x, i) {
+    newsShow();
+    boxes.innerHTML = r.map(function (x, i) {
       var v = parts ? parts[x.col] || "" : old ? old[i] || "" : (!ed && KEEP[col.value] && KEEP[col.value][x.col]) || "";
       return '<label><b>' + esc(x.label) + '</b> <span class="small">(' + x.lines + " line" + (x.lines === 1 ? "" : "s") + " max" + (x.case === "UPPER" ? ", capitals" : "") + ')</span>' +
         '<textarea data-col="' + esc(x.col) + '" data-case="' + esc(x.case) + '" rows="' + Math.min(4, x.lines + 1) + '" spellcheck="true">' + esc(v) + '</textarea></label><div class="bxn" data-n="' + esc(x.col) + '"></div>';
@@ -3008,7 +3014,10 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   }
   // Today's headlines (Barry, 16 Nov): tap one to make it the topic; the gag itself is still yours to write.
   var NEWS = null, TOPIC = null;
-  function newsBox() { return '<details class="news" open><summary>Today’s headlines <span class="small" id="newsAt"></span></summary><div id="newsL"><div class="small">Loading…</div></div></details><div id="topicPick"></div>'; }
+  // Headlines sit on the range page (Barry, 17 Nov): pick one there and the gag step opens with it shown over the logo in the preview.
+  var NW = document.getElementById("newsWrap"), HL_SHOW = true;
+  function newsBox() { return '<div class="news"><b>Today’s headlines</b> <span class="small" id="newsAt"></span><div class="small" style="margin:4px 0 8px">Tap one to make it your topic, or tap Next to write without one.</div><div id="newsL"><div class="small">Loading…</div></div></div><div id="topicPick"></div>'; }
+  function newsShow() { if (col.value !== "EXCLUSIVE") return; if (!document.getElementById("newsL")) { NW.innerHTML = newsBox(); } newsFill(); }
   function badge(f) { return (f || []).map(function (x) { return '<span class="nb ' + x + '">' + (x === "name" ? "names someone?" : "tragedy?") + "</span>"; }).join(""); }
   function newsFill() {
     var L = document.getElementById("newsL"); if (!L) return; topicDraw();
@@ -3025,15 +3034,18 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
       ((TOPIC.f || []).length ? '<div class="small warnt">Remember: no names, no tragedy, nothing about who people are.</div>' : "") + '</div><button type="button" class="btn" data-topic-x="1">✕</button></div>' : "";
   }
   window.exTopic = function () { return TOPIC; };
-  boxes.addEventListener("click", function (e) {
-    var x = e.target.closest("[data-topic-x]"); if (x) { TOPIC = null; topicDraw(); var d = boxes.querySelector(".news"); if (d) d.open = true; return; }
+  NW.addEventListener("click", function (e) {
+    var x = e.target.closest("[data-topic-x]"); if (x) { TOPIC = null; topicDraw(); window.exPreview(); return; }
     var b = e.target.closest("[data-news]"); if (!b || !NEWS) return;
     var k = b.dataset.news, i = Number(k.slice(1)), yr = String(new Date().getFullYear());
-    if (k[0] === "g") { var g = NEWS.trends[i], q = g.q.toLowerCase().trim(); TOPIC = { t: g.q, f: g.f, tags: [q.slice(0, 20)].concat((q + " " + yr).length <= 20 && q.indexOf(yr) < 0 ? [q + " " + yr] : []) }; }
-    else { var n = NEWS.bbc[i]; TOPIC = { t: n.t, f: n.f, tags: [] }; }
-    topicDraw(); var d = boxes.querySelector(".news"); if (d) d.open = false;
-    var h = boxes.querySelector('textarea[data-col="GAG_HEADER"]'); if (h) h.focus();
+    if (k[0] === "g") { var g = NEWS.trends[i], q = g.q.toLowerCase().trim(); TOPIC = { t: g.q, d: g.news && g.news[0] ? g.news[0].t : "", f: g.f, tags: [q.slice(0, 20)].concat((q + " " + yr).length <= 20 && q.indexOf(yr) < 0 ? [q + " " + yr] : []) }; }
+    else { var n = NEWS.bbc[i]; TOPIC = { t: n.t, d: "", f: n.f, tags: [] }; }
+    HL_SHOW = true; topicDraw(); window.exPreview();
+    var w = document.querySelector("#wzBar [data-go='2']"); if (w) w.click();   // straight on to writing
+    setTimeout(function () { var h = boxes.querySelector('textarea[data-col="GAG_HEADER"]'); if (h) h.focus(); }, 60);
   });
+  // The headline over the logo in the preview can be closed (it comes back when you pick another).
+  document.getElementById("stage").addEventListener("click", function (e) { if (e.target.closest("[data-hlx]")) { HL_SHOW = false; window.exPreview(); } });
   boxes.addEventListener("input", function (e) {
     var t = e.target; if (!t.dataset || !t.dataset.col) return;
     if (t.dataset.case === "UPPER") { var u = t.value.toUpperCase(); if (u !== t.value) { var a = t.selectionStart, b = t.selectionEnd; t.value = u; t.setSelectionRange(a, b); } }
@@ -3054,6 +3066,7 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
     pbox.style.display = "none"; if (pl) pl.style.visibility = "hidden";
     if (!page) { page = document.createElement("div"); page.id = "expage"; page.className = "expage"; stage.appendChild(page); }
     var v = vals(), html = '<img src="/assets/ex-logo.png" alt="" style="top:' + EX.logo[0] + 'px;left:' + EX.logo[1] + 'px;width:' + EX.logo[2] + 'px;height:' + EX.logo[3] + 'px">' +
+      (TOPIC && HL_SHOW ? '<div class="exhl" style="top:' + (EX.logo[0] - 60) + 'px;left:' + EX.logo[1] + 'px;width:' + EX.logo[2] + 'px;min-height:' + (EX.logo[3] + 120) + 'px"><button type="button" class="exhlx" data-hlx="1" aria-label="Close the headline">✕</button><div class="exhlk">' + ((TOPIC.f || []).length ? "Headline · check: no names, no tragedy" : "Your headline") + '</div><div class="exhlt">' + esc(TOPIC.t) + "</div>" + (TOPIC.d ? '<div class="exhld">' + esc(TOPIC.d) + "</div>" : "") + "</div>" : "") +
       EX.rules.map(function (t) { return '<div class="exr" style="top:' + t + 'px"></div>'; }).join("");
     r.forEach(function (x) { var L = EX[x.col]; if (!L) return; var t = v[x.col] || "";
       html += '<div class="ext' + (t.trim() ? "" : " ph") + '" data-c="' + esc(x.col) + '" style="top:' + L.top + 'px;left:' + L.left + 'px;width:' + L.width + 'px;font:' + L.style + " 400 " + L.size + "px/" + L.lh + " '" + L.font + "'," + (L.font === "Anton" ? "Impact,sans-serif" : "Georgia,serif") + ';color:' + L.color + '">' + esc(t.trim() ? t : x.label.replace(/\s*\(.*$/, "")) + "</div>"; });
@@ -3412,7 +3425,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
       post(false).then(function (k) { if (k.error) return alert(k.error); window.GAG_TARGETS = k.targets; counts();
         if (msg && window.toast) window.toast("Sent to Core. Tap Sync to Core in a minute to see the new numbers."); }); }); });
   el("collection").addEventListener("change", function () { setTimeout(counts, 0); });
-  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); if (cur === 1 && !document.querySelector('.tab.on[data-tab="edit"]')) setTimeout(function () { if (el("collection").value) go(2); }, 120); });
+  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); if (cur === 1 && !document.querySelector('.tab.on[data-tab="edit"]')) setTimeout(function () { if (el("collection").value && el("collection").value !== "EXCLUSIVE") go(2); else if (el("collection").value === "EXCLUSIVE") { var nw = el("newsWrap"); if (nw) nw.scrollIntoView({ behavior: "smooth", block: "start" }); } }, 120); });
   counts();
   function typing() { var a = document.activeElement; return a && a.closest && a.closest(".gR") && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "date" && a.type !== "checkbox")); }
   function fit() {   // text box fills what's left above the keyboard
@@ -3442,7 +3455,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   function rangeSteps() {
     var ex = el("collection").value === "EXCLUSIVE";
     Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.dataset.st = x.dataset.ost; });
-    if (ex) { STEPS = EX_STEPS; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; }); document.querySelector(".o-extopic").dataset.st = "5"; el("save").textContent = "List it now"; }
+    if (ex) { STEPS = EX_STEPS; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; }); document.querySelector(".o-extopic").dataset.st = "5"; document.querySelector(".o-news").dataset.st = "1"; el("save").textContent = "List it now"; }
     else { STEPS = BASE_STEPS; el("save").textContent = NOW ? "List it now" : Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }
     go(Math.min(cur, STEPS.length));
   }
