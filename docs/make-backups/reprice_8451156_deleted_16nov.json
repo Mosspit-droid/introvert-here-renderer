@@ -1,0 +1,526 @@
+{
+ "flow": [
+  {
+   "id": 100,
+   "mapper": {},
+   "module": "gateway:CustomWebHook",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": -300,
+     "y": 0,
+     "name": "Started from the app (Tools page)"
+    }
+   },
+   "parameters": {
+    "hook": 4064871
+   }
+  },
+  {
+   "id": 1,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "values"
+     },
+     {
+      "key": "$top",
+      "value": "2000"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/LISTING_REGISTRY_TABLE/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Read LISTING_REGISTRY_TABLE"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "object": "{{1.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 5,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "values"
+     },
+     {
+      "key": "$top",
+      "value": "2000"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/PRODUCT_RULES/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Read PRODUCT_RULES"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 6,
+   "mapper": {
+    "object": "{{5.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 200
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 7,
+   "mapper": {
+    "input": [
+     {
+      "name": "reg",
+      "value": "{{2.json}}"
+     },
+     {
+      "name": "rules",
+      "value": "{{6.json}}"
+     },
+     {
+      "name": "only",
+      "value": "{{100.only}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "// Listings to re-price, with the price rule for their collection + product type (PRODUCT_RULES: Q = base, AW/AX = 2XL/3XL extras).\nconst reg = JSON.parse(input.reg).value.map(r => r.values[0]);\nconst rules = JSON.parse(input.rules).value.map(r => r.values[0]);\nconst only = String(input.only || \"\").split(\",\").map(s => s.trim()).filter(Boolean);\nconst list = [], skipped = [];\nreg.forEach(v => {\n  const code = String(v[0] || \"\").trim(), coll = String(v[1] || \"\").trim(), type = String(v[2] || \"\").trim();\n  const productId = String(v[8] || \"\").trim(), listingId = String(v[6] || \"\").trim();\n  if (!code || !productId || !listingId) return;\n  if (only.length && !only.includes(code)) return;\n  const r = rules.find(x => String(x[0]).trim() === coll && String(x[1]).trim() === type);\n  if (!r || !Number(r[16])) { skipped.push(code); return; }\n  list.push({ code, productId, listingId, base: Number(r[16]), x2: Number(r[48] || 0), x3: Number(r[49] || 0) });\n});\nreturn { list, count: list.length, skipped: skipped.join(\",\") };\n"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 450,
+     "y": 0,
+     "name": "Listings to re-price (set 'only' to test)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 8,
+   "mapper": {
+    "array": "{{7.result.list}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Each listing"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 9,
+   "mapper": {
+    "duration": "2"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 700,
+     "y": 0,
+     "name": "Pause (rate limits)"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 10,
+   "mapper": {
+    "url": "/v1/shops/27154106/products/{{8.productId}}.json",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "printify:makeApiCall",
+   "onerror": [
+    {
+     "id": 110,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 800,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 800,
+     "y": 0,
+     "name": "Get the Printify product"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 11,
+   "mapper": {
+    "object": "{{10.body}}"
+   },
+   "module": "json:TransformToJSON",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 950,
+     "y": 0
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 12,
+   "mapper": {
+    "input": [
+     {
+      "name": "product",
+      "value": "{{11.json}}"
+     },
+     {
+      "name": "base",
+      "value": "{{8.base}}"
+     },
+     {
+      "name": "x2",
+      "value": "{{8.x2}}"
+     },
+     {
+      "name": "x3",
+      "value": "{{8.x3}}"
+     },
+     {
+      "name": "code",
+      "value": "{{8.code}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "// New prices for the variants already on the product (only those in its print areas, which Printify requires).\n// 2XL gets the 2XL extra; 3XL and bigger get the 3XL extra. Enabled/disabled state is kept as it is.\nconst p = JSON.parse(input.product);\nconst inPA = new Set(); (p.print_areas || []).forEach(a => (a.variant_ids || []).forEach(id => inPA.add(id)));\nconst SZ = /^(XS|S|M|L|XL|2XL|3XL|4XL|5XL)$/;\nconst base = Number(input.base), x2 = Number(input.x2), x3 = Number(input.x3);\nconst out = [], seen = {};\n(p.variants || []).filter(v => inPA.has(v.id)).forEach(v => {\n  const size = String(v.title || \"\").split(\"/\").map(s => s.trim()).find(s => SZ.test(s)) || \"\";\n  const extra = size === \"2XL\" ? x2 : (/^[3-5]XL$/.test(size) ? x3 : 0);\n  const price = Math.round((base + extra) * 100);\n  out.push({ id: v.id, price, is_enabled: v.is_enabled });\n  if (v.is_enabled) seen[size || \"?\"] = price / 100;\n});\nif (!out.length) throw new Error(\"No variants found on \" + input.code);\nreturn { body: JSON.stringify({ variants: out }), summary: input.code + \" \" + JSON.stringify(seen) };\n"
+   },
+   "module": "code:ExecuteCode",
+   "onerror": [
+    {
+     "id": 112,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 1100,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1100,
+     "y": 0,
+     "name": "New prices by size"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 13,
+   "mapper": {
+    "url": "/v1/shops/27154106/products/{{8.productId}}.json",
+    "body": "{{12.result.body}}",
+    "method": "PUT",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "printify:makeApiCall",
+   "onerror": [
+    {
+     "id": 113,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 1250,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1250,
+     "y": 0,
+     "name": "Save prices in Printify"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 14,
+   "mapper": {
+    "tags": false,
+    "title": false,
+    "images": false,
+    "shop_id": "27154106",
+    "variants": true,
+    "product_id": "{{8.productId}}",
+    "description": false,
+    "keyFeatures": false,
+    "shipping_template": false
+   },
+   "module": "printify:publishAProduct",
+   "onerror": [
+    {
+     "id": 114,
+     "mapper": {},
+     "module": "builtin:Ignore",
+     "version": 1,
+     "metadata": {
+      "designer": {
+       "x": 1400,
+       "y": 300
+      }
+     },
+     "parameters": {}
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1400,
+     "y": 0,
+     "name": "Push the new prices to Etsy (prices only)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10465336
+   }
+  },
+  {
+   "id": 15,
+   "mapper": {
+    "value": "{{12.result.summary}}"
+   },
+   "module": "util:TextAggregator",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1550,
+     "y": 0
+    }
+   },
+   "parameters": {
+    "feeder": 8,
+    "rowSeparator": "other",
+    "otherRowSeparator": "\n"
+   }
+  },
+  {
+   "id": 16,
+   "mapper": {
+    "input": [
+     {
+      "name": "t",
+      "value": "{{15.text}}"
+     },
+     {
+      "name": "s",
+      "value": "{{7.result.skipped}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "const rows=String(input.t||\"\").split(\"\\n\").filter(Boolean);\nreturn {body: JSON.stringify({done: input.t, skipped: input.s}), alert: JSON.stringify({title: \"Prices updated on \" + rows.length + \" live listings\", body: \"New prices are on Etsy.\" + (input.s ? \" Skipped (no price rule): \" + input.s : \"\"), source: \"Pricing\"})};"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1700,
+     "y": 0
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 17,
+   "mapper": {
+    "url": "https://mosspit-approvals.mosspit.workers.dev/api/debug",
+    "method": "post",
+    "headers": [
+     {
+      "name": "X-Ingest-Secret",
+      "value": "REDACTED"
+     }
+    ],
+    "timeout": 30,
+    "contentType": "json",
+    "inputMethod": "jsonString",
+    "shareCookies": false,
+    "parseResponse": true,
+    "allowRedirects": true,
+    "stopOnHttpError": true,
+    "jsonStringBodyContent": "{{16.result.body}}",
+    "requestCompressedContent": true
+   },
+   "module": "http:MakeRequest",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 1850,
+     "y": 0
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  },
+  {
+   "id": 18,
+   "mapper": {
+    "url": "https://mosspit-approvals.mosspit.workers.dev/api/alert",
+    "method": "post",
+    "headers": [
+     {
+      "name": "X-Ingest-Secret",
+      "value": "REDACTED"
+     }
+    ],
+    "timeout": 30,
+    "contentType": "json",
+    "inputMethod": "jsonString",
+    "shareCookies": false,
+    "parseResponse": true,
+    "allowRedirects": true,
+    "stopOnHttpError": false,
+    "jsonStringBodyContent": "{{16.result.alert}}",
+    "requestCompressedContent": true
+   },
+   "module": "http:MakeRequest",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 2000,
+     "y": 0,
+     "name": "Tell the app it's done"
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  },
+  {
+   "id": 60,
+   "mapper": {
+    "duration": "300"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2300,
+     "y": 0,
+     "name": "Give Printify 5 minutes to sync to Etsy"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 61,
+   "mapper": {
+    "qs": [],
+    "url": "/v2/scenarios/8146216/run",
+    "body": "{\"responsive\":false}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "make:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2600,
+     "y": 0,
+     "name": "Run the free-postage check (Printify resets postage when it syncs)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 12549534
+   }
+  }
+ ],
+ "name": "Introvert Here: Tool \u2014 Re-price existing listings",
+ "metadata": {
+  "instant": true,
+  "version": 1,
+  "scenario": {
+   "dlq": false,
+   "roundtrips": 1
+  }
+ }
+}

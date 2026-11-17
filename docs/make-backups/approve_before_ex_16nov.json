@@ -1,0 +1,1244 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "mapper": {},
+   "module": "gateway:CustomWebHook",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Receive approval tap"
+    }
+   },
+   "parameters": {
+    "hook": 3971232
+   }
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "code",
+      "value": "{{ifempty(1.code; 1.query.code)}}"
+     },
+     {
+      "name": "row",
+      "value": "{{ifempty(1.row; 1.query.row)}}"
+     },
+     {
+      "name": "productHint",
+      "value": "{{ifempty(1.product; 1.query.product)}}"
+     },
+     {
+      "name": "fileId",
+      "value": "{{ifempty(1.file; 1.query.file)}}"
+     },
+     {
+      "name": "social",
+      "value": "{{ifempty(1.social; 1.query.social)}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Extract request fields"
+    }
+   }
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('LISTING_REGISTRY')/range(address='A{{2.row}}:BA{{2.row}}')",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Read Core row by number"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 20,
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "productCode",
+      "value": "{{get(get(3.body.values;1);1)}}"
+     },
+     {
+      "name": "etsyListingId",
+      "value": "{{get(get(3.body.values;1);7)}}"
+     },
+     {
+      "name": "tokenValue",
+      "value": "{{get(get(3.body.values;1);31)}}"
+     },
+     {
+      "name": "statusValue",
+      "value": "{{get(get(3.body.values;1);28)}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 800,
+     "y": 0,
+     "name": "Extract row fields"
+    }
+   }
+  },
+  {
+   "id": 7,
+   "filter": {
+    "name": "Token matches and not already posted",
+    "conditions": [
+     [
+      {
+       "a": "{{20.tokenValue}}",
+       "b": "{{2.code}}",
+       "o": "text:equal"
+      },
+      {
+       "a": "{{20.statusValue}}",
+       "b": "PENDING_REVIEW",
+       "o": "text:equal"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "qs": [],
+    "url": "/shops/65435151/listings/{{20.etsyListingId}}",
+    "body": "state=active",
+    "method": "PATCH",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/x-www-form-urlencoded"
+     }
+    ]
+   },
+   "module": "etsy:universal",
+   "onerror": [
+    {
+     "id": 307,
+     "mapper": {
+      "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+      "method": "post",
+      "timeout": 20,
+      "contentType": "urlEncoded",
+      "shareCookies": false,
+      "parseResponse": false,
+      "allowRedirects": true,
+      "stopOnHttpError": false,
+      "urlEncodedBodyContent": [
+       {
+        "name": "row",
+        "value": "{{2.row}}"
+       },
+       {
+        "name": "code",
+        "value": "{{2.code}}"
+       },
+       {
+        "name": "outcome",
+        "value": "failed"
+       },
+       {
+        "name": "step",
+        "value": "Etsy publish"
+       },
+       {
+        "name": "message",
+        "value": "Etsy wouldn't publish the listing, so nothing was posted to social. Check the listing on Etsy; the Approve button still works once it's fixed."
+       }
+      ],
+      "requestCompressedContent": true
+     },
+     "module": "http:MakeRequest",
+     "onerror": [
+      {
+       "id": 357,
+       "mapper": null,
+       "module": "builtin:Ignore",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 2100,
+         "y": 600
+        }
+       }
+      }
+     ],
+     "version": 4,
+     "metadata": {
+      "designer": {
+       "x": 2100,
+       "y": 300,
+       "name": "Tell approvals app: failed at Etsy publish"
+      }
+     },
+     "parameters": {
+      "authenticationType": "noAuth"
+     }
+    }
+   ],
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "Publish listing live on Etsy"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 30,
+   "mapper": {
+    "file": "{{2.fileId}}",
+    "enter": "id",
+    "choose": "map",
+    "format": false,
+    "select": "my",
+    "select1": "no"
+   },
+   "module": "onedrive:downloadAFile",
+   "onerror": [
+    {
+     "id": 330,
+     "mapper": {
+      "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+      "method": "post",
+      "timeout": 20,
+      "contentType": "urlEncoded",
+      "shareCookies": false,
+      "parseResponse": false,
+      "allowRedirects": true,
+      "stopOnHttpError": false,
+      "urlEncodedBodyContent": [
+       {
+        "name": "row",
+        "value": "{{2.row}}"
+       },
+       {
+        "name": "code",
+        "value": "{{2.code}}"
+       },
+       {
+        "name": "outcome",
+        "value": "failed"
+       },
+       {
+        "name": "step",
+        "value": "fetching the video from OneDrive"
+       },
+       {
+        "name": "message",
+        "value": "The listing is now LIVE on Etsy, but the video couldn't be fetched from OneDrive, so nothing was attached or posted to social."
+       }
+      ],
+      "requestCompressedContent": true
+     },
+     "module": "http:MakeRequest",
+     "onerror": [
+      {
+       "id": 380,
+       "mapper": null,
+       "module": "builtin:Ignore",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 2400,
+         "y": 600
+        }
+       }
+      }
+     ],
+     "version": 4,
+     "metadata": {
+      "designer": {
+       "x": 2400,
+       "y": 300,
+       "name": "Tell approvals app: failed at OneDrive"
+      }
+     },
+     "parameters": {
+      "authenticationType": "noAuth"
+     }
+    }
+   ],
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Download rendered video from OneDrive"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 34,
+   "mapper": {
+    "qs": [],
+    "url": "/listings/{{20.etsyListingId}}/videos",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2350,
+     "y": -300,
+     "name": "Old videos on the listing"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 35,
+   "mapper": {
+    "array": "{{34.body.results}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2500,
+     "y": -300,
+     "name": "Each old video"
+    }
+   }
+  },
+  {
+   "id": 36,
+   "filter": {
+    "name": "There is an old video",
+    "conditions": [
+     [
+      {
+       "a": "{{35.video_id}}",
+       "o": "exist"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "qs": [],
+    "url": "/shops/65435151/listings/{{20.etsyListingId}}/videos/{{35.video_id}}",
+    "method": "DELETE",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2650,
+     "y": -300,
+     "name": "Delete it (the approved video replaces it)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 37,
+   "flags": {
+    "stopIfEmpty": false
+   },
+   "mapper": {
+    "id": "{{35.video_id}}"
+   },
+   "module": "builtin:BasicAggregator",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2800,
+     "y": -300,
+     "name": "Old videos done"
+    }
+   },
+   "parameters": {
+    "feeder": 35
+   }
+  },
+  {
+   "id": 31,
+   "mapper": {
+    "qs": [],
+    "url": "/shops/65435151/listings/{{20.etsyListingId}}/videos",
+    "fields": [
+     {
+      "key": "video",
+      "fileData": "{{30.data}}",
+      "fileName": "{{30.filename}}",
+      "fieldType": "file"
+     },
+     {
+      "key": "name",
+      "value": "{{30.filename}}",
+      "fieldType": "text"
+     }
+    ],
+    "method": "POST",
+    "headers": [],
+    "bodyType": "multipart/form-data"
+   },
+   "module": "etsy:universal",
+   "onerror": [
+    {
+     "id": 331,
+     "mapper": {
+      "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+      "method": "post",
+      "timeout": 20,
+      "contentType": "urlEncoded",
+      "shareCookies": false,
+      "parseResponse": false,
+      "allowRedirects": true,
+      "stopOnHttpError": false,
+      "urlEncodedBodyContent": [
+       {
+        "name": "row",
+        "value": "{{2.row}}"
+       },
+       {
+        "name": "code",
+        "value": "{{2.code}}"
+       },
+       {
+        "name": "outcome",
+        "value": "failed"
+       },
+       {
+        "name": "step",
+        "value": "attaching the video on Etsy"
+       },
+       {
+        "name": "message",
+        "value": "The listing is now LIVE on Etsy, but attaching the video failed, so nothing was posted to social."
+       }
+      ],
+      "requestCompressedContent": true
+     },
+     "module": "http:MakeRequest",
+     "onerror": [
+      {
+       "id": 381,
+       "mapper": null,
+       "module": "builtin:Ignore",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 2550,
+         "y": 600
+        }
+       }
+      }
+     ],
+     "version": 4,
+     "metadata": {
+      "designer": {
+       "x": 2550,
+       "y": 300,
+       "name": "Tell approvals app: failed at video attach"
+      }
+     },
+     "parameters": {
+      "authenticationType": "noAuth"
+     }
+    }
+   ],
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2250,
+     "y": 0,
+     "name": "Upload approved video to Etsy listing"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 33,
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('LISTING_REGISTRY')/range(address='U{{2.row}}:X{{2.row}}')",
+    "body": "{\"values\":[[\"{{30.filename}}\",\"{{31.body.video_id}}\",\"Uploaded\",\"{{formatDate(now; \"YYYY-MM-DDTHH:mm:ssZ\")}}\"]]}",
+    "method": "PATCH",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2550,
+     "y": 0,
+     "name": "Write video status to Core"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 8,
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('LISTING_REGISTRY')/range(address='AD{{2.row}}')",
+    "body": "{\"values\":[[\"LIVE\"]]}",
+    "method": "PATCH",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2700,
+     "y": 0,
+     "name": "Mark listing LIVE in Core"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 9,
+   "mapper": {
+    "qs": [],
+    "url": "/listings/{{20.etsyListingId}}/videos",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2850,
+     "y": 0,
+     "name": "Get listing video"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 10,
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "videoUrl",
+      "value": "{{get(map(9.body.results; \"video_url\"); length(9.body.results))}}"
+     },
+     {
+      "name": "videoId",
+      "value": "{{get(map(9.body.results; \"video_id\"); length(9.body.results))}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3000,
+     "y": 0,
+     "name": "Capture video CDN URL + id (last uploaded)"
+    }
+   }
+  },
+  {
+   "id": 11,
+   "mapper": {
+    "qs": [],
+    "url": "/listings/{{20.etsyListingId}}/images",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 3150,
+     "y": 0,
+     "name": "Get listing images"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 26,
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "pinImageUrl",
+      "value": "{{get(map(11.body.results; \"url_fullxfull\"); floor(random * (length(11.body.results) - 1)) + 1)}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3350,
+     "y": 0,
+     "name": "Look up that image's URL"
+    }
+   }
+  },
+  {
+   "id": 12,
+   "mapper": {
+    "qs": [],
+    "url": "/listings/{{20.etsyListingId}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 3450,
+     "y": 0,
+     "name": "Get listing title and URL"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 400,
+   "mapper": null,
+   "module": "builtin:BasicRouter",
+   "routes": [
+    {
+     "flow": [
+      {
+       "id": 13,
+       "filter": {
+        "name": "Post to social (unless the app said video only)",
+        "conditions": [
+         [
+          {
+           "a": "{{2.social}}",
+           "b": "no",
+           "o": "text:notequal"
+          }
+         ]
+        ]
+       },
+       "mapper": {
+        "link": "{{12.body.url}}",
+        "title": "{{12.body.title}}",
+        "board_id": "1125477831819161089",
+        "description": "New from Introvert Here \u2014 link in bio.",
+        "media_source": {
+         "url": "{{26.pinImageUrl}}",
+         "source_type": "image_url"
+        }
+       },
+       "module": "pinterest:createPin",
+       "onerror": [
+        {
+         "id": 313,
+         "mapper": {
+          "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+          "method": "post",
+          "timeout": 20,
+          "contentType": "urlEncoded",
+          "shareCookies": false,
+          "parseResponse": false,
+          "allowRedirects": true,
+          "stopOnHttpError": false,
+          "urlEncodedBodyContent": [
+           {
+            "name": "row",
+            "value": "{{2.row}}"
+           },
+           {
+            "name": "code",
+            "value": "{{2.code}}"
+           },
+           {
+            "name": "outcome",
+            "value": "failed"
+           },
+           {
+            "name": "step",
+            "value": "Pinterest"
+           },
+           {
+            "name": "message",
+            "value": "The listing is LIVE on Etsy with its video, but posting to Pinterest failed, so Instagram and Facebook weren't attempted."
+           }
+          ],
+          "requestCompressedContent": true
+         },
+         "module": "http:MakeRequest",
+         "onerror": [
+          {
+           "id": 363,
+           "mapper": null,
+           "module": "builtin:Ignore",
+           "version": 1,
+           "metadata": {
+            "designer": {
+             "x": 4050,
+             "y": 600
+            }
+           }
+          }
+         ],
+         "version": 4,
+         "metadata": {
+          "designer": {
+           "x": 4050,
+           "y": 300,
+           "name": "Tell approvals app: failed at Pinterest"
+          }
+         },
+         "parameters": {
+          "authenticationType": "noAuth"
+         }
+        }
+       ],
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 3750,
+         "y": 0,
+         "name": "Post Pinterest pin"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10778772
+       }
+      },
+      {
+       "id": 14,
+       "mapper": {
+        "caption": "{{12.body.title}} \u2014 link in bio.\n\n#introvert #introverthumor #introvertproblems #funnygifts #introvertgifts",
+        "accountId": "17841427879788102",
+        "video_url": "{{10.videoUrl}}",
+        "share_to_feed": true
+       },
+       "module": "instagram-business:CreateAReelPost",
+       "onerror": [
+        {
+         "id": 314,
+         "mapper": {
+          "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+          "method": "post",
+          "timeout": 20,
+          "contentType": "urlEncoded",
+          "shareCookies": false,
+          "parseResponse": false,
+          "allowRedirects": true,
+          "stopOnHttpError": false,
+          "urlEncodedBodyContent": [
+           {
+            "name": "row",
+            "value": "{{2.row}}"
+           },
+           {
+            "name": "code",
+            "value": "{{2.code}}"
+           },
+           {
+            "name": "outcome",
+            "value": "failed"
+           },
+           {
+            "name": "step",
+            "value": "Instagram"
+           },
+           {
+            "name": "message",
+            "value": "LIVE on Etsy and posted to Pinterest, but Instagram failed, so Facebook wasn't attempted. Re-approving would post to Pinterest again too."
+           }
+          ],
+          "requestCompressedContent": true
+         },
+         "module": "http:MakeRequest",
+         "onerror": [
+          {
+           "id": 364,
+           "mapper": null,
+           "module": "builtin:Ignore",
+           "version": 1,
+           "metadata": {
+            "designer": {
+             "x": 4350,
+             "y": 600
+            }
+           }
+          }
+         ],
+         "version": 4,
+         "metadata": {
+          "designer": {
+           "x": 4350,
+           "y": 300,
+           "name": "Tell approvals app: failed at Instagram"
+          }
+         },
+         "parameters": {
+          "authenticationType": "noAuth"
+         }
+        }
+       ],
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 4050,
+         "y": 0,
+         "name": "Post Instagram reel"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 12810149
+       }
+      },
+      {
+       "id": 15,
+       "mapper": {
+        "url": "{{10.videoUrl}}",
+        "title": "INTROVERT HERE\u2026",
+        "page_id": "1396268276895585",
+        "description": "{{12.body.title}} \u2014 {{12.body.url}}",
+        "uploadMethod": "url"
+       },
+       "module": "facebook-pages:uploadAReel",
+       "onerror": [
+        {
+         "id": 315,
+         "mapper": {
+          "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+          "method": "post",
+          "timeout": 20,
+          "contentType": "urlEncoded",
+          "shareCookies": false,
+          "parseResponse": false,
+          "allowRedirects": true,
+          "stopOnHttpError": false,
+          "urlEncodedBodyContent": [
+           {
+            "name": "row",
+            "value": "{{2.row}}"
+           },
+           {
+            "name": "code",
+            "value": "{{2.code}}"
+           },
+           {
+            "name": "outcome",
+            "value": "failed"
+           },
+           {
+            "name": "step",
+            "value": "Facebook"
+           },
+           {
+            "name": "message",
+            "value": "LIVE on Etsy and posted to Pinterest and Instagram, but Facebook failed. Re-approving would post to Pinterest and Instagram again too."
+           }
+          ],
+          "requestCompressedContent": true
+         },
+         "module": "http:MakeRequest",
+         "onerror": [
+          {
+           "id": 365,
+           "mapper": null,
+           "module": "builtin:Ignore",
+           "version": 1,
+           "metadata": {
+            "designer": {
+             "x": 4650,
+             "y": 600
+            }
+           }
+          }
+         ],
+         "version": 4,
+         "metadata": {
+          "designer": {
+           "x": 4650,
+           "y": 300,
+           "name": "Tell approvals app: failed at Facebook"
+          }
+         },
+         "parameters": {
+          "authenticationType": "noAuth"
+         }
+        }
+       ],
+       "version": 6,
+       "metadata": {
+        "designer": {
+         "x": 4350,
+         "y": 0,
+         "name": "Post Facebook reel"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 12810149
+       }
+      }
+     ]
+    },
+    {
+     "flow": [
+      {
+       "id": 16,
+       "mapper": {
+        "qs": [],
+        "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('LISTING_REGISTRY')/range(address='AB{{2.row}}')",
+        "body": "{\"values\":[[\"POSTED\"]]}",
+        "method": "PATCH",
+        "headers": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ]
+       },
+       "module": "microsoft-excel:makeApiCall",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 4650,
+         "y": 0,
+         "name": "Set SOCIAL_STATUS = POSTED"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      },
+      {
+       "id": 17,
+       "mapper": {
+        "qs": [],
+        "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('LISTING_REGISTRY')/range(address='AE{{2.row}}')",
+        "body": "{\"values\":[[\"\"]]}",
+        "method": "PATCH",
+        "headers": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ]
+       },
+       "module": "microsoft-excel:makeApiCall",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 4950,
+         "y": 0,
+         "name": "Clear used approval code"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      },
+      {
+       "id": 318,
+       "mapper": {
+        "url": "https://mosspit-approvals.mosspit.workers.dev/api/result",
+        "method": "post",
+        "timeout": 20,
+        "contentType": "urlEncoded",
+        "shareCookies": false,
+        "parseResponse": false,
+        "allowRedirects": true,
+        "stopOnHttpError": false,
+        "urlEncodedBodyContent": [
+         {
+          "name": "row",
+          "value": "{{2.row}}"
+         },
+         {
+          "name": "code",
+          "value": "{{2.code}}"
+         },
+         {
+          "name": "outcome",
+          "value": "posted"
+         },
+         {
+          "name": "step",
+          "value": ""
+         },
+         {
+          "name": "message",
+          "value": "{{if(2.social = \"no\"; \"Live on Etsy with its new video (not posted to social).\"; \"Live on Etsy and posted to Pinterest, Instagram and Facebook.\")}}"
+         }
+        ],
+        "requestCompressedContent": true
+       },
+       "module": "http:MakeRequest",
+       "onerror": [
+        {
+         "id": 368,
+         "mapper": null,
+         "module": "builtin:Ignore",
+         "version": 1,
+         "metadata": {
+          "designer": {
+           "x": 5400,
+           "y": 300
+          }
+         }
+        }
+       ],
+       "version": 4,
+       "metadata": {
+        "designer": {
+         "x": 5400,
+         "y": 0,
+         "name": "Tell approvals app: posted OK"
+        }
+       },
+       "parameters": {
+        "authenticationType": "noAuth"
+       }
+      },
+      {
+       "id": 201,
+       "mapper": {
+        "limit": 3300,
+        "table": "GAGS_TABLE",
+        "select": "list",
+        "selectB": "my",
+        "workbook": "01_INTROVERT_HERE/001A_INTROVERT_HERE_CORE.xlsx",
+        "worksheet": "GAGS"
+       },
+       "module": "microsoft-excel:listTableRows",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 5850,
+         "y": 0,
+         "name": "Read GAGS (sibling check)"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      },
+      {
+       "id": 202,
+       "flags": {
+        "stopIfEmpty": false
+       },
+       "mapper": {
+        "__IMTTARGET__": "{0: \"{{201.values.`0`}}\", 1: \"{{201.values.`1`}}\", 2: \"{{201.values.`2`}}\", 3: \"{{201.values.`3`}}\", 4: \"{{201.values.`4`}}\", 5: \"{{201.values.`5`}}\", 6: \"{{201.values.`6`}}\", 7: \"{{201.values.`7`}}\", 8: \"{{201.values.`8`}}\", 9: \"{{201.values.`9`}}\", 10: \"{{201.values.`10`}}\", 11: \"{{201.values.`11`}}\", 12: \"{{201.values.`12`}}\", 13: \"{{201.values.`13`}}\", 20: \"{{201.index + 1}}\"}"
+       },
+       "module": "builtin:BasicAggregator",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 6150,
+         "y": 0,
+         "name": "Collect GAGS rows (sibling check; key 20 = actual sheet row)"
+        }
+       },
+       "parameters": {
+        "feeder": 201
+       }
+      },
+      {
+       "id": 203,
+       "mapper": {
+        "limit": 3300,
+        "table": "LISTING_REGISTRY_TABLE",
+        "select": "list",
+        "selectB": "my",
+        "workbook": "01_INTROVERT_HERE/001A_INTROVERT_HERE_CORE.xlsx",
+        "worksheet": "LISTING_REGISTRY"
+       },
+       "module": "microsoft-excel:listTableRows",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 6450,
+         "y": 0,
+         "name": "Read LISTING_REGISTRY (sibling check)"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      },
+      {
+       "id": 204,
+       "flags": {
+        "stopIfEmpty": false
+       },
+       "mapper": {
+        "__IMTTARGET__": "{1: \"{{203.values.`0`}}\", 30: \"{{203.values.`29`}}\"}"
+       },
+       "module": "builtin:BasicAggregator",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 6750,
+         "y": 0,
+         "name": "Collect LISTING_REGISTRY PRODUCT_CODE+STATUS (sibling check)"
+        }
+       },
+       "parameters": {
+        "feeder": 203
+       }
+      },
+      {
+       "id": 205,
+       "mapper": {
+        "input": [
+         {
+          "name": "gags",
+          "value": "{{202.array}}"
+         },
+         {
+          "name": "registry",
+          "value": "{{204.array}}"
+         },
+         {
+          "name": "gagId",
+          "value": "{{get(split(20.productCode; \"-\"); 1)}}-{{get(split(20.productCode; \"-\"); 2)}}"
+         }
+        ],
+        "language": "javascript",
+        "inputFormat": "editor",
+        "codeEditorJavascript": "const parseTarget = (row) => {\n  const target = row && row.__IMTTARGET__;\n  if (typeof target === \"string\") {\n    const parsed = {};\n    const pairPattern = /(?:\\[|\\{|,)\\s*(\\d+)\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"/g;\n    let match;\n    while ((match = pairPattern.exec(target))) {\n      try { parsed[match[1]] = JSON.parse(`\"${match[2]}\"`); } catch (error) { parsed[match[1]] = match[2]; }\n    }\n    return parsed;\n  }\n  if (target && typeof target === \"object\") return target;\n  return row;\n};\n\nconst isBlank = (v) => {\n  if (v === null || v === undefined) return true;\n  const s = String(v).trim();\n  return s === \"\" || s.toLowerCase() === \"null\" || s.toLowerCase() === \"undefined\";\n};\n\nconst gags = Array.isArray(input.gags) ? input.gags : [];\nconst registry = Array.isArray(input.registry) ? input.registry : [];\nconst gagId = String(input.gagId || \"\").trim();\n\n// Find the matching GAGS row and its actual sheet row number\nlet gagRow = null;\nlet sheetRow = null;\nfor (const raw of gags) {\n  const row = parseTarget(raw);\n  if (String(row[\"0\"] || \"\").trim() === gagId) {\n    gagRow = row;\n    sheetRow = row[\"20\"];\n    break;\n  }\n}\n\nif (!gagRow) {\n  return { allLive: false, sheetRow: null, gagId };\n}\n\n// Required product suffixes are whichever of T-SHIRT/LONG-SLEEVE/SWEATSHIRT/HOODIE/MUG\n// have a non-blank release date in GAGS columns 8-12.\nconst suffixes = [\n  { col: \"8\", suffix: \"T-SHIRT\" },\n  { col: \"9\", suffix: \"LONG-SLEEVE\" },\n  { col: \"10\", suffix: \"SWEATSHIRT\" },\n  { col: \"11\", suffix: \"HOODIE\" },\n  { col: \"12\", suffix: \"MUG\" }\n];\n\nconst requiredCodes = [];\nsuffixes.forEach((p) => {\n  if (!isBlank(gagRow[p.col])) requiredCodes.push(`${gagId}-${p.suffix}`);\n});\n\nif (requiredCodes.length === 0) {\n  return { allLive: false, sheetRow, gagId };\n}\n\n// Build a map of PRODUCT_CODE -> STATUS from the registry\nconst statusByCode = {};\nregistry.forEach((raw) => {\n  const row = parseTarget(raw);\n  const code = String(row[\"1\"] || \"\").trim();\n  if (code) statusByCode[code] = String(row[\"30\"] || \"\").trim();\n});\n\nconst allLive = requiredCodes.every((code) => statusByCode[code] === \"LIVE\");\n\nreturn { allLive, sheetRow, requiredCodes, gagId };"
+       },
+       "module": "code:ExecuteCode",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 7050,
+         "y": 0,
+         "name": "Check: are all required siblings LIVE?"
+        }
+       },
+       "parameters": {}
+      },
+      {
+       "id": 206,
+       "filter": {
+        "name": "All required siblings are LIVE",
+        "conditions": [
+         [
+          {
+           "a": "{{if(205.result.allLive; \"yes\"; \"no\")}}",
+           "b": "yes",
+           "o": "text:equal"
+          }
+         ]
+        ]
+       },
+       "mapper": {
+        "qs": [],
+        "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets('GAGS')/range(address='H{{205.result.sheetRow}}')",
+        "body": "{\"values\":[[\"LIVE_EXISTING\"]]}",
+        "method": "PATCH",
+        "headers": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ]
+       },
+       "module": "microsoft-excel:makeApiCall",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 7350,
+         "y": 0,
+         "name": "Mark gag LIVE_EXISTING (all siblings confirmed live)"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      }
+     ]
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2400,
+     "y": 0,
+     "name": "Social posts, then finish"
+    }
+   }
+  }
+ ],
+ "name": "Introvert Here: Automation \u2014 Approve Listing (Go Live + Post to Social)",
+ "metadata": {
+  "instant": true,
+  "version": 1,
+  "scenario": {
+   "dlq": false,
+   "slots": null,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": true,
+   "confidential": false,
+   "freshVariables": false,
+   "autoCommitTriggerLast": true
+  }
+ }
+}
