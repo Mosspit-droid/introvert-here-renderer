@@ -34,6 +34,7 @@ export default {
     ctx.waitUntil(creditsCheck(env, false).catch(() => {}));
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
     ctx.waitUntil(quickTick(env).catch(() => {}));
+    ctx.waitUntil(builderWatch(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -2536,6 +2537,28 @@ async function exTick(env) {
       await notify(env, "", "Use-by passed: " + m.stem, "Approve it if it's still fresh, or scrap it from Approvals.", "warning"); }
   }
   if (changed) await env.PENDING.put(EX_META_KEY, JSON.stringify(M));
+}
+// Builder watchdog (Barry, 17 Nov): every builder run frees its one-at-a-time lock when it finishes, including runs with
+// nothing to build. A run that has ENDED but left the lock held stopped partway (EX-00001 did, silently, and its listing
+// was never recorded in Core, so the next run would have built it again). Pause the builder and tell Barry.
+async function builderWatch(env) {
+  const lk = await env.PENDING.get("lock:builder", "json"), now = Date.now();
+  if (!lk || lk.passed || !lk.id || now - lk.at < 10 * 60e3) return;
+  if (await env.PENDING.get("builder-stop")) return;
+  const seen = await env.PENDING.get("builder-watch", "json"); if (seen && seen.id === lk.id) return;
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
+  const r = await fetch(MAKE_API + "/scenarios/7896436/logs/" + encodeURIComponent(lk.id), { headers: { Authorization: "Token " + token } });
+  if (!r.ok) return;
+  const L = ((await r.json().catch(() => ({}))) || {}).scenarioLog;
+  if (!L || !L.endedAt) return;   // still running
+  await env.PENDING.put("builder-watch", JSON.stringify({ id: lk.id, at: now }));
+  await env.PENDING.put("builder-stop", JSON.stringify({ at: now, mode: "pause", why: "watchdog" }));
+  const alerts = await loadAlerts(env);
+  alerts.unshift({ id: crypto.randomUUID(), at: now, source: "app", link: "/alerts", title: "Builder stopped partway, so it's paused",
+    body: "The builder run that started " + new Date(lk.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) +
+      " ended without finishing (it never recorded its listing in Core). It's paused so it can't build the same listing twice. Ask Claude to check it, then press Stop again to restart." });
+  await saveAlerts(env, alerts);
+  await notify(env, "", "Builder stopped partway", "It's paused so nothing gets built twice. Ask Claude to check it.", "warning");
 }
 async function quickTick(env) {
   const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
