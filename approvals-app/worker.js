@@ -35,6 +35,7 @@ export default {
     ctx.waitUntil(reviewsCheck(env, false).catch(() => {}));
     ctx.waitUntil(quickTick(env).catch(() => {}));
     ctx.waitUntil(builderWatch(env).catch(() => {}));
+    ctx.waitUntil(remakeNudge(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -2537,6 +2538,18 @@ async function exTick(env) {
       await notify(env, "", "Use-by passed: " + m.stem, "Approve it if it's still fresh, or scrap it from Approvals.", "warning"); }
   }
   if (changed) await env.PENDING.put(EX_META_KEY, JSON.stringify(M));
+}
+// Remake nudge (Barry, 17 Nov): Remake clears the video in Core and starts the video step, but that step can run before
+// Core has caught up and find nothing to do. If a remade video hasn't arrived 4 minutes later, start the step once more.
+async function remakeNudge(env) {
+  const items = await loadItems(env), now = Date.now();
+  const due = Object.values(items).filter((i) => i.status === "rerendering" && now - (i.updatedAt || 0) > 4 * 60e3 && !i.nudgedAt && now - (i.updatedAt || 0) < 60 * 60e3);
+  if (!due.length) return;
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
+  const r = await fetch(MAKE_API + "/scenarios/7696096/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: "{}" });
+  if (!r.ok) return;
+  due.forEach((i) => { i.nudgedAt = now; });
+  await saveItems(env, items);
 }
 // Builder watchdog (Barry, 17 Nov): every builder run frees its one-at-a-time lock when it finishes, including runs with
 // nothing to build. A run that has ENDED but left the lock held stopped partway (EX-00001 did, silently, and its listing
