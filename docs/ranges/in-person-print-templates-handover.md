@@ -16,7 +16,12 @@ never edit or delete his originals; publishing a brand template needs his OK (Ca
 
 Done already:
 - In Person wide logo uploaded to Canva: media id `MAHbN5SI7TQ` (from `brand-logos/main-collections/in-person-wide.png`, 4500 × 1500).
-- T-shirt working copy made from the PC template: design `DAHbN79bvuE`, in folder `FAHakYrx_Fk`. Not yet edited.
+- Working copies in folder `FAHakYrx_Fk` (made from the PC brand templates, not yet edited): T-shirt `DAHbN79bvuE`,
+  long-sleeve `DAHbNy5UdDo`, sweatshirt `DAHbNwzpSHI`, hoodie `DAHbNzBczJw` (page 1 front chest logo, page 2 back).
+- In Person stacked logo uploaded (for the hoodie front): media id `MAHbN--mFDE`.
+- 17 Nov (second session): edit-design works now. But the logo in the copies is padlocked: swap, crop, delete and adding a
+  layer are all refused ("locked"). Waiting for Barry to click the padlock on the logo in each of the four copies
+  (same as the OTS job). Note: brand template ids need create-design-from-brand-template, not copy-design.
 
 What the PC T-shirt template contains (page 3951 × 4919, black background):
 - GAG_TEXT text box (autofill field `GAG_TEXT`, locked), top 1000, left 250, 3440 wide.
