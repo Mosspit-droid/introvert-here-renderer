@@ -31,8 +31,13 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 - VIDEO_SLOT1 / VIDEO_SLOT2: 8, 9
 - Barry to check: size guide page 17 lists XS–5XL; listings sell S–3XL.
 
-## Sweatshirt
-(waiting for the mockup suite)
+## Sweatshirt: V002_IP_SWEATSHIRT_MOCKUPS
+- CANVA_PROJECT_CODE: `EAHbN_jcGPo` (25 pages, field GAG_TEXT)
+- Layout (same as the T-shirt): thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12,
+  all colours 13, zoo setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24,
+  Find Your Range 25.
+- MOCKUP_PAGES IP SWEATSHIRT (13 rows): 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25
+- VIDEO_SLOT1 / VIDEO_SLOT2: 9, 10
 
 ## Hoodie: W002_IP_HOODIE_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbNZPGdsw` (28 pages, field GAG_TEXT; print is FRONT_BACK: small chest logo front, gag on the back)
@@ -66,4 +71,4 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Test fills
 Claude's working folder in Canva ("OTS print templates (Claude working copies)"): "CLAUDE WORK - IP T-shirt template test fill",
-"CLAUDE WORK - IP long-sleeve template test fill", "CLAUDE WORK - IP hoodie template test fill". Safe to delete.
+"CLAUDE WORK - IP long-sleeve template test fill", "CLAUDE WORK - IP hoodie template test fill", "CLAUDE WORK - IP sweatshirt template test fill". Safe to delete.
