@@ -1,14 +1,46 @@
 # In Person (IP): Core and Make entries waiting to be added
 
 Collected 16–17 Nov 2026 in the personalised-range session, for Barry to post to the thread that edits Core and Make
-once all four garments' mockup suites are published. Nothing here has been written to Core or Make yet.
+once all four garments' mockup suites are published.
+
+**Done 18 Nov:** MOCKUP_PAGES now holds every IP page (96 rows, sheet rows 333–428, COLLECTION `IN PERSON` with no full stop,
+Barry's choice). Backup first: `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_IP_pages.xlsx`. Because the builder keeps one
+colour per picture, the Etsy photos it picks are exactly the per-garment lists below (checked with `mockup_rank.js`).
+**Done 18 Nov (Core setup):** backup `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_IP_setup.xlsx`, then added:
+- COLLECTIONS_LOOKUP: `IN PERSON`.
+- COLOUR_PROFILES: the two rows below.
+- GAG_TEXT_RULES: `IN PERSON` GAG_TEXT, house 12 x 9 W grid (print templates use Per Contract's GAG_TEXT box).
+- PRODUCT_RULES: 4 rows (copied from Per Contract). Etsy section `In Person` 61484085 (already existed on Etsy). Colours
+  Purple / Gray (long-sleeve Blue / Gray). PERSONALISATION Yes. Canva codes and video slots as below. RANGE_LIVE `N` (so the
+  other ranges' listings don't advertise it yet), RANGE_NAME `IN PERSON.`. Wording is Claude's draft for Barry to change:
+  TITLE_SUFFIX `| Personalised Introvert T-Shirt` (Long Sleeve Shirt / Sweatshirt / Hoodie); DESCRIPTION_TYPE `IP_<garment>`;
+  intro "Part of the IN PERSON. series. / Your name, printed, so you only have to say it once. / Introductions, handled.";
+  audience "A personalised gift for introverts, reluctant networkers, wedding guests, new starters, or anyone who has to
+  introduce themselves more often than they'd like."; closing and cross-sell lead "Nice to meet you. Again."; joke features:
+  tee Pre-Introduced Fabric, long-sleeve Handshake-Avoidance Sleeves, sweatshirt Coat-Pile Fleece, hoodie Already-Said-Hello Hood.
+  Tags 09–13: tee graphic tee, personalised tshirt, custom name tshirt, name tshirt, introvert gift; long-sleeve long sleeve
+  top, personalised top, custom name shirt, name long sleeve, introvert gift; sweatshirt crewneck jumper, personalised jumper,
+  custom name jumper, name sweatshirt, introvert gift; hoodie hooded sweatshirt, personalised hoodie, custom name hoodie, name
+  hoodie, introvert gift.
+- PRODUCT_TAGS_FLAT: 20 rows (formula columns filled themselves; all VALID).
+- ETSY_TAXONOMY_PROPERTY_IDS: 31 rows (Purple 8, Gray 5, Blue 2 checked against Etsy taxonomy 482 on 18 Nov).
+
+Still to do outside Core (not touched): gag types for IN PERSON (GAG_CATEGORIES / TAG_POOL phrases / POOL_CAPACITY), the
+personalised order flow (brief items 2–8), Make photo modules 700/711 HERO_COLOURS and the long-sleeve Purple fallback, and
+Make 7696096 module 18 `IP-` -> `IN PERSON`. The approvals app and Make must use the same `IN PERSON` spelling.
+Canva page-name typos (Core has the clean names; Barry to fix in Canva by hand, the builder ignores Canva names):
+T-shirt page 23 `IP_24_TS_AGM` (should be IP_23), long-sleeve page 4 `IP_P4_LS_GIFT_DARK_HEATHER`, sweatshirt page 10
+`IP_10_ SW_CLOSEUP_PURPLE` (space), hoodie page 10 `IP_10_HD_HANGING_ BACK_PURPLE` (space).
 
 ## Colours (agreed with Barry)
 - Grey follows exactly the same rule as the other ranges, plus Navy and Purple. No Black.
 - Purple is left off the long-sleeve: no UK or EU printer carries Purple on the Gildan 2400.
 - COLOUR_PROFILES rows to add:
-  - `APPAREL_DARKHEATHER_NAVY_PURPLE` = `Dark Heather, Charcoal, Navy, Purple` (T-shirt, sweatshirt, hoodie)
-  - `APPAREL_DARKHEATHER_NAVY` = `Dark Heather, Charcoal, Navy` (long-sleeve)
+  - `APPAREL_DARKHEATHER_NAVY_PURPLE` = `Dark Heather, Navy, Purple` (T-shirt, sweatshirt, hoodie)
+  - `APPAREL_DARKHEATHER_NAVY` = `Dark Heather, Navy` (long-sleeve)
+  - 18 Nov: Barry had Charcoal taken out of every range's COLOUR_PROFILES (Dark Heather is on all four garments).
+    Backup `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_charcoal_removed.xlsx`. The profile name
+    `APPAREL_NAVY_BLACK_DARKHEATHER_CHARCOAL` was left as is (PRODUCT_RULES points at it); only the colour list changed.
 - Suggested Etsy colours: PRIMARY_COLOUR Purple, SECONDARY_COLOUR Gray (long-sleeve: Blue, Gray).
 - Note: the app's "Update colours" screen needs one profile per range, so IP colour changes would be per garment.
 
@@ -17,6 +49,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## T-shirt: T002_IP_T-SHIRT_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbHc0Z3HY` (25 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: `EAHbONKmDlE` (T001_IP_T-SHIRT_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout: thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12, all colours 13,
   barbecue setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24, Find Your Range 25.
 - MOCKUP_PAGES IP T-SHIRT (13 rows): 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25
@@ -25,6 +58,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Long-sleeve: U002_IP_LONG-SLEEVE_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbKl-Q9Fs` (18 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOA9jtWY` (U001_IP_LONG-SLEEVE_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout: thumbnails 1–2 (Navy, Dark Heather), gift 3–4, hanging 5–6, close-up 7–8, both colours 9,
   hallway setup/payoff 10–11 Navy, 12–13 Dark Heather, flat lay 14–15, AGM 16, size guide 17, Find Your Range 18.
 - MOCKUP_PAGES IP LONG-SLEEVE (12 rows): 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18
@@ -33,6 +67,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Sweatshirt: V002_IP_SWEATSHIRT_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbN_jcGPo` (25 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOLz49-A` (V001_IP_SWEATSHIRT_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout (same as the T-shirt): thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12,
   all colours 13, zoo setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24,
   Find Your Range 25.
@@ -41,6 +76,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Hoodie: W002_IP_HOODIE_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbNZPGdsw` (28 pages, field GAG_TEXT; print is FRONT_BACK: small chest logo front, gag on the back)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOHG0JQE` (W001_IP_HOODIE_TEMPLATES, published 18 Nov, page 1 front chest logo, page 2 back with GAG_TEXT)
 - Layout: back thumbnails 1–3 (Purple, Navy, Dark Heather), gift box (front) 4–6, hanging front 7–9, hanging back 10–12,
   hood close-up 13–15, all colours 16, aquarium setup/payoff 17–18 Purple, 19–20 Navy, 21–22 Dark Heather,
   folded front 23–25, AGM 26, size guide 27, Find Your Range 28.
@@ -65,7 +101,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 1. Navy 3XL on sweatshirts and hoodies is carried as widely as Black 3XL (UK 2/3, EU 2/2). "3XL in Black only" also removes
    Navy 3XL from Per Contract and would from IP; it could be "Black or Navy".
 2. Long-sleeves have almost no local printers even in Dark Heather L (UK 0/2, EU 1/2), across all ranges.
-3. Charcoal is still in the IH, SHHH and PC colour profiles. On 15 Nov Charcoal was switched off on all 22 live Choice tees
+3. (Settled 18 Nov: Charcoal removed from every colour profile.) Charcoal was in the IH, SHHH and PC colour profiles. On 15 Nov Charcoal was switched off on all 22 live Choice tees
    in Printify and Etsy. If the builder enables every listed colour, new tees and any "Update colours" run will switch it
    back on. Undecided who owns the grey rule.
 
