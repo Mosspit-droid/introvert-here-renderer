@@ -71,7 +71,7 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - 18 Nov: Barry said no to the first look; restyled like Find Your Range (dark header, rounded range-colour cards, letter-spaced caps) with stacked logos.
 - Built `size-guides/build.js` + `size-guides/measurements.json` (all numbers in one file, inches laid flat; cm worked out).
   `node size-guides/build.js [RANGE] [garment]` writes `size-guides/out/<RANGE>_<garment>.png` (4500 x 4500, git-ignored).
-  6 ranges x 4 garments = 24 (Exclusive. sells all four garments per the topical brief).
+  21 guides: 5 ranges x 4 garments + Exclusive. T-shirt only (Barry, 18 Nov: Exclusive. is T-shirts only; docs/ranges/topical-brief.md still says 4 garments).
 - Measurements are Gildan spec-sheet figures, NOT yet confirmed against Printify: printify.com was added to the environment's
   allowed hosts (Barry approved) but still didn't resolve in this session; raw page download was refused by the safety check.
   Each image carries a yellow "PREVIEW · MEASUREMENTS TO CONFIRM" tag until `status` in measurements.json is "CONFIRMED".

@@ -119,9 +119,9 @@ td.sz{text-align:left;padding-left:10px;font-weight:800;color:${white ? '#f2f0ec
 
 (async () => {
   const [onlyR, onlyG] = process.argv.slice(2);
-  // Exclusive. sells all four garments (topical brief); every range does.
+  // A range can list its garments (Exclusive. is T-shirts only); otherwise it gets all four.
   const jobs = [];
-  for (const rk of Object.keys(M.ranges)) for (const gk of Object.keys(M.garments))
+  for (const rk of Object.keys(M.ranges)) for (const gk of (M.ranges[rk].garments || Object.keys(M.garments)))
     if ((!onlyR || onlyR === rk) && (!onlyG || onlyG === gk)) jobs.push([rk, gk]);
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1500, height: 1500 }, deviceScaleFactor: 3 });

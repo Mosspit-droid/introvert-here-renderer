@@ -139,7 +139,11 @@
     "EX": {
       "name": "EXCLUSIVE.",
       "logo": "brand-logos/main-collections/exclusive-stacked.png",
-      "accent": "#E5333A"
+      "accent": "#E5333A",
+      "garments": [
+        "tshirt"
+      ],
+      "_note": "Exclusive. is T-shirts only (Barry, 18 Nov 2026)."
     },
     "IP": {
       "name": "IN PERSON.",
