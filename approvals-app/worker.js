@@ -166,6 +166,8 @@ export default {
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
       if (pathname === "/api/ip-order" && method === "POST") return await ipOrderApi(request, env);
+      if (pathname === "/api/ip-gags" && method === "GET") { try { return json({ gags: await ipGagsList(env) }); } catch (e) { return json({ error: e.message }, 500); } }
+      if (pathname === "/api/ip-list" && method === "POST") { const d = await request.json().catch(() => ({})); try { await ipListStart(env, str(d.gagId)); return json({ ok: true }); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { const dr = await ipBuildDraft(env, str(d.gagId), str(d.type), d.reuseId); return json(await ipImagesStart(env, dr)); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
@@ -3100,6 +3102,23 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
       ((TOPIC.f || []).length ? '<div class="small warnt">Remember: no names, no tragedy, nothing about who people are.</div>' : "") + '</div><button type="button" class="btn" data-topic-x="1">✕</button></div>' : "";
   }
   window.exTopic = function () { return TOPIC; };
+  // In Person (Barry, 18 Nov): its gags, newest first, each with List it (builds all four garments as Etsy drafts).
+  window.ipGagsShow = function () {
+    if (col.value !== "IN PERSON") return;
+    NW.innerHTML = '<div class="news"><b>Your In Person gags</b><div class="small" style="margin:4px 0 8px">Tap List it when you want one in the shop: the app makes all four garments as Etsy drafts (about 10 minutes) and their videos come to Approvals. Or tap Next to write a new one.</div><div id="ipL"><div class="small">Loading…</div></div></div>';
+    fetch("/api/ip-gags").then(function (r) { return r.json(); }).then(function (j) {
+      var L = document.getElementById("ipL"); if (!L) return;
+      L.innerHTML = (j.gags || []).map(function (g) { return '<div class="ni" style="cursor:default"><b>' + esc(g.id) + (g.stem ? " · " + esc(g.stem) : "") + '</b><div class="small" style="white-space:pre-line">' + esc(g.text.replace(/\[NAME\]/gi, "[NAME]")) + '</div>' +
+        (g.listed ? '<span class="small">✓ Listed</span>' : g.building ? '<span class="small">Building now…</span>' : '<button type="button" class="btn" data-iplist="' + esc(g.id) + '">List it</button>') + "</div>"; }).join("") || '<div class="small">' + esc(j.error || "No In Person gags yet.") + "</div>";
+    }).catch(function () { var L = document.getElementById("ipL"); if (L) L.innerHTML = '<div class="small">Couldn’t load them right now.</div>'; });
+  };
+  NW.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-iplist]"); if (!b) return; e.stopPropagation();
+    if (!confirm("List " + b.dataset.iplist + " now? The app makes all four garments as Etsy drafts; nothing goes live until you approve.")) return;
+    b.disabled = true; b.textContent = "Starting…";
+    fetch("/api/ip-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gagId: b.dataset.iplist }) }).then(function (r) { return r.json().then(function (j) { return [r.ok, j]; }); })
+      .then(function (x) { if (x[0]) b.outerHTML = '<span class="small">Building now… you’ll get a notification when it’s done.</span>'; else { alert(x[1].error || "Couldn’t start it."); b.disabled = false; b.textContent = "List it"; } });
+  }, true);
   NW.addEventListener("click", function (e) {
     var x = e.target.closest("[data-topic-x]"); if (x) { TOPIC = null; topicDraw(); window.exPreview(); return; }
     var b = e.target.closest("[data-news]"); if (!b || !NEWS) return;
@@ -3520,7 +3539,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
       post(false).then(function (k) { if (k.error) return alert(k.error); window.GAG_TARGETS = k.targets; counts();
         if (msg && window.toast) window.toast("Sent to Core. Tap Sync to Core in a minute to see the new numbers."); }); }); });
   el("collection").addEventListener("change", function () { setTimeout(counts, 0); });
-  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); if (cur === 1 && !document.querySelector('.tab.on[data-tab="edit"]')) setTimeout(function () { if (el("collection").value && el("collection").value !== "EXCLUSIVE") go(2); else if (el("collection").value === "EXCLUSIVE") { var nw = el("newsWrap"); if (nw) nw.scrollIntoView({ behavior: "smooth", block: "start" }); } }, 120); });
+  el("rangeChips").addEventListener("click", function () { setTimeout(counts, 30); if (cur === 1 && !document.querySelector('.tab.on[data-tab="edit"]')) setTimeout(function () { if (el("collection").value && el("collection").value !== "EXCLUSIVE" && el("collection").value !== "IN PERSON") go(2); else if (el("collection").value) { var nw = el("newsWrap"); if (nw) nw.scrollIntoView({ behavior: "smooth", block: "start" }); } }, 120); });
   counts();
   function typing() { var a = document.activeElement; return a && a.closest && a.closest(".gR") && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "date" && a.type !== "checkbox")); }
   function fit() {   // text box fills what's left above the keyboard
@@ -3553,6 +3572,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     if (ex) { STEPS = EX_STEPS; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; }); document.querySelector(".o-extopic").dataset.st = "5"; document.querySelector(".o-news").dataset.st = "1"; el("save").textContent = "List it now"; }
     else if (el("collection").value === "IN PERSON") {   // no schedule and no listing yet: write it, save it to Core (18 Nov)
       STEPS = ["Range", "Gag", "Title stem", "Category"]; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm").forEach(function (x) { x.dataset.st = "9"; });
+      document.querySelector(".o-news").dataset.st = "1"; if (window.ipGagsShow) window.ipGagsShow();
       DIDS.forEach(function (id) { el(id).value = ""; }); el("save").textContent = "Save to Core";
     }
     else { STEPS = BASE_STEPS; el("save").textContent = NOW ? "List it now" : Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }
@@ -5146,27 +5166,33 @@ async function ipImagesResult(request, env) {
   await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
   return json({ ok: true });
 }
-// Weekly In Person release (Barry, 18 Nov): every Monday from 9am UK, take the next In Person gag in Core that isn't
-// listed yet and build all four garments as Etsy drafts, one after another (each needs its own Make mockup run).
-// They land in Approvals like any other listing; nothing goes live until Barry approves.
+// In Person listing, when Barry chooses (Barry, 18 Nov: ad hoc, not a weekly schedule). He taps "List it" on an In Person
+// gag in the gag tool; the app builds all four garments as Etsy drafts, one after another (each needs its own Make
+// mockup run). They land in Approvals like any other listing; nothing goes live until Barry approves.
 const IP_WEEK_TYPES = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+async function ipListStart(env, gagId) {
+  const cur = (await env.PENDING.get("ip-weekly", "json")) || {};
+  if (cur.status === "building" && Date.now() - (cur.at || 0) < 2 * 3600e3) throw new Error(cur.gagId + " is still being built. Wait for it to finish (about 10 minutes).");
+  const map = await ipListingMap(env, true);
+  if (Object.values(map).some((x) => x.gagId === gagId)) throw new Error(gagId + " is already listed.");
+  const G = await coreTable(env, "GAGS_TABLE"), g = G.rows.find((r) => r[G.col("GAG_ID")] === gagId);
+  if (!g) throw new Error("Core has no gag " + gagId + ". If you've just saved it, wait a minute and try again.");
+  if ((String(g[G.col("GAG_TEXT")] || "").match(/\[NAME\]/gi) || []).length !== 1) throw new Error(gagId + " needs [NAME] in it exactly once.");
+  const st = { gagId, at: Date.now(), queue: IP_WEEK_TYPES.slice(), done: [], status: "building" };
+  await env.PENDING.put("ip-weekly", JSON.stringify(st));
+  await ipWeeklyTick(env);
+  return st;
+}
+async function ipGagsList(env) {
+  const [G, map] = await Promise.all([coreTable(env, "GAGS_TABLE"), ipListingMap(env, true)]);
+  const listed = new Set(Object.values(map).map((x) => x.gagId)), st = (await env.PENDING.get("ip-weekly", "json")) || {};
+  const sc = G.col("TITLE_STEM");
+  return G.rows.filter((r) => /^IP-\d+$/.test(String(r[G.col("GAG_ID")] || ""))).map((r) => { const id = String(r[G.col("GAG_ID")]);
+    return { id, stem: sc >= 0 ? String(r[sc] || "") : "", text: String(r[G.col("GAG_TEXT")] || ""), listed: listed.has(id), building: st.status === "building" && st.gagId === id }; })
+    .sort((a, b) => b.id.localeCompare(a.id));
+}
 async function ipWeeklyTick(env) {
-  const now = new Date(), uk = new Date(now.toLocaleString("en-US", { timeZone: "Europe/London" }));
-  const monday = new Date(uk); monday.setDate(uk.getDate() - ((uk.getDay() + 6) % 7)); const week = monday.toISOString().slice(0, 10);
-  let st = (await env.PENDING.get("ip-weekly", "json")) || {};
-  if (st.week !== week) {
-    if (uk.getDay() !== 1 || uk.getHours() < 9) return;   // Mondays from 9am
-    st = { week, at: Date.now(), queue: [], done: [], status: "start" };
-    const map = await ipListingMap(env, true), listed = new Set(Object.values(map).map((x) => x.gagId));
-    const G = await coreTable(env, "GAGS_TABLE");
-    const next = G.rows.map((r) => ({ id: String(r[G.col("GAG_ID")] || ""), text: String(r[G.col("GAG_TEXT")] || "") }))
-      .filter((g) => /^IP-\d+$/.test(g.id) && !listed.has(g.id) && (g.text.match(/\[NAME\]/gi) || []).length === 1)
-      .sort((a, b) => a.id.localeCompare(b.id))[0];
-    if (!next) { st.status = "none"; await env.PENDING.put("ip-weekly", JSON.stringify(st));
-      await notify(env, "", "No In Person gag for this week", "Every In Person gag in Core is already listed. Add one in the gag tool.", "warning"); return; }
-    st.gagId = next.id; st.queue = IP_WEEK_TYPES.slice(); st.status = "building";
-    await env.PENDING.put("ip-weekly", JSON.stringify(st));
-  }
+  const st = (await env.PENDING.get("ip-weekly", "json")) || {};
   if (st.status !== "building") return;
   if (st.ref) {   // a garment's photos are being made
     const j = await env.PENDING.get("ipjob:" + st.ref, "json");
@@ -5179,7 +5205,7 @@ async function ipWeeklyTick(env) {
     st.status = "finished"; await env.PENDING.put("ip-weekly", JSON.stringify(st));
     const bad = st.done.filter((x) => !x.ok);
     const alerts = await loadAlerts(env);
-    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/approvals", title: "This week's In Person gag: " + st.gagId,
+    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/approvals", title: "In Person " + st.gagId + " listed",
       body: bad.length ? (st.done.length - bad.length) + " of 4 garments built. Not done: " + bad.map((x) => x.type + (x.msg ? " (" + x.msg + ")" : "")).join(", ") + ". Ask Claude to finish them." : "All 4 garments are Etsy drafts. Their videos come to Approvals next." });
     await saveAlerts(env, alerts);
     await notify(env, "", "In Person " + st.gagId + (bad.length ? ": " + bad.length + " garment(s) need a look" : " is built"), bad.length ? "Check Alerts." : "All 4 garments are drafts. Videos to approve next.", bad.length ? "warning" : "white_check_mark");
