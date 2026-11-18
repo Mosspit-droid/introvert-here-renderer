@@ -125,3 +125,16 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   Core is reached via Make tool 7446858 with path `graph:/v1.0/me/drive/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/...`.
 - Noticed, not touched: MOCKUP_PAGES rows 201-284 again hold the other-colour pages for PC LS/SW/HD and all OTS
   (Barry had these deleted on 12 Nov because they push listings past Etsy's 20 photos). Asked Barry.
+
+### Core: full colour set of mockup pages (18 Nov 2026)
+
+Barry: Core should hold every page, because his own website (replacing Etsy) will show the full set for whichever colour a customer picks, and it reads from Core.
+
+- Backup first: `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_colour_pages.xlsx` (same folder).
+- Added 38 rows to the MOCKUP_PAGES table (sheet rows 295–332), names copied exactly from the Canva page titles:
+  - IH tee / long-sleeve / sweatshirt: the Dark Heather pages 4, 6, 8, 12, 13, 15.
+  - IH hoodie: Dark Heather pages 4, 6, 8, 10, 13, 17, 18, 20.
+  - PC tee: Dark Heather and Black pages 5, 6, 8, 9, 12, 13, 16–19, 21, 22 (PC long-sleeve, sweatshirt and hoodie already had theirs).
+- IP rows are still left for the In Person Core thread (`in-person-core-pending.md`).
+- Checked with `docs/tagging/make/mockup_rank.js` before writing: the Etsy photo count is unchanged for every garment and colour. Black-led (PC: Navy-led) listings get exactly the same photos as before. A Dark Heather-led (or PC Black-led) listing now shows its photos in its own colour rather than Black/Navy, the same way PC long-sleeve/sweat/hoodie and Off the Shelf already worked.
+- Known odd names left as they are in Canva: `IH_14_HD_PAYOFF` (no colour) and the IH tee's page 9 titled `IH_TS_VARIANTS` in Canva (Core has `IH_09_TS_VARIANTS`).
