@@ -34,6 +34,8 @@ Done already:
   back pages (logo bottom to GAG_TEXT box top): IH D001 ~211, SH S001 ~114+, OTS K001 ~150, PC O001 ~2. Only PC needs it.
   Plan: PC GAG_TEXT top 750 -> 870 (same ~122 gap as IP). Brand template draft `DAHbOBcNojk`: text is padlocked there,
   waiting for Barry to unlock, then edit + publish (template id unchanged).
+  That draft vanished after Barry unlocked (probably published). New draft `DAHbOMldm2Q`: text moved to 870 and saved;
+  publish after Barry's OK on the before/after.
 
 What the PC T-shirt template contains (page 3951 × 4919, black background):
 - GAG_TEXT text box (autofill field `GAG_TEXT`, locked), top 1000, left 250, 3440 wide.
