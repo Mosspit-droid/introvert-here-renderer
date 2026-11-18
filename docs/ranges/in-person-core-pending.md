@@ -35,7 +35,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Sweatshirt: V002_IP_SWEATSHIRT_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbN_jcGPo` (25 pages, field GAG_TEXT)
-- CANVA_PRINT_PROJECT_CODE: not yet published (V001_IP_SWEATSHIRT_TEMPLATES, working copy `DAHbNwzpSHI`, waiting for Barry's OK)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOLz49-A` (V001_IP_SWEATSHIRT_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout (same as the T-shirt): thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12,
   all colours 13, zoo setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24,
   Find Your Range 25.

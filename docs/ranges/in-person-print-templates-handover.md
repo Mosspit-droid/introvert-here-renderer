@@ -35,7 +35,8 @@ Done already:
   Plan: PC GAG_TEXT top 750 -> 870 (same ~122 gap as IP). Brand template draft `DAHbOBcNojk`: text is padlocked there,
   waiting for Barry to unlock, then edit + publish (template id unchanged).
   That draft vanished after Barry unlocked (probably published). New draft `DAHbOMldm2Q`: text moved to 870 and saved;
-  publish after Barry's OK on the before/after.
+  published 18 Nov with Barry's OK (id unchanged, EAHZzpAcqKo).
+- 18 Nov: V001 sweatshirt published `EAHbOLz49-A`. **Job 1 done.** All four IP print template ids are in in-person-core-pending.md.
 
 What the PC T-shirt template contains (page 3951 × 4919, black background):
 - GAG_TEXT text box (autofill field `GAG_TEXT`, locked), top 1000, left 250, 3440 wide.
