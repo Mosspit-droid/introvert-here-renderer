@@ -911,9 +911,8 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .tile.hot .ic{background:#e0605a;color:#fff}
 .hotw{display:block;margin-top:6px;color:#ffb3ae;font-size:14px;font-weight:600}.hotb{position:absolute;right:14px;top:14px;min-width:30px;height:30px;padding:0 9px;border-radius:99px;background:#e0605a;color:#fff;font:800 13px var(--display);display:grid;place-items:center;letter-spacing:.04em}
 .need{position:relative}.nread{margin-left:auto;flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.35);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
-.ranges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-@media (max-width:900px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:420px){.ranges{grid-template-columns:1fr}}
+.ranges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ranges .rng{padding:12px;gap:9px}.ranges .rng .row{font-size:12px;padding-top:8px}.ranges .rng .row b{font-size:12px}.ranges .rlbtn{top:6px;right:6px;min-height:28px;padding:0 9px;font-size:10px}.ranges .rng img{max-width:70%}}
 .rng{padding:16px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;text-decoration:none;color:var(--text);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .rng{position:relative}.rlbtn{position:absolute;top:10px;right:10px;min-height:34px;padding:0 12px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.45);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;z-index:2}
 .rng img{width:100%;max-width:240px;height:auto;display:block}
@@ -1092,6 +1091,10 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
     var th = t ? t.offsetHeight : 0, hh = h ? h.offsetHeight : 0;
     document.documentElement.style.setProperty("--topbar", th + "px"); document.documentElement.style.setProperty("--stick", (th + hh) + "px"); }
   sticky(); window.addEventListener("resize", sticky);
+  // Back (Barry, 18 Nov): return to wherever you came from in the app; the dashboard only if you arrived from outside.
+  document.querySelectorAll("[data-hback]").forEach(function (b) { b.addEventListener("click", function (e) {
+    var ref = ""; try { ref = document.referrer ? new URL(document.referrer).origin : ""; } catch (x) {}
+    if (history.length > 1 && (ref === location.origin || (history.state && history.state.amend))) { e.preventDefault(); history.back(); } }); });
   document.querySelectorAll(".tabbar [data-tab]").forEach(function (a) { var t = a.dataset.tab; if (t === p || (t !== "/" && p.indexOf(t) === 0)) on = a; });
   if (on) on.classList.add("on"); else if (p !== "/") document.getElementById("moreBtn").classList.add("on");
   var sh = document.getElementById("sheet");
@@ -1224,7 +1227,7 @@ function brandHeader(title, actions = "") {
   // Every page gets a Sync to Core button (Barry, 13 Nov), unless the page already has its own.
   const sync = /Sync to Core/.test(kept) ? "" : `<button class="btn" type="button" data-sync>${icon("sync")}Sync to Core</button>`;
   const acts = (kept.trim() + sync).trim();
-  return `${topBar(title)}<header class="pagehead"><div class="brand"><a class="back" href="/">${icon("back")}Dashboard</a><h1 class="vh">${title}</h1></div>${acts ? `<div class="actions">${acts}</div>` : ""}</header>`;
+  return `${topBar(title)}<header class="pagehead"><div class="brand"><a class="back" href="/" data-hback>${icon("back")}Back</a><h1 class="vh">${title}</h1></div>${acts ? `<div class="actions">${acts}</div>` : ""}</header>`;
 }
 
 function loginPage(wrong) {
@@ -1740,6 +1743,20 @@ ${brandHeader("To-do")}
 
 // ---------- dashboard ----------
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
+// Exclusive and In Person have no release schedule (they're listed when Barry chooses), so their dashboard cards show
+// counts instead of a runway bar (Barry, 18 Nov).
+async function adHocCards(env, gags, amend) {
+  const ipMap = ((await env.PENDING.get("ip-listing-map", "json")) || {}).map || {};
+  const ipListed = new Set(Object.values(ipMap).map((x) => x.gagId));
+  return [["EX", "Exclusive"], ["IP", "In Person"]].map(([code, name]) => {
+    const all = ((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-") && String(x.text || "").trim());
+    const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
+    const extra = code === "IP" ? `<div class="row"><span>Not listed yet</span><b>${all.filter((g) => !ipListed.has(g.id)).length}</b></div>` : `<div class="row"><span>Listed</span><b>When news breaks</b></div>`;
+    return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
+<div class="row"><span>Live gags</span><b>${live}</b></div>
+<div class="row"><span>Gags in Core</span><b>${all.length}</b></div>${extra}</a>`;
+  }).join("");
+}
 async function dashboardPage(env) {
   const todos = (await todoLoad(env)).filter((t) => !t.done);
   const credits = await env.PENDING.get("credits", "json");
@@ -1794,7 +1811,7 @@ async function dashboardPage(env) {
 <div class="row"><span>Gags in Core</span><b>${inCore}</b></div>
 ${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(--ok)"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
-  }).join("");
+  }).join("") + await adHocCards(env, gags, amend);
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
   // tags: gags releasing within a week whose tags aren't approved yet
   const in7 = new Date(todayMs + 7 * 864e5).toISOString().slice(0, 10);
@@ -6592,6 +6609,7 @@ function render() {
   var n = selKeys().length, w = whatOn();
   $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
   $("back").hidden = A.step === 0 || !!A.done;
+  var dn = depthNow(); if (!POPPING && dn > DEPTH) history.pushState({ amend: dn }, ""); DEPTH = dn;
   $("next").hidden = A.step !== 2 || !!A.done;
   $("next").textContent = "Check";
   var ruleOnly = w.length && w.every(function (x) { return RULE_ONLY[x] || VIEW_ONLY[x]; });
@@ -6766,7 +6784,7 @@ function check() {
   var per = A.what.print ? 2.5 : (A.what.mockups && A.photo.mode !== "all" && !A.what.colours && !A.what.supplier) ? 0.5 : (A.what.mockups || A.what.colours || A.what.supplier) ? 1.5 : 0.5;
   var mins = Math.max(5, Math.round(n * per) + 5);
   if (A.done && A.done.trial) { $("view").innerHTML = '<div class="okbox"><p class="q">Trying it on one listing first</p><p class="hint" style="color:var(--text)">' + h(A.done.first.gag + " " + A.done.first.garment.toLowerCase()) + " starts updating in about 5 minutes. When it's done, a yellow box appears at the top of this page and on the dashboard: check the listing on Etsy, then tap Carry on for the other " + A.done.rest + ", or Stop.</p></div>"; return; }
-  if (A.done) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">Etsy starts updating in about 5 minutes: ' + A.done.listings + " listing" + (A.done.listings === 1 ? "" : "s") + " across " + A.done.gags + " gag" + (A.done.gags === 1 ? "" : "s") + ". Each gag shows as updating in the By listing view until it's finished. You'll get an alert if anything fails.</p></div>"; return; }
+  if (A.done) { $("view").innerHTML = '<div class="okbox"><p class="q">Saved to Core</p><p class="hint" style="color:var(--text)">Etsy starts updating in about 5 minutes: ' + A.done.listings + " listing" + (A.done.listings === 1 ? "" : "s") + " across " + A.done.gags + " gag" + (A.done.gags === 1 ? "" : "s") + ". Each gag shows as updating in the By listing view until it's finished. You'll get an alert if anything fails.</p><div class=\"row\" style=\"gap:8px;flex-wrap:wrap;margin-top:10px\"><button class=\"abtn\" type=\"button\" data-again=\"same\">Update more listings the same way</button><button class=\"abtn\" type=\"button\" data-again=\"new\">Start a different update</button></div></div>"; return; }
   $("view").innerHTML = '<p class="q">Check and confirm</p><p class="sum">Change <b>' + h(w.join(", ")) + "</b> on <b>" + n + " listing" + (n === 1 ? "" : "s") + "</b> (" + ng + " gag" + (ng === 1 ? "" : "s") + ") in " + h(Object.keys(rs).join(", ")) + '.</p><div class="chips">' + Object.keys(ts).map(function (t) { return "<span>" + h(t) + "</span>"; }).join("") + "</div>" +
     '<p class="hint">Saved to Core straight away. Etsy starts updating 5 minutes later and takes roughly ' + (mins >= 90 ? Math.round(mins / 6) / 10 + " hours" : mins + " minutes") + ". Listings stay live throughout." + (A.what.print ? " New videos come to the Approvals page for you to approve; approving re-posts them to social." : "") + "</p>" +
     (A.err ? '<div class="errbox">' + h(A.err) + "</div>" : "") +
@@ -6837,7 +6855,17 @@ document.addEventListener("input", function (e) {
   if (el.dataset.rule || el.dataset.one) preview();
 });
 $("next").onclick = function () { A.step++; A.err = ""; render(); window.scrollTo(0, 0); };
-$("back").onclick = function () { if (A.step === 1 && A.path.length) { A.path.pop(); A.q = ""; } else { if (A.step === 2 && (A.coreOnly || VIEW_ONLY[whatOn()[0]])) { A.step = VIEW_ONLY[whatOn()[0]] ? 0 : 1; A.path = []; } else A.step--; } A.err = ""; render(); window.scrollTo(0, 0); };
+function stepBack() { if (A.done) { fresh(); } else if (A.step === 1 && A.path.length) { A.path.pop(); A.q = ""; } else { if (A.step === 2 && (A.coreOnly || VIEW_ONLY[whatOn()[0]])) { A.step = VIEW_ONLY[whatOn()[0]] ? 0 : 1; A.path = []; } else A.step--; } A.err = ""; render(); window.scrollTo(0, 0); }
+$("back").onclick = function () { history.back(); };
+// Each step is a history entry, so the phone's back gesture and the Back button at the top step back through this page
+// instead of leaving it (Barry, 18 Nov: updating listings meant going back to the dashboard and finding the place again).
+var DEPTH = 0, POPPING = false;
+function depthNow() { return A.done ? 99 : A.step * 20 + A.path.length; }
+window.addEventListener("popstate", function () { if (DEPTH > 0) { POPPING = true; stepBack(); POPPING = false; } });
+document.addEventListener("click", function (e) { var g = e.target.closest("[data-again]"); if (!g) return;
+  if (g.dataset.again === "same") { var keep = { what: A.what, photo: A.photo, rules: A.rules, colours: A.colours, trial: A.trial }; fresh(); Object.assign(A, keep); A.photo.keys = A.photo.keys || {}; A.step = 1; }
+  else fresh();
+  render(); window.scrollTo(0, 0); });
 $("reset").onclick = function () { fresh(); render(); window.scrollTo(0, 0); };
 // While anything is updating, check every minute for a fresh read of Core and show it.
 setInterval(function () {
