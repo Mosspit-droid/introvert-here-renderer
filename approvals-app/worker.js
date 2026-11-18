@@ -62,6 +62,7 @@ export default {
       if (pathname === "/api/stats" && method === "POST") return await statsIngest(request, env);
       if (pathname === "/api/pricing-sync" && method === "POST") return await pricingSync(request, env);
       if (pathname === "/api/amend-sync" && method === "POST") return await amendSync(request, env);
+      if (pathname === "/api/ip-images-result" && method === "POST") return await ipImagesResult(request, env);
       if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
@@ -161,7 +162,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
-      if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { return json(await ipBuildDraft(env, str(d.gagId), str(d.type))); } catch (e) { return json({ error: e.message }, 400); } }
+      if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { const dr = await ipBuildDraft(env, str(d.gagId), str(d.type)); return json(await ipImagesStart(env, dr)); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
       if (pathname === "/api/ex-suggest" && method === "POST") return await exSuggest(request, env);
@@ -5068,6 +5069,71 @@ async function ipBuildDraft(env, gagId, type) {
   if (props["Material multi"]) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid, "PATCH", null, null, props["Material multi"].vals.map((v) => "materials[]=" + encodeURIComponent(v)).join("&"));
   const num = Number(gagId.split("-")[1]) || 1;
   return { listingId: lid, title, gagId, type, sample: IP.names[(num - 1) % IP.names.length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
+}
+// Photo order for an In Person listing: the builder's rules (one colour of each picture, lead colour first), but with
+// no Printify mockup in slot 2, so the ranks run 1, 2, 3... The lead colour takes turns by gag number; a garment that
+// doesn't come in it (long-sleeve: no Purple) uses the next colour in the list.
+function ipPlan(pages, heroWanted) {
+  const nm = (p) => String(p.page_name || "").toUpperCase(), sorted = pages.slice().sort((a, b) => a.position - b.position);
+  const thumbs = sorted.filter((p) => /THUMBNAIL/.test(nm(p)));
+  const colours = thumbs.map((p) => (nm(p).match(/THUMBNAIL_(.+)$/) || [])[1] || "").filter(Boolean).sort((a, b) => b.length - a.length);
+  const up = (c) => String(c || "").toUpperCase().replace(/\s+/g, "_");
+  let hero = up(heroWanted); if (!colours.includes(hero)) { const at = IP.hero.map(up).indexOf(hero); for (let n = 1; n <= IP.hero.length; n++) { const c = up(IP.hero[(at + n) % IP.hero.length]); if (colours.includes(c)) { hero = c; break; } } }
+  const colourOf = (p) => colours.find((c) => nm(p).endsWith("_" + c)) || "";
+  const baseOf = (p) => { const c = colourOf(p), n = nm(p).replace(/^[A-Z]+_\d+_/, ""); return c ? n.slice(0, -(c.length + 1)) : n; };
+  const groups = {}; sorted.forEach((p) => { if (/THUMBNAIL/.test(nm(p)) || !colourOf(p)) return; const b = baseOf(p); (groups[b] = groups[b] || {})[colourOf(p)] = ((groups[b] || {})[colourOf(p)] || []).concat([p]); });
+  const swap = new Map(), drop = new Set();
+  Object.values(groups).forEach((g) => { const want = g[hero] ? hero : Object.keys(g)[0], n = Math.max(...Object.values(g).map((x) => x.length));
+    for (let k = 0; k < n; k++) { const copies = Object.values(g).map((x) => x[k]).filter(Boolean).sort((a, b) => a.position - b.position); const keep = (g[want] && g[want][k]) || copies[0];
+      copies.forEach((p) => { if (p !== copies[0]) drop.add(p); }); swap.set(copies[0], keep); } });
+  let order = sorted.filter((p) => !drop.has(p)).map((p) => swap.get(p) || p);
+  const lead = thumbs.find((p) => nm(p).endsWith("_" + hero));
+  if (lead && thumbs.length > 1 && lead !== thumbs[0]) { const at = order.indexOf(thumbs[0]); order = order.filter((p) => p !== lead); order.splice(at, 0, lead); }
+  return { hero, list: order.slice(0, 20).map((p, i) => ({ position: Number(p.position), page_name: p.page_name, rank: i + 1 })) };
+}
+async function ipImagesStart(env, d) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("The app has no Make key.");
+  const M = await coreTable(env, "MOCKUP_PAGES");
+  const pages = M.rows.filter((r) => r[0] === "IN PERSON" && r[1] === d.type).map((r) => ({ position: Number(r[2]), page_name: String(r[3]) }));
+  if (!pages.length) throw new Error("No In Person " + d.type + " mockup pages in Core.");
+  const plan = ipPlan(pages, d.hero), ref = crypto.randomUUID(), code = d.gagId + "-" + d.type;
+  const text = d.gagText.replace(/\[NAME\]/gi, d.sample);
+  // Make scenario 8660766 "In Person: mockups to Etsy", started with its inputs (Canva -> photos -> Etsy -> /api/ip-images-result).
+  const res = await fetch(MAKE_API + "/scenarios/8660766/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ responsive: false, data: { ref, listingId: String(d.listingId), tpl: d.mockupTpl, text, code, list: JSON.stringify(plan.list), maxPos: String(Math.max(...pages.map((p) => p.position))) } }) });
+  if (!res.ok) throw new Error("Make didn't take the mockup job (" + res.status + "): " + (await res.text()).slice(0, 160));
+  const job = Object.assign({}, d, { ref, code, plan: plan.list, heroUsed: plan.hero, status: "photos", at: Date.now() });
+  await env.PENDING.put("ipjob:" + ref, JSON.stringify(job), { expirationTtl: 30 * 86400 });
+  const J = (await env.PENDING.get("ip-jobs", "json")) || []; J.unshift({ ref, code, listingId: d.listingId, at: Date.now() }); await env.PENDING.put("ip-jobs", JSON.stringify(J.slice(0, 60)));
+  return job;
+}
+// Make has uploaded the photos: link each colour to its thumbnail, then record the listing in Core's registry so the
+// video, Approvals and everything else pick it up like any other listing.
+async function ipImagesResult(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await readBody(request), ref = str(d.ref).replace(/[^a-z0-9-]/gi, "");
+  const job = await env.PENDING.get("ipjob:" + ref, "json"); if (!job) return json({ ok: true, ignored: true });
+  let images = []; try { images = JSON.parse(String(d.images || "[]")); } catch (e) {}
+  job.images = images; job.designId = str(d.designId);
+  if (!images.length) { job.status = "failed"; job.msg = "Canva didn't finish the mockups (" + str(d.got) + " pages). Try again."; await env.PENDING.put("ipjob:" + ref, JSON.stringify(job), { expirationTtl: 30 * 86400 });
+    await notify(env, "", "In Person mockups didn't finish", job.code + ": " + job.msg, "warning"); return json({ ok: true }); }
+  try {
+    const inv = await etsyJson(env, "/listings/" + job.listingId + "/inventory", "GET");
+    const links = [], seen = {};
+    (inv.products || []).forEach((pr) => (pr.property_values || []).forEach((pv) => { if (pv.property_id !== 514) return; (pv.values || []).forEach((v, i) => { const id = (pv.value_ids || [])[i], key = String(v).toUpperCase().replace(/\s+/g, "_");
+      if (id == null || seen[key]) return; const hit = images.find((im) => new RegExp("THUMBNAIL_" + key + "$").test(String(im.page).toUpperCase())); if (hit) { seen[key] = 1; links.push({ property_id: 514, value_id: id, image_id: Number(hit.image) }); } }); }));
+    if (links.length) await etsyJson(env, "/shops/" + IP.shop + "/listings/" + job.listingId + "/variation-images", "POST", { variation_images: links });
+  } catch (e) { job.linkErr = e.message; }
+  const now = new Date().toISOString().replace(/\.\d+Z$/, "+00:00"), today = new Date().toISOString().slice(0, 10);
+  const R = await coreTable(env, "LISTING_REGISTRY_TABLE"); const v = Array(R.h.length).fill("");
+  const put = (k, x) => { const i = R.col(k); if (i >= 0) v[i] = x; };
+  put("PRODUCT_CODE", job.code); put("COLLECTION", "IN PERSON"); put("PRODUCT_TYPE", job.type); put("PRODUCT_DISPLAY_NAME", job.title); put("TITLE_STEM", job.title.split(" | ")[0]);
+  put("GAG_TEXT", job.gagText); put("ETSY_LISTING_ID", String(job.listingId)); put("ETSY_URL", "https://www.etsy.com/listing/" + job.listingId); put("PIPELINE_STATUS", "CREATED");
+  put("LAST_SYNCED_AT", now); put("CANVA_MASTER_ID", job.designId); put("ASSET_FILENAME", job.code + ".png"); put("RELEASE_DATE", today); put("STATUS", "ETSY_DRAFT_READY_FOR_REVIEW");
+  await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/rows/add", "POST", { index: null, values: [v] });
+  job.status = "done"; job.doneAt = Date.now(); await env.PENDING.put("ipjob:" + ref, JSON.stringify(job), { expirationTtl: 30 * 86400 });
+  await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
+  return json({ ok: true });
 }
 async function etsyJson(env, path, method, body, qs) {
   const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
