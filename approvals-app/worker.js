@@ -6419,7 +6419,7 @@ async function amendApply2(request, env, given) {
     const stem = typeof d.stem === "string" ? d.stem.replace(/\s+/g, " ").trim() : g.stem;
     const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").trim() : g.text;
     if (stem !== g.stem) { if (!what.has("titles")) throw new Error("Tick Titles to change the title stem."); if (!stem) throw new Error("The title stem can't be empty."); ops.push(amendCell("GAGS_TABLE", "TITLE_STEM", g.row, stem)); g.stem = stem; }
-    if (text !== g.text) { if (!what.has("print")) throw new Error("Changing the gag text changes the print, so tick Print template too."); if (!text) throw new Error("The gag text can't be empty."); ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text; }
+    if (text !== g.text) { if (!what.has("print")) throw new Error("Changing the gag text changes the print, so use Rewrite a gag."); if (!text) throw new Error("The gag text can't be empty."); ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text; }
   }
   // range + garment text, tags, supplier
   for (const [rowStr, e] of Object.entries(d.rules || {})) {
@@ -6870,7 +6870,7 @@ function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
-  if (A.what.print) sec("Print template", one ? '<p class="hint">Saving this does it all: the new text goes into Core (so this gag’s garments still to be released use it), then each picked listing gets a new print, a new Etsy description (it starts with the gag), new mockups and a new video for Approvals. It takes about 15 minutes a listing.</p><label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
+  if (A.what.print) sec("Rewrite the gag", one ? '<p class="hint">Saving this does it all: the new text goes into Core (so this gag’s garments still to be released use it), then each picked listing gets a new print, a new Etsy description (it starts with the gag), new mockups and a new video for Approvals. It takes about 15 minutes a listing.</p><label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
  : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
