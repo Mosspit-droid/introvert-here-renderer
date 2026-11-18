@@ -6566,6 +6566,9 @@ async function amendPage(env) {
 <style>
 .aw{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:110px}
 .steps{display:flex;gap:6px;flex-wrap:wrap}
+.bigwhat{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;padding:16px 18px;margin:6px 0 14px;border-radius:16px;border:2px solid #e6b450;background:rgba(230,180,80,.08);color:var(--text);cursor:pointer}
+.bigwhat .bwt{display:flex;align-items:center;gap:8px;font:800 17px var(--display);letter-spacing:.06em;text-transform:uppercase}.bigwhat .bwt svg{width:22px;height:22px}
+.bigwhat .bws{font-size:14px;color:var(--text);line-height:1.45}.bigwhat .bwn{font-size:13px;color:#e6b450;font-weight:600}
 .steps span{font-size:13px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
 .steps span.on{background:var(--accent);color:#141413;border-color:var(--accent);font-weight:600}
 .steps span.done{color:var(--text)}
@@ -6704,7 +6707,7 @@ var WHAT = [
   ["taxonomy","Category & attributes","The Etsy category and colour attributes each range and garment uses","Search"],
   ["shipping","Shipping","What buyers pay for postage and the delivery time Etsy shows them, per range and garment","Shipping"],
   ["colours","Colours & sizes","See each garment's sizes, and add or take away colours","Variations"],
-  ["print","Print template","Edit the gag text (one gag) or remake the print from it. Saves the new text to Core, so garments still to come use it, then remakes the print, the Etsy description, the mockups and the video","Production"],
+  ["print","Rewrite the gag","Edit the gag text (one gag) or remake the print from it. Saves the new text to Core, so garments still to come use it, then remakes the print, the Etsy description, the mockups and the video","Production"],
   ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace)","Production"]];
 var VIEW_ONLY = { taxonomy: 1 };
 var RULE_ONLY = { titles: 1, descriptions: 1, tags: 1, shipping: 1 };
@@ -6755,9 +6758,11 @@ function ic(n) { return '<span class="ic"><svg><use href="#i-' + n + '"/></svg><
 function tileB(attr, icon, name, sub, extra) { return '<button type="button" class="tile' + (icon ? "" : " sm") + '" ' + attr + ">" + (icon ? ic(icon) : "") + '<span><span class="nm">' + h(name) + '</span>' + (sub ? '<span class="st" style="display:block">' + sub + "</span>" : "") + "</span>" + (extra || "") + "</button>"; }
 function what() {
   var groups = [], by = {};
-  WHAT.forEach(function (w) { if (!by[w[3]]) { by[w[3]] = []; groups.push(w[3]); } by[w[3]].push(tileB('data-whatgo="' + w[0] + '"', WICON[w[0]], w[1], h(w[2])));
+  WHAT.forEach(function (w) { if (w[0] === "print") return; if (!by[w[3]]) { by[w[3]] = []; groups.push(w[3]); } by[w[3]].push(tileB('data-whatgo="' + w[0] + '"', WICON[w[0]], w[1], h(w[2])));
     if (w[0] === "tags") { groups.push("Price"); by.Price = ['<a class="tile" href="/pricing">' + ic("price") + '<span><span class="nm">Price</span><span class="st" style="display:block">Prices per garment and size, profit after fees and postage. Opens Pricing.</span></span></a>']; } });
-  $("view").innerHTML = '<p class="q">What do you want to change?</p><p class="hint">Same order as Etsy\'s edit page. Tap one.</p><div class="lgw">' +
+  // Rewriting a gag redoes almost everything on its listings, so it has its own card at the top (Barry, 18 Nov).
+  var big = '<button type="button" data-whatgo="print" class="bigwhat"><span class="bwt">' + ic("update") + ' Rewrite a gag</span><span class="bws">Change the wording of a live gag. The new words go into Core, so its garments still to come use them. Each listing you pick then gets a new print, a new Etsy description, new mockups and a new video for Approvals.</span><span class="bwn">The biggest change you can make here: about 15 minutes a listing.</span></button>';
+  $("view").innerHTML = '<p class="q">What do you want to change?</p>' + big + '<p class="hint">Everything else, in the same order as Etsy\'s edit page. Tap one.</p><div class="lgw">' +
     groups.map(function (g) { var n = by[g].length; return '<div class="lgb" style="flex:' + n + " 1 " + (n * 200) + 'px"><p class="lgrp">' + h(g) + '</p><div class="lt">' + by[g].join("") + "</div></div>"; }).join("") + "</div>";
 }
 function gTiles(ks, label) {   // "All garments" + one tile per garment that has listings in ks
@@ -6865,7 +6870,7 @@ function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
-  if (A.what.print) sec("Print template", one ? '<p class="hint">Saving this does it all: the new text goes into Core (so this gag's garments still to be released use it), then each picked listing gets a new print, a new Etsy description (it starts with the gag), new mockups and a new video for Approvals. It takes about 15 minutes a listing.</p><label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
+  if (A.what.print) sec("Print template", one ? '<p class="hint">Saving this does it all: the new text goes into Core (so this gag’s garments still to be released use it), then each picked listing gets a new print, a new Etsy description (it starts with the gag), new mockups and a new video for Approvals. It takes about 15 minutes a listing.</p><label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
  : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
