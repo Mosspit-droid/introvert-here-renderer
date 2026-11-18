@@ -1,7 +1,16 @@
 # In Person (IP): Core and Make entries waiting to be added
 
 Collected 16–17 Nov 2026 in the personalised-range session, for Barry to post to the thread that edits Core and Make
-once all four garments' mockup suites are published. Nothing here has been written to Core or Make yet.
+once all four garments' mockup suites are published.
+
+**Done 18 Nov:** MOCKUP_PAGES now holds every IP page (96 rows, sheet rows 333–428, COLLECTION `IN PERSON` with no full stop,
+Barry's choice). Backup first: `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_IP_pages.xlsx`. Because the builder keeps one
+colour per picture, the Etsy photos it picks are exactly the per-garment lists below (checked with `mockup_rank.js`).
+Everything else here (COLLECTIONS lookup, COLOUR_PROFILES, PRODUCT_RULES, Make, video) is still to do. The approvals app and
+Make must use the same `IN PERSON` spelling.
+Canva page-name typos (Core has the clean names; Barry to fix in Canva by hand, the builder ignores Canva names):
+T-shirt page 23 `IP_24_TS_AGM` (should be IP_23), long-sleeve page 4 `IP_P4_LS_GIFT_DARK_HEATHER`, sweatshirt page 10
+`IP_10_ SW_CLOSEUP_PURPLE` (space), hoodie page 10 `IP_10_HD_HANGING_ BACK_PURPLE` (space).
 
 ## Colours (agreed with Barry)
 - Grey follows exactly the same rule as the other ranges, plus Navy and Purple. No Black.
