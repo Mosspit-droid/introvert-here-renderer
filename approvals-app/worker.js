@@ -161,6 +161,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { return json(await ipBuildDraft(env, str(d.gagId), str(d.type))); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
       if (pathname === "/api/ex-suggest" && method === "POST") return await exSuggest(request, env);
@@ -2494,9 +2495,11 @@ async function quickList(request, env) {
 const EX_META_KEY = "ex-meta";
 // Feature a newly live Exclusive on Etsy (Barry, 16 Nov, option 1): it takes featured spot 1, the previous Exclusive
 // spot 2, older Exclusives are unfeatured (never more than 2), and Barry's own featured picks move down in their order.
-async function etsyTool(env, path, method, form, qs) {
+async function etsyTool(env, path, method, form, qs, raw) {
   const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
-  const data = { path, method }; if (qs) data.qs = Object.entries(qs).map(([key, value]) => ({ key, value: String(value) })); if (form) { data.body = Object.entries(form).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&"); data.bodyType = "raw"; data.header = [{ key: "Content-Type", value: "application/x-www-form-urlencoded" }]; }
+  const data = { path, method }; if (qs) data.qs = Object.entries(qs).map(([key, value]) => ({ key, value: String(value) }));
+  if (raw) { data.body = raw; data.bodyType = "raw"; data.header = [{ key: "Content-Type", value: "application/x-www-form-urlencoded" }]; }
+  else if (form) { data.body = Object.entries(form).map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&"); data.bodyType = "raw"; data.header = [{ key: "Content-Type", value: "application/x-www-form-urlencoded" }]; }
   const r = await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
   const j = await r.json().catch(() => ({})); if (j.error) throw new Error("Etsy said: " + String(j.error.message || "error").slice(0, 160));
   let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
@@ -4987,6 +4990,93 @@ async function rangeShift(d, env) {
 // Uses OneDrive's version history for Core itself, so the file (and Make's link to it) stays the same.
 // Restoring creates a new version, so the version that was current just before is kept for "Undo".
 const CORE_ITEM = "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ";
+// ---------- In Person listing route (Barry, 18 Nov) ----------
+// In Person listings go straight onto Etsy from the app (no Printify product), so Printify never sees the order:
+// the app catches it, makes that buyer's print and orders it itself. This part makes the draft listing: title,
+// description, 13 tags, sizes x colours with prices (the personalisation charge added to the price before VAT),
+// the required name box, and the Etsy details. The mockups follow (Make: Canva -> Etsy), then Core's registry row.
+const IP = { surcharge: 3, names: ["SARAH", "DAVE", "EMMA", "JAMES", "CHLOE", "TOM", "HANNAH", "BEN", "LUCY", "SAM"], hero: ["Purple", "Navy", "Dark Heather"],
+  shop: 65435151, partner: 5639008, returnPolicy: 1479934432311, readiness: 1481246295217, nameMax: 12 };
+async function coreTable(env, name) {
+  const r = await coreTool(env, CORE_ITEM + "/workbook/tables/" + name + "/range?$select=values,address");
+  const v = (r && r.values) || []; const h = (v[0] || []).map((x) => String(x)); return { h, rows: v.slice(1), address: r && r.address, col: (k) => h.indexOf(k) };
+}
+const ipSplit = (t) => String(t || "").split("|").map((x) => x.trim()).filter(Boolean);
+function ipColLetter(n) { let s = ""; n += 1; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+async function ipBuildDraft(env, gagId, type) {
+  const [G, R, T, X, C, P] = await Promise.all(["GAGS_TABLE", "PRODUCT_RULES", "GAG_TAGS", "ETSY_TAXONOMY_PROPERTY_IDS", "COLOUR_PROFILES_TABLE", "TAG_POOL"].map((n) => coreTable(env, n)));
+  const gi = G.rows.findIndex((r) => r[0] === gagId); if (gi < 0) throw new Error(gagId + " isn't in Core.");
+  const g = G.rows[gi], text = String(g[G.col("GAG_TEXT")] || ""), stem = String(g[G.col("TITLE_STEM")] || "").trim();
+  if (g[G.col("COLLECTION")] !== "IN PERSON") throw new Error(gagId + " isn't an In Person gag.");
+  if ((text.match(/\[NAME\]/gi) || []).length !== 1) throw new Error(gagId + " needs [NAME] exactly once.");
+  const rr = (k) => R.col(k), rule = R.rows.find((r) => r[0] === "IN PERSON" && r[1] === type); if (!rule) throw new Error("No In Person " + type + " row in PRODUCT_RULES.");
+  const rv = (k) => String(rule[rr(k)] == null ? "" : rule[rr(k)]).trim();
+  // Cross-sell lines: same as the builder (other live ranges, in PRODUCT_RULES order, with their Etsy section links).
+  const seen = new Set(), others = [];
+  R.rows.forEach((r) => { const c = String(r[0] || "").trim(); if (!c || seen.has(c)) return; seen.add(c); if (c === "IN PERSON" || String(r[rr("RANGE_LIVE")] || "").trim().toUpperCase() !== "Y") return;
+    const sid = String(r[rr("ETSY_SHOP_SECTION_ID")] || "").trim(), nm = String(r[rr("RANGE_NAME")] || c).trim(); others.push(sid ? nm + ": https://www.etsy.com/shop/IntrovertHereShop?section_id=" + sid : nm); });
+  const lead = rv("CROSS_SELL_LEAD"), cross = lead && others.length ? "\n" + lead + " Have a look at our other ranges:\n" + others.join("\n") + "\n\n" : "";
+  const shown = text.replace(/\[NAME\]/gi, "[YOUR NAME]");
+  const description = shown + "\n\n" + rv("COLLECTION_INTRO") + "\n" + rv("PRODUCT_FEATURES") + "\n" + rv("AUDIENCE_TEXT") + "\n" + cross + rv("CLOSING_TEXT");
+  const title = (stem + " " + rv("TITLE_SUFFIX")).replace(/\s+/g, " ").trim();
+  // Tags: frozen set if there is one, else the suggested set (frozen now, like the builder does), + 5 product tags + stem.
+  const t = T.rows[gi]; if (!t || t[0] !== gagId) throw new Error("GAG_TAGS doesn't line up with GAGS at " + gagId + ".");
+  const tc = (k) => T.col(k), tv = (k) => String(t[tc(k)] == null ? "" : t[tc(k)]).trim();
+  const frozen = !!tv("GAG5_FROZEN");
+  let stemTag = (frozen ? tv("STEM_FROZEN") : stem).toLowerCase().replace(/[^a-z0-9 '-]/g, "").replace(/\s+/g, " ").trim();
+  if (stemTag.length > 20) stemTag = stemTag.split(" ").reduce((a, b) => (b.length > a.length ? b : a), "").slice(0, 20);
+  const prod = ["PRODUCT_TAG_09", "PRODUCT_TAG_10", "PRODUCT_TAG_11", "PRODUCT_TAG_12", "PRODUCT_TAG_13"].map(rv).filter(Boolean).map((x) => x.toLowerCase());
+  let gag5 = ipSplit(frozen ? tv("GAG5_FROZEN") : tv("GAG5_SUGGESTED")), seas2 = ipSplit(frozen ? tv("SEAS2_FROZEN") : tv("SEAS2_SUGGESTED"));
+  if (!frozen && (gag5.length !== 5 || seas2.length !== 2)) {
+    // Excel doesn't recalculate the suggestion formulas for rows the app adds (18 Nov), so pick the same way they do:
+    // the gag type's phrases rotated by gag number, 3 flavour + 2 anchor, nothing that repeats the stem or a product tag.
+    // In Person isn't seasonal: its two "season" slots are its evergreen pair (TAG_POOL fallback rows), then shop-wide ones.
+    const pc = (k) => P.col(k), type0 = String(g[G.col("GAG_CATEGORY")] || ""), seed = Number(gagId.slice(3)) * 7 + gagId.charCodeAt(0) + gagId.charCodeAt(1);
+    const excl = new Set([stemTag, ...prod]), rot = (a) => a.length ? a.map((_, i) => a[(seed + i) % a.length]) : a;
+    const pool = P.rows.filter((r) => r[pc("POOL")] === type0 && r[pc("GROUP")] === "GAG" && r[pc("ACTIVE")] === "Y" && r[pc("VALID")] === true).map((r) => [String(r[pc("KEY")]), r[pc("CLASS")]]).filter((x) => !excl.has(x[0]));
+    const fl = rot(pool.filter((x) => x[1] === "Flavour").map((x) => x[0])), an = rot(pool.filter((x) => x[1] === "Anchor").map((x) => x[0]));
+    gag5 = [...new Set([...fl.slice(0, 3), ...an.slice(0, 2), ...fl.slice(3), ...an.slice(2)])].slice(0, 5);
+    const fb = (pool2) => P.rows.filter((r) => r[pc("POOL")] === pool2 && r[pc("GROUP")] === "FALLBACK" && r[pc("ACTIVE")] === "Y").map((r) => String(r[pc("KEY")]));
+    seas2 = [...new Set([...fb("IN PERSON"), ...rot(fb("ALL"))])].filter((x) => !excl.has(x) && !gag5.includes(x)).slice(0, 2);
+  }
+  const tags = [...gag5, ...seas2, ...prod, stemTag].map((x) => String(x).toLowerCase());
+  if (gag5.length !== 5 || seas2.length !== 2 || prod.length !== 5 || !stemTag) throw new Error(gagId + " tags aren't ready (" + gag5.length + " gag, " + seas2.length + " seasonal, " + prod.length + " product).");
+  if (new Set(tags).size !== 13 || tags.some((x) => x.length > 20)) throw new Error(gagId + ": the 13 tags clash or one is too long: " + tags.join(", "));
+  if (!frozen) {
+    const row = gi + 2, sheet = "GAG_TAGS", L = (k) => ipColLetter(tc(k)), at = new Date().toISOString().slice(0, 10);
+    const cells = [["STEM_FROZEN", stemTag], ["GAG5_FROZEN", "|" + gag5.join("|") + "|"], ["SEAS2_FROZEN", "|" + seas2.join("|") + "|"], ["FROZEN_AT", at], ["APPROVED", true]];
+    for (const [k, v] of cells) await coreTool(env, CORE_ITEM + "/workbook/worksheets('" + sheet + "')/range(address='" + L(k) + row + "')", "PATCH", { values: [[v]] });
+  }
+  // Colours (this garment's profile) x sizes; 3XL on sweatshirts/hoodies only in Black or Navy (Global Fulfillment).
+  const prof = C.rows.find((r) => r[0] === rv("COLOUR_PROFILE")); const colours = ipSplit(String(prof ? prof[1] : "").replace(/,\s*/g, "|"));
+  const sizes = rv("SIZES").split(/,\s*/).filter((z) => z && z !== "4XL" && z !== "5XL");
+  const base = Number(rv("PRICE_GBP")) + IP.surcharge, ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
+  const products = [];
+  colours.forEach((c) => sizes.forEach((z) => { if ((type === "SWEATSHIRT" || type === "HOODIE") && z === "3XL" && !["Black", "Navy"].includes(c)) return;
+    products.push({ sku: gagId + "-" + type + "-" + c.toUpperCase().replace(/\s+/g, "") + "-" + z, property_values: [{ property_id: 513, property_name: "Clothing sizes", values: [z] }, { property_id: 514, property_name: "Gildan Colors", values: [c] }],
+      offerings: [{ price: Math.round((base + (ext[z] || 0)) * 100) / 100, quantity: 999, is_enabled: true, readiness_state_id: IP.readiness }] }); }));
+  if (!products.length) throw new Error("No colours or sizes for In Person " + type + ".");
+  // 1. the draft listing
+  const form = { quantity: 1, title, description, price: base.toFixed(2), who_made: "someone_else", when_made: "made_to_order", taxonomy_id: rv("ETSY_TAXONOMY_ID"), shipping_profile_id: rv("SHIPPING_PROFILE_ID") || rv("ASSIGN_SHIPPING_PROFILE"),
+    return_policy_id: IP.returnPolicy, readiness_state_id: IP.readiness, is_supply: "false", type: "physical", shop_section_id: rv("ETSY_SHOP_SECTION_ID"), "production_partner_ids[]": IP.partner, tags: tags.join(","), should_auto_renew: "false" };
+  const L1 = await etsyTool(env, "/shops/" + IP.shop + "/listings", "POST", form); const lid = L1 && L1.listing_id; if (!lid) throw new Error("Etsy didn't make the listing: " + JSON.stringify(L1).slice(0, 200));
+  // 2. sizes x colours, 3. name box, 4. Etsy details (materials, colours, style...)
+  await etsyJson(env, "/listings/" + lid + "/inventory", "PUT", { products, price_on_property: [513, 514], quantity_on_property: [513, 514], sku_on_property: [513, 514] });
+  await etsyJson(env, "/shops/" + IP.shop + "/listings/" + lid + "/personalization", "POST", { personalization_questions: [{ question_type: "text_input", question_text: "Your first name", instructions: "Up to " + IP.nameMax + " letters, printed exactly as you type it.", required: true, max_allowed_characters: IP.nameMax }] }, { supports_multiple_personalization_questions: "true" });
+  const props = {}; X.rows.filter((r) => r[0] === "IN PERSON" && r[1] === type && r[4]).forEach((r) => { (props[r[3]] = props[r[3]] || { id: r[4], ids: [], vals: [] }); props[r[3]].ids.push(r[6]); props[r[3]].vals.push(r[5]); });
+  for (const [name, p] of Object.entries(props)) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid + "/properties/" + p.id, "PUT", null, null, p.ids.map((v) => "value_ids[]=" + v).join("&") + "&" + p.vals.map((v) => "values[]=" + encodeURIComponent(v)).join("&"));
+  if (props["Material multi"]) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid, "PATCH", null, null, props["Material multi"].vals.map((v) => "materials[]=" + encodeURIComponent(v)).join("&"));
+  const num = Number(gagId.split("-")[1]) || 1;
+  return { listingId: lid, title, gagId, type, sample: IP.names[(num - 1) % IP.names.length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
+}
+async function etsyJson(env, path, method, body, qs) {
+  const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
+  const data = { path, method, body: JSON.stringify(body), bodyType: "raw", header: [{ key: "Content-Type", value: "application/json" }] };
+  if (qs) data.qs = Object.entries(qs).map(([key, value]) => ({ key, value: String(value) }));
+  const r = await fetch(MAKE_API + "/scenarios/7705176/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
+  const j = await r.json().catch(() => ({})); if (j.error) throw new Error("Etsy said: " + String(j.error.message || "error").slice(0, 200));
+  let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} } return b;
+}
 async function coreTool(env, path, method = "GET", body) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("No Make token saved.");
   const data = { path, method }; if (body !== undefined) data.body = JSON.stringify(body);
