@@ -138,4 +138,4 @@ Barry: Core should hold every page, because his own website (replacing Etsy) wil
 - IP rows are still left for the In Person Core thread (`in-person-core-pending.md`).
 - Checked with `docs/tagging/make/mockup_rank.js` before writing: the Etsy photo count is unchanged for every garment and colour. Black-led (PC: Navy-led) listings get exactly the same photos as before. A Dark Heather-led (or PC Black-led) listing now shows its photos in its own colour rather than Black/Navy, the same way PC long-sleeve/sweat/hoodie and Off the Shelf already worked.
 - `IH_14_HD_PAYOFF` (no colour) is correct: checked the picture, it shows the friend at the window and an empty chair, no hoodie, so it is shared by both colours. Left as is in Canva and Core.
-- IH tee page 9 is titled `IH_TS_VARIANTS` in Canva (Core has `IH_09_TS_VARIANTS`). Page names can't be changed through the Canva API, so Barry renames it by hand. The builder ignores Canva page names, so nothing breaks in the meantime.
+- IH tee page 9 is titled `IH_TS_VARIANTS` in Canva (Core has `IH_09_TS_VARIANTS`). Page names can't be changed through the Canva API, Barry renamed it by hand (18 Nov).
