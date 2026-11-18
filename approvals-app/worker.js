@@ -4282,7 +4282,9 @@ async function statsIngest(request, env) {
 }
 
 const TYPE_LABEL = { "T-SHIRT": "T-Shirt", "LONG-SLEEVE": "Long-Sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
-const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract", OS: "Off The Shelf" };
+const COLL_LABEL = { IH: "Introvert Here", SH: "SHHH", PC: "Per Contract", OS: "Off The Shelf", EX: "Exclusive", IP: "In Person" };
+// Stats split every range, Exclusive and In Person included (Barry, 18 Nov: they were counted as Introvert Here).
+const statColl = (code) => (/^(IH|SH|PC|OS|EX|IP)-/.exec(String(code || "")) || [, "IH"])[1];
 const gagOf = (code) => String(code || "").split("-").slice(0, 2).join("-");
 const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
 
@@ -4313,7 +4315,7 @@ async function statsPage(env, url) {
   const gags = {};
   for (const l of live) {
     const id = gagOf(l.code);
-    const g = (gags[id] ||= { id, stem: l.stem, coll: collOf(l.code), views: 0, favs: 0, recent: 0, hasRecent: false, sales: 0, items: [] });
+    const g = (gags[id] ||= { id, stem: l.stem, coll: statColl(l.code), views: 0, favs: 0, recent: 0, hasRecent: false, sales: 0, items: [] });
     g.views += l.views; g.favs += l.favs; g.sales += sold[l.code] || 0;
     const r = recent(l.code, 0);
     if (r != null) { g.recent += r; g.hasRecent = true; }
@@ -4328,8 +4330,8 @@ async function statsPage(env, url) {
   const trend = (() => {
     const ds = days.slice(-31);
     if (ds.length < 3) return `<div class="card small">The trend chart appears once a few days of history have built up (one reading a day at 12:00).</div>`;
-    const R = [["IH", "var(--ih)"], ["SH", "var(--sh)"], ["PC", "var(--pc)"], ["OS", "var(--os)"]];
-    const per = (d) => { const o = { IH: 0, SH: 0, PC: 0, OS: 0 }; for (const [code, v] of Object.entries(hist[d] || {})) { const c = collOf(code); o[c] = (o[c] || 0) + (Number(v[0]) || 0); } return o; };
+    const R = [["IH", "var(--ih)"], ["SH", "var(--sh)"], ["PC", "var(--pc)"], ["OS", "var(--os)"], ["EX", "#d8262c"], ["IP", "#4A8FE7"]];
+    const per = (d) => { const o = { IH: 0, SH: 0, PC: 0, OS: 0, EX: 0, IP: 0 }; for (const [code, v] of Object.entries(hist[d] || {})) { const c = statColl(code); o[c] = (o[c] || 0) + (Number(v[0]) || 0); } return o; };
     const rows = ds.slice(1).map((d, i) => { const a = per(ds[i]), b = per(d); const o = { d }; R.forEach(([c]) => { o[c] = Math.max(0, (b[c] || 0) - (a[c] || 0)); }); o.sold = (st.orders || []).filter((x) => x.date === d).reduce((n, x) => n + (Number(x.qty) || 0), 0); return o; });
     const max = Math.max(4, ...rows.map((r) => R.reduce((n, [c]) => n + r[c], 0)));
     const nice = Math.ceil(max / 4) * 4, W = 720, H = 220, L = 34, B = 26, T = 12, bw = (W - L - 8) / rows.length;
@@ -4383,7 +4385,7 @@ async function statsPage(env, url) {
 .srow-wrap:last-child>.srow,.list>.srow:last-child{border-bottom:0}
 summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 .srow-wrap{border-left:4px solid transparent;padding-left:8px;margin-left:-8px}
-.srow-wrap[data-coll=IH]{border-left-color:#d8d3c8}.srow-wrap[data-coll=SH]{border-left-color:#9fd4b1}.srow-wrap[data-coll=PC]{border-left-color:#e0574a}.srow-wrap[data-coll=OS]{border-left-color:#d4a94a}
+.srow-wrap[data-coll=IH]{border-left-color:#d8d3c8}.srow-wrap[data-coll=SH]{border-left-color:#9fd4b1}.srow-wrap[data-coll=PC]{border-left-color:#e0574a}.srow-wrap[data-coll=EX]{border-left-color:#d8262c}.srow-wrap[data-coll=IP]{border-left-color:#4A8FE7}.srow-wrap[data-coll=OS]{border-left-color:#d4a94a}
 .sname{flex:1;min-width:0;overflow-wrap:anywhere}
 .snum{width:62px;text-align:right;font-weight:700;font-size:17px;flex-shrink:0}
 .snum span{display:block;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -4415,7 +4417,7 @@ ${await priceTestsHtml(env, st, hist)}
 <div class="card list">${gagRows || `<div class="small">Nothing live yet.</div>`}</div>
 <p class="small">Tap a gag to see each garment.</p>
 <h2>By collection</h2>
-<div class="card list">${group((l) => collOf(l.code), (k) => COLL_LABEL[k] || k)}</div>
+<div class="card list">${group((l) => statColl(l.code), (k) => COLL_LABEL[k] || k)}</div>
 <h2>By garment</h2>
 <div class="card list">${group((l) => l.type, (k) => TYPE_LABEL[k] || k)}</div>
 <h2>Orders</h2>
@@ -6751,6 +6753,18 @@ function gagFit() {
   if (ta.value.trim() && !/^\s*(\.\.\.|\u2026)/.test(ta.value)) warn.push("It doesn't start with an ellipsis (... or \u2026).");
   if (/^IP-/.test(id)) { var n = (ta.value.match(/\[NAME\]/gi) || []).length; if (n !== 1) warn.push("In Person gags need [NAME] exactly once."); }
   box.innerHTML = warn.length ? '<div class="errbox" style="margin-top:6px">' + warn.map(h).join("<br>") + "</div>" : (ta.value.trim() ? '<p class="hint" style="color:var(--ok,#7fd18b)">Fits the print: every line is within 12 capital Ws.</p>' : "");
+  gagPrev(ta, id, raw, over);
+}
+// The print page as the gag tool draws it (Barry, 18 Nov): range logo at the top, the gag right-aligned in the 12 W x 9 line box.
+var PRINTP = { IH: { src: "/assets/print-logo-ih.png", h: 607, top: 1000 }, SH: { src: "/assets/print-logo-sh.png", h: 946, top: 1230 }, PC: { src: "/assets/print-logo-pc.png", h: 835, top: 1230 }, OS: { src: "/assets/print-logo-os.png", h: 805, top: 1000 }, IP: { src: "/assets/print-logo-ip.png", h: 866, top: 1000 } };
+function gagPrev(ta, id, raw, over) {
+  var st = $("gprev"); if (!st) return; var P = PRINTP[id.slice(0, 2)]; if (!P) { st.innerHTML = ""; st.style.display = "none"; return; }
+  st.style.display = ""; var W = st.clientWidth || 340, sc = W / 3951;
+  var lines = raw.map(function (l) { return /^IP-/.test(id) ? l.replace(/\[NAME\]/gi, "MAXIMILLIANA") : l; });
+  st.style.height = Math.round((P.top + 262.39 * 1.2 * Math.max(9, lines.length) + 150) * sc) + "px";
+  st.innerHTML = '<img src="' + P.src + '" alt="" style="position:absolute;left:0;top:0;width:' + W + 'px;height:' + (P.h * sc) + 'px">' +
+    '<div style="position:absolute;left:' + (250 * sc) + 'px;top:' + (P.top * sc) + 'px;width:3440px;transform:scale(' + sc + ');transform-origin:top left;color:#fff;font:400 262.39px Montserrat,sans-serif;line-height:1.2;letter-spacing:-0.04em;text-align:right">' +
+    lines.map(function (l, i) { return '<div style="white-space:nowrap' + (over.indexOf(i + 1) >= 0 || i >= 9 ? ";color:#ff9a8a" : "") + '">' + (l ? h(l).replace(/ /g, "&nbsp;") : "&nbsp;") + "</div>"; }).join("") + "</div>";
 }
 if (document.fonts && document.fonts.load) document.fonts.load("400 100px Montserrat").then(function () { gagFit(); });
 function preview() { var t = $("pvT"), d = $("pvD"); if (!t && !d) return; var p = (A.cur.rule || "").split("|"), r = ruleFor(p[0], p[1]); if (!r) return; var g = sampleGag(p[0]);
@@ -6762,7 +6776,7 @@ function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
-  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div>'
+  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
  : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
