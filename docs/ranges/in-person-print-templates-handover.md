@@ -66,3 +66,15 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   them against Printify's product size tables before use. Current guides disagree with each other.
 - Show Barry a preview sheet first. Swapping them into the mockup brand templates means editing published templates
   (asks Barry each time) and changes pages Core counts on, so do it range by range with his OK.
+
+### Job 2 progress (18 Nov)
+- Built `size-guides/build.js` + `size-guides/measurements.json` (all numbers in one file, inches laid flat; cm worked out).
+  `node size-guides/build.js [RANGE] [garment]` writes `size-guides/out/<RANGE>_<garment>.png` (4500 x 4500, git-ignored).
+  6 ranges x 4 garments = 24 (Exclusive. sells all four garments per the topical brief).
+- Measurements are Gildan spec-sheet figures, NOT yet confirmed against Printify: printify.com was added to the environment's
+  allowed hosts (Barry approved) but still didn't resolve in this session; raw page download was refused by the safety check.
+  Each image carries a yellow "PREVIEW · MEASUREMENTS TO CONFIRM" tag until `status` in measurements.json is "CONFIRMED".
+- Sleeve length is measured from the centre back of the neck (Gildan's method). The old guides used centre-back numbers but
+  said "from the shoulder seam": fixed in the wording.
+- Nothing changed in Canva. Next: Barry reviews the preview, measurements confirmed, then swap into mockup templates range by
+  range with his OK (size guide page numbers are in in-person-core-pending.md / canva.md per template).
