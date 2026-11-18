@@ -17,6 +17,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## T-shirt: T002_IP_T-SHIRT_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbHc0Z3HY` (25 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: `EAHbONKmDlE` (T001_IP_T-SHIRT_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout: thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12, all colours 13,
   barbecue setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24, Find Your Range 25.
 - MOCKUP_PAGES IP T-SHIRT (13 rows): 1, 2, 3, 4, 7, 10, 13, 14, 15, 20, 23, 24, 25
@@ -25,6 +26,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Long-sleeve: U002_IP_LONG-SLEEVE_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbKl-Q9Fs` (18 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOA9jtWY` (U001_IP_LONG-SLEEVE_TEMPLATES, published 18 Nov, field GAG_TEXT)
 - Layout: thumbnails 1–2 (Navy, Dark Heather), gift 3–4, hanging 5–6, close-up 7–8, both colours 9,
   hallway setup/payoff 10–11 Navy, 12–13 Dark Heather, flat lay 14–15, AGM 16, size guide 17, Find Your Range 18.
 - MOCKUP_PAGES IP LONG-SLEEVE (12 rows): 1, 2, 3, 5, 7, 9, 10, 11, 14, 16, 17, 18
@@ -33,6 +35,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Sweatshirt: V002_IP_SWEATSHIRT_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbN_jcGPo` (25 pages, field GAG_TEXT)
+- CANVA_PRINT_PROJECT_CODE: not yet published (V001_IP_SWEATSHIRT_TEMPLATES, working copy `DAHbNwzpSHI`, waiting for Barry's OK)
 - Layout (same as the T-shirt): thumbnails 1–3 (Purple, Navy, Dark Heather), gift 4–6, hanging 7–9, close-up 10–12,
   all colours 13, zoo setup/payoff 14–15 Purple, 16–17 Navy, 18–19 Dark Heather, flat lay 20–22, AGM 23, size guide 24,
   Find Your Range 25.
@@ -41,6 +44,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 
 ## Hoodie: W002_IP_HOODIE_MOCKUPS
 - CANVA_PROJECT_CODE: `EAHbNZPGdsw` (28 pages, field GAG_TEXT; print is FRONT_BACK: small chest logo front, gag on the back)
+- CANVA_PRINT_PROJECT_CODE: `EAHbOHG0JQE` (W001_IP_HOODIE_TEMPLATES, published 18 Nov, page 1 front chest logo, page 2 back with GAG_TEXT)
 - Layout: back thumbnails 1–3 (Purple, Navy, Dark Heather), gift box (front) 4–6, hanging front 7–9, hanging back 10–12,
   hood close-up 13–15, all colours 16, aquarium setup/payoff 17–18 Purple, 19–20 Navy, 21–22 Dark Heather,
   folded front 23–25, AGM 26, size guide 27, Find Your Range 28.

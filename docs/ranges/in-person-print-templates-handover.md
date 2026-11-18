@@ -27,6 +27,13 @@ Done already:
   Hoodie front: stacked logo swapped straight in (same 1400 x 466.67 box).
   Test fills (safe to delete): DAHbNwT8pf0 (tee), DAHbNzY_ItU (long-sleeve), DAHbN41k1bk (hoodie), DAHbN55G0ws (sweatshirt,
   not filled yet: text locked). Waiting for Barry's OK before publishing.
+- 18 Nov: Barry OK'd tee, long-sleeve, hoodie: published as T001 `EAHbONKmDlE`, U001 `EAHbOA9jtWY`, W001 `EAHbOHG0JQE`
+  (ids in in-person-core-pending.md). Sweatshirt text dropped to 1091.8 after Barry unlocked; test fill `DAHbOKiFYrs`;
+  publish after his OK.
+- Barry asked to drop the text on the PC hoodie and any other hoodie that needs it. Checked all hoodie print templates'
+  back pages (logo bottom to GAG_TEXT box top): IH D001 ~211, SH S001 ~114+, OTS K001 ~150, PC O001 ~2. Only PC needs it.
+  Plan: PC GAG_TEXT top 750 -> 870 (same ~122 gap as IP). Brand template draft `DAHbOBcNojk`: text is padlocked there,
+  waiting for Barry to unlock, then edit + publish (template id unchanged).
 
 What the PC T-shirt template contains (page 3951 × 4919, black background):
 - GAG_TEXT text box (autofill field `GAG_TEXT`, locked), top 1000, left 250, 3440 wide.
