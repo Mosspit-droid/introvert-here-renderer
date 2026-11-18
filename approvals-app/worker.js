@@ -38,6 +38,7 @@ export default {
     ctx.waitUntil(remakeNudge(env).catch(() => {}));
     ctx.waitUntil(draftWatch(env).catch(() => {}));
     ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
+    ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -5145,6 +5146,53 @@ async function ipImagesResult(request, env) {
   await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
   return json({ ok: true });
 }
+// Weekly In Person release (Barry, 18 Nov): every Monday from 9am UK, take the next In Person gag in Core that isn't
+// listed yet and build all four garments as Etsy drafts, one after another (each needs its own Make mockup run).
+// They land in Approvals like any other listing; nothing goes live until Barry approves.
+const IP_WEEK_TYPES = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+async function ipWeeklyTick(env) {
+  const now = new Date(), uk = new Date(now.toLocaleString("en-US", { timeZone: "Europe/London" }));
+  const monday = new Date(uk); monday.setDate(uk.getDate() - ((uk.getDay() + 6) % 7)); const week = monday.toISOString().slice(0, 10);
+  let st = (await env.PENDING.get("ip-weekly", "json")) || {};
+  if (st.week !== week) {
+    if (uk.getDay() !== 1 || uk.getHours() < 9) return;   // Mondays from 9am
+    st = { week, at: Date.now(), queue: [], done: [], status: "start" };
+    const map = await ipListingMap(env, true), listed = new Set(Object.values(map).map((x) => x.gagId));
+    const G = await coreTable(env, "GAGS_TABLE");
+    const next = G.rows.map((r) => ({ id: String(r[G.col("GAG_ID")] || ""), text: String(r[G.col("GAG_TEXT")] || "") }))
+      .filter((g) => /^IP-\d+$/.test(g.id) && !listed.has(g.id) && (g.text.match(/\[NAME\]/gi) || []).length === 1)
+      .sort((a, b) => a.id.localeCompare(b.id))[0];
+    if (!next) { st.status = "none"; await env.PENDING.put("ip-weekly", JSON.stringify(st));
+      await notify(env, "", "No In Person gag for this week", "Every In Person gag in Core is already listed. Add one in the gag tool.", "warning"); return; }
+    st.gagId = next.id; st.queue = IP_WEEK_TYPES.slice(); st.status = "building";
+    await env.PENDING.put("ip-weekly", JSON.stringify(st));
+  }
+  if (st.status !== "building") return;
+  if (st.ref) {   // a garment's photos are being made
+    const j = await env.PENDING.get("ipjob:" + st.ref, "json");
+    if (j && j.status === "photos" && Date.now() - j.at < 30 * 60e3) return;
+    st.done.push({ type: st.cur, listingId: st.listingId, ok: !!(j && j.status === "done"), msg: j && j.msg || (j && j.status === "photos" ? "Photos took too long." : "") });
+    delete st.ref; delete st.cur; delete st.listingId;
+  }
+  const type = st.queue.shift();
+  if (!type) {
+    st.status = "finished"; await env.PENDING.put("ip-weekly", JSON.stringify(st));
+    const bad = st.done.filter((x) => !x.ok);
+    const alerts = await loadAlerts(env);
+    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/approvals", title: "This week's In Person gag: " + st.gagId,
+      body: bad.length ? (st.done.length - bad.length) + " of 4 garments built. Not done: " + bad.map((x) => x.type + (x.msg ? " (" + x.msg + ")" : "")).join(", ") + ". Ask Claude to finish them." : "All 4 garments are Etsy drafts. Their videos come to Approvals next." });
+    await saveAlerts(env, alerts);
+    await notify(env, "", "In Person " + st.gagId + (bad.length ? ": " + bad.length + " garment(s) need a look" : " is built"), bad.length ? "Check Alerts." : "All 4 garments are drafts. Videos to approve next.", bad.length ? "warning" : "white_check_mark");
+    return;
+  }
+  try {
+    const dr = await ipBuildDraft(env, st.gagId, type);
+    const job = await ipImagesStart(env, dr);
+    st.cur = type; st.ref = job.ref; st.listingId = dr.listingId;
+  } catch (e) { st.done.push({ type, ok: false, msg: String(e.message || e).slice(0, 160) }); }
+  await env.PENDING.put("ip-weekly", JSON.stringify(st));
+}
+
 // ---------- In Person orders (Barry, 18 Nov) ----------
 // A personalised In Person sale has no ready-made Printify product (every shirt carries a different name), so the app
 // does the making: it spots the sale on Etsy, has Make 8665996 put the buyer's name on the Canva print file, shows
