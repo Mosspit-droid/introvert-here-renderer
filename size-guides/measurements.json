@@ -1,42 +1,150 @@
 {
   "_note": "Garment measurements in INCHES, laid flat. Centimetres are worked out from these (rounded to the nearest cm). Source: Gildan spec sheets. STATUS: TO CONFIRM against Printify's size tables before use (17-18 Nov 2026: printify.com not reachable from the build session). Change a number here and rerun build.js to regenerate every guide.",
   "status": "TO CONFIRM",
-  "sizes": ["S", "M", "L", "XL", "2XL", "3XL"],
+  "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL"
+  ],
   "garments": {
     "tshirt": {
       "label": "UNISEX T-SHIRT",
       "model": "Gildan 5000",
-      "chest": [18, 20, 22, 24, 26, 28],
-      "length": [28, 29, 30, 31, 32, 33],
-      "sleeve": [15.625, 17, 18.5, 20, 21.5, 22.75]
+      "chest": [
+        18,
+        20,
+        22,
+        24,
+        26,
+        28
+      ],
+      "length": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "sleeve": [
+        15.625,
+        17,
+        18.5,
+        20,
+        21.5,
+        22.75
+      ]
     },
     "longsleeve": {
       "label": "UNISEX LONG-SLEEVE T-SHIRT",
       "model": "Gildan 2400",
-      "chest": [18, 20, 22, 24, 26, 28],
-      "length": [28, 29, 30, 31, 32, 33],
-      "sleeve": [33.5, 34.5, 35.5, 36.5, 37.5, 38.5]
+      "chest": [
+        18,
+        20,
+        22,
+        24,
+        26,
+        28
+      ],
+      "length": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "sleeve": [
+        33.5,
+        34.5,
+        35.5,
+        36.5,
+        37.5,
+        38.5
+      ]
     },
     "sweatshirt": {
       "label": "UNISEX SWEATSHIRT",
       "model": "Gildan 18000",
-      "chest": [20, 22, 24, 26, 28, 30],
-      "length": [27, 28, 29, 30, 31, 32],
-      "sleeve": [33.5, 34.5, 35.5, 36.5, 37.5, 38.5]
+      "chest": [
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "length": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "sleeve": [
+        33.5,
+        34.5,
+        35.5,
+        36.5,
+        37.5,
+        38.5
+      ]
     },
     "hoodie": {
       "label": "UNISEX HOODIE",
       "model": "Gildan 18500",
-      "chest": [20, 22, 24, 26, 28, 30],
-      "length": [27, 28, 29, 30, 31, 32]
+      "chest": [
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "length": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ]
     }
   },
   "ranges": {
-    "IH": { "name": "INTROVERT HERE", "logo": "brand-logos/main-collections/introvert-here-wide.png", "accent": "#F2F0EC" },
-    "SH": { "name": "SHHH.", "logo": "brand-logos/main-collections/shhh-wide.png", "accent": "#A8CEA8" },
-    "PC": { "name": "PER CONTRACT.", "logo": "brand-logos/main-collections/per-contract-wide.png", "accent": "#D2443C" },
-    "OS": { "name": "OFF THE SHELF", "logo": "brand-logos/off-the-shelf/off-the-shelf-logo-wide.png", "accent": "#E0B52C" },
-    "EX": { "name": "EXCLUSIVE.", "logo": "brand-logos/main-collections/exclusive-wide.png", "accent": "#E5333A" },
-    "IP": { "name": "IN PERSON.", "logo": "brand-logos/main-collections/in-person-wide.png", "accent": "#4A8FE7" }
+    "IH": {
+      "name": "INTROVERT HERE",
+      "logo": "brand-logos/main-collections/introvert-here-stacked.png",
+      "accent": "#F2F0EC"
+    },
+    "SH": {
+      "name": "SHHH.",
+      "logo": "brand-logos/main-collections/shhh-stacked.png",
+      "accent": "#A8CEA8"
+    },
+    "PC": {
+      "name": "PER CONTRACT.",
+      "logo": "brand-logos/main-collections/per-contract-stacked.png",
+      "accent": "#D2443C"
+    },
+    "OS": {
+      "name": "OFF THE SHELF",
+      "logo": "brand-logos/off-the-shelf/off-the-shelf-logo-stacked.png",
+      "accent": "#E0B52C"
+    },
+    "EX": {
+      "name": "EXCLUSIVE.",
+      "logo": "brand-logos/main-collections/exclusive-stacked.png",
+      "accent": "#E5333A"
+    },
+    "IP": {
+      "name": "IN PERSON.",
+      "logo": "brand-logos/main-collections/in-person-stacked.png",
+      "accent": "#4A8FE7"
+    }
   }
 }

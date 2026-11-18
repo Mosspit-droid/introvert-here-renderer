@@ -68,6 +68,7 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   (asks Barry each time) and changes pages Core counts on, so do it range by range with his OK.
 
 ### Job 2 progress (18 Nov)
+- 18 Nov: Barry said no to the first look; restyled like Find Your Range (dark header, rounded range-colour cards, letter-spaced caps) with stacked logos.
 - Built `size-guides/build.js` + `size-guides/measurements.json` (all numbers in one file, inches laid flat; cm worked out).
   `node size-guides/build.js [RANGE] [garment]` writes `size-guides/out/<RANGE>_<garment>.png` (4500 x 4500, git-ignored).
   6 ranges x 4 garments = 24 (Exclusive. sells all four garments per the topical brief).
