@@ -4996,7 +4996,7 @@ const CORE_ITEM = "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki
 // the app catches it, makes that buyer's print and orders it itself. This part makes the draft listing: title,
 // description, 13 tags, sizes x colours with prices (the personalisation charge added to the price before VAT),
 // the required name box, and the Etsy details. The mockups follow (Make: Canva -> Etsy), then Core's registry row.
-const IP = { surcharge: 3.33, names: ["SAM", "ALEX", "CHARLIE", "JORDAN", "JAMIE", "FRANKIE", "ROBIN", "TAYLOR", "CASEY", "JO"], hero: ["Purple", "Navy", "Dark Heather"],
+const IP = { surchargeGross: 3, names: ["SAM", "ALEX", "CHARLIE", "JORDAN", "JAMIE", "FRANKIE", "ROBIN", "TAYLOR", "CASEY", "JO"], hero: ["Purple", "Navy", "Dark Heather"],
   shop: 65435151, partner: 5639008, returnPolicy: 1479934432311, readiness: 1481246295217, nameMax: 12 };
 async function coreTable(env, name) {
   const r = await coreTool(env, CORE_ITEM + "/workbook/tables/" + name + "/range?$select=values,address");
@@ -5004,6 +5004,9 @@ async function coreTable(env, name) {
 }
 const ipSplit = (t) => String(t || "").split("|").map((x) => x.trim()).filter(Boolean);
 function ipColLetter(n) { let s = ""; n += 1; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+// The name adds exactly £3 to the price the buyer sees (Core prices are before VAT; Etsy adds 20%). Adding whole
+// pounds after VAT keeps the .99 ending on every garment and size, which a fixed amount before VAT can't.
+function ipPrice(net) { const gross = Math.round(Math.round(net * 100) * 1.2) + IP.surchargeGross * 100; return Math.round(gross / 1.2) / 100; }
 async function ipBuildDraft(env, gagId, type, reuseId) {
   const [G, R, T, X, C, P] = await Promise.all(["GAGS_TABLE", "PRODUCT_RULES", "GAG_TAGS", "ETSY_TAXONOMY_PROPERTY_IDS", "COLOUR_PROFILES_TABLE", "TAG_POOL"].map((n) => coreTable(env, n)));
   const gi = G.rows.findIndex((r) => r[0] === gagId); if (gi < 0) throw new Error(gagId + " isn't in Core.");
@@ -5051,13 +5054,13 @@ async function ipBuildDraft(env, gagId, type, reuseId) {
   // Colours (this garment's profile) x sizes; 3XL on sweatshirts/hoodies only in Black or Navy (Global Fulfillment).
   const prof = C.rows.find((r) => r[0] === rv("COLOUR_PROFILE")); const colours = ipSplit(String(prof ? prof[1] : "").replace(/,\s*/g, "|"));
   const sizes = rv("SIZES").split(/,\s*/).filter((z) => z && z !== "4XL" && z !== "5XL");
-  const base = Number(rv("PRICE_GBP")) + IP.surcharge, ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
+  const base = ipPrice(Number(rv("PRICE_GBP"))), ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
   const products = [];
   // Etsy wants every colour x size in the grid, so a 3XL we can't make is listed but switched off. SKUs max 32 characters.
   const short = { "T-SHIRT": "T", "LONG-SLEEVE": "LS", SWEATSHIRT: "SW", HOODIE: "HD" }[type] || type;
   colours.forEach((c) => sizes.forEach((z) => { const off = (type === "SWEATSHIRT" || type === "HOODIE") && z === "3XL" && !["Black", "Navy"].includes(c);
     products.push({ sku: (gagId + "-" + short + "-" + c.toUpperCase().replace(/\s+/g, "") + "-" + z).slice(0, 32), property_values: [{ property_id: 513, property_name: "Clothing sizes", values: [z] }, { property_id: 514, property_name: "Gildan Colors", values: [c] }],
-      offerings: [{ price: Math.round((base + (ext[z] || 0)) * 100) / 100, quantity: 999, is_enabled: !off, readiness_state_id: IP.readiness }] }); }));
+      offerings: [{ price: ipPrice(Number(rv("PRICE_GBP")) + (ext[z] || 0)), quantity: 999, is_enabled: !off, readiness_state_id: IP.readiness }] }); }));
   if (!products.length) throw new Error("No colours or sizes for In Person " + type + ".");
   // 1. the draft listing
   const form = { quantity: 1, title, description, price: base.toFixed(2), who_made: "someone_else", when_made: "made_to_order", taxonomy_id: rv("ETSY_TAXONOMY_ID"), shipping_profile_id: rv("SHIPPING_PROFILE_ID") || rv("ASSIGN_SHIPPING_PROFILE"),
