@@ -1,0 +1,436 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "mapper": {
+    "input": [
+     {
+      "name": "ref",
+      "value": "{{var.input.ref}}"
+     },
+     {
+      "name": "listingId",
+      "value": "{{var.input.listingId}}"
+     },
+     {
+      "name": "tpl",
+      "value": "{{var.input.tpl}}"
+     },
+     {
+      "name": "text",
+      "value": "{{var.input.text}}"
+     },
+     {
+      "name": "code",
+      "value": "{{var.input.code}}"
+     },
+     {
+      "name": "list",
+      "value": "{{var.input.list}}"
+     },
+     {
+      "name": "maxPos",
+      "value": "{{var.input.maxPos}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "let list = []; try { list = JSON.parse(input.list || '[]'); } catch (e) {}\nreturn { ref: input.ref, listingId: input.listingId, tpl: input.tpl, text: input.text, code: input.code, list, maxPos: Number(input.maxPos) || 1 };"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Read the job from the app"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "title": "MOCKUPS {{1.result.code}}",
+    "select": "map",
+    "dataset": [
+     {
+      "key": "GAG_ID",
+      "value": {
+       "text": "{{1.result.code}}",
+       "type": "text"
+      }
+     },
+     {
+      "key": "GAG_TEXT",
+      "value": {
+       "text": "{{1.result.text}}",
+       "type": "text"
+      }
+     }
+    ],
+    "brandTemplateId": "{{1.result.tpl}}"
+   },
+   "module": "canva:autofillDesign",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Canva: fill the mockup template (sample name)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "url": "/v1/exports",
+    "body": "{\"design_id\":\"{{2.id}}\",\"format\":{\"type\":\"png\",\"width\":2000}}",
+    "method": "POST",
+    "headers": [
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ]
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 600,
+     "y": 0,
+     "name": "Export every page"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 4,
+   "mapper": {
+    "duration": "30"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 900,
+     "y": 0,
+     "name": "Wait for Canva"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 5,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1200,
+     "y": 0,
+     "name": "Check the export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 6,
+   "mapper": {
+    "duration": "{{if(5.body.job.status = \"success\"; 1; 25)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1500,
+     "y": 0,
+     "name": "Wait if not ready"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 7,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "Check the export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 8,
+   "mapper": {
+    "duration": "{{if(7.body.job.status = \"success\"; 1; 30)}}"
+   },
+   "module": "util:FunctionSleep",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Wait if not ready"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 9,
+   "mapper": {
+    "url": "/v1/exports/{{3.body.job.id}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "canva:makeApiCall",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2400,
+     "y": 0,
+     "name": "Check the export"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 8880982
+   }
+  },
+  {
+   "id": 10,
+   "mapper": {
+    "input": [
+     {
+      "name": "checks",
+      "value": "{{add(emptyarray; 5.body.job; 7.body.job; 9.body.job)}}"
+     },
+     {
+      "name": "need",
+      "value": "{{1.result.maxPos}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "const checks = Array.isArray(input.checks) ? input.checks : []; let best = null;\nfor (const c of checks) if (c && c.status === \"success\" && Array.isArray(c.urls)) best = c;\nconst urls = (best && best.urls) || [];\nreturn { urls, complete: urls.length >= Number(input.need || 1), got: urls.length };"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2700,
+     "y": 0,
+     "name": "Pick the finished export"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 11,
+   "filter": {
+    "name": "Canva finished every page",
+    "conditions": [
+     [
+      {
+       "a": "{{10.result.complete}}",
+       "b": "true",
+       "o": "text:equal"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "array": "{{1.result.list}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3000,
+     "y": 0,
+     "name": "Each photo, in Etsy order"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 12,
+   "mapper": {
+    "url": "{{get(10.result.urls; 11.position)}}",
+    "headers": [],
+    "shareCookies": false,
+    "queryParameters": [],
+    "stopOnHttpError": true
+   },
+   "module": "http:DownloadFile",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 3300,
+     "y": 0,
+     "name": "Download the page"
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  },
+  {
+   "id": 13,
+   "mapper": {
+    "rank": "{{11.rank}}",
+    "alt_text": "{{11.page_name}}",
+    "fileData": "{{12.data}}",
+    "fileName": "{{1.result.code}}_{{11.page_name}}.png",
+    "overwrite": true,
+    "listing_id": "{{1.result.listingId}}"
+   },
+   "module": "etsy:uploadImage",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 3600,
+     "y": 0,
+     "name": "Upload to the Etsy listing"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 14,
+   "mapper": {
+    "page": "{{11.page_name}}",
+    "rank": "{{11.rank}}",
+    "image": "{{13.listing_image_id}}"
+   },
+   "module": "builtin:BasicAggregator",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 3900,
+     "y": 0,
+     "name": "All uploaded"
+    }
+   },
+   "parameters": {
+    "feeder": 11
+   }
+  },
+  {
+   "id": 15,
+   "mapper": {
+    "input": [
+     {
+      "name": "images",
+      "value": "{{14.array}}"
+     }
+    ],
+    "language": "javascript",
+    "inputFormat": "editor",
+    "codeEditorJavascript": "return { json: JSON.stringify(Array.isArray(input.images) ? input.images : []) };"
+   },
+   "module": "code:ExecuteCode",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 4200,
+     "y": 0,
+     "name": "Pack the result"
+    }
+   },
+   "parameters": {}
+  },
+  {
+   "id": 16,
+   "mapper": {
+    "url": "https://mosspit-approvals.mosspit.workers.dev/api/ip-images-result",
+    "method": "post",
+    "headers": [
+     {
+      "name": "X-Ingest-Secret",
+      "value": "<scrubbed>"
+     }
+    ],
+    "timeout": 30,
+    "contentType": "urlEncoded",
+    "shareCookies": false,
+    "parseResponse": true,
+    "allowRedirects": true,
+    "stopOnHttpError": false,
+    "urlEncodedBodyContent": [
+     {
+      "name": "ref",
+      "value": "{{1.result.ref}}"
+     },
+     {
+      "name": "listingId",
+      "value": "{{1.result.listingId}}"
+     },
+     {
+      "name": "designId",
+      "value": "{{2.id}}"
+     },
+     {
+      "name": "got",
+      "value": "{{10.result.got}}"
+     },
+     {
+      "name": "images",
+      "value": "{{15.result.json}}"
+     }
+    ],
+    "requestCompressedContent": true
+   },
+   "module": "http:MakeRequest",
+   "version": 4,
+   "metadata": {
+    "designer": {
+     "x": 4500,
+     "y": 0,
+     "name": "Tell the app"
+    }
+   },
+   "parameters": {
+    "authenticationType": "noAuth"
+   }
+  }
+ ],
+ "name": "In Person: mockups to Etsy",
+ "metadata": {
+  "instant": false,
+  "version": 1,
+  "scenario": {
+   "dlq": false,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": true,
+   "confidential": false,
+   "freshVariables": false
+  }
+ }
+}
