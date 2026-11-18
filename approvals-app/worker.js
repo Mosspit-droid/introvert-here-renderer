@@ -37,6 +37,7 @@ export default {
     ctx.waitUntil(builderWatch(env).catch(() => {}));
     ctx.waitUntil(remakeNudge(env).catch(() => {}));
     ctx.waitUntil(draftWatch(env).catch(() => {}));
+    ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -53,6 +54,7 @@ export default {
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
       if (pathname === "/api/template-result" && method === "POST") return await templateResult(request, env);
+      if (pathname === "/api/ip-print-result" && method === "POST") return await ipPrintResult(request, env);
       if (pathname === "/api/photo-job" && method === "GET") return checkSecret(request, env) ? json((await env.PENDING.get("photo-job", "json")) || {}) : json({ error: "bad secret" }, 403);
       if (pathname === "/api/result" && method === "POST") return await result(request, env, ctx, url);
       if (pathname === "/api/daily" && method === "POST") return await daily(request, env, ctx, url);
@@ -162,6 +164,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
+      if (pathname === "/api/ip-order" && method === "POST") return await ipOrderApi(request, env);
       if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { const dr = await ipBuildDraft(env, str(d.gagId), str(d.type), d.reuseId); return json(await ipImagesStart(env, dr)); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
@@ -5142,6 +5145,201 @@ async function ipImagesResult(request, env) {
   await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
   return json({ ok: true });
 }
+// ---------- In Person orders (Barry, 18 Nov) ----------
+// A personalised In Person sale has no ready-made Printify product (every shirt carries a different name), so the app
+// does the making: it spots the sale on Etsy, has Make 8665996 put the buyer's name on the Canva print file, shows
+// Barry a card to check the spelling, then places a one-off Printify order (Printify Choice picks the nearest printer
+// to the buyer, so UK and US orders route themselves). The tracking goes back to Etsy once Printify posts it.
+const IPO_LIST = "ip-orders", IPO_PRINTIFY_SHOP = 27154106, IPO_BLUEPRINT = { "T-SHIRT": 6, "LONG-SLEEVE": 80, SWEATSHIRT: 49, HOODIE: 77 };
+async function pfyTool(env, path, method = "GET", body) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("No Make token saved.");
+  const data = { path, method, header: [{ key: "Content-Type", value: "application/json" }] }; if (body !== undefined) data.body = JSON.stringify(body);
+  const r = await fetch(MAKE_API + "/scenarios/7446858/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
+  const j = await r.json().catch(() => ({})); if (j.error) throw new Error("Printify said: " + String(j.error.message || "error").slice(0, 200));
+  let b = j.outputs && (j.outputs.data !== undefined ? j.outputs.data : j.outputs.body); if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  if (b && b.data !== undefined && Object.keys(b).length <= 3) b = b.data;
+  if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  return b;
+}
+async function ipoGet(env, ref) { return env.PENDING.get("ipo:" + ref, "json"); }
+async function ipoPut(env, o) {
+  o.upd = Date.now(); await env.PENDING.put("ipo:" + o.ref, JSON.stringify(o));
+  const L = (await env.PENDING.get(IPO_LIST, "json")) || []; if (!L.includes(o.ref)) { L.unshift(o.ref); await env.PENDING.put(IPO_LIST, JSON.stringify(L.slice(0, 200))); }
+}
+// Listing id -> In Person product, from Core's registry (refreshed hourly).
+async function ipListingMap(env, force) {
+  const c = await env.PENDING.get("ip-listing-map", "json");
+  if (c && !force && Date.now() - c.at < 3600e3) return c.map;
+  const R = await coreTable(env, "LISTING_REGISTRY_TABLE"), map = {};
+  R.rows.forEach((r) => { if (r[R.col("COLLECTION")] !== "IN PERSON") return; const id = String(r[R.col("ETSY_LISTING_ID")] || ""); const code = String(r[R.col("PRODUCT_CODE")] || "");
+    const m = code.match(/^(IP-\d+)-(.+)$/); if (id && m) map[id] = { code, gagId: m[1], type: m[2] }; });
+  await env.PENDING.put("ip-listing-map", JSON.stringify({ at: Date.now(), map }));
+  return map;
+}
+// The buyer's answer to "Your first name" (Etsy shows it as a variation on the sale).
+function ipoName(t) {
+  const v = (t.variations || []).find((x) => x.question_id || /personali|name/i.test(String(x.formatted_name || "")));
+  return v ? String(v.formatted_value || "").trim() : "";
+}
+function ipoVar(t, pid) { const v = (t.variations || []).find((x) => x.property_id === pid); return v ? String(v.formatted_value || "") : ""; }
+async function ipoDetails(env, gagId, type) {
+  const [G, P] = await Promise.all([coreTable(env, "GAGS_TABLE"), coreTable(env, "PRODUCT_RULES")]);
+  const g = G.rows.find((r) => r[G.col("GAG_ID")] === gagId), p = P.rows.find((r) => r[0] === "IN PERSON" && r[1] === type);
+  if (!g || !p) throw new Error("Core has no " + (!g ? "gag " + gagId : "In Person " + type + " rules") + ".");
+  return { gagText: String(g[G.col("GAG_TEXT")] || ""), tpl: String(p[P.col("CANVA_PRINT_PROJECT_CODE")] || ""), blueprint: Number(p[P.col("PRINTIFY_BLUEPRINT_ID")]) || IPO_BLUEPRINT[type], provider: Number(p[P.col("PRINTIFY_PROVIDER_ID")]) || 99 };
+}
+// Every 10 minutes: look for new paid, unshipped In Person sales; then pass on any tracking Printify has.
+async function ipOrderWatch(env) {
+  const st = (await env.PENDING.get("ip-order-watch", "json")) || {}, now = Date.now();
+  if (st.at && now - st.at < 10 * 60e3) return;
+  await env.PENDING.put("ip-order-watch", JSON.stringify({ at: now }));
+  const map = await ipListingMap(env); if (!Object.keys(map).length) return;
+  const R = await etsyJson(env, "/shops/" + IP.shop + "/receipts", "GET", undefined, { was_paid: "true", was_shipped: "false", limit: "50" });
+  for (const rc of (R && R.results) || []) for (const t of rc.transactions || []) {
+    const hit = map[String(t.listing_id)]; if (!hit) continue;
+    const ref = rc.receipt_id + "-" + t.transaction_id; if (await ipoGet(env, ref)) continue;
+    await ipoNew(env, { ref, receipt: rc.receipt_id, txn: t.transaction_id, listingId: t.listing_id, ...hit, nameRaw: ipoName(t), colour: ipoVar(t, 514), size: ipoVar(t, 513), qty: t.quantity || 1,
+      ship: { name: rc.name, first_line: rc.first_line, second_line: rc.second_line, city: rc.city, state: rc.state, zip: rc.zip, country: rc.country_iso, email: rc.buyer_email || "" },
+      note: String(rc.message_from_buyer || "").slice(0, 300) });
+  }
+  await ipTrackTick(env);
+}
+async function ipoNew(env, o) {
+  o.at = Date.now(); o.name = String(o.nameRaw || "").toUpperCase().replace(/\s+/g, " ").trim();
+  try { Object.assign(o, await ipoDetails(env, o.gagId, o.type)); } catch (e) { o.status = "problem"; o.msg = e.message; }
+  if (o.status !== "problem") {
+    if (!o.name) { o.status = "problem"; o.msg = "The buyer didn't give a name. Message them on Etsy, then type it in here."; }
+    else if (o.name.length > IP.nameMax) { o.status = "problem"; o.msg = "The name is longer than " + IP.nameMax + " letters. Check with the buyer, then type the version to print."; }
+  }
+  await ipoPut(env, o);
+  if (o.status !== "problem") await ipPrintStart(env, o);
+  if (!o.test) {
+    const alerts = await loadAlerts(env);
+    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/orders", title: "In Person order: " + (o.name || "no name given"),
+      body: o.type + " · " + o.colour + " · " + o.size + (o.msg ? ". " + o.msg : ". The print file is being made; check the spelling on the Orders page, then send it to Printify.") });
+    await saveAlerts(env, alerts);
+    await notify(env, "", "In Person order: " + (o.name || "check it"), o.type + " " + o.colour + " " + o.size + ". Check it on the Orders page.", "shirt");
+  }
+}
+async function ipPrintStart(env, o) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("The app has no Make key.");
+  const text = o.gagText.replace(/\[NAME\]/gi, o.name);
+  const res = await fetch(MAKE_API + "/scenarios/8665996/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ responsive: false, data: { ref: o.ref, tpl: o.tpl, text, code: o.code + "-" + String(o.receipt).slice(-6) } }) });
+  o.status = res.ok ? "printing" : "problem"; o.msg = res.ok ? "" : "Make didn't take the print job (" + res.status + "). Press Remake print.";
+  o.printName = o.name; o.printAt = Date.now(); delete o.preview; delete o.imageId;
+  await ipoPut(env, o);
+}
+async function ipPrintResult(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await readBody(request), o = await ipoGet(env, str(d.ref).replace(/[^0-9a-z-]/gi, ""));
+  if (!o) return json({ ok: true, ignored: true });
+  if (!str(d.imageId)) { o.status = "problem"; o.msg = "Canva didn't finish the print file. Press Remake print."; }
+  else { o.status = "check"; o.msg = ""; o.imageId = str(d.imageId); o.preview = str(d.preview); o.printUrl = str(d.url); o.designId = str(d.designId); }
+  await ipoPut(env, o);
+  return json({ ok: true });
+}
+async function ipoVariant(env, o) {
+  const b = await pfyTool(env, "/v1/catalog/blueprints/" + o.blueprint + "/print_providers/" + o.provider + "/variants.json");
+  const vs = (b && b.variants) || [], lc = (s) => String(s || "").toLowerCase().trim();
+  const v = vs.find((x) => lc(x.options && x.options.color) === lc(o.colour) && lc(x.options && x.options.size) === lc(o.size));
+  if (!v) throw new Error("Printify has no " + o.colour + " " + o.size + " for this garment.");
+  return v.id;
+}
+// Approve: place the one-off Printify order. A test order stays a Printify draft; a real one goes to production.
+async function ipoPlace(env, o) {
+  if (!o.imageId) throw new Error("The print file isn't ready yet.");
+  if (o.printName !== o.name) throw new Error("The name was changed after the print file was made. Press Remake print first.");
+  const vid = await ipoVariant(env, o), parts = String(o.ship.name || "Buyer").trim().split(/\s+/);
+  const body = { external_id: "etsy-" + o.ref + (o.test ? "-test-" + Date.now() : ""), label: o.code + " " + o.name + (o.test ? " (TEST)" : ""),
+    line_items: [{ blueprint_id: o.blueprint, print_provider_id: o.provider, variant_id: vid, quantity: Number(o.qty) || 1, print_areas: { front: [{ src: o.preview || o.printUrl, x: 0.5, y: 0.5, scale: 1, angle: 0 }] } }],
+    shipping_method: 1, is_printify_express: false, send_shipping_notification: false,
+    address_to: { first_name: parts[0], last_name: parts.slice(1).join(" ") || "-", email: o.ship.email || "", country: o.ship.country || "GB", region: o.ship.state || "",
+      address1: o.ship.first_line || "", address2: o.ship.second_line || "", city: o.ship.city || "", zip: o.ship.zip || "" } };
+  const r = await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders.json", "POST", body);
+  if (!r || !r.id) throw new Error("Printify didn't take the order: " + JSON.stringify(r).slice(0, 240));
+  o.printifyOrder = r.id; o.variant = vid;
+  if (!o.test) { await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders/" + r.id + "/send_to_production.json", "POST", {}); o.status = "ordered"; }
+  else o.status = "draft";
+  o.orderedAt = Date.now(); o.msg = ""; await ipoPut(env, o);
+}
+// Once Printify has posted an order, send the tracking to Etsy (Etsy then emails the buyer).
+async function ipTrackTick(env) {
+  const L = (await env.PENDING.get(IPO_LIST, "json")) || [];
+  for (const ref of L.slice(0, 60)) {
+    const o = await ipoGet(env, ref); if (!o || o.status !== "ordered" || !o.printifyOrder) continue;
+    if (o.trackAt && Date.now() - o.trackAt < 3 * 3600e3) continue;
+    o.trackAt = Date.now();
+    const p = await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders/" + o.printifyOrder + ".json").catch(() => null);
+    const sh = p && (p.shipments || [])[0];
+    if (sh && sh.number) {
+      const carrier = String(sh.carrier || "other").toLowerCase();
+      let ok = await etsyJson(env, "/shops/" + IP.shop + "/receipts/" + o.receipt + "/tracking", "POST", { tracking_code: sh.number, carrier_name: carrier }).then(() => true).catch((e) => { o.msg = e.message; return false; });
+      if (!ok) ok = await etsyJson(env, "/shops/" + IP.shop + "/receipts/" + o.receipt + "/tracking", "POST", { tracking_code: sh.number, carrier_name: "other" }).then(() => true).catch((e) => { o.msg = e.message; return false; });
+      if (ok) { o.status = "shipped"; o.tracking = { carrier, number: sh.number, url: sh.url || "" }; o.msg = ""; }
+    } else if (p && p.status) o.pStatus = p.status;
+    await ipoPut(env, o);
+  }
+}
+async function ipOrderApi(request, env) {
+  const d = await request.json().catch(() => ({})), action = str(d.action);
+  if (action === "test") {
+    const map = await ipListingMap(env, true), id = Object.keys(map).find((k) => map[k].code === str(d.code)) || Object.keys(map)[0];
+    if (!id) return json({ error: "No In Person listings in Core yet." }, 400);
+    const hit = map[id];
+    await ipoNew(env, { ref: "test-" + Date.now().toString(36), test: true, receipt: "TEST", txn: "", listingId: id, ...hit, nameRaw: str(d.name) || "MAXIMILLIANA", colour: str(d.colour) || "Navy", size: str(d.size) || "L", qty: 1,
+      ship: { name: "Test Order", first_line: "1 Test Street", second_line: "", city: "London", state: "", zip: "SW1A 1AA", country: "GB", email: "" }, note: "" });
+    return json({ ok: true });
+  }
+  const o = await ipoGet(env, str(d.ref).replace(/[^0-9a-z-]/gi, "")); if (!o) return json({ error: "Order not found." }, 404);
+  try {
+    if (action === "remake") {
+      const nm = str(d.name).toUpperCase().replace(/\s+/g, " ").trim();
+      if (!nm) throw new Error("Type the name to print."); if (nm.length > IP.nameMax) throw new Error("Names can be up to " + IP.nameMax + " letters.");
+      o.name = nm; if (!o.gagText) Object.assign(o, await ipoDetails(env, o.gagId, o.type));
+      await ipPrintStart(env, o);
+    } else if (action === "place") await ipoPlace(env, o);
+    else if (action === "done") { o.status = "closed"; o.msg = "Handled by hand."; await ipoPut(env, o); }
+    else if (action === "delete" && o.test) { if (o.printifyOrder && o.status === "draft") await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders/" + o.printifyOrder + "/cancel.json", "POST", {}).catch(() => {});
+      await env.PENDING.delete("ipo:" + o.ref); const L = ((await env.PENDING.get(IPO_LIST, "json")) || []).filter((x) => x !== o.ref); await env.PENDING.put(IPO_LIST, JSON.stringify(L)); return json({ ok: true }); }
+    else throw new Error("Unknown action.");
+  } catch (e) { return json({ error: e.message }, 400); }
+  return json({ ok: true, status: o.status });
+}
+async function ipOrdersSection(env) {
+  const L = (await env.PENDING.get(IPO_LIST, "json")) || [], os = [];
+  for (const ref of L.slice(0, 30)) { const o = await ipoGet(env, ref); if (o) os.push(o); }
+  const lab = { printing: ["wait", "Making the print file (about 2 minutes)…"], check: ["wait", "Check the name, then send to Printify"], problem: ["bad", "Needs you"], draft: ["ok", "TEST: Printify draft made (not printed)"],
+    ordered: ["ok", "Sent to Printify for printing"], shipped: ["ok", "Posted. Tracking sent to Etsy"], closed: ["ok", "Closed"] };
+  const cards = os.map((o) => { const [cls, txt] = lab[o.status] || ["wait", o.status];
+    const editable = ["check", "problem", "printing"].includes(o.status);
+    return `<div class="card ipo" data-ref="${esc(o.ref)}"><div class="meta">${esc(when(o.at))}${o.test ? " · TEST" : ""} · ${esc(o.code)}</div>
+<div class="code" style="font-size:16px">${esc(o.type)} · ${esc(o.colour)} · ${esc(o.size)}${o.qty > 1 ? " × " + o.qty : ""}</div>
+<div class="small">Buyer typed: <b>${esc(o.nameRaw || "(nothing)")}</b> · ships to ${esc(o.ship && o.ship.country || "")}${o.note ? "<br>Note from buyer: " + esc(o.note) : ""}</div>
+${o.preview ? `<div style="background:${/navy/i.test(o.colour) ? "#1f2a44" : /purple/i.test(o.colour) ? "#4b2e6b" : "#4a4a4f"};border-radius:10px;padding:8px;margin:8px 0;text-align:center"><img src="${esc(o.preview)}" alt="Print file" style="max-width:100%;max-height:340px"></div>` : ""}
+${editable ? `<label class="small">Name to print <input class="ipname" value="${esc(o.name || "")}" maxlength="${IP.nameMax}" autocomplete="off" autocapitalize="characters" style="width:100%;font-size:18px;padding:8px;margin-top:4px"></label>` : `<div class="small">Printed name: <b>${esc(o.name)}</b></div>`}
+<div class="status ${cls}">${esc(txt)}${o.msg ? "<br>" + esc(o.msg) : ""}</div>
+${editable ? `<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-ipa="remake" type="button">Remake print</button>${o.status === "check" ? `<button class="btn-main" data-ipa="place" type="button">${o.test ? "Make Printify draft (test)" : "Send to Printify"}</button>` : ""}</div>` : ""}
+${o.printifyOrder ? `<div class="small"><a href="https://printify.com/app/order/${esc(o.printifyOrder)}" target="_blank" rel="noopener" style="color:inherit">Open in Printify</a></div>` : ""}
+${o.tracking ? `<div class="small">Tracking: ${esc(o.tracking.carrier)} ${esc(o.tracking.number)}</div>` : ""}
+${o.test ? `<button class="btn" data-ipa="delete" type="button" style="margin-top:6px">Delete test${o.status === "draft" ? " (and its Printify draft)" : ""}</button>` : ""}</div>`; }).join("");
+  return `<h2>In Person orders</h2>
+<p class="small">Personalised sales. The app makes each print file with the buyer's name. Check the spelling, then send it to Printify. Printify picks the nearest printer and the tracking goes back to Etsy by itself.</p>
+${cards ? `<div class="grid">${cards}</div>` : `<div class="card empty">No In Person orders yet.</div>`}
+<p class="small" style="margin-top:8px"><button class="btn" id="ipTest" type="button">Make a test order</button> (never printed: it stops at a Printify draft)</p>
+<script>
+document.addEventListener('click', async function(e){ var a=e.target.dataset&&e.target.dataset.ipa; var t=e.target.id==='ipTest';
+  if(!a&&!t) return; var c=e.target.closest('.ipo'); var body={action:t?'test':a, ref:c?c.dataset.ref:''};
+  if(a==='remake') body.name=c.querySelector('.ipname').value;
+  if(a==='place'&&!/test/i.test(e.target.textContent)&&!confirm('Send this to Printify for printing? Printify will charge you for it.')) return;
+  if(a==='delete'&&!confirm('Delete this test order?')) return;
+  e.target.disabled=true; var old=e.target.textContent; e.target.textContent='Working…';
+  var r=await fetch('/api/ip-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var o=await r.json().catch(function(){return{}}); if(r.ok) location.reload(); else { alert(o.error||'Failed'); e.target.disabled=false; e.target.textContent=old; }
+});
+if(document.querySelector('.ipo .status.wait') && /Making the print/.test(document.body.textContent)) setTimeout(function(){location.reload()},20000);
+</script>`;
+}
 async function etsyJson(env, path, method, body, qs) {
   const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
   const data = { path, method, body: JSON.stringify(body), bodyType: "raw", header: [{ key: "Content-Type", value: "application/json" }] };
@@ -6867,7 +7065,9 @@ ${o.status === "on-hold" ? `<button class="btn-main" data-send="${esc(o.session)
 ${o.printifyOrder ? `<div class="small"><a href="https://printify.com/app/order/${esc(o.printifyOrder)}" target="_blank" rel="noopener" style="color:inherit">Open in Printify</a></div>` : ""}</div>`;
   }).join("");
   return shell(`
-${brandHeader("Shop orders", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a>`)}
+${brandHeader("Orders", `<a class="btn" href="/">← Approvals</a><a class="btn" href="/stats">📈 Stats</a>`)}
+${await ipOrdersSection(env)}
+<h2>Shop orders</h2>
 <p class="small">Orders from your own shop (introverthere.com). Each paid order is placed with Printify on hold; press Send to Printify to have it printed. Test payments are never sent.</p>
 ${rows ? `<div class="grid">${rows}</div>` : `<div class="card empty">No shop orders yet.</div>`}
 <h2>Shop keys</h2>

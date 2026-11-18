@@ -1,0 +1,65 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "module": "scenario-service:StartSubscenario",
+   "version": 2
+  },
+  {
+   "id": 2,
+   "mapper": {
+    "qs": "{{1.qs}}",
+    "url": "{{1.path}}",
+    "body": "{{1.body}}",
+    "method": "{{1.method}}",
+    "headers": "{{1.header}}",
+    "bodyType": "{{1.bodyType}}"
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 3,
+   "mapper": {
+    "data": "{{2.body}}",
+    "statusCode": "{{2.statusCode}}"
+   },
+   "module": "scenario-service:ReturnData",
+   "version": 2,
+   "metadata": {
+    "expect": [
+     {
+      "name": "data",
+      "type": "any",
+      "label": "Response body"
+     },
+     {
+      "name": "statusCode",
+      "type": "any",
+      "label": "Status code"
+     }
+    ]
+   }
+  }
+ ],
+ "name": "Introvert Here: Tool \u2014 Etsy Lookup/Update",
+ "metadata": {
+  "instant": false,
+  "version": 1,
+  "designer": {
+   "orphans": []
+  },
+  "scenario": {
+   "dlq": false,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": false,
+   "confidential": false
+  }
+ }
+}
