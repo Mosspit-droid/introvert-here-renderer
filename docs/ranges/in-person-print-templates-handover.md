@@ -118,3 +118,10 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - 18 Nov ~01:55: last five finished and published (PC M002, IP U002, IP W002: logo overlay removed by Barry, guide +
   range swapped; PC O002 and EX E002: Barry deleted the old size-guide picture, so the new guide was inserted as a new
   full-page image). **Job 2 done: all 21 mockup templates have the new size guide and the six-range page.**
+- 18 Nov ~02:10: Barry reordered E002 to AGM (8) -> size guide (9) -> range (10). Core MOCKUP_PAGES synced (backup
+  001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_EX_OS_page_names.xlsx): D292:D293 = EX_08_TS_AGM, EX_09_TS_SIZE_GUIDE;
+  OFF THE SHELF had the same stale order (Core said 23 size guide / 24 range / 25 AGM, templates are 23 AGM / 24 size
+  guide / 25 range), fixed in D159:D161, D172:D174, D185:D187, D198:D200. Positions unchanged, so video slots unaffected.
+  Core is reached via Make tool 7446858 with path `graph:/v1.0/me/drive/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/...`.
+- Noticed, not touched: MOCKUP_PAGES rows 201-284 again hold the other-colour pages for PC LS/SW/HD and all OTS
+  (Barry had these deleted on 12 Nov because they push listings past Etsy's 20 photos). Asked Barry.
