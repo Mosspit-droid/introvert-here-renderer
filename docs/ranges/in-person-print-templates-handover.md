@@ -71,7 +71,7 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - 18 Nov: Barry said no to the first look; restyled like Find Your Range (dark header, rounded range-colour cards, letter-spaced caps) with stacked logos.
 - Built `size-guides/build.js` + `size-guides/measurements.json` (all numbers in one file, inches laid flat; cm worked out).
   `node size-guides/build.js [RANGE] [garment]` writes `size-guides/out/<RANGE>_<garment>.png` (4500 x 4500, git-ignored).
-  21 guides: 5 ranges x 4 garments + Exclusive. T-shirt only (Barry, 18 Nov: Exclusive. is T-shirts only; docs/ranges/topical-brief.md still says 4 garments).
+  21 guides: 5 ranges x 4 garments + Exclusive. T-shirt only (Barry, 18 Nov; matches the topical brief and the Find Your Range graphic).
 - Measurements are Gildan spec-sheet figures, NOT yet confirmed against Printify: printify.com was added to the environment's
   allowed hosts (Barry approved) but still didn't resolve in this session; raw page download was refused by the safety check.
   Each image carries a yellow "PREVIEW · MEASUREMENTS TO CONFIRM" tag until `status` in measurements.json is "CONFIRMED".
@@ -79,3 +79,6 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   said "from the shoulder seam": fixed in the wording.
 - Nothing changed in Canva. Next: Barry reviews the preview, measurements confirmed, then swap into mockup templates range by
   range with his OK (size guide page numbers are in in-person-core-pending.md / canva.md per template).
+- Next session: check every number in size-guides/measurements.json against Printify's size tables (printify.com is now in
+  the environment's allowed hosts), set "status": "CONFIRMED", rerun build.js (the yellow tag disappears), show Barry, then
+  swap into the mockup templates range by range with his OK.
