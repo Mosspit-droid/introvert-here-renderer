@@ -6,8 +6,28 @@ once all four garments' mockup suites are published.
 **Done 18 Nov:** MOCKUP_PAGES now holds every IP page (96 rows, sheet rows 333–428, COLLECTION `IN PERSON` with no full stop,
 Barry's choice). Backup first: `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_IP_pages.xlsx`. Because the builder keeps one
 colour per picture, the Etsy photos it picks are exactly the per-garment lists below (checked with `mockup_rank.js`).
-Everything else here (COLLECTIONS lookup, COLOUR_PROFILES, PRODUCT_RULES, Make, video) is still to do. The approvals app and
-Make must use the same `IN PERSON` spelling.
+**Done 18 Nov (Core setup):** backup `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_IP_setup.xlsx`, then added:
+- COLLECTIONS_LOOKUP: `IN PERSON`.
+- COLOUR_PROFILES: the two rows below.
+- GAG_TEXT_RULES: `IN PERSON` GAG_TEXT, house 12 x 9 W grid (print templates use Per Contract's GAG_TEXT box).
+- PRODUCT_RULES: 4 rows (copied from Per Contract). Etsy section `In Person` 61484085 (already existed on Etsy). Colours
+  Purple / Gray (long-sleeve Blue / Gray). PERSONALISATION Yes. Canva codes and video slots as below. RANGE_LIVE `N` (so the
+  other ranges' listings don't advertise it yet), RANGE_NAME `IN PERSON.`. Wording is Claude's draft for Barry to change:
+  TITLE_SUFFIX `| Personalised Introvert T-Shirt` (Long Sleeve Shirt / Sweatshirt / Hoodie); DESCRIPTION_TYPE `IP_<garment>`;
+  intro "Part of the IN PERSON. series. / Your name, printed, so you only have to say it once. / Introductions, handled.";
+  audience "A personalised gift for introverts, reluctant networkers, wedding guests, new starters, or anyone who has to
+  introduce themselves more often than they'd like."; closing and cross-sell lead "Nice to meet you. Again."; joke features:
+  tee Pre-Introduced Fabric, long-sleeve Handshake-Avoidance Sleeves, sweatshirt Coat-Pile Fleece, hoodie Already-Said-Hello Hood.
+  Tags 09–13: tee graphic tee, personalised tshirt, custom name tshirt, name tshirt, introvert gift; long-sleeve long sleeve
+  top, personalised top, custom name shirt, name long sleeve, introvert gift; sweatshirt crewneck jumper, personalised jumper,
+  custom name jumper, name sweatshirt, introvert gift; hoodie hooded sweatshirt, personalised hoodie, custom name hoodie, name
+  hoodie, introvert gift.
+- PRODUCT_TAGS_FLAT: 20 rows (formula columns filled themselves; all VALID).
+- ETSY_TAXONOMY_PROPERTY_IDS: 31 rows (Purple 8, Gray 5, Blue 2 checked against Etsy taxonomy 482 on 18 Nov).
+
+Still to do outside Core (not touched): gag types for IN PERSON (GAG_CATEGORIES / TAG_POOL phrases / POOL_CAPACITY), the
+personalised order flow (brief items 2–8), Make photo modules 700/711 HERO_COLOURS and the long-sleeve Purple fallback, and
+Make 7696096 module 18 `IP-` -> `IN PERSON`. The approvals app and Make must use the same `IN PERSON` spelling.
 Canva page-name typos (Core has the clean names; Barry to fix in Canva by hand, the builder ignores Canva names):
 T-shirt page 23 `IP_24_TS_AGM` (should be IP_23), long-sleeve page 4 `IP_P4_LS_GIFT_DARK_HEATHER`, sweatshirt page 10
 `IP_10_ SW_CLOSEUP_PURPLE` (space), hoodie page 10 `IP_10_HD_HANGING_ BACK_PURPLE` (space).
