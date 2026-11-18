@@ -4996,7 +4996,7 @@ const CORE_ITEM = "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki
 // the app catches it, makes that buyer's print and orders it itself. This part makes the draft listing: title,
 // description, 13 tags, sizes x colours with prices (the personalisation charge added to the price before VAT),
 // the required name box, and the Etsy details. The mockups follow (Make: Canva -> Etsy), then Core's registry row.
-const IP = { surcharge: 3, names: ["SARAH", "DAVE", "EMMA", "JAMES", "CHLOE", "TOM", "HANNAH", "BEN", "LUCY", "SAM"], hero: ["Purple", "Navy", "Dark Heather"],
+const IP = { surcharge: 3.33, names: ["SARAH", "DAVE", "EMMA", "JAMES", "CHLOE", "TOM", "HANNAH", "BEN", "LUCY", "SAM"], hero: ["Purple", "Navy", "Dark Heather"],
   shop: 65435151, partner: 5639008, returnPolicy: 1479934432311, readiness: 1481246295217, nameMax: 12 };
 async function coreTable(env, name) {
   const r = await coreTool(env, CORE_ITEM + "/workbook/tables/" + name + "/range?$select=values,address");
