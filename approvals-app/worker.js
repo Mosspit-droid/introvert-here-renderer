@@ -6704,7 +6704,7 @@ var WHAT = [
   ["taxonomy","Category & attributes","The Etsy category and colour attributes each range and garment uses","Search"],
   ["shipping","Shipping","What buyers pay for postage and the delivery time Etsy shows them, per range and garment","Shipping"],
   ["colours","Colours & sizes","See each garment's sizes, and add or take away colours","Variations"],
-  ["print","Print template","New print file from the gag text and the current Canva print template; also refreshes mockups and the video","Production"],
+  ["print","Print template","Edit the gag text (one gag) or remake the print from it. Saves the new text to Core, so garments still to come use it, then remakes the print, the Etsy description, the mockups and the video","Production"],
   ["supplier","Supplier","Record a new Printify provider or garment model (do the swap in Printify first with Replace)","Production"]];
 var VIEW_ONLY = { taxonomy: 1 };
 var RULE_ONLY = { titles: 1, descriptions: 1, tags: 1, shipping: 1 };
@@ -6865,7 +6865,7 @@ function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
-  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
+  if (A.what.print) sec("Print template", one ? '<p class="hint">Saving this does it all: the new text goes into Core (so this gag's garments still to be released use it), then each picked listing gets a new print, a new Etsy description (it starts with the gag), new mockups and a new video for Approvals. It takes about 15 minutes a listing.</p><label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div><div id="gprev" style="position:relative;max-width:380px;margin:8px auto 0;background:#111;border-radius:12px;overflow:hidden"></div>'
  : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
