@@ -4996,7 +4996,7 @@ const CORE_ITEM = "graph:/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki
 // the app catches it, makes that buyer's print and orders it itself. This part makes the draft listing: title,
 // description, 13 tags, sizes x colours with prices (the personalisation charge added to the price before VAT),
 // the required name box, and the Etsy details. The mockups follow (Make: Canva -> Etsy), then Core's registry row.
-const IP = { surcharge: 3.33, names: ["SARAH", "DAVE", "EMMA", "JAMES", "CHLOE", "TOM", "HANNAH", "BEN", "LUCY", "SAM"], hero: ["Purple", "Navy", "Dark Heather"],
+const IP = { surcharge: 3.33, names: ["SAM", "ALEX", "CHARLIE", "JORDAN", "JAMIE", "FRANKIE", "ROBIN", "TAYLOR", "CASEY", "JO"], hero: ["Purple", "Navy", "Dark Heather"],
   shop: 65435151, partner: 5639008, returnPolicy: 1479934432311, readiness: 1481246295217, nameMax: 12 };
 async function coreTable(env, name) {
   const r = await coreTool(env, CORE_ITEM + "/workbook/tables/" + name + "/range?$select=values,address");
@@ -5018,7 +5018,7 @@ async function ipBuildDraft(env, gagId, type) {
     const sid = String(r[rr("ETSY_SHOP_SECTION_ID")] || "").trim(), nm = String(r[rr("RANGE_NAME")] || c).trim(); others.push(sid ? nm + ": https://www.etsy.com/shop/IntrovertHereShop?section_id=" + sid : nm); });
   const lead = rv("CROSS_SELL_LEAD"), cross = lead && others.length ? "\n" + lead + " Have a look at our other ranges:\n" + others.join("\n") + "\n\n" : "";
   const shown = text.replace(/\[NAME\]/gi, "[YOUR NAME]");
-  const description = shown + "\n\n" + rv("COLLECTION_INTRO") + "\n" + rv("PRODUCT_FEATURES") + "\n" + rv("AUDIENCE_TEXT") + "\n" + cross + rv("CLOSING_TEXT");
+  const description = shown + "\n\n" + rv("COLLECTION_INTRO") + "\n\n" + rv("PRODUCT_FEATURES") + "\n\n" + rv("AUDIENCE_TEXT") + "\n" + cross + rv("CLOSING_TEXT");
   const title = (stem + " " + rv("TITLE_SUFFIX")).replace(/\s+/g, " ").trim();
   // Tags: frozen set if there is one, else the suggested set (frozen now, like the builder does), + 5 product tags + stem.
   const t = T.rows[gi]; if (!t || t[0] !== gagId) throw new Error("GAG_TAGS doesn't line up with GAGS at " + gagId + ".");
@@ -5130,7 +5130,8 @@ async function ipImagesResult(request, env) {
   put("PRODUCT_CODE", job.code); put("COLLECTION", "IN PERSON"); put("PRODUCT_TYPE", job.type); put("PRODUCT_DISPLAY_NAME", job.title); put("TITLE_STEM", job.title.split(" | ")[0]);
   put("GAG_TEXT", job.gagText); put("ETSY_LISTING_ID", String(job.listingId)); put("ETSY_URL", "https://www.etsy.com/listing/" + job.listingId); put("PIPELINE_STATUS", "CREATED");
   put("LAST_SYNCED_AT", now); put("CANVA_MASTER_ID", job.designId); put("ASSET_FILENAME", job.code + ".png"); put("RELEASE_DATE", today); put("STATUS", "ETSY_DRAFT_READY_FOR_REVIEW");
-  await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/rows/add", "POST", { index: null, values: [v] });
+  // A photo redo on a listing already in the registry doesn't add a second row.
+  if (!R.rows.some((r) => r[R.col("PRODUCT_CODE")] === job.code)) await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/rows/add", "POST", { index: null, values: [v] });
   job.status = "done"; job.doneAt = Date.now(); await env.PENDING.put("ipjob:" + ref, JSON.stringify(job), { expirationTtl: 30 * 86400 });
   await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
   return json({ ok: true });
