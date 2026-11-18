@@ -6471,6 +6471,7 @@ async function amendPage(env) {
   const ship = (await env.PENDING.get("ship-profiles", "json")) || {};
   const data = JSON.stringify({ S, log, ship }).replace(/</g, "\\u003c");
   return shell(`
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400&display=swap" rel="stylesheet">
 <style>
 .aw{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px;padding-bottom:110px}
 .steps{display:flex;gap:6px;flex-wrap:wrap}
@@ -6648,6 +6649,7 @@ function render() {
   var n = selKeys().length, w = whatOn();
   $("count").innerHTML = A.done ? "Saved" : "<b>" + n + "</b> listing" + (n === 1 ? "" : "s") + (w.length ? " · " + w.length + " change" + (w.length === 1 ? "" : "s") : "");
   $("back").hidden = A.step === 0 || !!A.done;
+  gagFit();
   var dn = depthNow(); if (!POPPING && dn > DEPTH) history.pushState({ amend: dn }, ""); DEPTH = dn;
   $("next").hidden = A.step !== 2 || !!A.done;
   $("next").textContent = "Check";
@@ -6737,6 +6739,20 @@ function crossLine(own) {   // same rule as the listing builder
   var r0 = R.filter(function (r) { return r.coll === own; })[0]; if (!r0 || !String(r0.lead || "").trim()) return "";
   var n = R.filter(function (r) { return r.coll !== own && String(r.live || "").toUpperCase() === "Y"; }).map(function (r) { var nm = String(r.rname || r.coll).trim(), sid = String(r.section || "").trim(); return sid ? nm + ": https://www.etsy.com/shop/IntrovertHereShop?section_id=" + sid : nm; }); if (!n.length) return "";
   return "\n" + String(r0.lead).trim() + " Have a look at our other ranges:\n" + n.join("\n") + "\n\n"; }
+var FITX = document.createElement("canvas").getContext("2d");
+function fitW(t) { FITX.font = "400 100px Montserrat, sans-serif"; try { FITX.letterSpacing = "-4px"; } catch (e) {} return FITX.measureText(t).width; }
+function gagFit() {
+  var ta = document.querySelector('textarea[data-one="text"]'), box = $("gfit"); if (!ta || !box) return;
+  var id = ta.dataset.gid || ""; if (/^EX-/.test(id)) { box.innerHTML = ""; return; }
+  var raw = ta.value.replace(/\r/g, "").split("\n"), lim = fitW("WWWWWWWWWWWW"), over = [], warn = [];
+  raw.forEach(function (l, i) { var t = /^IP-/.test(id) ? l.replace(/\[NAME\]/gi, "MAXIMILLIANA") : l; if (t.trim() && fitW(t.replace(/\s+$/, "")) > lim + 0.01) over.push(i + 1); });
+  if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap on the print.");
+  if (raw.length > 9) warn.push("That's " + raw.length + " lines; the print holds 9.");
+  if (ta.value.trim() && !/^\s*(\.\.\.|\u2026)/.test(ta.value)) warn.push("It doesn't start with an ellipsis (... or \u2026).");
+  if (/^IP-/.test(id)) { var n = (ta.value.match(/\[NAME\]/gi) || []).length; if (n !== 1) warn.push("In Person gags need [NAME] exactly once."); }
+  box.innerHTML = warn.length ? '<div class="errbox" style="margin-top:6px">' + warn.map(h).join("<br>") + "</div>" : (ta.value.trim() ? '<p class="hint" style="color:var(--ok,#7fd18b)">Fits the print: every line is within 12 capital Ws.</p>' : "");
+}
+if (document.fonts && document.fonts.load) document.fonts.load("400 100px Montserrat").then(function () { gagFit(); });
 function preview() { var t = $("pvT"), d = $("pvD"); if (!t && !d) return; var p = (A.cur.rule || "").split("|"), r = ruleFor(p[0], p[1]); if (!r) return; var g = sampleGag(p[0]);
   var stem = (single() && A.stem != null) ? A.stem : (g ? g.stem : "Your Title Stem"), title = stem + " " + rv(r.row, "suffix", r.suffix);
   if (t) { var n = title.length; t.innerHTML = '<div class="pvlbl">Etsy title · ' + n + "/140 characters" + (n > 140 ? ' <b style="color:#ff8a85">too long</b>' : "") + '</div><div class="pvbox"><span class="pvseen">' + h(title.slice(0, 45)) + "</span>" + h(title.slice(45)) + '</div><div class="small">Highlighted: roughly what shows in Etsy search on a phone.</div>'; }
@@ -6746,7 +6762,8 @@ function details() {
   var one = single(), cb = combos(), out = '<p class="q">Details</p>', any = false;
   if (!cb.length) cb = allCombos();
   function sec(title, body) { any = true; out += '<div class="sec"><h3>' + title + "</h3>" + body + "</div>"; }
-  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text">' + h(A.text != null ? A.text : one.text) + "</textarea></label>" : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
+  if (A.what.print) sec("Print template", one ? '<label class="f">Gag text (goes on the print)<textarea data-one="text" data-gid="' + h(one.id) + '" rows="10" style="font:400 16px Montserrat,sans-serif;line-height:1.35">' + h(A.text != null ? A.text : one.text) + '</textarea></label><div id="gfit"></div>'
+ : '<p class="hint">Each listing\'s print is remade from its gag text and the current Canva print template. Nothing to fill in.</p>');
   if (A.what.mockups) sec("Mockup photos", photoChoice(cb));
   if (A.what.titles && one) sec("Title stem", '<label class="f">' + h(one.id) + '<input data-one="stem" value="' + h(A.stem != null ? A.stem : one.stem) + '"></label><p class="hint">To change the title ending for the whole range instead, go back and pick By range.</p>');
   var ruleKinds = [];
@@ -6886,7 +6903,10 @@ document.addEventListener("change", function (e) {
 document.addEventListener("input", function (e) {
   var el = e.target;
   if (el.id === "q") { A.q = el.value; var pos = el.selectionStart; render(); var q = $("q"); q.focus(); q.setSelectionRange(pos, pos); return; }
+  // Gag text: capitals and the 12-W width check, as in the gag tool (Barry, 18 Nov). Exclusive keeps its mixed case.
+  if (el.dataset.one === "text" && !/^EX-/.test(el.dataset.gid || "")) { var cp = el.selectionStart, ce = el.selectionEnd, up = el.value.toUpperCase(); if (up !== el.value) { el.value = up; el.setSelectionRange(cp, ce); } }
   if (el.dataset.one) A[el.dataset.one] = el.value;
+  if (el.dataset.one === "text") gagFit();
   if (el.dataset.pname) A.photo.name = el.value.toUpperCase().replace(/[^A-Z_ ]/g, "").replace(/ +/g, "_");
   if (el.dataset.rule) { var row = el.dataset.rule; A.rules[row] = A.rules[row] || {};
     if (el.dataset.rk) A.rules[row][el.dataset.rk] = el.value;
