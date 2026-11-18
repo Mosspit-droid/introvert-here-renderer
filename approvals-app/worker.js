@@ -5074,7 +5074,7 @@ async function ipBuildDraft(env, gagId, type, reuseId) {
   for (const [name, p] of Object.entries(props)) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid + "/properties/" + p.id, "PUT", null, null, p.ids.map((v) => "value_ids[]=" + v).join("&") + "&" + p.vals.map((v) => "values[]=" + encodeURIComponent(v)).join("&"));
   if (props["Material multi"]) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid, "PATCH", null, null, props["Material multi"].vals.map((v) => "materials[]=" + encodeURIComponent(v)).join("&"));
   const num = Number(gagId.split("-")[1]) || 1;
-  return { listingId: lid, title, gagId, type, sample: IP.names[(num - 1) % IP.names.length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
+  return { listingId: lid, title, gagId, type, sample: IP.names[((num - 1) * 4 + Math.max(0, ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"].indexOf(type))) % IP.names.length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
 }
 // Photo order for an In Person listing: the builder's rules (one colour of each picture, lead colour first), but with
 // no Printify mockup in slot 2, so the ranks run 1, 2, 3... The lead colour takes turns by gag number; a garment that
