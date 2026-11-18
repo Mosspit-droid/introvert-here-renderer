@@ -36,6 +36,7 @@ export default {
     ctx.waitUntil(quickTick(env).catch(() => {}));
     ctx.waitUntil(builderWatch(env).catch(() => {}));
     ctx.waitUntil(remakeNudge(env).catch(() => {}));
+    ctx.waitUntil(draftWatch(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -2539,6 +2540,25 @@ async function exTick(env) {
       await notify(env, "", "Use-by passed: " + m.stem, "Approve it if it's still fresh, or scrap it from Approvals.", "warning"); }
   }
   if (changed) await env.PENDING.put(EX_META_KEY, JSON.stringify(M));
+}
+// Draft reminder (Barry, 18 Nov): test listings made straight on Etsy stay as drafts, and the app can't delete them.
+// Once a day (from 9am UK time) the app checks Etsy for drafts and, if any are there, reminds Barry to delete them.
+async function draftWatch(env) {
+  const now = new Date(), day = now.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const hour = Number(now.toLocaleString("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false }));
+  const W = (await env.PENDING.get("draft-watch", "json")) || {};
+  if (hour < 9 || W.day === day) return;
+  W.day = day; await env.PENDING.put("draft-watch", JSON.stringify(W));
+  const r = await etsyTool(env, "/shops/65435151/listings", "GET", null, { state: "draft", limit: 100 });
+  const L = (r && Array.isArray(r.results)) ? r.results : [];
+  if (!L.length) return;
+  const names = L.slice(0, 5).map((x) => "• " + String(x.title || x.listing_id).slice(0, 60)).join("\n") + (L.length > 5 ? "\n…and " + (L.length - 5) + " more" : "");
+  const title = L.length + " draft listing" + (L.length === 1 ? "" : "s") + " on Etsy to delete";
+  const alerts = await loadAlerts(env);
+  alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "https://www.etsy.com/your/shops/me/tools/listings/state:draft", title,
+    body: "Test listings the app made straight on Etsy. They're never published, but the app can't delete them. Etsy: Shop Manager › Listings › Drafts, tick them, Delete.\n" + names });
+  await saveAlerts(env, alerts);
+  await notify(env, "", title, "Shop Manager › Listings › Drafts. They're test listings, safe to delete.", "wastebasket");
 }
 // Remake nudge (Barry, 17 Nov): Remake clears the video in Core and starts the video step, but that step can run before
 // Core has caught up and find nothing to do. If a remade video hasn't arrived 4 minutes later, start the step once more.
