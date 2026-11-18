@@ -39,6 +39,8 @@ export default {
     ctx.waitUntil(draftWatch(env).catch(() => {}));
     ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
+    ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
+    ctx.waitUntil(githubCheck(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -1616,7 +1618,10 @@ ${lock && lock.length ? `<div class="card small"><b>Builder lock:</b> stopped ${
   const aiCards = `<div class="cgrid">${ai("Claude", s.claudePlan, s.claudeCost, s.claudeRenew, "https://claude.ai/settings/usage")}${ai("ChatGPT", s.gptPlan, s.gptCost, s.gptRenew, "https://chatgpt.com/#settings/Account")}</div>`;
   const costs = [["Make", s.makeCost], ["Cloudflare", "$5"], ["Claude", s.claudeCost], ["ChatGPT", s.gptCost]].filter((x) => x[1]);
   const costCard = costs.length ? `<div class="card"><div class="lbl2">Monthly costs</div>${costs.map((x) => `<div class="cr"><div class="cn">${x[0]}</div><div class="cv"><b>${esc(x[1])}</b></div></div>`).join("")}</div>` : "";
-  body += cfCard + aiCards + costCard;
+  // Video renders run on GitHub's free minutes, which are unlimited only while the renderer repo is public (Barry, 18 Nov).
+  const gh = await env.PENDING.get("github-check", "json");
+  const ghCard = `<div class="card${gh && gh.private ? " warnc" : ""}"><div class="lbl2">GitHub (makes the videos) · free</div>${!gh ? `<p class="small">Checking… it's checked every 6 hours.</p>` : gh.private ? `<p class="bad"><b>The renderer repo is private, so video renders now use your 2,000 free minutes a month.</b> When they run out, videos stop. Make it public again: github.com/${GH_REPO} → Settings → Change visibility.</p>` : gh.error ? `<p class="small">Couldn't check GitHub (${esc(gh.error)}). Checked ${esc(when(gh.at))}.</p>` : `<p class="small">The renderer repo is public, so video renders are free and unlimited. Checked ${esc(when(gh.at))}.</p>`}</div>`;
+  body += cfCard + ghCard + aiCards + costCard;
   const settingsCard = `<details class="card" ${tok ? "" : "open"}><summary class="lbl2" style="cursor:pointer">Settings</summary>
 <p class="small">Monthly credits = your plan's credits (Make → Subscription → Current plan). Add any extras you buy in the extra-credits box; set it back to 0 after the reset.</p>
 <p class="small">Make token: <b>${tok ? "saved ✓ (…" + esc(tok.slice(-4)) + ")" : "not saved yet"}</b>. To make one: Make → your profile picture → Profile → <b>API access</b> → Add token. Name it <i>Approvals app</i>, tick <b>scenarios:read</b>, <b>scenarios:run</b> and <b>organizations:read</b>, then paste it here. (scenarios:run lets the app start the copy watch, the reviews check and List it now.) It's stored privately and never shown again.</p>
@@ -1780,7 +1785,8 @@ async function dashboardPage(env) {
   const oldest = pending.reduce((a, i) => Math.min(a, i.receivedAt || Infinity), Infinity);
   const ago = (ms) => { const m = Math.round((Date.now() - ms) / 60000); return m < 60 ? m + " min" : m < 2880 ? Math.round(m / 60) + " hours" : Math.round(m / 1440) + " days"; };
   const busy = (amend && amend.gags || []).filter((g) => /^AMENDMENT_REQUIRED/.test(g.status));
-  const toSend = (orders || []).filter((o) => o.status === "on-hold" || o.status === "failed");
+  // In Person sales waiting for a spelling check count as orders to send too (Barry, 18 Nov).
+  const toSend = (orders || []).filter((o) => o.status === "on-hold" || o.status === "failed").concat(Object.keys((await env.PENDING.get("ipo-open", "json")) || {}).map((ref) => ({ ref, ip: true })));
   const tagsToApprove = (tags && tags.items || []).filter((t) => !t.approved).length;
   const liveListings = (amend && amend.gags || []).reduce((a, g) => a + g.live.length, 0);
   const views = (stats && stats.listings || []).reduce((a, l) => a + (Number(l.views) || 0), 0);
@@ -2656,9 +2662,9 @@ async function builderWatch(env) {
   const alerts = await loadAlerts(env);
   alerts.unshift({ id: crypto.randomUUID(), at: now, source: "app", link: "/alerts", title: "Builder stopped partway, so it's paused",
     body: "The builder run that started " + new Date(lk.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) +
-      " ended without finishing (it never recorded its listing in Core). It's paused so it can't build the same listing twice. Ask Claude to check it, then press Stop again to restart." });
+      " ended without finishing (it never recorded its listing in Core). It's paused so it can't build the same listing twice. To restart it, tap Stop at the top of the page and choose to resume: it frees itself and carries on. If it stops again on the same listing, ask Claude." });
   await saveAlerts(env, alerts);
-  await notify(env, "", "Builder stopped partway", "It's paused so nothing gets built twice. Ask Claude to check it.", "warning");
+  await notify(env, "", "Builder stopped partway", "It's paused so nothing gets built twice. Tap Stop in the app and resume to restart it.", "warning");
 }
 async function quickTick(env) {
   const L = (await env.PENDING.get(QUICK_KEY, "json")) || [];
@@ -4288,6 +4294,19 @@ const statColl = (code) => (/^(IH|SH|PC|OS|EX|IP)-/.exec(String(code || "")) || 
 const gagOf = (code) => String(code || "").split("-").slice(0, 2).join("-");
 const money = (n) => "£" + (Math.round(n * 100) / 100).toFixed(2);
 
+// Sales straight from Etsy's orders (Barry, 18 Nov), per range, including In Person, which Printify's figures miss.
+async function etsySalesCard(env) {
+  const log = (await env.PENDING.get("etsy-sales", "json")) || [];
+  if (!log.length) return `<div class="card small" style="margin-bottom:12px">Sales from Etsy start showing here after the next order check (every 10 minutes).</div>`;
+  const now = Date.now(), d30 = now - 30 * 864e5, R = ["IH", "SH", "PC", "OS", "EX", "IP"], agg = {};
+  log.forEach((o) => o.items.forEach((i) => { const c = /^(IH|SH|PC|OS|EX|IP)-/.test(i.code) ? i.code.slice(0, 2) : "OTHER"; const a = (agg[c] ||= { n: 0, n30: 0, gbp: 0, gbp30: 0 });
+    a.n += i.qty; a.gbp += i.price * i.qty; if (o.at >= d30) { a.n30 += i.qty; a.gbp30 += i.price * i.qty; } }));
+  const rows = R.concat(agg.OTHER ? ["OTHER"] : []).filter((c) => agg[c]).map((c) => `<div class="cr"><span class="cn">${esc(COLL_LABEL[c] || "Other listings")}</span><span class="cv"><b>${agg[c].n30}</b><small>30 days</small><b>${agg[c].n}</b><small>all</small><b>£${agg[c].gbp.toFixed(2)}</b></span></div>`).join("");
+  const last = log[0];
+  return `<div class="card" style="margin-bottom:12px"><b>Sales from Etsy</b> <span class="small">· items sold, and what buyers paid (after discounts, before Etsy's fees)${last ? " · last sale " + esc(when(last.at)) : ""}</span>
+<style>.cr{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.cn{flex:1;font-size:14px}.cv{display:flex;gap:8px;align-items:center}.cv b{font:700 14px var(--display);min-width:40px;text-align:right}.cv small{color:var(--muted)}</style>
+${rows || '<p class="small">No sales recorded yet.</p>'}</div>`;
+}
 async function statsPage(env, url) {
   const st = await env.PENDING.get("stats", "json");
   const hist = (await env.PENDING.get("stats-hist", "json")) || {};
@@ -4397,6 +4416,7 @@ summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 @media (max-width:700px){.snum{width:50px;font-size:15px}.tv{font-size:24px}.stiles{grid-template-columns:repeat(2,1fr)}}
 </style>
 ${brandHeader("Stats", nav)}
+${await etsySalesCard(env)}
 <div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
 <h2>Shop totals</h2>
 <div class="stiles">
@@ -5296,6 +5316,10 @@ async function pfyTool(env, path, method = "GET", body) {
 async function ipoGet(env, ref) { return env.PENDING.get("ipo:" + ref, "json"); }
 async function ipoPut(env, o) {
   o.upd = Date.now(); await env.PENDING.put("ipo:" + o.ref, JSON.stringify(o));
+  // Real orders still needing Barry (check / problem / print being made) show on the dashboard's Orders count.
+  const open = (await env.PENDING.get("ipo-open", "json")) || {}, was = JSON.stringify(open);
+  if (!o.test && ["check", "problem", "printing"].includes(o.status)) open[o.ref] = o.status; else delete open[o.ref];
+  if (JSON.stringify(open) !== was) await env.PENDING.put("ipo-open", JSON.stringify(open));
   const L = (await env.PENDING.get(IPO_LIST, "json")) || []; if (!L.includes(o.ref)) { L.unshift(o.ref); await env.PENDING.put(IPO_LIST, JSON.stringify(L.slice(0, 200))); }
 }
 // Listing id -> In Person product, from Core's registry (refreshed hourly).
@@ -5325,9 +5349,12 @@ async function ipOrderWatch(env) {
   const st = (await env.PENDING.get("ip-order-watch", "json")) || {}, now = Date.now();
   if (st.at && now - st.at < 10 * 60e3) return;
   await env.PENDING.put("ip-order-watch", JSON.stringify({ at: now }));
+  // One read of Etsy's recent paid orders serves both: a phone alert for every new sale (Barry, 18 Nov: Etsy didn't
+  // tell him about his sale for two days), and the In Person orders that need making.
+  const R = await etsyJson(env, "/shops/" + IP.shop + "/receipts", "GET", undefined, { was_paid: "true", limit: "50" });
+  await salesNote(env, (R && R.results) || []);
   const map = await ipListingMap(env); if (!Object.keys(map).length) return;
-  const R = await etsyJson(env, "/shops/" + IP.shop + "/receipts", "GET", undefined, { was_paid: "true", was_shipped: "false", limit: "50" });
-  for (const rc of (R && R.results) || []) for (const t of rc.transactions || []) {
+  for (const rc of ((R && R.results) || []).filter((x) => !x.is_shipped)) for (const t of rc.transactions || []) {
     const hit = map[String(t.listing_id)]; if (!hit) continue;
     const ref = rc.receipt_id + "-" + t.transaction_id; if (await ipoGet(env, ref)) continue;
     await ipoNew(env, { ref, receipt: rc.receipt_id, txn: t.transaction_id, listingId: t.listing_id, ...hit, nameRaw: ipoName(t), colour: ipoVar(t, 514), size: ipoVar(t, 513), qty: t.quantity || 1,
@@ -5335,6 +5362,59 @@ async function ipOrderWatch(env) {
       note: String(rc.message_from_buyer || "").slice(0, 300) });
   }
   await ipTrackTick(env);
+}
+// GitHub check (every 6 hours): renders are free and unlimited only while the renderer repo is public.
+const GH_REPO = "Mosspit-droid/introvert-here-renderer";
+async function githubCheck(env) {
+  const old = await env.PENDING.get("github-check", "json"), now = Date.now();
+  if (old && now - old.at < 6 * 3600e3) return;
+  const r = await fetch("https://api.github.com/repos/" + GH_REPO, { headers: { "User-Agent": "introvert-here-app", Accept: "application/vnd.github+json" } }).catch(() => null);
+  let rec = { at: now };
+  if (r && r.ok) { const j = await r.json(); rec.private = !!j.private; }
+  else if (r && r.status === 404) rec.private = true;   // a private repo is invisible without a key
+  else rec.error = r ? "GitHub said " + r.status : "no answer";
+  await env.PENDING.put("github-check", JSON.stringify(rec));
+  if (rec.private && !(old && old.private)) {
+    const alerts = await loadAlerts(env);
+    alerts.unshift({ id: crypto.randomUUID(), at: now, source: "app", link: "/credits", title: "The video renderer repo is private", body: "Video renders now use GitHub's 2,000 free minutes a month and stop when they run out. Make it public again: github.com/" + GH_REPO + " → Settings → Change visibility." });
+    await saveAlerts(env, alerts);
+    await notify(env, "", "Video renderer repo is private", "Renders now use your limited free minutes. Make it public again on GitHub.", "warning");
+  }
+}
+// Keep the app's copy of Core fresh by itself (Barry, 18 Nov: it was five hours old and the In Person card showed 0).
+async function coreRefreshTick(env) {
+  if (!env.MAKE_GAGSYNC_HOOK) return;
+  const g = await env.PENDING.get("gags", "json"), last = Number((await env.PENDING.get("core-refresh-at")) || 0), now = Date.now();
+  if (g && g.receivedAt && now - g.receivedAt < 60 * 60e3) return;
+  if (now - last < 55 * 60e3) return;
+  await env.PENDING.put("core-refresh-at", String(now));
+  await fetch(env.MAKE_GAGSYNC_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: "hourly" }) }).catch(() => {});
+}
+// Every new Etsy sale: a phone notification and an alert, and a record for the stats page's sales per range.
+async function salesNote(env, receipts) {
+  const seen = await env.PENDING.get("sales-seen", "json"), first = !seen, S = seen || { ids: [] };
+  const log = (await env.PENDING.get("etsy-sales", "json")) || [];
+  const st = await env.PENDING.get("stats", "json"), codeOf = {};
+  ((st && st.listings) || []).forEach((l) => { if (l.listingId) codeOf[String(l.listingId)] = l.code; });
+  const ipMap = ((await env.PENDING.get("ip-listing-map", "json")) || {}).map || {};
+  Object.entries(ipMap).forEach(([id, x]) => { codeOf[id] = x.code; });
+  const money = (m) => m && m.amount != null ? (m.currency_code === "GBP" || !m.currency_code ? "£" : m.currency_code + " ") + (m.amount / (m.divisor || 100)).toFixed(2) : "";
+  let added = 0;
+  for (const rc of receipts.slice().reverse()) {
+    const id = String(rc.receipt_id); if (S.ids.includes(id)) continue;
+    S.ids.push(id); added++;
+    // Each item's share of what the buyer actually paid, after any shop discount.
+    const tp = rc.total_price && rc.total_price.amount, sub = rc.subtotal && rc.subtotal.amount, f = tp && sub != null ? sub / tp : 1;
+    const items = (rc.transactions || []).map((t) => ({ code: codeOf[String(t.listing_id)] || "", title: String(t.title || "").split(" | ")[0], qty: t.quantity || 1, price: t.price ? Math.round(t.price.amount / (t.price.divisor || 100) * f * 100) / 100 : 0 }));
+    log.unshift({ id, at: (rc.created_timestamp || rc.create_timestamp || 0) * 1000, total: rc.grandtotal ? rc.grandtotal.amount / (rc.grandtotal.divisor || 100) : 0, country: rc.country_iso || "", items });
+    if (first) continue;   // the first check only learns the orders that already exist
+    const what = items.map((i) => (i.qty > 1 ? i.qty + " × " : "") + i.title).join(", ");
+    const alerts = await loadAlerts(env);
+    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/stats", title: "New sale: " + what, body: money(rc.grandtotal) + (rc.country_iso ? " · to " + rc.country_iso : "") + ". Printify makes it automatically" + (items.some((i) => /^IP-/.test(i.code)) ? ", except In Person: check it on the Orders page." : ".") });
+    await saveAlerts(env, alerts);
+    await notify(env, "", "New sale! " + money(rc.grandtotal), what + (rc.country_iso ? " · to " + rc.country_iso : ""), "tada");
+  }
+  if (added || first) { S.ids = S.ids.slice(-500); await env.PENDING.put("sales-seen", JSON.stringify(S)); await env.PENDING.put("etsy-sales", JSON.stringify(log.slice(0, 1000))); }
 }
 async function ipoNew(env, o) {
   o.at = Date.now(); o.name = String(o.nameRaw || "").toUpperCase().replace(/\s+/g, " ").trim();
@@ -5591,7 +5671,7 @@ async function todayPage(env) {
     env.PENDING.get("stats-hist", "json"), loadItems(env), env.PENDING.get("shop:orders", "json"), loadAlerts(env), env.PENDING.get("tags", "json")]);
   const today = new Date().toISOString().slice(0, 10), tomorrow = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
   const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"], rel = (day) => ((g && g.sched) || []).flatMap((e) => (e.d || []).map((d, i) => (d === day ? { id: e.id, s: e.s, t: TY[i], b: e.b && e.b[i] } : null))).filter(Boolean);
-  const pending = Object.values(items || {}).filter((i) => i.status === "pending"), toSend = (orders || []).filter((o) => o.status === "on-hold" || o.status === "failed");
+  const pending = Object.values(items || {}).filter((i) => i.status === "pending"), toSend = (orders || []).filter((o) => o.status === "on-hold" || o.status === "failed").concat(Object.keys((await env.PENDING.get("ipo-open", "json")) || {}).map((ref) => ({ ref, ip: true })));
   const days = Object.keys(hist || {}).sort(), sum = (d) => Object.values((hist || {})[d] || {}).reduce((a, v) => a + (v[0] || 0), 0);
   const viewsDelta = days.length >= 2 ? sum(days[days.length - 1]) - sum(days[days.length - 2]) : null;
   const li = (r) => `<a class="trow" href="/gag/${encodeURIComponent(r.id)}"><span>${esc(r.id)} · ${esc(garmentName(r.t))}</span><span class="small">${esc(r.s || "")}${r.b ? " · ✓ built" : ""}</span></a>`;
@@ -6272,10 +6352,16 @@ async function stopBuilder(request, env) {
   return json({ ok: true, cleared });
 }
 async function resumeBuilder(env) {
+  const was = await env.PENDING.get("builder-stop", "json");
   await env.PENDING.delete("builder-stop");
+  // A run that stopped partway leaves the one-at-a-time lock held, so new runs would step aside for 20 minutes and the
+  // builder (which restarts itself only after a finished run) would sit idle until 8am. Free a stale lock and start it.
+  const lk = await env.PENDING.get("lock:builder", "json");
+  const stale = lk && !lk.passed && Date.now() - lk.at > 5 * 60e3;
+  if (stale) await env.PENDING.put("lock:builder", JSON.stringify({ ...lk, passed: true, at: Date.now(), freedBy: "resume" }));
   const S = await env.PENDING.get("amend", "json");
   const queued = S ? S.gags.filter((g) => /^AMENDMENT_REQUIRED/.test(g.status)).length : 0;
-  if (queued) { const err = await amendHook(env, { action: "kick" }); if (err) return err; }
+  if (queued || stale || (was && was.why === "watchdog")) { const err = await amendHook(env, { action: "kick" }); if (err) return err; }
   return json({ ok: true, queued });
 }
 
