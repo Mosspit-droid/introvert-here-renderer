@@ -106,3 +106,12 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - Done in draft (not published): IP sweatshirt V002 draft DAHbOHI6TWU (page had no logo overlay, picture not locked).
 - Blocked: in the other 20 templates the size-guide picture (and logo) is padlocked. Barry to unlock on each size-guide
   page: the background picture and the logo. Then re-open drafts and swap; publish range by range with his OK.
+- 18 Nov (after Barry unlocked): size guides + Find Your Range page swapped and PUBLISHED (ids unchanged) in:
+  IH A/B/C/D, SH P/Q/R/S, PC L/N, OS H/I/J/K, IP T/V (V's size guide went live when Barry's unlock published it).
+  Range page only (size guide still locked): PC O002 (page 24 picture), EX E002 (page 8 picture).
+  Not done at all (old logo overlay still padlocked on the size-guide page; swapping would leave two logos):
+  PC M002 page 24, IP U002 page 17, IP W002 page 27. Their range pages are pending too.
+- Range page = last page (IH 18 / D 23, SH 11, PC 25, OS 25, EX 10, IP T/V 25, U 18, W 28). New graphic media
+  MAHbORKcUs0 = brand-logos/find-your-range/find-your-range-4500.png (build.js now takes an optional size argument:
+  `node brand-logos/find-your-range/build.js brand-logos/find-your-range 4500`). Older templates had the 4-range version.
+- Note: unlocking inside a brand-template draft publishes it. So only leave drafts in a state that's safe to go live.
