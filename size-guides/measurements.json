@@ -1,6 +1,5 @@
 {
-  "_note": "Garment measurements in INCHES, laid flat. Centimetres are worked out from these (rounded to the nearest cm). Source: Gildan spec sheets. STATUS: TO CONFIRM against Printify's size tables before use (17-18 Nov 2026: printify.com not reachable from the build session). Change a number here and rerun build.js to regenerate every guide.",
-  "status": "TO CONFIRM",
+  "_note": "Garment measurements in INCHES, laid flat, copied from Printify's size charts (Barry's screenshots, 18 Nov 2026). Centimetres are worked out from these. A garment shows the yellow 'to confirm' tag until its 'confirmed' is true. Change a number here and rerun build.js to regenerate every guide.",
   "sizes": [
     "S",
     "M",
@@ -36,7 +35,10 @@
         20,
         21.5,
         22.75
-      ]
+      ],
+      "confirmed": false,
+      "tolerance_in": 1,
+      "sleeve_from": "centre_back"
     },
     "longsleeve": {
       "label": "UNISEX LONG-SLEEVE T-SHIRT",
@@ -58,13 +60,16 @@
         33
       ],
       "sleeve": [
-        33.5,
-        34.5,
-        35.5,
-        36.5,
-        37.5,
-        38.5
-      ]
+        25,
+        25.5,
+        26,
+        26.5,
+        27,
+        27.5
+      ],
+      "confirmed": true,
+      "tolerance_in": 1,
+      "sleeve_from": "shoulder"
     },
     "sweatshirt": {
       "label": "UNISEX SWEATSHIRT",
@@ -92,7 +97,10 @@
         36.5,
         37.5,
         38.5
-      ]
+      ],
+      "confirmed": true,
+      "tolerance_in": 1.5,
+      "sleeve_from": "centre_back"
     },
     "hoodie": {
       "label": "UNISEX HOODIE",
@@ -106,13 +114,15 @@
         30
       ],
       "length": [
-        27,
+        27.1,
         28,
-        29,
+        29.1,
         30,
         31,
         32
-      ]
+      ],
+      "confirmed": true,
+      "tolerance_in": 1.5
     }
   },
   "ranges": {

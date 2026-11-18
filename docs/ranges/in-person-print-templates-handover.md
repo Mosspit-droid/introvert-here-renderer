@@ -87,3 +87,7 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   safety check (needs Barry's permission rule, or Barry sends screenshots of each garment's Printify "Size guide" tab).
   Shop products' descriptions carry no size table. Cross-checked so far (web, spec-sheet copies): 2400 chest 18-28 and
   length 28-33 match; 18000 sleeve S 33.5 / M 34.5 match. Still unconfirmed: tee sleeve, rest of 18000, 18500, 2400 sleeve.
+- 18 Nov: Barry sent Printify size-chart screenshots. Long-sleeve (2400), sweatshirt (18000), hoodie (18500) confirmed and
+  entered (2400 sleeve is shoulder-seam 25-27.5 in; 18000/18500 sleeve is centre-back; tolerance 1 in for 2400, 1.5 in for
+  18000/18500). His tee screenshot was a Comfort Colors 1717, but the shop's tees are Gildan 5000 (blueprint 6): tee still
+  TO CONFIRM. Printify also lists an 18500 sleeve (33.5-38.5 centre back); left off per Barry's spec.

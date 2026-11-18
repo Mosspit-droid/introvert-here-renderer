@@ -29,7 +29,7 @@ const G = {
   longsleeve: {
     body: `${NECK} L470 70 L560 160 L595 560 L535 568 L478 250 L470 610 L130 610 L122 250 L65 568 L5 560 L40 160 L130 70 Z`,
     extra: `<path d="M232 44 C258 70 342 70 368 44" class="rib"/>`,
-    chestY: 290, sleeve: 'M300 47 L470 72 L566 560', sleeveLabel: [560, 330],
+    chestY: 290, sleeve: 'M474 76 L566 560', sleeveLabel: [560, 330],
   },
   sweatshirt: {
     body: `${NECK} L475 70 L565 160 L598 548 L538 556 L482 250 L478 585 L122 585 L118 250 L62 556 L2 548 L35 160 L125 70 Z`,
@@ -81,8 +81,9 @@ const page = (rk, gk) => {
   const how = [
     ['CHEST WIDTH', 'Laid flat, straight across the chest, 2.5 cm (1 in) below the armholes.'],
     ['BODY LENGTH', 'From the highest point of the shoulder, next to the collar, to the bottom hem.'],
-  ].concat(hasSleeve ? [['SLEEVE LENGTH', 'From the centre back of the neck, along the shoulder, to the end of the sleeve.']] : []);
-  const todo = M.status !== 'CONFIRMED' ? `<div class="todo">PREVIEW · MEASUREMENTS ${M.status}</div>` : '';
+  ].concat(hasSleeve ? [['SLEEVE LENGTH', g.sleeve_from === 'shoulder' ? 'From the shoulder seam straight down to the end of the sleeve.' : 'From the centre back of the neck, along the shoulder, to the end of the sleeve.']] : []);
+  const todo = g.confirmed ? '' : `<div class="todo">PREVIEW · MEASUREMENTS TO CONFIRM</div>`;
+  const tol = `±${(Math.round(g.tolerance_in * 2.54 * 10) / 10).toString()} cm (${g.tolerance_in} in)`;
   return `<!doctype html><html><head><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700;800&display=block" rel="stylesheet">
 <style>*{margin:0;padding:0;box-sizing:border-box}
 body{width:1500px;height:1500px;font-family:Montserrat;color:#f2f0ec;position:relative;overflow:hidden;
@@ -109,7 +110,7 @@ td.sz{text-align:left;padding-left:10px;font-weight:800;color:${white ? '#f2f0ec
 .foot .a{font-weight:800;font-size:36px;letter-spacing:.07em}.foot .b{font-size:29px;color:#a9a7a2;margin-top:16px}
 .todo{position:absolute;bottom:14px;right:16px;background:#ffd400;color:#000;font-weight:800;font-size:18px;padding:5px 16px;border-radius:8px;letter-spacing:.08em}
 </style></head><body>${todo}
-<div class="top"><div><div class="pre">${g.label}</div><div class="big">SIZE GUIDE.</div><div class="sub">Garment measurements, laid flat. Allow ±2.5 cm (1 in).</div></div>${logo(r.logo, 330)}</div>
+<div class="top"><div><div class="pre">${g.label}</div><div class="big">SIZE GUIDE.</div><div class="sub">Garment measurements, laid flat. Allow ${tol}.</div></div>${logo(r.logo, 330)}</div>
 <div class="bar"></div>
 <div class="card main"><table>${head}${rows}</table><div class="draw">${svg(d, white ? '#f2f0ec' : a)}</div></div>
 <div class="card how">${how.map(h => `<div><div class="k">${h[0]}</div><div class="t">${h[1]}</div></div>`).join('')}</div>
