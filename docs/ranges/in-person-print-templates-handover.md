@@ -93,3 +93,16 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   TO CONFIRM. Printify also lists an 18500 sleeve (33.5-38.5 centre back); left off per Barry's spec.
 - 18 Nov: Gildan 5000 confirmed from Barry's screenshot (sleeve 15.1-22.4 in centre back, tolerance 1.5 in). Hoodie sleeve
   column added (Barry: he never said no sleeve column for hoodies). All four garments now confirmed; no yellow tags.
+
+### Swapping the size guides into the mockup templates (18 Nov)
+- All 21 guides uploaded to Canva. Media ids: IP tee MAHbON6LiYI, LS MAHbOHxtGlY, SW MAHbOA1qlEs, HD MAHbOHrg1yc;
+  IH MAHbOHfy5G4 / MAHbOIZDjX0 / MAHbODxguzg / MAHbOFlNmd8; SH MAHbOO9nvGQ / MAHbOLnxuEE / MAHbOI-__0A / MAHbOK5kYkM;
+  PC MAHbOHCjL8c / MAHbODEENr4 / MAHbODiOwOw / MAHbOGvtnDg; OS MAHbOInf8fE / MAHbOLo6okM / MAHbOGutycA / MAHbOEdN5yg;
+  EX tee MAHbOKOmOms. All uploaded after the final measurements.
+- Size guide page per template: IH A/B/C 17, IH D 22; SH P/Q/R/S 10; PC L/M/N/O 24; OS H/I/J/K 24 (not 23: 23 is AGM);
+  EX E002 8; IP T 24, U 17, V 24, W 27. Each page = full-page picture + (most) a separate logo on top.
+  Swap = update_fill the full-page picture, crop to 0,0,4500,4500, delete the logo overlay (new guide has its own logo).
+  Page count unchanged, so Core MOCKUP_PAGES / video slots don't change.
+- Done in draft (not published): IP sweatshirt V002 draft DAHbOHI6TWU (page had no logo overlay, picture not locked).
+- Blocked: in the other 20 templates the size-guide picture (and logo) is padlocked. Barry to unlock on each size-guide
+  page: the background picture and the logo. Then re-open drafts and swap; publish range by range with his OK.
