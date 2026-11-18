@@ -162,7 +162,7 @@ export default {
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
       if (pathname === "/api/tags-save" && method === "POST") return await tagsSave(request, env);
       if (pathname === "/api/gag-save" && method === "POST") return await gagSave(request, env);
-      if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { const dr = await ipBuildDraft(env, str(d.gagId), str(d.type)); return json(await ipImagesStart(env, dr)); } catch (e) { return json({ error: e.message }, 400); } }
+      if (pathname === "/api/ip-build" && method === "POST") { const d = await request.json().catch(() => ({})); try { const dr = await ipBuildDraft(env, str(d.gagId), str(d.type), d.reuseId); return json(await ipImagesStart(env, dr)); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/mockup-preview" && method === "POST") return await mockupPreviewStart(request, env);
       if (pathname === "/api/mockup-preview" && method === "GET") return json((await env.PENDING.get("preview:" + str(url.searchParams.get("ref")).replace(/[^a-z0-9-]/gi, ""), "json")) || { status: "missing" });
       if (pathname === "/api/ex-suggest" && method === "POST") return await exSuggest(request, env);
@@ -5004,7 +5004,7 @@ async function coreTable(env, name) {
 }
 const ipSplit = (t) => String(t || "").split("|").map((x) => x.trim()).filter(Boolean);
 function ipColLetter(n) { let s = ""; n += 1; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
-async function ipBuildDraft(env, gagId, type) {
+async function ipBuildDraft(env, gagId, type, reuseId) {
   const [G, R, T, X, C, P] = await Promise.all(["GAGS_TABLE", "PRODUCT_RULES", "GAG_TAGS", "ETSY_TAXONOMY_PROPERTY_IDS", "COLOUR_PROFILES_TABLE", "TAG_POOL"].map((n) => coreTable(env, n)));
   const gi = G.rows.findIndex((r) => r[0] === gagId); if (gi < 0) throw new Error(gagId + " isn't in Core.");
   const g = G.rows[gi], text = String(g[G.col("GAG_TEXT")] || ""), stem = String(g[G.col("TITLE_STEM")] || "").trim();
@@ -5053,14 +5053,17 @@ async function ipBuildDraft(env, gagId, type) {
   const sizes = rv("SIZES").split(/,\s*/).filter((z) => z && z !== "4XL" && z !== "5XL");
   const base = Number(rv("PRICE_GBP")) + IP.surcharge, ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
   const products = [];
-  colours.forEach((c) => sizes.forEach((z) => { if ((type === "SWEATSHIRT" || type === "HOODIE") && z === "3XL" && !["Black", "Navy"].includes(c)) return;
-    products.push({ sku: gagId + "-" + type + "-" + c.toUpperCase().replace(/\s+/g, "") + "-" + z, property_values: [{ property_id: 513, property_name: "Clothing sizes", values: [z] }, { property_id: 514, property_name: "Gildan Colors", values: [c] }],
-      offerings: [{ price: Math.round((base + (ext[z] || 0)) * 100) / 100, quantity: 999, is_enabled: true, readiness_state_id: IP.readiness }] }); }));
+  // Etsy wants every colour x size in the grid, so a 3XL we can't make is listed but switched off. SKUs max 32 characters.
+  const short = { "T-SHIRT": "T", "LONG-SLEEVE": "LS", SWEATSHIRT: "SW", HOODIE: "HD" }[type] || type;
+  colours.forEach((c) => sizes.forEach((z) => { const off = (type === "SWEATSHIRT" || type === "HOODIE") && z === "3XL" && !["Black", "Navy"].includes(c);
+    products.push({ sku: (gagId + "-" + short + "-" + c.toUpperCase().replace(/\s+/g, "") + "-" + z).slice(0, 32), property_values: [{ property_id: 513, property_name: "Clothing sizes", values: [z] }, { property_id: 514, property_name: "Gildan Colors", values: [c] }],
+      offerings: [{ price: Math.round((base + (ext[z] || 0)) * 100) / 100, quantity: 999, is_enabled: !off, readiness_state_id: IP.readiness }] }); }));
   if (!products.length) throw new Error("No colours or sizes for In Person " + type + ".");
   // 1. the draft listing
   const form = { quantity: 1, title, description, price: base.toFixed(2), who_made: "someone_else", when_made: "made_to_order", taxonomy_id: rv("ETSY_TAXONOMY_ID"), shipping_profile_id: rv("SHIPPING_PROFILE_ID") || rv("ASSIGN_SHIPPING_PROFILE"),
     return_policy_id: IP.returnPolicy, readiness_state_id: IP.readiness, is_supply: "false", type: "physical", shop_section_id: rv("ETSY_SHOP_SECTION_ID"), "production_partner_ids[]": IP.partner, tags: tags.join(","), should_auto_renew: "false" };
-  const L1 = await etsyTool(env, "/shops/" + IP.shop + "/listings", "POST", form); const lid = L1 && L1.listing_id; if (!lid) throw new Error("Etsy didn't make the listing: " + JSON.stringify(L1).slice(0, 200));
+  // reuseId: finish a draft an earlier attempt created but didn't complete (Etsy drafts can't be deleted from here).
+  const L1 = reuseId ? { listing_id: Number(reuseId) } : await etsyTool(env, "/shops/" + IP.shop + "/listings", "POST", form); const lid = L1 && L1.listing_id; if (!lid) throw new Error("Etsy didn't make the listing: " + JSON.stringify(L1).slice(0, 200));
   // 2. sizes x colours, 3. name box, 4. Etsy details (materials, colours, style...)
   await etsyJson(env, "/listings/" + lid + "/inventory", "PUT", { products, price_on_property: [513, 514], quantity_on_property: [513, 514], sku_on_property: [513, 514] });
   await etsyJson(env, "/shops/" + IP.shop + "/listings/" + lid + "/personalization", "POST", { personalization_questions: [{ question_type: "text_input", question_text: "Your first name", instructions: "Up to " + IP.nameMax + " letters, printed exactly as you type it.", required: true, max_allowed_characters: IP.nameMax }] }, { supports_multiple_personalization_questions: "true" });
