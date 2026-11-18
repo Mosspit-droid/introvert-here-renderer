@@ -115,3 +115,6 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   MAHbORKcUs0 = brand-logos/find-your-range/find-your-range-4500.png (build.js now takes an optional size argument:
   `node brand-logos/find-your-range/build.js brand-logos/find-your-range 4500`). Older templates had the 4-range version.
 - Note: unlocking inside a brand-template draft publishes it. So only leave drafts in a state that's safe to go live.
+- 18 Nov ~01:55: last five finished and published (PC M002, IP U002, IP W002: logo overlay removed by Barry, guide +
+  range swapped; PC O002 and EX E002: Barry deleted the old size-guide picture, so the new guide was inserted as a new
+  full-page image). **Job 2 done: all 21 mockup templates have the new size guide and the six-range page.**
