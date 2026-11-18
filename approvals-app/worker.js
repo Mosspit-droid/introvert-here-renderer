@@ -2790,7 +2790,7 @@ ${brandHeader("Gags")}
     <div class="tabs o-tabs" data-st="1"><button class="btn tab on" data-tab="new" type="button">New gag</button><button class="btn tab" data-tab="edit" type="button">Edit unreleased</button></div>
     <div id="pick" data-st="1" class="card o-pick" style="display:none"><input id="search" placeholder="Search by ID, text or title stem…"><div id="results" style="margin-top:8px;max-height:320px;overflow:auto"></div></div>
     <div class="card g-text o-text" data-st="2"><label><b>Gag</b> <span class="small">(press Enter for a new line, exactly as it should appear)</span>
-      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="boxes"></div><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
+      <textarea id="text" rows="8" required spellcheck="true"></textarea></label><div id="ipName" class="ipname" hidden><button type="button" class="btn" id="nameIns">Insert [NAME]</button><span class="small">The buyer's first name goes here, on its own line. The fit check uses a 12-letter name.</span></div><div id="boxes"></div><div id="pwarn"></div><div id="dupwarn"></div><div id="spell"></div>
       <details id="ideasBox" class="ideas"><summary>Ideas inbox <span id="ideasN" class="small"></span></summary><div id="ideasL"></div></details></div>
     <div class="card g-side">
       <div class="fld o-range" data-st="1"><b>Range</b><div class="chips" id="rangeChips"></div><select id="collection" class="hid" tabindex="-1" aria-hidden="true"></select>
@@ -2903,6 +2903,7 @@ ${brandHeader("Gags")}
   .bxn{font-size:13px;color:var(--muted);margin-top:4px}.bxn.bad{color:var(--warn)}
   body.kb #boxes label>.small{display:none}
   .news{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--field)}
+  .ipname{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}.ipname[hidden]{display:none}.ipname .btn{width:auto;margin:0;min-height:44px;padding:0 16px}
   .hlbrief{position:fixed;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:0}
   .hlbrief.fixed{position:fixed;inset:auto 0 0 0;max-height:75vh;padding:0;background:none}
   .hlbin{position:relative;width:100%;max-height:100%;overflow:auto;box-sizing:border-box;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:0 20px 50px rgba(0,0,0,.6)}
@@ -3411,7 +3412,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
   }
   window.quickLater = laterPopup;
   document.getElementById("form").addEventListener("submit", function (e) {
-    if (NOW || !Object.keys(NOWSET).length || document.getElementById("collection").value === "EXCLUSIVE") return;
+    if (NOW || !Object.keys(NOWSET).length || ["EXCLUSIVE", "IN PERSON"].indexOf(document.getElementById("collection").value) >= 0) return;
     e.preventDefault(); e.stopImmediatePropagation();
     var keys = GN.map(function (x) { return x[0]; }).filter(function (k) { return NOWSET[k]; }), boxes = {};
     DIDS.forEach(function (id, i) { var v = document.getElementById(id).value; if (v) boxes[GN[i][0]] = v; });
@@ -3424,7 +3425,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     document.getElementById("save").textContent = "List it now";
     chipsFor("garmChips"); document.getElementById("nowHint").style.display = "none";
     document.title = "List it now";
-    document.getElementById("form").addEventListener("submit", function (e) { if (document.getElementById("collection").value === "EXCLUSIVE") return; e.preventDefault(); e.stopImmediatePropagation();
+    document.getElementById("form").addEventListener("submit", function (e) { if (["EXCLUSIVE", "IN PERSON"].indexOf(document.getElementById("collection").value) >= 0) return; e.preventDefault(); e.stopImmediatePropagation();
       var keys = Object.keys(GSEL); if (!keys.length) { alert("Pick at least one garment."); return; }
       window.quickLater(keys, null, function (later) { quickGo(document.getElementById("save"), "List it now", later); }); }, true);
   }
@@ -3443,6 +3444,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     if (cur === 1 && !el("collection").value) return "Pick a range.";
     if (cur === 2 && window.boxesMissing && window.boxesMissing()) return window.boxesMissing();
     if (cur === 2 && !el("text").value.replace(/^[\s.…]+/, "").trim()) return "Type the gag first.";
+    if (cur === 2 && el("collection").value === "IN PERSON" && (el("text").value.match(/\[NAME\]/gi) || []).length !== 1) return "Put [NAME] in the gag once: tap Insert [NAME] where the buyer's name goes.";
     if (cur === 3 && !el("stem").value.trim()) return "Give it a title stem.";
     return "";
   }
@@ -3521,6 +3523,10 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     var ex = el("collection").value === "EXCLUSIVE";
     Array.prototype.forEach.call(document.querySelectorAll(".gR [data-st]"), function (x) { x.dataset.st = x.dataset.ost; });
     if (ex) { STEPS = EX_STEPS; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm,.o-tabs,.o-pick").forEach(function (x) { x.dataset.st = "9"; }); document.querySelector(".o-extopic").dataset.st = "5"; document.querySelector(".o-news").dataset.st = "1"; el("save").textContent = "List it now"; }
+    else if (el("collection").value === "IN PERSON") {   // no schedule and no listing yet: write it, save it to Core (18 Nov)
+      STEPS = ["Range", "Gag", "Title stem", "Category"]; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm").forEach(function (x) { x.dataset.st = "9"; });
+      DIDS.forEach(function (id) { el(id).value = ""; }); el("save").textContent = "Save to Core";
+    }
     else { STEPS = BASE_STEPS; el("save").textContent = NOW ? "List it now" : Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }
     go(Math.min(cur, STEPS.length));
   }
@@ -3641,7 +3647,7 @@ const GAG_SEASON_SCRIPT = String.raw`(function () {
 // Range and category buttons for /gags. The hidden <select>s stay the source of truth for the page script;
 // the buttons set them and fire "change". Categories are grouped by how Core's gags are filed today.
 const GAG_CHIPS_SCRIPT = String.raw`(function () {
-  var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"], "EXCLUSIVE": ["Exclusive", "#d8262c"] };
+  var RANGE_INFO = { "INTROVERT HERE…": ["Introvert Here", "var(--ih)"], "SHHH.": ["SHHH.", "var(--sh)"], "PER CONTRACT": ["Per Contract", "var(--pc)"], "OFF THE SHELF": ["Off The Shelf", "var(--os)"], "EXCLUSIVE": ["Exclusive", "#d8262c"], "IN PERSON": ["In Person", "#4A8FE7"] };
   var CATS = window.GAG_CATS || {
     "INTROVERT HERE…": ["Small Talk", "Avoiding People", "Introvert Life", "Social Exhaustion", "Social Anxiety", "Overthinking"],
     "SHHH.": ["Alternative Communication", "Sensory Issues"],
@@ -3701,13 +3707,23 @@ let datesTouched = false;
 function setDates(ds) { ["d1","d2","d3","d4"].forEach((k, i) => { $(k).value = (ds && ds[i]) || ""; }); datesTouched = false; }
 ["d1","d2","d3","d4"].forEach((k) => $(k).addEventListener("input", () => { datesTouched = true; }));
 
-const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS" };
-const PRINT = { IH: { src: "/assets/print-logo-ih.png", h: 607, top: 1000 }, SH: { src: "/assets/print-logo-sh.png", h: 946, top: 1230 }, PC: { src: "/assets/print-logo-pc.png", h: 835, top: 1230 }, OS: { src: "/assets/print-logo-os.png", h: 805, top: 1000 } };
+const CODE = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "IN PERSON": "IP" };
+const PRINT = { IH: { src: "/assets/print-logo-ih.png", h: 607, top: 1000 }, SH: { src: "/assets/print-logo-sh.png", h: 946, top: 1230 }, PC: { src: "/assets/print-logo-pc.png", h: 835, top: 1230 }, OS: { src: "/assets/print-logo-os.png", h: 805, top: 1000 }, IP: { src: "/assets/print-logo-ip.png", h: 866, top: 1000 } };
 function setLook(coll) {
   const c = CODE[coll] || "IH";
   document.body.dataset.coll = c;
   const logo = document.getElementById("logo"); if (logo) logo.src = "/assets/brand-" + c.toLowerCase() + "-wide.png?v=2";
+  const ipn = document.getElementById("ipName"); if (ipn) ipn.hidden = coll !== "IN PERSON";
 }
+// In Person (Barry, 18 Nov): the buyer's first name (up to 12 letters) goes where [NAME] is. The preview shows a real
+// 12-letter name; the width check uses 12 Ms, a fair worst case that still leaves room for a full stop.
+const IP_SHOW = "MAXIMILLIANA", IP_CHECK = "MMMMMMMMMMMM";
+const isIP = () => $("collection").value === "IN PERSON";
+$("nameIns").addEventListener("click", () => {
+  const t = $("text"), a = t.selectionStart, b = t.selectionEnd, v = t.value, before = v.slice(0, a), after = v.slice(b);
+  const ins = (before && !before.endsWith("\n") ? "\n" : "") + "[NAME]" + (after && !after.startsWith("\n") ? "\n" : "");
+  t.value = before + ins + after; const at = (before + ins).length; t.focus(); t.setSelectionRange(at, at); t.dispatchEvent(new Event("input", { bubbles: true }));
+});
 function note(text, cls) { const el = $("slot"); el.style.display = text ? "block" : "none"; el.className = cls || "small"; el.textContent = text || ""; }
 function slotInfo() {
   setLook($("collection").value);
@@ -3715,6 +3731,7 @@ function slotInfo() {
   const c = $("collection").value, pc = G && G.perCollection[c];
   if (!c || !pc) { note(""); return; }
   const n = pc.next;
+  if (c === "IN PERSON") { note("New In Person gag " + n.id + ". It's saved to Core without dates; In Person gags are listed when personalised orders are ready, not on the weekly schedule.", "small"); setDates([]); return; }
   if (window.isMulti && window.isMulti()) { note("New " + (c === "EXCLUSIVE" ? "Exclusive" : c) + " gag " + n.id + ". Exclusive gags are made on demand, not on the weekly schedule.", "small"); setDates([]); return; }
   note(n.mode === "fill"
     ? "Fills prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left) \u2014 its dates are filled in below."
@@ -3741,14 +3758,15 @@ function preview() {
   // Print box (Barry, 15 Nov): 3440 wide, Montserrat 262.39, right-aligned, as in every range's Canva print template.
   const width = 3440, fs = 262.39;
   const box = $("pbox"); box.style.width = width + "px"; box.style.fontSize = fs.toFixed(2) + "px";
-  const lines = $("text").value.replace(/\r/g, "").split("\n");
+  const raw = $("text").value.replace(/\r/g, "").split("\n"), ip = isIP();
+  const lines = ip ? raw.map((l) => l.replace(/\[NAME\]/gi, IP_SHOW)) : raw;
   box.innerHTML = lines.map((l) => '<div>' + (l ? l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/ /g,'&nbsp;') : '&nbsp;') + '</div>').join('');
   const over = [];
   // Width rule (Barry, 13 Nov): a line may be as wide as 12 capital Ws, measured by full letter widths as Canva
   // wraps them (16 Nov; was ink tip to tip) - real pixels, not a character count. Same font settings as
   // the Canva print box: Montserrat Regular, letter spacing -0.04em.
   const limit = inkW("WWWWWWWWWWWW");
-  [...box.children].forEach((d, i) => { const t = lines[i] || ""; if (t.trim() && inkW(t.replace(/\s+$/, "")) > limit + 0.01) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
+  [...box.children].forEach((d, i) => { const t = ip ? (raw[i] || "").replace(/\[NAME\]/gi, IP_CHECK) : (lines[i] || ""); if (t.trim() && inkW(t.replace(/\s+$/, "")) > limit + 0.01) { d.classList.add('over'); over.push(i + 1); } if (i >= 9) d.classList.add('over'); });
   // The black box is exactly the product text box: 12 capital Ws wide x 9 lines tall, the same as
   // the Canva text boxes and Core's cells (Barry, 13 Nov). Shown at 160px tall, the size of the earlier grid.
   // The gag frame (12 W x 9 lines) is centred in the black card with side margins, as large as fits
@@ -3771,6 +3789,7 @@ function preview() {
   if (over.length) warn.push("Line" + (over.length > 1 ? "s " : " ") + over.join(", ") + (over.length > 1 ? " are" : " is") + " wider than 12 capital Ws and will wrap.");
   if (lines.length > 9) warn.push("That's " + lines.length + " lines - the grid holds 9.");
   if (lines.join("").trim() && !/^\s*(\.\.\.|\u2026)/.test($("text").value)) warn.push("It doesn't start with an ellipsis (... or \u2026).");
+  if (ip && lines.join("").trim()) { const n = ($("text").value.match(/\[NAME\]/gi) || []).length; if (n !== 1) warn.push(n ? "[NAME] appears " + n + " times; In Person gags use it once." : "No [NAME] yet: tap Insert [NAME] where the buyer's name goes."); }
   $("pwarn").innerHTML = warn.length ? '<div class="status bad">' + warn.join("<br>") + '</div>' : (lines.join("").trim() ? '<div class="status ok">Fits the grid.</div>' : "");
 }
 $("text").addEventListener("input", preview);

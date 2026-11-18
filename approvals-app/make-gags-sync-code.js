@@ -30,7 +30,9 @@ for (const g of gags) { for (const d of g.dates) if (d && (!latest || d > latest
 const plus1 = latest ? new Date(Date.parse(latest + "T00:00:00Z") + 86400000).toISOString().slice(0, 10) : null;
 const perCollection = {};
 for (const c of collections) {
-  const p = pmap[c] || null;
+  // A new range has no gags to learn its code from yet (In Person, 18 Nov), so the known codes fill in.
+  const KNOWN = { "INTROVERT HERE\u2026": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "EXCLUSIVE": "EX", "IN PERSON": "IP" };
+  const p = pmap[c] || KNOWN[c] || null;
   const empty = p ? gags.find((g) => prefixOf(g.id) === p && !g.text) : null;
   perCollection[c] = {
     prefix: p,
