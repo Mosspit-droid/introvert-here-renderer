@@ -5645,7 +5645,7 @@ $("scanRefresh").addEventListener("click", async () => { $("scanOut").textConten
 // AMEND_ONLY (GAGS column N) limits a gag's update to the ticked garments; the builder clears it when done.
 
 const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
-const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
+const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF", IP: "IN PERSON" };
 const AMEND_GARMENTS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
 const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags", "shipping", "video"];
 const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID", ship: "SHIPPING_PROFILE_ID" };
@@ -5820,14 +5820,20 @@ async function amendApply2(request, env, given) {
     for (const [code, list] of Object.entries(d.colours || {})) {
       const coll = AMEND_COLL[code];
       if (!coll || ![...combos].some((c) => c.startsWith(code + "|"))) throw new Error("A colour change was for a range you didn't pick.");
+      // A range can use more than one colour profile (In Person: the long-sleeve doesn't come in Purple, 18 Nov). The picked
+      // colours go to every profile the range uses, keeping only the colours that profile's garments come in.
+      const picked = (Array.isArray(list) ? list : []).map(String).filter((c) => avail.has(c));
+      if (!picked.length) throw new Error("Pick at least one colour for each range.");
       const names = [...new Set(S.rules.filter((r) => r.coll === coll).map((r) => r.profile))];
-      if (names.length !== 1) throw new Error("This range's garments use different colour profiles; ask Claude to sort that first.");
-      const prof = S.profiles.find((p) => p.name === names[0]);
-      if (!prof) throw new Error("Colour profile " + names[0] + " isn't in COLOUR_PROFILES.");
-      if (S.rules.some((r) => r.profile === prof.name && r.coll !== coll)) throw new Error("Another range shares this colour profile; ask Claude to split it first.");
-      const want = (Array.isArray(list) ? list : []).map(String).filter((c) => avail.has(c));
-      if (!want.length) throw new Error("Pick at least one colour for each range.");
-      if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
+      for (const name of names) {
+        const prof = S.profiles.find((p) => p.name === name);
+        if (!prof) throw new Error("Colour profile " + name + " isn't in COLOUR_PROFILES.");
+        if (S.rules.some((r) => r.profile === prof.name && r.coll !== coll)) throw new Error("Another range shares this colour profile; ask Claude to split it first.");
+        const offered = new Set(S.rules.filter((r) => r.coll === coll && r.profile === name).flatMap((r) => (S.colours || {})[r.bp] || []));
+        const want = offered.size ? picked.filter((c) => offered.has(c)) : picked;
+        if (!want.length) throw new Error("None of the picked colours come on " + S.rules.filter((r) => r.coll === coll && r.profile === name).map((r) => r.type.toLowerCase()).join(" or ") + ". Pick at least one it offers.");
+        if (want.join(", ") !== prof.colours) { ops.push(amendCell("COLOUR_PROFILES_TABLE", "REAL_COLOURS", prof.row, want.join(", "))); prof.colours = want.join(", "); }
+      }
     }
   }
   // One photo (replace or add): mockups only, one job at a time; the builder reads the job from /api/photo-job.
@@ -6058,7 +6064,7 @@ const AMEND_JS = String.raw`
 var D = JSON.parse(document.getElementById("amend-data").textContent);
 var S0 = D.S, LOG = D.log || [], SHIP = D.ship || {};
 var TAXO = { "T-SHIRT": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "LONG-SLEEVE": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "SWEATSHIRT": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Sweatshirts", "HOODIE": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Hoodies" };
-var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"]];
+var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"],["IP","In Person","IN PERSON"]];
 var GARM = [["T-SHIRT","T-Shirt","T-Shirts"],["LONG-SLEEVE","Long-Sleeve","Long-Sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
 // Listings (Barry, 14 Nov): sections in the order of Etsy's own edit page.
 var WHAT = [
@@ -6236,8 +6242,8 @@ function details() {
       list.map(function (c) { return '<label><input type="checkbox" data-colour="' + h(c) + '"' + (have.indexOf(c) >= 0 ? " checked" : "") + ">" + h(c) + (avail[c].length < rules.length ? ' <small style="color:var(--muted)">(' + h(avail[c].join(", ")) + ")</small>" : "") + "</label>"; }).join("") + "</div>";
     var SZ = S0.sizes || {};
     cb2 += '<p class="grp" style="margin-top:14px">Sizes</p><table class="ttab"><tr><th>Garment</th><th>Sizes on Etsy</th></tr>' + rules.map(function (r) { var z = SZ[r.bp] || []; var gfz = (r.type === "SWEATSHIRT" || r.type === "HOODIE"); if (gfz) z = z.filter(function (x) { return x !== "4XL" && x !== "5XL"; });
-      return "<tr><td>" + h(gName(r.type)) + "</td><td>" + (z.length ? h(z.join(", ")) + (gfz ? ' <span class="small">(3XL in Black only; no Charcoal)</span>' : "") : '<span class="small">Tap Sync to Core to load</span>') + "</td></tr>"; }).join("") +
-      '</table><p class="hint">Sizes come with the garment model from Printify, so every listing gets all of them. Bigger sizes (2XL and up) cost more; their extra price is set on the Pricing page. Sweatshirts and hoodies leave out Charcoal and non-Black 3XL so Printify prints UK and EU orders locally (Global Fulfillment).</p>';
+      return "<tr><td>" + h(gName(r.type)) + "</td><td>" + (z.length ? h(z.join(", ")) + (gfz ? ' <span class="small">(3XL in Black or Navy only; no Charcoal)</span>' : "") : '<span class="small">Tap Sync to Core to load</span>') + "</td></tr>"; }).join("") +
+      '</table><p class="hint">Sizes come with the garment model from Printify, so every listing gets all of them. Bigger sizes (2XL and up) cost more; their extra price is set on the Pricing page. Sweatshirts and hoodies leave out Charcoal, and 3XL except in Black or Navy, so Printify prints UK and EU orders locally (Global Fulfillment).</p>';
     sec("Colours & sizes", cb2);
   }
   if (A.what.mockups) out += '<p class="hint"><a href="/settings?part=pages">Manage which Canva pages become photos ›</a></p>';
