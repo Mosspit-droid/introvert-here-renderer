@@ -1942,11 +1942,14 @@ document.addEventListener("click", function (e) { var b = e.target.closest(".nre
   fetch("/api/dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ k: b.dataset.k, sig: b.dataset.sig }) }).then(function (r) { if (!r.ok) throw 0;
     var box = card.parentNode; card.remove(); if (box && !box.querySelector(".need")) { var h = box.previousElementSibling; if (h && h.tagName === "H2") h.remove(); box.outerHTML = '<div class="allclear"><span><b>All caught up</b>Nothing needs you right now.</span></div>'; } })
     .catch(function () { card.style.opacity = ""; if (window.toast) window.toast("Couldn't mark it read. Try again.", true); }); });
+// The red line on the Gags tile opens the problem list itself (Barry, 18 Nov: "see Needs you, above" pointed at nothing
+// once the card had been marked read, or when it was off the screen).
+document.addEventListener("click", function (e) { var g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); e.stopPropagation(); location.href = g.dataset.goto; }, true);
 // Gag check runs here in the background; a "Gag problems" card appears only when something needs fixing.
 fetch("/api/gags-data").then(function (r) { return r.ok ? r.json() : null; }).then(function (g) {
   if (!g || !g.all || typeof gagIssues !== "function") return;
   var iss = gagIssues(g); if (!iss.length) return;
-  var ct = document.querySelector('[data-tile="/gags"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); var nm = ct.querySelector(".nm"); if (nm) nm.insertAdjacentHTML("afterend", '<span class="hotw">' + iss.length + " gag problem" + (iss.length === 1 ? "" : "s") + " to fix (see Needs you, above)</span>"); }
+  var ct = document.querySelector('[data-tile="/gags"]'); if (ct && !ct.classList.contains("hot")) { ct.classList.add("hot"); var dd = ct.querySelector(".dots"); if (dd) dd.remove(); ct.insertAdjacentHTML("beforeend", '<span class="hotb">' + iss.length + "</span>"); var nm = ct.querySelector(".nm"); if (nm) nm.insertAdjacentHTML("afterend", '<span class="hotw" data-goto="/check" role="link" style="text-decoration:underline;cursor:pointer">' + iss.length + " gag problem" + (iss.length === 1 ? "" : "s") + " to fix: tap here to see " + (iss.length === 1 ? "it" : "them") + "</span>"); }
   var esc = function (t) { return String(t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
   var gt = "Gag problem" + (iss.length === 1 ? "" : "s") + " to fix", gs = (iss[0].t + ": " + iss[0].ids.join(", ")).slice(0, 80), sig = iss.length + "|" + gs;
   if ((window.DISMISSED || {})[gt] === sig) return;
