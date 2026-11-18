@@ -29,15 +29,15 @@
         33
       ],
       "sleeve": [
-        15.625,
-        17,
-        18.5,
-        20,
-        21.5,
-        22.75
+        15.1,
+        16.5,
+        18,
+        19.5,
+        21,
+        22.4
       ],
-      "confirmed": false,
-      "tolerance_in": 1,
+      "confirmed": true,
+      "tolerance_in": 1.5,
       "sleeve_from": "centre_back"
     },
     "longsleeve": {
@@ -122,7 +122,16 @@
         32
       ],
       "confirmed": true,
-      "tolerance_in": 1.5
+      "tolerance_in": 1.5,
+      "sleeve": [
+        33.5,
+        34.5,
+        35.5,
+        36.5,
+        37.5,
+        38.5
+      ],
+      "sleeve_from": "centre_back"
     }
   },
   "ranges": {

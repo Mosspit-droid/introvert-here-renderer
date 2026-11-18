@@ -46,7 +46,7 @@ const G = {
       <path d="M195 420 L405 420 L440 560 L160 560 Z" class="pocket"/>
       <path d="M122 585 L478 585 L476 615 L124 615 Z" class="band"/>
       <path d="M538 556 L598 548 L600 590 L541 597 Z" class="band"/><path d="M62 556 L2 548 L0 590 L59 597 Z" class="band"/>`,
-    chestY: 290, sleeve: null, hem: 615,
+    chestY: 290, sleeve: 'M300 54 L475 72 L570 575', hem: 615,
   },
 };
 

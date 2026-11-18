@@ -59,8 +59,8 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - One layout for all 6 ranges × their garments (about 22 images), built by script in the repo (like `brand-logos/`), so they
   can be regenerated. Same as now: 4500 × 4500 mockup page.
 - Varies only by range logo + accent colour and garment silhouette/measurements.
-- Rows = sizes actually sold (S–3XL today; no XS/4XL/5XL). Columns: chest width, body length, sleeve length (no sleeve row
-  for hoodies), each in cm and inches. Same wording and footer on all ("Please check the size guide before ordering. All items
+- Rows = sizes actually sold (S–3XL today; no XS/4XL/5XL). Columns: chest width, body length, sleeve length (hoodies too: Barry
+  never asked to drop the hoodie sleeve; that note was wrong), each in cm and inches. Same wording and footer on all ("Please check the size guide before ordering. All items
   are made to order especially for you.").
 - Measurements from the Gildan size tables for 5000 (tee), 2400 (long-sleeve), 18000 (sweatshirt), 18500 (hoodie); confirm
   them against Printify's product size tables before use. Current guides disagree with each other.
@@ -91,3 +91,5 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
   entered (2400 sleeve is shoulder-seam 25-27.5 in; 18000/18500 sleeve is centre-back; tolerance 1 in for 2400, 1.5 in for
   18000/18500). His tee screenshot was a Comfort Colors 1717, but the shop's tees are Gildan 5000 (blueprint 6): tee still
   TO CONFIRM. Printify also lists an 18500 sleeve (33.5-38.5 centre back); left off per Barry's spec.
+- 18 Nov: Gildan 5000 confirmed from Barry's screenshot (sleeve 15.1-22.4 in centre back, tolerance 1.5 in). Hoodie sleeve
+  column added (Barry: he never said no sleeve column for hoodies). All four garments now confirmed; no yellow tags.
