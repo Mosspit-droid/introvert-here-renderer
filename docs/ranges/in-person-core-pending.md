@@ -36,8 +36,11 @@ T-shirt page 23 `IP_24_TS_AGM` (should be IP_23), long-sleeve page 4 `IP_P4_LS_G
 - Grey follows exactly the same rule as the other ranges, plus Navy and Purple. No Black.
 - Purple is left off the long-sleeve: no UK or EU printer carries Purple on the Gildan 2400.
 - COLOUR_PROFILES rows to add:
-  - `APPAREL_DARKHEATHER_NAVY_PURPLE` = `Dark Heather, Charcoal, Navy, Purple` (T-shirt, sweatshirt, hoodie)
-  - `APPAREL_DARKHEATHER_NAVY` = `Dark Heather, Charcoal, Navy` (long-sleeve)
+  - `APPAREL_DARKHEATHER_NAVY_PURPLE` = `Dark Heather, Navy, Purple` (T-shirt, sweatshirt, hoodie)
+  - `APPAREL_DARKHEATHER_NAVY` = `Dark Heather, Navy` (long-sleeve)
+  - 18 Nov: Barry had Charcoal taken out of every range's COLOUR_PROFILES (Dark Heather is on all four garments).
+    Backup `001A_INTROVERT_HERE_CORE_BACKUP_2026-11-18_before_charcoal_removed.xlsx`. The profile name
+    `APPAREL_NAVY_BLACK_DARKHEATHER_CHARCOAL` was left as is (PRODUCT_RULES points at it); only the colour list changed.
 - Suggested Etsy colours: PRIMARY_COLOUR Purple, SECONDARY_COLOUR Gray (long-sleeve: Blue, Gray).
 - Note: the app's "Update colours" screen needs one profile per range, so IP colour changes would be per garment.
 
@@ -98,7 +101,7 @@ Slot = the page's place in the MOCKUP_PAGES list + 1 (the Printify photo is Etsy
 1. Navy 3XL on sweatshirts and hoodies is carried as widely as Black 3XL (UK 2/3, EU 2/2). "3XL in Black only" also removes
    Navy 3XL from Per Contract and would from IP; it could be "Black or Navy".
 2. Long-sleeves have almost no local printers even in Dark Heather L (UK 0/2, EU 1/2), across all ranges.
-3. Charcoal is still in the IH, SHHH and PC colour profiles. On 15 Nov Charcoal was switched off on all 22 live Choice tees
+3. (Settled 18 Nov: Charcoal removed from every colour profile.) Charcoal was in the IH, SHHH and PC colour profiles. On 15 Nov Charcoal was switched off on all 22 live Choice tees
    in Printify and Etsy. If the builder enables every listed colour, new tees and any "Update colours" run will switch it
    back on. Undecided who owns the grey rule.
 
