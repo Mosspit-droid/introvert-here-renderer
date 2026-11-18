@@ -1,0 +1,486 @@
+{
+ "flow": [
+  {
+   "id": 1,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "index,values"
+     },
+     {
+      "key": "$top",
+      "value": "500"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/LISTING_REGISTRY_TABLE/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 0,
+     "y": 0,
+     "name": "Get ALL Core LISTING_REGISTRY rows"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 19,
+   "mapper": {
+    "array": "{{1.body.value}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 150,
+     "y": 0,
+     "name": "Iterate every row (not just new ones)"
+    }
+   }
+  },
+  {
+   "id": 5,
+   "filter": {
+    "name": "has an Etsy listing ID and no video yet",
+    "conditions": [
+     [
+      {
+       "a": "{{get(get(19.values;1);7)}}",
+       "b": "",
+       "o": "text:notequal"
+      },
+      {
+       "a": "{{get(get(19.values;1);23)}}",
+       "b": "",
+       "o": "text:equal"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "productCode",
+      "value": "{{get(get(19.values;1);1)}}"
+     },
+     {
+      "name": "gagId",
+      "value": "{{get(split(get(get(19.values;1);1); \"-\"); 1)}}-{{get(split(get(get(19.values;1);1); \"-\"); 2)}}"
+     },
+     {
+      "name": "targetRow",
+      "value": "{{19.index + 2}}"
+     },
+     {
+      "name": "listingId",
+      "value": "{{get(get(19.values;1);7)}}"
+     },
+     {
+      "name": "textBlock",
+      "value": "{{get(get(19.values;1);6)}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 300,
+     "y": 0,
+     "name": "Compute keys from eligible row"
+    }
+   }
+  },
+  {
+   "id": 16,
+   "mapper": {
+    "qs": [],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/tables/PRODUCT_RULES/rows",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 1650,
+     "y": 150,
+     "name": "Get Core PRODUCT_RULES rows"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 17,
+   "mapper": {
+    "array": "{{16.body.value}}"
+   },
+   "module": "builtin:BasicFeeder",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1700,
+     "y": 150,
+     "name": "Iterate PRODUCT_RULES rows"
+    }
+   }
+  },
+  {
+   "id": 18,
+   "filter": {
+    "name": "collection and product type match",
+    "conditions": [
+     [
+      {
+       "a": "{{get(get(17.values;1);1)}}",
+       "b": "{{if(substring(5.productCode; 0; 3) = \"SH-\"; \"SHHH.\"; if(substring(5.productCode; 0; 3) = \"PC-\"; \"PER CONTRACT\"; if(substring(5.productCode; 0; 3) = \"OS-\"; \"OFF THE SHELF\"; if(substring(5.productCode; 0; 3) = \"EX-\"; \"EXCLUSIVE\"; \"INTROVERT HERE\u2026\"))))}}",
+       "o": "text:equal"
+      },
+      {
+       "a": "{{get(get(17.values;1);2)}}",
+       "b": "{{substring(5.productCode; length(5.gagId) + 1)}}",
+       "o": "text:equal"
+      }
+     ]
+    ]
+   },
+   "mapper": {
+    "scope": "roundtrip",
+    "variables": [
+     {
+      "name": "videoSlot1Position",
+      "value": "{{get(get(17.values;1);47)}}"
+     },
+     {
+      "name": "videoSlot2Position",
+      "value": "{{get(get(17.values;1);48)}}"
+     }
+    ]
+   },
+   "module": "util:SetVariables",
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 1750,
+     "y": 150,
+     "name": "Capture video slot positions"
+    }
+   }
+  },
+  {
+   "id": 10,
+   "mapper": {
+    "qs": [
+     {
+      "key": "$select",
+      "value": "@microsoft.graph.downloadUrl"
+     }
+    ],
+    "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/{{if(substring(5.productCode; 0; 3) = \"SH-\"; \"01R3POCZD3SNEK2PXVHZFLB2YKUE6FEQVW\"; if(substring(5.productCode; 0; 3) = \"PC-\"; \"01R3POCZC6AOTV5NMQEBB3HB3CD5ABLDBE\"; \"01R3POCZHYLK7MHJKB45BZ3C2QSQCECHBD\"))}}",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "microsoft-excel:makeApiCall",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 1800,
+     "y": 0,
+     "name": "Get fresh background URL (this collection only)"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10560347
+   }
+  },
+  {
+   "id": 11,
+   "mapper": {
+    "qs": [],
+    "url": "/listings/{{5.listingId}}/images",
+    "method": "GET",
+    "headers": []
+   },
+   "module": "etsy:universal",
+   "version": 2,
+   "metadata": {
+    "designer": {
+     "x": 2100,
+     "y": 0,
+     "name": "Get listing images"
+    }
+   },
+   "parameters": {
+    "__IMTCONN__": 10468318
+   }
+  },
+  {
+   "id": 600,
+   "mapper": null,
+   "module": "builtin:BasicRouter",
+   "routes": [
+    {
+     "flow": [
+      {
+       "id": 6,
+       "filter": {
+        "name": "both mockup image slots are actually populated on Etsy yet",
+        "conditions": [
+         [
+          {
+           "a": "{{11.body.results[18.videoSlot1Position].url_fullxfull}}",
+           "b": "",
+           "o": "text:notequal"
+          },
+          {
+           "a": "{{11.body.results[18.videoSlot2Position].url_fullxfull}}",
+           "b": "",
+           "o": "text:notequal"
+          }
+         ]
+        ]
+       },
+       "mapper": {
+        "qs": [],
+        "url": "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook/worksheets/LISTING_REGISTRY/range(address='W{{5.targetRow}}')",
+        "body": "{\"values\":[[\"RENDERING\"]]}",
+        "method": "PATCH",
+        "headers": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         }
+        ]
+       },
+       "module": "microsoft-excel:makeApiCall",
+       "version": 2,
+       "metadata": {
+        "designer": {
+         "x": 2400,
+         "y": 0,
+         "name": "Claim row (VIDEO_STATUS=RENDERING) - only once both mockups exist on Etsy"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 10560347
+       }
+      },
+      {
+       "id": 12,
+       "mapper": {
+        "object": {
+         "fps": 24,
+         "width": 1080,
+         "height": 1080,
+         "textLines": "{{split(replace(5.textBlock; \"\n\n\"; \"\n[BLANKLINE]\n\"); \"\n\")}}",
+         "collection": "{{substring(5.productCode; 0; 2)}}",
+         "productImages": [
+          {
+           "url": "{{11.body.results[18.videoSlot1Position].url_fullxfull}}",
+           "durationMs": 2200
+          },
+          {
+           "url": "{{11.body.results[18.videoSlot2Position].url_fullxfull}}",
+           "durationMs": 2200
+          }
+         ],
+         "backgroundImageUrl": "{{10.body.`@microsoft.graph.downloadUrl`}}"
+        }
+       },
+       "module": "json:TransformToJSON",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 2700,
+         "y": 0,
+         "name": "Build render_spec JSON"
+        }
+       }
+      },
+      {
+       "id": 13,
+       "mapper": {
+        "object": {
+         "ref": "main",
+         "inputs": {
+          "render_spec": "{{12.json}}",
+          "callback_url": "https://hook.eu1.make.com/REDACTED?product_code={{5.productCode}}&etsy_listing_id={{5.listingId}}&target_row={{5.targetRow}}"
+         }
+        }
+       },
+       "module": "json:TransformToJSON",
+       "version": 1,
+       "metadata": {
+        "designer": {
+         "x": 3000,
+         "y": 0,
+         "name": "Build GitHub dispatch body"
+        }
+       }
+      },
+      {
+       "id": 14,
+       "mapper": {
+        "qs": [],
+        "url": "/repos/Mosspit-droid/introvert-here-renderer/actions/workflows/render.yml/dispatches",
+        "body": "{{13.json}}",
+        "method": "POST",
+        "headers": [
+         {
+          "key": "Content-Type",
+          "value": "application/json"
+         },
+         {
+          "key": "Accept",
+          "value": "application/vnd.github+json"
+         },
+         {
+          "key": "X-GitHub-Api-Version",
+          "value": "2022-11-28"
+         }
+        ]
+       },
+       "module": "github:makeRestApiCall",
+       "version": 4,
+       "metadata": {
+        "designer": {
+         "x": 3300,
+         "y": 0,
+         "name": "Dispatch GitHub render workflow"
+        }
+       },
+       "parameters": {
+        "__IMTCONN__": 11419706
+       }
+      }
+     ]
+    },
+    {
+     "flow": [
+      {
+       "id": 603,
+       "filter": {
+        "name": "at least one mockup slot still NOT populated on Etsy",
+        "conditions": [
+         [
+          {
+           "a": "{{11.body.results[18.videoSlot1Position].url_fullxfull}}",
+           "b": "",
+           "o": "text:equal"
+          }
+         ],
+         [
+          {
+           "a": "{{11.body.results[18.videoSlot2Position].url_fullxfull}}",
+           "b": "",
+           "o": "text:equal"
+          }
+         ]
+        ]
+       },
+       "mapper": {
+        "url": "https://mosspit-approvals.mosspit.workers.dev/api/alert",
+        "method": "post",
+        "headers": [
+         {
+          "name": "X-Ingest-Secret",
+          "value": "REDACTED"
+         }
+        ],
+        "timeout": 20,
+        "contentType": "urlEncoded",
+        "shareCookies": false,
+        "parseResponse": false,
+        "allowRedirects": true,
+        "stopOnHttpError": false,
+        "urlEncodedBodyContent": [
+         {
+          "name": "title",
+          "value": "Render waiting on mockups: {{5.productCode}}"
+         },
+         {
+          "name": "body",
+          "value": "The Etsy listing doesn't have both mockup images yet (it has {{length(11.body.results)}}; the video needs images {{18.videoSlot1Position}} and {{18.videoSlot2Position}}). It'll be rendered automatically once they're there. If this keeps happening for the same listing, the mockups probably need rebuilding."
+         },
+         {
+          "name": "link",
+          "value": "https://www.etsy.com/your/shops/me/listing-editor/edit/{{5.listingId}}"
+         },
+         {
+          "name": "source",
+          "value": "Render"
+         }
+        ],
+        "requestCompressedContent": true
+       },
+       "module": "http:MakeRequest",
+       "onerror": [
+        {
+         "id": 604,
+         "mapper": null,
+         "module": "builtin:Ignore",
+         "version": 1,
+         "metadata": {
+          "designer": {
+           "x": 2700,
+           "y": 600
+          }
+         }
+        }
+       ],
+       "version": 4,
+       "metadata": {
+        "designer": {
+         "x": 2700,
+         "y": 300,
+         "name": "Send alert to approvals app"
+        }
+       },
+       "parameters": {
+        "authenticationType": "noAuth"
+       }
+      }
+     ]
+    }
+   ],
+   "version": 1,
+   "metadata": {
+    "designer": {
+     "x": 2250,
+     "y": 0,
+     "name": "Mockups ready? dispatch render, else email Barry"
+    }
+   }
+  }
+ ],
+ "name": "Introvert Here: Automation \u2014 Detect Live Listing, Start Video Render",
+ "metadata": {
+  "instant": false,
+  "version": 1,
+  "designer": {
+   "orphans": []
+  },
+  "scenario": {
+   "dlq": false,
+   "slots": null,
+   "dataloss": false,
+   "maxErrors": 3,
+   "autoCommit": true,
+   "roundtrips": 1,
+   "sequential": false,
+   "confidential": false,
+   "freshVariables": false,
+   "autoCommitTriggerLast": true
+  }
+ }
+}
