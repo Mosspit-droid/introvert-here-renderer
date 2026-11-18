@@ -5235,7 +5235,9 @@ async function ipPrintResult(request, env) {
   const d = await readBody(request), o = await ipoGet(env, str(d.ref).replace(/[^0-9a-z-]/gi, ""));
   if (!o) return json({ ok: true, ignored: true });
   if (!str(d.imageId)) { o.status = "problem"; o.msg = "Canva didn't finish the print file. Press Remake print."; }
-  else { o.status = "check"; o.msg = ""; o.imageId = str(d.imageId); o.preview = str(d.preview); o.printUrl = str(d.url); o.designId = str(d.designId); }
+  else { o.status = "check"; o.msg = ""; o.imageId = str(d.imageId); o.preview = str(d.preview); o.printUrl = str(d.url); o.designId = str(d.designId);
+    // A two-page print template is front (page 1) + back (page 2), as the builder treats it.
+    o.pages = Number(d.got) || 1; o.printUrl2 = o.pages >= 2 ? str(d.url2) : ""; o.preview2 = o.pages >= 2 ? str(d.preview2) : ""; }
   await ipoPut(env, o);
   return json({ ok: true });
 }
@@ -5250,9 +5252,11 @@ async function ipoVariant(env, o) {
 async function ipoPlace(env, o) {
   if (!o.imageId) throw new Error("The print file isn't ready yet.");
   if (o.printName !== o.name) throw new Error("The name was changed after the print file was made. Press Remake print first.");
+  // Printify fetches the full-size print from Canva's download link, which only lasts about a day.
+  if (!o.printAt || Date.now() - o.printAt > 20 * 3600e3) throw new Error("The print file is over 20 hours old and its download link has run out. Press Remake print, then send it.");
   const vid = await ipoVariant(env, o), parts = String(o.ship.name || "Buyer").trim().split(/\s+/);
   const body = { external_id: "etsy-" + o.ref + (o.test ? "-test-" + Date.now() : ""), label: o.code + " " + o.name + (o.test ? " (TEST)" : ""),
-    line_items: [{ blueprint_id: o.blueprint, print_provider_id: o.provider, variant_id: vid, quantity: Number(o.qty) || 1, print_areas: { front: [{ src: o.preview || o.printUrl, x: 0.5, y: 0.5, scale: 1, angle: 0 }] } }],
+    line_items: [{ blueprint_id: o.blueprint, print_provider_id: o.provider, variant_id: vid, quantity: Number(o.qty) || 1, print_areas: Object.assign({ front: [{ src: o.printUrl, x: 0.5, y: 0.5, scale: 1, angle: 0 }] }, o.printUrl2 ? { back: [{ src: o.printUrl2, x: 0.5, y: 0.5, scale: 1, angle: 0 }] } : {}) }],
     shipping_method: 1, is_printify_express: false, send_shipping_notification: false,
     address_to: { first_name: parts[0], last_name: parts.slice(1).join(" ") || "-", email: o.ship.email || "", country: o.ship.country || "GB", region: o.ship.state || "",
       address1: o.ship.first_line || "", address2: o.ship.second_line || "", city: o.ship.city || "", zip: o.ship.zip || "" } };
@@ -5316,7 +5320,9 @@ async function ipOrdersSection(env) {
     return `<div class="card ipo" data-ref="${esc(o.ref)}"><div class="meta">${esc(when(o.at))}${o.test ? " · TEST" : ""} · ${esc(o.code)}</div>
 <div class="code" style="font-size:16px">${esc(o.type)} · ${esc(o.colour)} · ${esc(o.size)}${o.qty > 1 ? " × " + o.qty : ""}</div>
 <div class="small">Buyer typed: <b>${esc(o.nameRaw || "(nothing)")}</b> · ships to ${esc(o.ship && o.ship.country || "")}${o.note ? "<br>Note from buyer: " + esc(o.note) : ""}</div>
-${o.preview ? `<div style="background:${/navy/i.test(o.colour) ? "#1f2a44" : /purple/i.test(o.colour) ? "#4b2e6b" : "#4a4a4f"};border-radius:10px;padding:8px;margin:8px 0;text-align:center"><img src="${esc(o.preview)}" alt="Print file" style="max-width:100%;max-height:340px"></div>` : ""}
+${o.preview ? (() => { const bg = /navy/i.test(o.colour) ? "#1f2a44" : /purple/i.test(o.colour) ? "#4b2e6b" : "#4a4a4f";
+  const pic = (src, lab) => `<div style="flex:1;min-width:140px"><div class="small">${lab}</div><div style="background:${bg};border-radius:10px;padding:8px;text-align:center"><img src="${esc(src)}" alt="${lab}" style="max-width:100%;max-height:300px"></div></div>`;
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">${o.preview2 ? pic(o.preview2, "Back") + pic(o.preview, "Front") : pic(o.preview, "Print")}</div>`; })() : ""}
 ${editable ? `<label class="small">Name to print <input class="ipname" value="${esc(o.name || "")}" maxlength="${IP.nameMax}" autocomplete="off" autocapitalize="characters" style="width:100%;font-size:18px;padding:8px;margin-top:4px"></label>` : `<div class="small">Printed name: <b>${esc(o.name)}</b></div>`}
 <div class="status ${cls}">${esc(txt)}${o.msg ? "<br>" + esc(o.msg) : ""}</div>
 ${editable ? `<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn" data-ipa="remake" type="button">Remake print</button>${o.status === "check" ? `<button class="btn-main" data-ipa="place" type="button">${o.test ? "Make Printify draft (test)" : "Send to Printify"}</button>` : ""}</div>` : ""}
