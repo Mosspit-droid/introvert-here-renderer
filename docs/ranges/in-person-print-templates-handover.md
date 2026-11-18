@@ -19,9 +19,14 @@ Done already:
 - Working copies in folder `FAHakYrx_Fk` (made from the PC brand templates, not yet edited): T-shirt `DAHbN79bvuE`,
   long-sleeve `DAHbNy5UdDo`, sweatshirt `DAHbNwzpSHI`, hoodie `DAHbNzBczJw` (page 1 front chest logo, page 2 back).
 - In Person stacked logo uploaded (for the hoodie front): media id `MAHbN--mFDE`.
-- 17 Nov (second session): edit-design works now. But the logo in the copies is padlocked: swap, crop, delete and adding a
-  layer are all refused ("locked"). Waiting for Barry to click the padlock on the logo in each of the four copies
-  (same as the OTS job). Note: brand template ids need create-design-from-brand-template, not copy-design.
+- 17/18 Nov (second session): Barry unlocked. Logos swapped in all four working copies, renamed T001/U001/V001/W001.
+  The IP badge hangs ~92 px lower than the PC tag (in page units), so GAG_TEXT was moved down to keep PC's logo-to-text gap:
+  T-shirt top 1092, long-sleeve 1091.6. Sweatshirt should go to 1091.8 but its text box is still padlocked (Barry to unlock).
+  Hoodie back: logo box made taller (751.8 -> 841.72, same crop) so the badge isn't clipped; text moved to top 940, giving a
+  ~120 px gap like the tees (PC hoodie only has ~2 px; Barry thinks the PC hoodie text should drop too: not touched, his call).
+  Hoodie front: stacked logo swapped straight in (same 1400 x 466.67 box).
+  Test fills (safe to delete): DAHbNwT8pf0 (tee), DAHbNzY_ItU (long-sleeve), DAHbN41k1bk (hoodie), DAHbN55G0ws (sweatshirt,
+  not filled yet: text locked). Waiting for Barry's OK before publishing.
 
 What the PC T-shirt template contains (page 3951 × 4919, black background):
 - GAG_TEXT text box (autofill field `GAG_TEXT`, locked), top 1000, left 250, 3440 wide.
