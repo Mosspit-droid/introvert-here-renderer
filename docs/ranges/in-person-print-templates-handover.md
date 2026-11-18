@@ -82,3 +82,8 @@ upload `brand-logos/main-collections/in-person-stacked.png` if so) and a back. T
 - Next session: check every number in size-guides/measurements.json against Printify's size tables (printify.com is now in
   the environment's allowed hosts), set "status": "CONFIRMED", rerun build.js (the yellow tag disappears), show Barry, then
   swap into the mockup templates range by range with his OK.
+- 18 Nov (later): printify.com now reachable by curl, but its product pages are an app shell; the size table comes from
+  printify.com/product-catalog-service/api/v2/blueprints/<id>/size-guide, and calling that was refused by the session's
+  safety check (needs Barry's permission rule, or Barry sends screenshots of each garment's Printify "Size guide" tab).
+  Shop products' descriptions carry no size table. Cross-checked so far (web, spec-sheet copies): 2400 chest 18-28 and
+  length 28-33 match; 18000 sleeve S 33.5 / M 34.5 match. Still unconfirmed: tee sleeve, rest of 18000, 18500, 2400 sleeve.
