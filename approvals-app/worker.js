@@ -5016,7 +5016,7 @@ async function ipBuildDraft(env, gagId, type) {
   const seen = new Set(), others = [];
   R.rows.forEach((r) => { const c = String(r[0] || "").trim(); if (!c || seen.has(c)) return; seen.add(c); if (c === "IN PERSON" || String(r[rr("RANGE_LIVE")] || "").trim().toUpperCase() !== "Y") return;
     const sid = String(r[rr("ETSY_SHOP_SECTION_ID")] || "").trim(), nm = String(r[rr("RANGE_NAME")] || c).trim(); others.push(sid ? nm + ": https://www.etsy.com/shop/IntrovertHereShop?section_id=" + sid : nm); });
-  const lead = rv("CROSS_SELL_LEAD"), cross = lead && others.length ? "\n" + lead + " Have a look at our other ranges:\n" + others.join("\n") + "\n\n" : "";
+  const lead = rv("CROSS_SELL_LEAD"), cross = lead && others.length ? "\n" + lead + " Have a look at our other ranges:\n\n" + others.join("\n") + "\n\n" : "";
   const shown = text.replace(/\[NAME\]/gi, "[YOUR NAME]");
   const description = shown + "\n\n" + rv("COLLECTION_INTRO") + "\n\n" + rv("PRODUCT_FEATURES") + "\n\n" + rv("AUDIENCE_TEXT") + "\n" + cross + rv("CLOSING_TEXT");
   const title = (stem + " " + rv("TITLE_SUFFIX")).replace(/\s+/g, " ").trim();
