@@ -159,7 +159,9 @@ export default {
       if (pathname === "/api/rerender" && method === "POST") return await makeAction(request, env, "rerender");
       if (pathname === "/api/dismiss-alert" && method === "POST") return await dismissAlert(request, env);
       if (pathname === "/api/gags-state" && method === "GET") return await gagsState(env);
-      if (pathname === "/api/gags-data" && method === "GET") { const gd = (await env.PENDING.get("gags", "json")) || null; if (gd) gd.stars = (await env.PENDING.get(STARS_KEY, "json")) || {}; return json(gd); }
+      if (pathname === "/api/gags-data" && method === "GET") { const gd = (await env.PENDING.get("gags", "json")) || null; if (gd) { gd.stars = (await env.PENDING.get(STARS_KEY, "json")) || {}; gd.off = (await env.PENDING.get("listing-off", "json")) || {};
+        const am = await env.PENDING.get("amend", "json"); gd.liveIds = ((am && am.gags) || []).filter((x) => (x.live || []).length).map((x) => x.id); } return json(gd); }
+      if (pathname === "/api/listing-state" && method === "POST") { const d = await request.json().catch(() => ({})); try { return json(await listingStateOp(env, str(d.gagId), str(d.action))); } catch (e) { return json({ error: e.message }, 400); } }
       if (pathname === "/api/gags-refresh" && method === "POST") return await gagsRefresh(env);
       if (pathname === "/api/tags-data" && method === "GET") return json((await env.PENDING.get("tags", "json")) || null);
       if (pathname === "/api/tags-refresh" && method === "POST") return await tagsHook(env, { action: "tags-sync" });
@@ -1168,8 +1170,9 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
       var ed = (data.editable || []).some(function (e) { return e.id === g.id; }), canDel = ed && !(st.first && st.first <= soon2);
       var cls = "rlrow st-" + st.c + (swapOn ? (canSwap(g) ? (picked.indexOf(g.id) >= 0 ? " sel" : "") : " nopick") : "");
       var stars = '<span class="rlstars">' + [1, 2, 3, 4, 5].map(function (k) { return '<button type="button" data-rate="' + k + '" data-id="' + esc2(g.id) + '" class="' + (k <= n ? "on" : "") + '" aria-label="' + k + ' stars">★</button>'; }).join("") + "</span>";
-      return '<div class="' + cls + '" data-id="' + esc2(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><a class="rltx" href="' + fromHref(editHref(g, data)) + '">' + esc2(String(g.text || "")) + '</a><span class="rld">' + esc2(st.t) + '</span><span class="rlside">' + stars +
-        '<span class="rlacts"><a href="' + fromHref(editHref(g, data)) + '">Edit</a>' + (canDel ? '<button type="button" class="del" data-del="' + esc2(g.id) + '">Delete</button>' : "") + "</span></span></div>"; }).join("") : '<p class="small">No gags written for this range yet.</p>';
+      return '<div class="' + cls + '" data-id="' + esc2(g.id) + '"><span class="frid">' + esc2(g.id) + '</span><a class="rltx" href="' + fromHref(editHref(g, data)) + '">' + esc2(String(g.text || "")) + '</a><span class="rld">' + esc2((data.off || {})[g.id] ? "Deactivated" : st.t) + '</span><span class="rlside">' + stars +
+        '<span class="rlacts"><a href="' + fromHref(editHref(g, data)) + '">Edit</a>' + (canDel ? '<button type="button" class="del" data-del="' + esc2(g.id) + '">Delete</button>' : "") +
+        ((data.off || {})[g.id] ? '<button type="button" data-lstate="activate" data-id="' + esc2(g.id) + '">Reactivate</button>' : (st.c === "live" || (data.liveIds || []).indexOf(g.id) >= 0) ? '<button type="button" data-lstate="deactivate" data-id="' + esc2(g.id) + '">Deactivate</button>' : "") + "</span></span></div>"; }).join("") : '<p class="small">No gags written for this range yet.</p>';
     rlBar(); }
   function showRange(code, name) {
     rlCode = code; swapOn = false; picked = [];
@@ -1182,6 +1185,14 @@ function shell(body, manifestUrl = "/manifest.webmanifest") {
       var sb = e.target.closest("[data-rlsort]"); if (sb) { rlSort = sb.dataset.rlsort; rlDraw(); return; }
       var rb = e.target.closest("[data-rate]"); if (rb && !swapOn) { e.preventDefault(); var id = rb.dataset.id, k = Number(rb.dataset.rate); data.stars = data.stars || {}; var nn = data.stars[id] === k ? 0 : k; if (nn) data.stars[id] = nn; else delete data.stars[id]; rlDraw();
         fetch("/api/stars", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: id, n: nn }) }).catch(function () { alert("Couldn't save the rating."); }); return; }
+      var lb = e.target.closest("[data-lstate]"); if (lb && !swapOn) { e.preventDefault(); var lid = lb.dataset.id, act = lb.dataset.lstate;
+        if (!confirm((act === "deactivate" ? "Deactivate " + lid + "? Its live Etsy listings are hidden from the shop until you reactivate them. Garments still to be released will come out on their dates as normal." : "Reactivate " + lid + "? Its listings go back on show in the shop.") )) return;
+        lb.disabled = true; lb.textContent = act === "deactivate" ? "Deactivating…" : "Reactivating…";
+        fetch("/api/listing-state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gagId: lid, action: act }) }).then(function (r) { return r.json().then(function (o) { return { ok: r.ok, o: o }; }); })
+          .then(function (x) { if (!x.ok) { alert(x.o.error || "Couldn't change it."); rlDraw(); return; } data.off = data.off || {};
+            if (act === "deactivate") data.off[lid] = x.o.done; else delete data.off[lid];
+            if (x.o.failed && x.o.failed.length) alert("Done: " + x.o.done.join(", ") + ". Not done: " + x.o.failed.join("; ")); rlDraw(); })
+          .catch(function () { alert("Couldn't reach the app. Nothing was changed."); rlDraw(); }); return; }
       var db = e.target.closest("[data-del]"); if (db && !swapOn) { e.preventDefault(); var did = db.dataset.del; var gg = (data.all || []).filter(function (x) { return x.id === did; })[0] || {};
         if (!confirm("Delete " + did + " (" + (gg.stem || "") + ")?" + String.fromCharCode(10, 10) + "Its text, title and tags are cleared from Core. The space and its release dates stay, so the next gag you write for this range fills it.")) return;
         db.disabled = true; db.textContent = "Deleting…";
@@ -2519,6 +2530,34 @@ async function quickList(request, env) {
 const EX_META_KEY = "ex-meta";
 // Feature a newly live Exclusive on Etsy (Barry, 16 Nov, option 1): it takes featured spot 1, the previous Exclusive
 // spot 2, older Exclusives are unfeatured (never more than 2), and Barry's own featured picks move down in their order.
+// Deactivate / reactivate a gag's Etsy listings from the range lists (Barry, 18 Nov). Core's registry STATUS follows,
+// using the same words the nightly Etsy check writes (LIVE / ETSY_STATE_INACTIVE), so the two never disagree.
+async function listingStateOp(env, gagId, action) {
+  if (!/^[A-Z]{2}-\d{5}$/.test(gagId)) throw new Error("Pick a gag.");
+  const off = action === "deactivate"; if (!off && action !== "activate") throw new Error("Unknown action.");
+  const R = await coreTable(env, "LISTING_REGISTRY_TABLE"), ci = R.col("PRODUCT_CODE"), li = R.col("ETSY_LISTING_ID"), si = R.col("STATUS");
+  const want = off ? "LIVE" : "ETSY_STATE_INACTIVE";
+  const hits = R.rows.map((r, i) => ({ r, i })).filter((x) => String(x.r[ci] || "").startsWith(gagId + "-") && String(x.r[si] || "") === want && /^\d+$/.test(String(x.r[li] || "")));
+  if (!hits.length) throw new Error(off ? gagId + " has no live listings to deactivate." : gagId + " has no deactivated listings.");
+  const m = String(R.address || "").match(/^(?:'?([^'!]+)'?!)?\$?([A-Z]+)\$?(\d+)/); if (!m) throw new Error("Couldn't find Core's registry rows.");
+  const sheet = m[1], startRow = Number(m[3]) + 1;   // address includes the header row
+  const c0 = m[2].split("").reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1;   // first column of the table, 0-based
+  const colL = (n) => { let x = c0 + n + 1, out = ""; while (x > 0) { const k = (x - 1) % 26; out = String.fromCharCode(65 + k) + out; x = Math.floor((x - 1) / 26); } return out; };
+  const done = [], failed = [];
+  for (const { r, i } of hits) {
+    const id = String(r[li]), code = String(r[ci]);
+    try {
+      await etsyTool(env, "/shops/" + IP.shop + "/listings/" + id, "PATCH", null, null, "state=" + (off ? "inactive" : "active"));
+      await coreTool(env, CORE_ITEM + "/workbook/worksheets('" + encodeURIComponent(sheet) + "')/range(address='" + colL(si) + (startRow + i) + "')", "PATCH", { values: [[off ? "ETSY_STATE_INACTIVE" : "LIVE"]] });
+      done.push(code.slice(gagId.length + 1));
+    } catch (e) { failed.push(code.slice(gagId.length + 1) + " (" + String(e.message || e).slice(0, 120) + ")"); }
+  }
+  const O = (await env.PENDING.get("listing-off", "json")) || {};
+  if (off) O[gagId] = [...new Set([...(O[gagId] || []), ...done])]; else { O[gagId] = (O[gagId] || []).filter((t) => !done.includes(t)); if (!O[gagId].length) delete O[gagId]; }
+  await env.PENDING.put("listing-off", JSON.stringify(O));
+  if (!done.length) throw new Error("Etsy didn't change any: " + failed.join("; "));
+  return { ok: true, done, failed };
+}
 async function etsyTool(env, path, method, form, qs, raw) {
   const token = await env.SECRETS.get("make_token"); if (!token) throw new Error("No Make key saved");
   const data = { path, method }; if (qs) data.qs = Object.entries(qs).map(([key, value]) => ({ key, value: String(value) }));
