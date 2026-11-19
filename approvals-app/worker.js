@@ -2505,7 +2505,7 @@ async function mockupPreviewStart(request, env) {
   const rule = (S.rules || []).find((r) => r.coll === coll && r.type === type);
   const tpl = (rule && rule.tpl) || MOCKUP_TPL_FALLBACK[coll + "|" + type];
   if (!tpl) return json({ error: "No mockup template is set for that range and garment yet." }, 400);
-  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, "");
+  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/\s+$/, "");
   const parts = gagParts(d.parts);
   if (!text.replace(/^[\s.…]+/, "") && !parts.partHeader) return json({ error: "Write the gag first." }, 400);
   const hook = await env.PENDING.get("mockup-hook", "json"); if (!hook) return json({ error: "The preview automation isn't set up." }, 500);
@@ -2537,7 +2537,7 @@ async function quickList(request, env) {
   if (!env.MAKE_GAG_HOOK) return json({ error: "MAKE_GAG_HOOK is not set" }, 500);
   const d = await request.json().catch(() => ({}));
   const garments = GARMS.filter((t) => Array.isArray(d.garments) && d.garments.includes(t));
-  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem = str(d.stem), collection = str(d.collection), category = str(d.category);
+  const text = String(d.text || "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/\s+$/, ""), stem = str(d.stem), collection = str(d.collection), category = str(d.category);
   if (!text || !stem || !collection || !category) return json({ error: "Fill in the gag, range, title stem and category first." }, 400);
   if (!garments.length) return json({ error: "Pick at least one garment." }, 400);
   let ex = null;
@@ -2864,7 +2864,7 @@ async function gagSave(request, env) {
   if (!["fill", "append", "edit"].includes(action)) return json({ error: "Unknown action" }, 400);
   const body = {
     ref: crypto.randomUUID(), action, gagId: str(d.gagId), collection: str(d.collection), category: str(d.category),
-    text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/\s+$/, ""), stem: str(d.stem), tag12: "auto", tag13: "auto", // seasonal tags: always rotated by the tag engine (Barry, 10 Nov 2026)
+    text: String(d.text || "").replace(/\r\n?/g, "\n").replace(/[ \t]+$/gm, "").replace(/\s+$/, ""), stem: str(d.stem), tag12: "auto", tag13: "auto", // seasonal tags: always rotated by the tag engine (Barry, 10 Nov 2026)
     d1: str(d.d1), d2: str(d.d2), d3: str(d.d3), d4: str(d.d4), datesFromSlot: d.datesFromSlot ? "true" : "false", ...gagParts(d.parts),
   };
   const ds = [body.d1, body.d2, body.d3, body.d4];   // all four dates, or none (backlog; Exclusive gags have no schedule)
@@ -6445,7 +6445,7 @@ async function amendApply2(request, env, given) {
     if (gagIds.length !== 1) throw new Error("The title stem and gag text can only be changed on one gag at a time.");
     const g = S.gags.find((x) => x.id === gagIds[0]);
     const stem = typeof d.stem === "string" ? d.stem.replace(/\s+/g, " ").trim() : g.stem;
-    const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").trim() : g.text;
+    const text = typeof d.text === "string" ? d.text.replace(/\r/g, "").replace(/[ \t]+$/gm, "").trim() : g.text;   // no stray spaces: the video only sees a gap on a truly empty line
     if (stem !== g.stem) { if (!what.has("titles")) throw new Error("Tick Titles to change the title stem."); if (!stem) throw new Error("The title stem can't be empty."); ops.push(amendCell("GAGS_TABLE", "TITLE_STEM", g.row, stem)); g.stem = stem; }
     if (text !== g.text) { if (!what.has("print")) throw new Error("Changing the gag text changes the print, so use Rewrite a gag."); if (!text) throw new Error("The gag text can't be empty."); ops.push(amendCell("GAGS_TABLE", "GAG_TEXT", g.row, text)); g.text = text; }
   }
