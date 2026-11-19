@@ -76,6 +76,22 @@ export default {
         T.unshift({ at: new Date().toISOString(), step: str(d.step).slice(0, 80), exec: str(d.exec).slice(0, 40), info: str(d.info).slice(0, 600) });
         await env.PENDING.put("builder-trace", JSON.stringify(T.slice(0, 300))); return json({ ok: true });
       }
+      // The builder ticks a gag off here (Barry, 19 Nov). Make's own Excel step for this kept failing silently at the very end of a
+      // run, so the lock was never released and the builder stalled. The app finds the gag's row itself and logs any error.
+      if (pathname === "/api/gag-status" && method === "POST") {
+        if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+        const d = await readBody(request), id = str(d.gagId), st = str(d.status), T = (await env.PENDING.get("builder-trace", "json")) || [];
+        let res = "";
+        try {
+          if (!/^[A-Z]{2}-\d{5}$/.test(id) || !/^[A-Z_]{3,40}$/.test(st)) throw new Error("bad gag or status: " + id + " " + st);
+          const G = await coreTable(env, "GAGS_TABLE"), i = G.rows.findIndex((r) => r[G.col("GAG_ID")] === id); if (i < 0) throw new Error(id + " not in GAGS");
+          const r = await coreTool(env, CORE_ITEM + "/workbook/tables/GAGS_TABLE/columns/STATUS/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [[st]] });
+          res = r && r.values ? "ok row " + i + " (builder said " + str(d.row) + ")" : "Core said: " + JSON.stringify(r).slice(0, 300);
+        } catch (e) { res = "ERROR " + String(e.message || e).slice(0, 300); }
+        T.unshift({ at: new Date().toISOString(), step: "gag-status " + id + " -> " + st, exec: str(d.exec).slice(0, 40), info: res });
+        await env.PENDING.put("builder-trace", JSON.stringify(T.slice(0, 300)));
+        return json({ ok: !/^ERROR|^Core said/.test(res), res });
+      }
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
