@@ -69,6 +69,13 @@ export default {
       if (pathname === "/api/amend-sync" && method === "POST") return await amendSync(request, env);
       if (pathname === "/api/ip-images-result" && method === "POST") return await ipImagesResult(request, env);
       if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
+      // Builder breadcrumbs (Barry, 19 Nov: find where runs stall). Make posts a step name; the app keeps the last 300.
+      if (pathname === "/api/trace" && method === "POST") {
+        if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+        const d = await readBody(request); const T = (await env.PENDING.get("builder-trace", "json")) || [];
+        T.unshift({ at: new Date().toISOString(), step: str(d.step).slice(0, 80), exec: str(d.exec).slice(0, 40), info: str(d.info).slice(0, 600) });
+        await env.PENDING.put("builder-trace", JSON.stringify(T.slice(0, 300))); return json({ ok: true });
+      }
       if (pathname === "/api/debug" && method === "POST") {
         // Drop-box for Make test runs: stores the posted text so it can be read back from KV ("debug"). Not shown in the app.
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
