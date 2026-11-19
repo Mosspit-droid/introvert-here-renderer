@@ -1769,8 +1769,8 @@ async function adHocCards(env, gags, amend) {
     const all = ((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-") && String(x.text || "").trim());
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
     const tgt = Number((targets || {})[code]) || 0;
-    const extra = (code === "IP" ? `<div class="row"><span>Not listed yet</span><b>${all.filter((g) => !ipListed.has(g.id)).length}</b></div>` : `<div class="row"><span>Listed</span><b>When news breaks</b></div>`) +
-      (tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${all.length >= tgt ? "reached ✓" : (tgt - all.length) + " to go"}</b></div><div class="rbar tbar"><i style="width:${Math.max(3, Math.min(100, Math.round(all.length / tgt * 100)))}%;background:var(--ok)"></i></div>` : "");
+    const extra = (tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${all.length >= tgt ? "reached ✓" : (tgt - all.length) + " to go"}</b></div><div class="rbar tbar"><i style="width:${Math.max(3, Math.min(100, Math.round(all.length / tgt * 100)))}%;background:var(--ok)"></i></div>` : "") +
+      (code === "IP" ? `<div class="row"><span>Not listed yet</span><b>${all.filter((g) => !ipListed.has(g.id)).length}</b></div>` : `<div class="row"><span>Listed</span><b>When news breaks</b></div>`);
     return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 <div class="row"><span>Gags in Core</span><b>${all.length}</b></div>${extra}</a>`;
