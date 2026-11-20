@@ -298,7 +298,7 @@ header{border-bottom:1px solid var(--line);background:rgba(10,10,9,.55)}header .
 header img{height:56px;width:auto;display:block;border-radius:4px}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
 h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase;font-weight:800}
-.hero{display:block;width:100%;height:auto;border-radius:10px;margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.hero{display:block;width:100%;height:auto;border-radius:clamp(8px,1.4vw,16px);margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5);box-sizing:border-box;border:clamp(3px,.6vw,7px) solid var(--frame,#f2f0ea)}
 h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04em}
 .muted{color:var(--muted)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--muted)}
@@ -323,6 +323,9 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
 .chip.on{border-color:var(--text);background:var(--text);color:var(--bg)}
 .stage{position:relative;container-type:inline-size;line-height:0;border-radius:7%;border:4px solid #f2f0ea;overflow:hidden;background:#000;box-shadow:0 10px 30px rgba(0,0,0,.5)}.stage .main-img{display:block;width:100%;border:0;border-radius:0;box-shadow:none}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;font:400 28px/1 system-ui,sans-serif;padding:0 0 4px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.nav.prev{left:10px}.nav.next{right:10px}.nav:hover{background:rgba(0,0,0,.7)}
+.count{position:absolute;right:12px;bottom:10px;background:rgba(0,0,0,.5);color:#fff;font-size:12px;line-height:1;padding:5px 8px;border-radius:999px}
 .live{position:absolute;display:none;color:#fff;opacity:.8;font-weight:400;line-height:1.4;text-align:right;white-space:pre-line;text-transform:uppercase;pointer-events:none}
 .pname{width:100%;max-width:340px;font:inherit;font-size:20px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text)}
 .pname::placeholder{font-weight:400;opacity:.5}
@@ -382,8 +385,10 @@ function elsewherePage(c) {
 <p class="note"><a href="/?change=1">Choose a different country</a></p></div>`, { noBasket: true });
 }
 
+// Each banner is framed in its range logo's own colour (Barry, 20 Nov), so it reads as a sign on the wall, not a patch of it.
+const FRAME = { IH: "#f2f0ea", SH: "#a8cea8", PC: "#a7322d", OS: "#e1aa3b", EX: "#d9141b", IP: "#4a8fe7" };
 function heroImg(coll) {
-  if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<img class="hero" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
+  if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<img class="hero" style="--frame:${FRAME[coll] || FRAME.IH}" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
   return `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people">`;
 }
 // The shop is product-led (Barry, 20 Nov): every garment is its own tile and its own page, and the gag is its name.
@@ -446,9 +451,18 @@ function render(){var g=G();
  var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;'+(lv.h?'height:'+lv.h+'%;':'')+'font-size:'+lv.s+'cqw;'+(lv.r?'transform:rotate('+lv.r+'deg);':'')+'display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
  $('main').src=(lv?cur.base:cur.url)||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
  $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
+ $('count').textContent=ps.length>1?(st.img+1)+' / '+ps.length:'';$('prev').style.display=$('next').style.display=ps.length>1?'':'none';
+ var on=$('thumbs').querySelector('.on');if(on&&$('thumbs').scrollWidth>$('thumbs').clientWidth)$('thumbs').scrollLeft=on.offsetLeft-$('thumbs').offsetLeft-($('thumbs').clientWidth-on.offsetWidth)/2;
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
  if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+// Left/right arrows, a swipe, or the keyboard's arrow keys step through the photos.
+function step(d){var n=pics().length;if(n<2)return;st.img=(st.img+d+n)%n;render()}
+$('prev').addEventListener('click',function(){step(-1)});$('next').addEventListener('click',function(){step(1)});
+(function(){var el=document.querySelector('.stage'),x0=null,y0=0;
+ el.addEventListener('touchstart',function(e){x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+ el.addEventListener('touchend',function(e){if(x0===null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.5)step(dx<0?1:-1)},{passive:true})})();
+document.addEventListener('keydown',function(e){if(/^(INPUT|TEXTAREA)$/.test((e.target||{}).tagName||''))return;if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)});
 if(P){$('pname').addEventListener('input',function(){var had=st.name;st.name=cleanName(this.value);if(this.value!==st.name)this.value=st.name;
  // the first letter typed jumps to a photo that can show the name
  if(!had.trim()&&st.name.trim()){var ps=pics(),i=ps.findIndex(function(x){return x.live});if(i>=0&&!(ps[st.img]||{}).live)st.img=i}render()})}
@@ -457,7 +471,7 @@ $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;
  else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,name:nm,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
 render();`;
-  return page(name, `<div class="design"><div><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div></div><div id="thumbs" class="thumbs"></div></div>
+  return page(name, `<div class="design"><div><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>
