@@ -52,6 +52,9 @@ It replaces the one-off `shop/build_catalog.py`. It writes KV `shop:catalog`, wh
 - **Photos**: for a garment listed in KV `shop:photos`, the gallery is that garment's full Canva mockup set, named
   and colour-tagged by `MOCKUP_PAGES` (POSITION = page number; PAGE_NAME ends in the colour). Otherwise it falls
   back to the Etsy photos. No Printify pictures are used.
+- **Lead colour**: the shop has no "main colour" per range (Barry, 20 Nov). Each product's tile and first-shown
+  colour is cycled per gag the way the listing builder picks an Etsy listing's lead colour: the range's THUMBNAIL
+  pages in `MOCKUP_PAGES` order, (gag number − 1) mod how many there are, skipping a colour that isn't on sale.
 - **Safety**: a failed read keeps the existing catalogue and retries in 30 minutes; an empty result never replaces a
   working catalogue.
 - **In Person is skipped** by the builder (rows with COLLECTION = IN PERSON), because those garments have no

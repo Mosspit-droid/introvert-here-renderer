@@ -7424,7 +7424,8 @@ document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.
 const SC = { cat: "shop:catalog", state: "shop:catalog-state", photos: "shop:catalog-photos", own: "shop:photos", coreEvery: 6 * 3600e3, batchEvery: 30 * 60e3, batch: 12, vat: 1.2 };
 const SC_COLL = { "INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "EXCLUSIVE": "EX" };
 const SC_GARMENTS = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
-// Each range's main colour: lifestyle photos with no colour in their label show this colour.
+// What colour an unlabelled photo shows (single-colour ranges don't put the colour in their page names). This is NOT a
+// "main colour" for the shop: which colour a product leads with is cycled per gag (see "lead" in shopCatalogRun).
 const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural" };
 const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural", PURPLE: "Purple" };
 const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
@@ -7543,7 +7544,15 @@ async function shopCatalogRun(env, opt) {
     if (!pics.length) { pics = photos[w.eid] || []; etsyOnly++; }
     if (!pics.length) problems.push(w.code + ": no photos");
     const gal = scGallery(pics, g.variants, coll);
-    if (!gal.mainColour) problems.push(w.code + ": main colour " + SC_MAIN[coll] + " not offered, so its lifestyle photos are hidden");
+    // Lead colour: no range has a main colour in the shop (Barry, 20 Nov). Colours are cycled through per gag, the way
+    // the listing builder picks each Etsy listing's lead colour: the range's THUMBNAIL pages in order, (gag number - 1)
+    // mod how many there are. The tile and the colour first shown on the product page follow it.
+    const cycle = names.filter(([, n]) => /THUMBNAIL/.test(n)).map(([, n]) => scPhotoColour(n)).filter(Boolean);
+    const offered = new Set(g.variants.map((v) => v.colour)), num = Number(gagId.slice(3)) || 1;
+    let lead = null; for (let i = 0; i < cycle.length && !lead; i++) { const c = cycle[(num - 1 + i) % cycle.length]; if (offered.has(c)) lead = c; }
+    if (!lead) lead = gal.mainColour || g.variants[0].colour;
+    const leadPic = gal.images.find((i) => i.colour === lead);
+    gal.mainColour = lead; if (leadPic) gal.tile = leadPic.thumb;
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
     d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.pid, etsyId: w.eid, etsyUrl: "https://www.etsy.com/listing/" + w.eid,
       priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
