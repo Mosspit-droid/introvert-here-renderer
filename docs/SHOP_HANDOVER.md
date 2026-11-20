@@ -38,16 +38,46 @@ options, do the work for him.
   **Send to Printify** (calls Printify `send_to_production`). Test payments are never sent.
 - Dashboard counts shop orders on hold (plus In Person orders waiting) in "Orders to send".
 
-### Catalogue: `shop/build_catalog.py`
-- Joins Core `LISTING_REGISTRY` (STATUS = LIVE) + `PRODUCT_RULES`, Printify products (variants, prices, order codes)
-  and Etsy listing photos into `shop:catalog`.
-- **It's a manual, one-off build and is out of date**: 22 designs (IH 14, PC 5, SH 3), built around 10 Nov.
-  Off The Shelf, Exclusive and In Person aren't in it, nor anything listed since.
-- `MAIN_COLOUR` per range: IH Black, SH Dark Heather, PC Navy, OS Maroon.
+### Catalogue: automatic (`shopCatalogRun` in `approvals-app/worker.js`), written 20 Nov
+- **Not deployed yet: waiting for Barry's OK** (deploy the approvals app and the shop worker; the new picture files
+  `shop:hero-EX.jpg` and `shop:bg-EX.jpg` must be put in KV first, from `shop/assets/`). Until then the live catalogue is the old manual one (22 designs, old prices and photos).
+- Joins Core `LISTING_REGISTRY` (STATUS = LIVE) + `PRODUCT_RULES`, Etsy's active listings with photos (one Make call)
+  and each Printify product (direct, with the saved Printify token) into `shop:catalog`. Core + Etsy every 6 hours and
+  straight after a gag is deactivated/reactivated in the app; a dozen Printify products every 30 minutes. State in
+  KV `shop:catalog-state` and `shop:catalog-photos`. The Orders page has a **Shop catalogue** card with "Check now".
+- A failed read keeps the old catalogue and retries in 30 minutes; an empty result never replaces a working one.
+- **Prices = Core price + 20% VAT**, i.e. what a UK buyer sees on Etsy (£26.66 -> £31.99). One number: `SC.vat`.
+- Ranges: IH, SH, PC, OS and Exclusive (EX, Natural tee; wording from Core's COLLECTION_INTRO; no banner/background
+  of its own yet). **In Person is left out** (see What's left).
+- Main colour per range (`SC_MAIN`): IH Black, SH Dark Heather, PC Navy, OS Maroon, EX Natural.
+- Tested locally against live data on 20 Nov: 25 designs, 92 garments, no problems.
+- `shop/build_catalog.py` is the old manual build, kept for reference only.
 
-### Mockups: `shop/mockups/` (see its README)
-- Printify mockups are recoloured/composited onto each range's background (`run_all.py`, `compose.py`,
-  `recolour.py`). The sandbox can't reach Printify's image host, so `mirror-worker/` copies images into KV first.
+### Photos: each garment's full Canva set (decided 20 Nov; replaces the Printify pictures and the hourly job)
+- Barry: Printify pictures are only on Etsy because of Etsy's AI rules; the shop doesn't use them. The shop shows
+  **every page** of a garment's Canva "MOCKUPS <code>" design (all colours), not just the 12-13 Etsy has room for.
+- Core `MOCKUP_PAGES` already lists every page (POSITION = Canva page number, PAGE_NAME ends with the colour); the
+  builder's `mockup_rank.js` is what trims them for Etsy.
+- Stored in **R2** bucket `introvert-here-shop-photos` (binding `PHOTOS`): `p/<code>/<NN>.jpg` (1600px) and
+  `<NN>t.jpg` (600px). KV `shop:photos` = `{code: {n, at}}` lists garments that have their set. The catalogue builder
+  uses those (named by MOCKUP_PAGES) and falls back to Etsy's photos for garments not stored yet.
+- Photo order on a product page: that colour's pictures, shared product pictures (colour line-up), size guide, then
+  the general cards (AGM, range/brand).
+- **Done so far:** only OS-00067-T-SHIRT is stored (by hand, as the sample). **To do:** a Make "Canva tool" scenario
+  (generic `canva:makeApiCall` on connection 8880982, like the Printify/Etsy tools), then a catch-up for every live
+  garment (search designs by title, export all pages, store) and an automatic pick-up of new listings in the app.
+- `shop/mockups/` (compose.py etc.) is the old Printify-on-background route, no longer used.
+
+### Preview copy and layout (20 Nov)
+- **Preview:** worker `introvert-here-shop-preview` (https://introvert-here-shop-preview.mosspit.workers.dev),
+  `shop/wrangler.preview.toml`, `PREVIEW = "yes"`: own catalogue (KV `shop:catalog-preview`, uploaded by hand from a
+  local builder run), tries `shop:preview:<file>` before real picture files, no checkout, hidden from search.
+  Barry workshops everything here first; always give him the link.
+- **Product-led:** one tile and one page per garment (`/uk/p/<title>-<garment>-<gag id>`), range tabs + product
+  filters, garments dealt out in turn on the front page, range logo top right of each tile's text.
+- **Exclusive:** tabloid banner (`shop/banners/make_ex.py`: masthead logo printed into newsprint, Anton headline,
+  Newsreader Italic sub-heading), red brick page background (`shop/assets/bg-EX.jpg`, Barry's picture).
+- Barry wants each step talked through before it is done, with previews, and the preview link in every reply.
 
 ### UK printing pilot: `shop/uk/make_pilot.py`
 - A draft UK-printed tee (Print Clever, provider 72) at the same physical print size as the Etsy Printify Choice tee
@@ -68,14 +98,11 @@ options, do the work for him.
 - **8692339 Etsy emails search**: built, not used (Etsy doesn't send Barry emails); leave off.
 
 ## What's left / decisions for the shop thread
-1. **Keep the catalogue current automatically**: rebuild after each new listing, price change or deactivation
-   (the app keeps deactivated gags in KV `listing-off`), instead of the manual build. Likely a scheduled job in the
-   approvals app or a step at the end of the builder.
-2. **Add the missing ranges**: Off The Shelf (needs its mockup backgrounds), Exclusive, and In Person. In Person needs a
-   name box at checkout and a one-off Printify order like the approvals app's In Person flow (`ipoPlace`: Canva print
-   via Make 8665996, then Printify order with `print_areas`), not the Etsy product's variant.
-3. **Prices**: Core prices are before VAT (Etsy adds 20%). Decide the shop's prices: match Etsy's VAT-inclusive
-   prices ending in .99 (In Person adds exactly £3 after VAT).
+1. ~~Keep the catalogue current automatically~~ built 20 Nov (see Catalogue above); **needs deploying**.
+2. **In Person** is the one range still missing. It needs a name box at checkout and a one-off Printify order like the
+   approvals app's In Person flow (`ipoPlace`: Canva print via Make 8665996, then Printify order with `print_areas`),
+   not the Etsy product's variant. Exclusive could do with its own banner and background.
+3. ~~Prices~~ the builder matches Etsy's VAT-inclusive prices (In Person, when added, is exactly £3 more after VAT).
 4. **Go live**: domain introverthere.com pointing at the worker, Stripe live keys, legal pages checked, postage,
    decide whether `AUTO_SEND` stays off (Barry approves each order) or goes on.
 5. **UK printing**: decide whether UK orders go to a UK printer (pilot above) or Printify Choice.

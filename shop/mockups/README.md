@@ -2,7 +2,13 @@
 
 The shop shows Printify's mockups (front, plus back for hoodies) on each range's background instead of white.
 
-When products or colours change:
+**This now happens by itself.** The GitHub job "Shop mockups" (`.github/workflows/shop-mockups.yml`) runs `auto.py`
+every hour: it reads the shop's `/catalog.json`, composes any mockup still showing Printify's own picture, and saves
+it on the repo's `shop-mockups` branch (`m/<key>.jpg` and `processed.json`). The approvals app's catalogue builder
+reads that list and the shop worker serves the pictures. To redo a picture, delete its line from `processed.json` on
+that branch. On any branch other than `main` the job composes `test/catalog.json` as a self-test and saves nothing.
+
+The old manual route, for reference:
 1. Rebuild the catalogue (`build_catalog.py`) so it knows the current Printify mockup addresses.
 2. Put the list of addresses in KV `mirror:list` (`[{k: "mirror:<sha1(url)[:16]>", u: url}]`) and deploy `mirror-worker/`
    with its every-minute schedule. It copies 20 images a minute into KV (the build sandbox can't reach Printify's

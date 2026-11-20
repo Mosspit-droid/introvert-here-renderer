@@ -1,4 +1,7 @@
-"""Build the Introvert Here shop catalogue.
+"""Build the Introvert Here shop catalogue (the old manual way).
+
+Superseded on 20 Nov 2026 by shopCatalogRun in approvals-app/worker.js, which keeps the catalogue current
+by itself. Kept for reference.
 
 Joins three sources into one JSON file the shop worker serves from KV:
   - Core LISTING_REGISTRY (only STATUS = LIVE) and PRODUCT_RULES  -> core.json

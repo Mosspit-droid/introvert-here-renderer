@@ -1,0 +1,23 @@
+# Private preview copy of the shop (see "preview" in worker.js). Deploy with:
+#   npx wrangler deploy -c wrangler.preview.toml
+name = "introvert-here-shop-preview"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+workers_dev = true
+
+# To fetch pictures for the build sandbox (see scheduled() in worker.js), switch this on for a few minutes:
+# crons = ["* * * * *"]
+[triggers]
+crons = []
+
+[vars]
+PREVIEW = "yes"
+
+[[kv_namespaces]]
+binding = "PENDING"
+id = "1c5342ad32504af1abd1da52c342f3ce"
+
+# The shop's product photos: every page of each garment's Canva mockup design (see "Photos" in approvals-app/worker.js).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "introvert-here-shop-photos"
