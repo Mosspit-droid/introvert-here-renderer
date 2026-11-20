@@ -290,9 +290,10 @@ async function placeOrder(env, sessionId) {
 const ASSET_V = "3";
 const LOGO = `/logo-stacked.jpg?v=${ASSET_V}`;
 const STYLE = `
-  :root{--bg:#121211;--panel:rgba(22,22,20,.86);--line:#3b3a35;--text:#f2f0ea;--muted:#a9a69c;--accent:#f2f0ea}
+  :root{--bg:#121211;--panel:rgba(22,22,20,.86);--line:#3b3a35;--text:#f2f0ea;--muted:#c4c0b6;--accent:#f2f0ea}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:#121211 url(/concrete.jpg?v=${ASSET_V}) center top/1800px auto repeat;color:var(--text);font:16px/1.55 "Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+/* Page backgrounds carry a light wash (Barry, 20 Nov) so each banner, cut from the same texture, stands apart from the wall behind it. Exclusive's paper banner needs none. */
+body{margin:0;background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#121211 url(/concrete.jpg?v=${ASSET_V}) center top/1800px auto repeat;color:var(--text);font:16px/1.55 "Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:inherit}.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
 header{border-bottom:1px solid var(--line);background:rgba(10,10,9,.55)}header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
 header img{height:56px;width:auto;display:block;border-radius:4px}
@@ -339,16 +340,17 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 footer{border-top:1px solid var(--line);margin-top:40px;padding:24px 0 36px;color:var(--muted);font-size:14px}
 footer a{margin-right:14px}
 /* Range looks: each collection gets its own background, like the video renderer */
-body.r-PC{background:#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
-body.r-OS{background:#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
+body.r-PC{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
+body.r-PC .muted,body.r-PC .tabs a:not(.on),body.r-OS .muted,body.r-OS .tabs a:not(.on){color:#ded9cf}
+body.r-OS{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
 body.r-IP{background:#2f3b52}
-body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(14,18,28,.3),rgba(14,18,28,.3)),#2f3b52 url(/bg-IP.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)),#2f3b52 url(/bg-IP.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-IP .muted,body.r-IP .tabs a:not(.on){color:#dfe5ee}
 body.r-EX{background:#2a1410}
 body.r-EX::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(12,6,5,.5),rgba(12,6,5,.5)),#2a1410 url(/bg-EX.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-EX .muted,body.r-EX .tabs a:not(.on){color:#eadfd6}
 body.r-SH{background:#3a2112}
-body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,10,4,.42),rgba(20,10,4,.42)),#3a2112 url(/bg-SH.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,10,4,.2),rgba(20,10,4,.2)),#3a2112 url(/bg-SH.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#e4d9cc}
 .countries{display:grid;gap:10px;max-width:420px;margin:24px auto}.countries a{text-align:left}
 .centre{text-align:center}
