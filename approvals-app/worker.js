@@ -7415,7 +7415,7 @@ document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.
 //     reads Core's LISTING_REGISTRY (STATUS = LIVE) + PRODUCT_RULES and Etsy's active listings with their photos;
 //   - every 30 minutes it re-reads a dozen Printify products (new ones first, then the longest unchecked) for sizes,
 //     colours, prices and mockup pictures, so a price change reaches the shop within a few hours.
-// Shop prices are Core's prices plus VAT, i.e. exactly what a UK buyer sees on Etsy (£26.66 -> £31.99).
+// Shop prices (Barry, 20 Nov): about 20% below what a UK buyer pays on Etsy, see SC_PRICE.
 // Photos (Barry, 20 Nov): the shop shows every page of a garment's Canva "MOCKUPS <code>" design, in every colour,
 // not just the pages Etsy has room for. The pages are kept in R2 (bucket introvert-here-shop-photos, as
 // p/<code>/<page>.jpg and <page>t.jpg for the small one) and listed in KV "shop:photos" ({code: {n, at}}); Core's
@@ -7429,6 +7429,17 @@ const SC_GARMENTS = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long sleeve", "SWEAT
 const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural" };
 const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural", PURPLE: "Purple" };
 const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
+// The shop's own prices in pence (Barry, 20 Nov: "option B"). Etsy shows a UK buyer Core's price plus 20% VAT and keeps
+// that VAT, then takes about 13.8% in fees; the shop pays Stripe about 1.5% + 20p and Barry isn't VAT-registered. So
+// the shop sells for about 20% less than Etsy (T-shirt £31.99 -> £25.99) and still earns £3-£4 more a sale.
+// Bigger sizes keep their surcharge, scaled by the same amount and kept to whole pounds; In Person adds £3 for the name.
+const SC_PRICE = { "T-SHIRT": 2599, "LONG-SLEEVE": 2999, "SWEATSHIRT": 3799, "HOODIE": 4799 }, SC_NAME_CHARGE = 300;
+// net = this size's Core/Printify price before VAT, baseNet = the garment's cheapest size, both in pence.
+function scSitePrice(type, net, baseNet) {
+  const etsy = Math.round(net * SC.vat), etsyBase = Math.round(baseNet * SC.vat), base = SC_PRICE[type];
+  if (!base) return Math.round((etsy * 0.81) / 100) * 100 - 1;   // a garment with no set price yet: 19% under Etsy, ending .99
+  return base + Math.floor(((etsy - etsyBase) / 100) * (base / etsyBase) + 0.5 + 1e-6) * 100;   // halves round up
+}
 const scPhotoColour = (alt) => { const m = /_(DARK_HEATHER|FOREST_GREEN|DARK_CHOCOLATE|GREY|CHARCOAL|NAVY|BLACK|MAROON|NATURAL|PURPLE)$/.exec(String(alt || "").toUpperCase()); return m ? SC_PHOTO[m[1]] : null; };
 const scAnyColour = (alt) => /_(PROMO|AGM|RANGE|BRAND|VARIANTS)$/.test(String(alt || "").toUpperCase());
 const scSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -7453,7 +7464,7 @@ function scFromPrintify(p) {
       if (opts.size && opts.size[oid]) size = opts.size[oid].title;
       if (opts.color && opts.color[oid]) { colour = opts.color[oid].title; hex = (opts.color[oid].colors || [null])[0]; }
     }
-    variants.push({ id: v.id, size, colour, hex, price: Math.round(v.price * SC.vat), net: v.price });
+    variants.push({ id: v.id, size, colour, hex, price: v.price, net: v.price });   // the shop's price is set when the catalogue is put together
   }
   const so = (s) => { const i = SC_SIZES.indexOf(s); return i < 0 ? 99 : i; };
   variants.sort((a, b) => String(a.colour || "").localeCompare(String(b.colour || "")) || so(a.size) - so(b.size));
@@ -7536,6 +7547,8 @@ async function shopCatalogRun(env, opt) {
     const g = G[w.code], coll = SC_COLL[w.c], gagId = w.code.slice(0, 8), type = w.code.slice(9);
     if (!g.variants) { if (gone[w.code]) problems.push(w.code + ": " + gone[w.code]); else unbuilt++; continue; }
     if (!g.variants.length) { problems.push(w.code + ": no sizes switched on in Printify"); continue; }
+    const baseNet = Math.min(...g.variants.map((v) => v.net || v.price));
+    g.variants = g.variants.map((v) => Object.assign({}, v, { price: scSitePrice(type, v.net || v.price, baseNet) }));
     // Photos: the garment's own stored pages if it has them (named by Core's MOCKUP_PAGES), otherwise Etsy's.
     const o = own[w.code], names = (S.pages || {})[w.c + "|" + type] || [];
     const two = (n) => String(n).padStart(2, "0"), base = "/p/" + w.code + "/";
