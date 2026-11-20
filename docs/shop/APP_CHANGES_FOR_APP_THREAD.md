@@ -49,7 +49,7 @@ It replaces the one-off `shop/build_catalog.py`. It writes KV `shop:catalog`, wh
 - **Prices** (Barry's decision, 20 Nov): the shop is about 20% cheaper than Etsy. Etsy shows a UK buyer Core's price
   plus 20% VAT and keeps that VAT; the shop has only Stripe's fee and Barry is not VAT-registered. Base prices are
   the constant `SC_PRICE`: T-shirt £25.99, long sleeve £29.99, sweatshirt £37.99, hoodie £47.99. Bigger sizes keep
-  their surcharge, scaled by the same ratio and kept to whole pounds (`scSitePrice`); In Person adds £3. These would
+  Etsy's surcharge in pounds, less £1 where it is £4 or more (`scSitePrice`); In Person adds £3. These would
   sit better on the app's Pricing page than in a constant.
 - **Photos**: for a garment listed in KV `shop:photos`, the gallery is that garment's full Canva mockup set, named
   and colour-tagged by `MOCKUP_PAGES` (POSITION = page number; PAGE_NAME ends in the colour). Otherwise it falls
