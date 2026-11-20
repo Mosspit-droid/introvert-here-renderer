@@ -152,22 +152,30 @@ async function checkout(request, env, url) {
     const qty = Math.max(1, Math.min(10, parseInt(it.qty, 10) || 1));
     let found = null;
     for (const d of cat.designs) for (const g of Object.values(d.garments)) if (g.code === it.code) {
-      const v = g.variants.find((x) => x.id === Number(it.variant));
+      const v = g.variants.find((x) => String(x.id) === String(it.variant));
       if (v) found = { d, g, v };
     }
     if (!found) continue; // item no longer sold: quietly dropped, the basket page re-checks
     const { d, g, v } = found;
+    // In Person: the buyer's name is checked again here (never trust the browser) and travels with the order.
+    const pname = g.personal ? personalName(it.name, g.personal.max) : "";
+    if (g.personal && !pname) return json({ error: `"${d.title}" needs a name: letters only, up to ${g.personal.max}. Please add it again from its page.` }, 400);
     const p = `line_items[${n}]`;
     form[`${p}[quantity]`] = String(qty);
     form[`${p}[price_data][currency]`] = "gbp";
     form[`${p}[price_data][unit_amount]`] = String(v.price);
     form[`${p}[price_data][product_data][name]`] = `${d.title} – ${g.label}`;
-    form[`${p}[price_data][product_data][description]`] = [v.colour, v.size].filter(Boolean).join(", ");
+    form[`${p}[price_data][product_data][description]`] = [v.colour, v.size].filter(Boolean).join(", ") + (pname ? ` · Name: ${pname}` : "");
     const pic = ((g.mockups || []).find((m) => m.colour === v.colour) || {}).thumb || g.tile || (g.images[0] || {}).thumb;
     if (pic) form[`${p}[price_data][product_data][images][0]`] = pic.startsWith("/") ? url.origin + pic : pic; // Stripe needs a full address
     form[`${p}[price_data][product_data][metadata][code]`] = g.code;
-    form[`${p}[price_data][product_data][metadata][printify_product_id]`] = g.printifyId;
-    form[`${p}[price_data][product_data][metadata][printify_variant_id]`] = String(v.id);
+    if (g.personal) {   // no ready-made Printify product: the approvals app makes this buyer's print and orders it
+      Object.assign(form, { [`${p}[price_data][product_data][metadata][personal]`]: "yes", [`${p}[price_data][product_data][metadata][name]`]: pname,
+        [`${p}[price_data][product_data][metadata][colour]`]: v.colour || "", [`${p}[price_data][product_data][metadata][size]`]: v.size || "" });
+    } else {
+      form[`${p}[price_data][product_data][metadata][printify_product_id]`] = g.printifyId;
+      form[`${p}[price_data][product_data][metadata][printify_variant_id]`] = String(v.id);
+    }
     n++;
   }
   if (!n) return json({ error: "Your basket is empty, or those items are no longer available." }, 400);
@@ -197,6 +205,13 @@ async function checkout(request, env, url) {
     console.error(e);
     return json({ error: "Checkout couldn't be opened. Please try again in a minute." }, 502);
   }
+}
+
+// The name rules agreed with Barry (20 Nov): capitals; letters of any alphabet, spaces, hyphens and apostrophes; no
+// digits or symbols; up to max characters; at least one letter. Returns "" if what was sent doesn't fit them.
+function personalName(raw, max) {
+  const v = String(raw || "").toUpperCase().replace(/[’`]/g, "'").replace(/ +/g, " ").trim();
+  return v && v.length <= max && /^[\p{L} '\-]+$/u.test(v) && /\p{L}/u.test(v) ? v : "";
 }
 
 // ---------------- Stripe webhook ----------------
@@ -240,14 +255,20 @@ async function placeOrder(env, sessionId) {
     const cust = s.customer_details || {};
     const name = String(ship.name || cust.name || "Customer").trim();
     const first = name.split(/\s+/)[0], last = name.split(/\s+/).slice(1).join(" ") || "-";
-    const lines = s.line_items.data.map((li) => ({
-      product_id: li.price.product.metadata.printify_product_id,
-      variant_id: Number(li.price.product.metadata.printify_variant_id),
-      quantity: li.quantity,
-      code: li.price.product.metadata.code, name: li.description, amount: li.amount_total,
-    }));
-    Object.assign(record, { name, email: cust.email, total: s.amount_total, items: lines.map(({ code, name, quantity, amount }) => ({ code, name, quantity, amount })),
+    const all = s.line_items.data.map((li) => { const m = li.price.product.metadata || {}; return {
+      product_id: m.printify_product_id, variant_id: Number(m.printify_variant_id), quantity: li.quantity,
+      code: m.code, name: li.description, amount: li.amount_total,
+      personal: m.personal === "yes" ? { name: m.name, colour: m.colour, size: m.size } : null }; });
+    // In Person lines have no ready-made Printify product. They are recorded for the approvals app's In Person queue
+    // (print made with the buyer's name, checked by Barry, then ordered) and are not part of the Printify order below.
+    const lines = all.filter((l) => !l.personal), personal = all.filter((l) => l.personal);
+    Object.assign(record, { name, email: cust.email, total: s.amount_total,
+      items: all.map(({ code, name, quantity, amount, personal: p }) => ({ code, name: p ? `${name} (${p.colour}, ${p.size}, name: ${p.name})` : name, quantity, amount })),
       address: [addr.line1, addr.line2, addr.city, addr.postal_code].filter(Boolean).join(", ") });
+    if (personal.length) {
+      record.personal = personal.map(({ code, quantity, amount, personal: p }) => ({ code, quantity, amount, name: p.name, colour: p.colour, size: p.size, status: "waiting" }));
+      record.ship = { name, email: cust.email || "", phone: cust.phone || "", first_line: addr.line1 || "", second_line: addr.line2 || "", city: addr.city || "", state: addr.state || "", zip: addr.postal_code || "", country: addr.country || "GB" };
+    }
     const order = {
       external_id: sessionId, label: "IH shop " + sessionId.slice(-8),
       line_items: lines.map(({ product_id, variant_id, quantity }) => ({ product_id, variant_id, quantity })),
@@ -255,7 +276,10 @@ async function placeOrder(env, sessionId) {
       address_to: { first_name: first, last_name: last, email: cust.email || "", phone: cust.phone || "", country: addr.country || "GB",
         region: addr.state || "", address1: addr.line1 || "", address2: addr.line2 || "", city: addr.city || "", zip: addr.postal_code || "" },
     };
-    if (!record.livemode && env.TEST_ORDERS_TO_PRINTIFY !== "yes") {
+    if (!lines.length) {
+      record.status = record.livemode ? "in-person" : "test-not-sent";
+      record.note = record.livemode ? "In Person only: waiting in the In Person queue for the name check." : "Test payment: not sent to Printify.";
+    } else if (!record.livemode && env.TEST_ORDERS_TO_PRINTIFY !== "yes") {
       record.status = "test-not-sent"; record.note = "Test payment: not sent to Printify.";
     } else {
       const token = await getSecret(env, "printify_token");
@@ -279,7 +303,7 @@ async function placeOrder(env, sessionId) {
   await env.PENDING.put("shop:orders", JSON.stringify(list.slice(0, 500)));
   if (env.ALERT_URL && env.INGEST_SECRET) {
     const title = record.status === "failed" ? "Shop order NOT placed – needs you" : (record.livemode ? "New shop order" : "Test shop order");
-    const body = `${record.name || ""} · ${record.total != null ? money(record.total) : ""}\n${(record.items || []).map((i) => `${i.quantity} × ${i.name}`).join("\n")}\n${record.error || record.note || "Printify order " + (record.printifyOrder || "") + " (" + record.status + ")"}`;
+    const body = `${record.name || ""} · ${record.total != null ? money(record.total) : ""}\n${(record.items || []).map((i) => `${i.quantity} × ${i.name}`).join("\n")}\n${record.error || record.note || "Printify order " + (record.printifyOrder || "") + " (" + record.status + ")"}${record.personal ? "\nIn Person: " + record.personal.map((p) => p.name).join(", ") + " to check" : ""}`;
     await fetch(env.ALERT_URL, { method: "POST", headers: { "Content-Type": "application/json", "X-Ingest-Secret": env.INGEST_SECRET }, body: JSON.stringify({ title, body, source: "Shop", link: "/orders" }) }).catch(() => {});
   }
 }
@@ -500,7 +524,7 @@ function draw(){var b=B.get(),el=document.getElementById('list');
 document.addEventListener('click',function(e){var b=B.get(),t=e.target;
  if(t.dataset.u){b[+t.dataset.u].qty=Math.min(10,b[+t.dataset.u].qty+1)}else if(t.dataset.d){var i=+t.dataset.d;b[i].qty--;if(b[i].qty<1)b.splice(i,1)}else return;B.set(b);draw()});
 document.getElementById('pay').addEventListener('click',async function(){var btn=this;btn.disabled=true;btn.textContent='Opening secure checkout…';
- try{var r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:B.get().map(function(i){return{code:i.code,variant:i.variant,qty:i.qty}})})});
+ try{var r=await fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:B.get().map(function(i){return{code:i.code,variant:i.variant,qty:i.qty,name:i.name||''}})})});
  var o=await r.json();if(o.url){location.href=o.url;return}alert(o.error||'Sorry, checkout is unavailable right now.')}catch(e){alert('Sorry, checkout is unavailable right now.')}
  btn.disabled=false;btn.textContent='Checkout securely';});
 draw();`;
@@ -511,7 +535,8 @@ draw();`;
 
 function thanksPage() {
   return page("Thank you", `<div class="centre"><h1>Thank you</h1><p>Your order's in. You'll get a receipt by email now, and tracking details once it's on its way, usually within 4–10 working days.</p>
-<p class="muted">We'll try not to make conversation about it.</p><p><a class="btn ghost" href="/uk">Back to the shop</a></p></div>`, { script: "try{localStorage.removeItem('ih_basket')}catch(e){}B.count();", noindex: true });
+<p id="ipnote" class="box" style="display:none;text-align:left"></p>
+<p class="muted">We'll try not to make conversation about it.</p><p><a class="btn ghost" href="/uk">Back to the shop</a></p></div>`, { script: "try{var b=B.get(),p=b.filter(function(i){return i.name}),o=b.length-p.length,n=document.getElementById('ipnote');if(p.length){n.style.display='block';n.textContent='Your In Person '+(p.length>1?'items are':'item is')+' printed with your name, which we check by hand first, so allow an extra day or two.'+(o?' It will arrive separately from the rest of your order, so expect two parcels.':'')}localStorage.removeItem('ih_basket')}catch(e){}B.count();", noindex: true });
 }
 
 function legalPage(which) {
@@ -524,7 +549,8 @@ function legalPage(which) {
 <p>Nothing in these terms affects your statutory rights.</p>`],
     returns: ["Returns and refunds", `<p><b>Faulty or wrong item:</b> if your item arrives damaged, misprinted or isn't what you ordered, email ${EMAIL} within 30 days with a photo and we'll replace it or refund you in full. You won't need to send it back.</p>
 <p><b>Changed your mind:</b> under UK law you can cancel within 14 days of receiving your order. Tell us by email within that time, then return the item unworn within a further 14 days and we'll refund the price within 14 days of receiving it. Return postage is paid by you.</p>
-<p>[Return address and any exceptions to be confirmed before launch.]</p>`],
+<p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full.</p>
+<p>[Return address to be confirmed before launch.]</p>`],
     privacy: ["Privacy", `<p>We collect only what we need to take payment and deliver your order: your name, email, phone number and delivery address. Payment is handled by Stripe; we never see your card details. Your delivery details are passed to our print partner (Printify) to make and post your order.</p>
 <p>We keep order records for as long as the law requires for accounts. We don't sell your data, send marketing without asking, or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
 <p>Controller: Mosspit Studios, ${ADDRESS}. Questions or requests: ${EMAIL}. You can also complain to the Information Commissioner's Office (ico.org.uk).</p>`],

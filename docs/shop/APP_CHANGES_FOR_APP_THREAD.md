@@ -140,3 +140,20 @@ re-stored the set by hand. This is the case item 4 above should handle automatic
    it is built, re-storing them when its mockups are regenerated, and refreshing the catalogue when a listing is
    built, repriced or deactivated. Until that exists the shop thread refreshes things manually with
    `shop/photos/store.py` and a local catalogue run.
+
+## In Person orders from the shop: what the shop worker now records (built 20 Nov, not deployed to the real shop)
+
+When a paid checkout contains In Person lines, the shop worker (`placeOrder` in `shop/worker.js`) does **not** send
+those lines to Printify. Ordinary lines in the same basket go to Printify on hold as before. The order record in KV
+(`shop:order:<session>` and the `shop:orders` list) gains:
+
+- `personal`: `[{ code, quantity, amount, name, colour, size, status: "waiting" }]`, one per In Person line. `name` has
+  already passed the agreed rules server-side (`personalName`).
+- `ship`: `{ name, email, phone, first_line, second_line, city, state, zip, country }`, shaped like `o.ship` in the
+  app's In Person order code.
+- `status`: `"in-person"` when the basket was In Person only (no Printify order exists); otherwise the usual
+  `on-hold` / `sent-to-production` for the ordinary lines.
+
+**Needed in the app:** pick these up into the In Person queue (the `ipoNew` route), using `code` to find the gag and
+garment, and `colour` / `size` for the Printify variant; and set each line's `status` as it moves on. The Orders
+page currently shows an unknown status as plain text, so `in-person` appears but has no button.
