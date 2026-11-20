@@ -97,7 +97,7 @@ async function route(request, env, ctx) {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg"].includes(path)) {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
@@ -303,10 +303,12 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .tabs a.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 .tabs.kinds{margin-top:-6px}.tabs.kinds a{border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}
-@media(max-width:520px){.grid{grid-template-columns:1fr 1fr;gap:10px}.tile div{padding:8px 9px}.tile b{font-size:14px}.tile span{font-size:13px}}
 .tile{text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
 .tile img{width:100%;aspect-ratio:1;object-fit:cover;background:#000}
-.tile div{padding:10px 12px}.tile b{display:block;font-size:15px}.tile span{color:var(--muted);font-size:14px}
+.tile .cap{padding:10px 12px;display:flex;align-items:center;gap:10px;flex:1}.tile .cap>div{flex:1;min-width:0}.tile b{display:block;font-size:15px}.tile span{color:var(--muted);font-size:14px}
+.tile img.rl{width:62px;height:auto;aspect-ratio:auto;object-fit:contain;background:none;flex:none}
+.tile span{display:block}
+@media(max-width:520px){.grid{grid-template-columns:1fr 1fr;gap:10px}.tile .cap{padding:8px 9px;gap:6px}.tile b{font-size:14px}.tile span{font-size:13px}.tile img.rl{width:40px}}
 .btn{display:inline-block;background:var(--text);color:var(--bg);border:0;border-radius:8px;padding:13px 20px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;text-align:center}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
 .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -400,7 +402,7 @@ function shopPage(cat, only, type) {
   const tiles = items.map(({ d, t }) => {
     const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
     const varies = g.variants.some((v) => v.price !== g.priceFrom);
-    return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div><b>${esc(d.title)}</b><span>${esc(g.label)} · ${varies ? "from " : ""}${money(g.priceFrom)}</span></div></a>`;
+    return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
   }).join("");
   const intro = only ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
   return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only });
