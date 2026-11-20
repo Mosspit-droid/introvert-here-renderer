@@ -159,3 +159,13 @@ those lines to Printify. Ordinary lines in the same basket go to Printify on hol
 **Needed in the app:** pick these up into the In Person queue (the `ipoNew` route), using `code` to find the gag and
 garment, and `colour` / `size` for the Printify variant; and set each line's `status` as it moves on. The Orders
 page currently shows an unknown status as plain text, so `in-person` appears but has no button.
+
+## 4XL and 5XL on every T-shirt (Barry, 20 Nov, late)
+
+Barry wants 4XL and 5XL offered on all T-shirts; they do not block Printify's Global Fulfilment on the tee (it was
+other garments' large sizes that did). Today only IH-00001-T-SHIRT has them switched on, because Core's
+`PRODUCT_RULES` SIZES for T-shirts reads "S, M, L, XL, 2XL, 3XL". Needed: the size rule changed for T-shirts in every
+range, and the live tees updated in Printify and Etsy. On IH-00001 the 4XL and 5XL are priced the same as 3XL
+(Core £31.66, Etsy £37.99), and Printify's cost for them is about the same as 3XL ($13.47 against $12.91), so the
+existing 3XL surcharge can simply carry over. The shop needs no change: it shows whatever sizes are switched on in
+Printify and prices 4XL and 5XL as 3XL (£30.99). The tee size guides stop at 3XL and would need the two extra rows.
