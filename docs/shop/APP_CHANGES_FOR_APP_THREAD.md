@@ -96,3 +96,36 @@ It was run locally against live Core, Etsy and Printify (read-only): 26 designs,
 5. **`scKick` from more places**: listing built, price change saved, mockups updated.
 6. **Two wording changes on the shop** agreed with Barry and not yet written: personalised items are excluded from
    change-of-mind returns, and a mixed basket (In Person plus other items) arrives as two parcels.
+
+## Request from Barry (20 Nov, evening): site-only builds, so the site launches ahead of Etsy
+
+Barry's decisions: the site releases **ahead of Etsy**; the starting line-up follows the **schedule order** (not gag
+numbers); In Person is built **for the site first**; launch **as soon as it is ready**.
+
+**What the shop needs from the builder: a "build for the site, hold Etsy back" mode.** For a given product code it
+makes everything a listing build makes *except* the Etsy listing: the print file, the Printify product (in shop
+27154106, not published to Etsy) and the Canva "MOCKUPS <code>" design. The Etsy listing is then created on the gag's
+existing Etsy date, reusing that Printify product and mockup design rather than making new ones.
+
+**How the shop finds site-only products.** Today the catalogue builder takes registry rows with STATUS = LIVE and
+requires the listing to be active on Etsy. It needs a way to tell "built for the site, not on Etsy yet": for example
+a registry STATUS such as `SITE_ONLY` (or a `SITE_LIVE` date column) with PRINTIFY_PRODUCT_ID filled and
+ETSY_LISTING_ID empty. Your call how to record it; tell the shop thread and the catalogue builder will follow. With no
+Etsy listing there are no Etsy photos to fall back on, so the garment's Canva set must be stored in R2 (the automatic
+photo pick-up, item 3 above) before it can show.
+
+**The starting line-up (132 products + Exclusive tees), and what has to be built early (36):**
+
+| Range | Gags | To build early for the site |
+|---|---|---|
+| Introvert Here | 1–15, then IH-00017 (Etsy 30 Nov–3 Dec) | IH-00017 ×4 |
+| SHHH. | 1–4 | SH-00003 sweatshirt + hoodie (Etsy 22, 29 Nov); SH-00004 ×4 (Etsy 6–27 Dec) |
+| Per Contract | 1–5 (all live) | none |
+| Off The Shelf | OS-00067, OS-00008, OS-00002, OS-00004 | the garments of OS-00067 and OS-00008 not yet out; OS-00002 ×4 (Etsy 4–12 Dec); OS-00004 ×4 (Etsy 1–9 Jan) |
+| In Person | 1–4 | IP-00002, IP-00003, IP-00004 ×4 each. In Person has no Printify product, so "site-only" here means the mockups and the Core/registry entry without the Etsy listing that `ipListStart` creates |
+| Exclusive | EX-00001 + up to four new tees Barry is writing | as he writes them |
+
+Dates are from Core as read on 20 Nov at 21:20 UTC; check them again before building.
+
+**Also wanted for launch:** regenerate EX-00001's mockups (its stored set predates a change to the Exclusive brand
+template, so its size guide is the old one).
