@@ -7416,24 +7416,21 @@ document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.
 //   - every 30 minutes it re-reads a dozen Printify products (new ones first, then the longest unchecked) for sizes,
 //     colours, prices and mockup pictures, so a price change reaches the shop within a few hours.
 // Shop prices are Core's prices plus VAT, i.e. exactly what a UK buyer sees on Etsy (£26.66 -> £31.99).
-// Printify's white-background mockups are put on each range's background by the GitHub job "Shop mockups"
-// (.github/workflows/shop-mockups.yml), which saves them on the repo's "shop-mockups" branch; until a picture is
-// done the shop shows Printify's own. In Person isn't included yet (it needs a name box and its own order route).
-const SC = { cat: "shop:catalog", state: "shop:catalog-state", photos: "shop:catalog-photos", coreEvery: 6 * 3600e3, batchEvery: 30 * 60e3, batch: 12, vat: 1.2,
-  manifest: "https://raw.githubusercontent.com/Mosspit-droid/introvert-here-renderer/shop-mockups/processed.json" };
+// Photos (Barry, 20 Nov): the shop shows every page of a garment's Canva "MOCKUPS <code>" design, in every colour,
+// not just the pages Etsy has room for. The pages are kept in R2 (bucket introvert-here-shop-photos, as
+// p/<code>/<page>.jpg and <page>t.jpg for the small one) and listed in KV "shop:photos" ({code: {n, at}}); Core's
+// MOCKUP_PAGES says what each page is and which colour it shows. A garment whose pages aren't stored yet shows its
+// Etsy photos. No Printify pictures are used. In Person isn't included yet (it needs a name box and its own order route).
+const SC = { cat: "shop:catalog", state: "shop:catalog-state", photos: "shop:catalog-photos", own: "shop:photos", coreEvery: 6 * 3600e3, batchEvery: 30 * 60e3, batch: 12, vat: 1.2 };
 const SC_COLL = { "INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "EXCLUSIVE": "EX" };
 const SC_GARMENTS = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
 // Each range's main colour: lifestyle photos with no colour in their label show this colour.
 const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural" };
-// Ranges whose Printify mockups get a range background.
-const SC_BACKGROUNDS = ["IH", "SH", "PC", "OS", "EX"];
-const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural" };
+const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural", PURPLE: "Purple" };
 const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
-const SC_VIEWS = { front: ["front", "front-2"], back: ["back", "back-2"] };
-const scPhotoColour = (alt) => { const m = /_(DARK_HEATHER|FOREST_GREEN|DARK_CHOCOLATE|GREY|CHARCOAL|NAVY|BLACK|MAROON|NATURAL)$/.exec(String(alt || "").toUpperCase()); return m ? SC_PHOTO[m[1]] : null; };
+const scPhotoColour = (alt) => { const m = /_(DARK_HEATHER|FOREST_GREEN|DARK_CHOCOLATE|GREY|CHARCOAL|NAVY|BLACK|MAROON|NATURAL|PURPLE)$/.exec(String(alt || "").toUpperCase()); return m ? SC_PHOTO[m[1]] : null; };
 const scAnyColour = (alt) => /_(PROMO|AGM|RANGE|BRAND|VARIANTS)$/.test(String(alt || "").toUpperCase());
 const scSlug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-async function scKey(src) { const h = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(src)); return [...new Uint8Array(h)].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join(""); }
 async function scKick(env) { const S = (await env.PENDING.get(SC.state, "json")) || {}; S.kick = true; await env.PENDING.put(SC.state, JSON.stringify(S)); }
 
 async function scPrintifyProduct(env, id) {
@@ -7444,7 +7441,7 @@ async function scPrintifyProduct(env, id) {
   if (!r.ok) throw new Error("Printify said " + r.status);
   return await r.json();
 }
-// Sizes, colours and prices on sale, and one front (and back, where printed) mockup per colour.
+// Sizes, colours and prices on sale.
 function scFromPrintify(p) {
   const opts = {}; (p.options || []).forEach((o) => { opts[o.type] = Object.fromEntries((o.values || []).map((v) => [v.id, v])); });
   const variants = [];
@@ -7459,19 +7456,7 @@ function scFromPrintify(p) {
   }
   const so = (s) => { const i = SC_SIZES.indexOf(s); return i < 0 ? 99 : i; };
   variants.sort((a, b) => String(a.colour || "").localeCompare(String(b.colour || "")) || so(a.size) - so(b.size));
-  const printed = new Set(); (p.print_areas || []).forEach((pa) => (pa.placeholders || []).forEach((ph) => { if ((ph.images || []).length) printed.add(ph.position); }));
-  const drawnIn = (src) => Number((String(src).split("/mockup/")[1] || "").split("/")[1]);   // the variant in a mockup's address is the colour it was drawn in
-  const mockups = [];
-  for (const colour of [...new Set(variants.map((v) => v.colour))]) {
-    const ids = new Set(variants.filter((v) => v.colour === colour).map((v) => v.id));
-    const mine = (p.images || []).filter((i) => ids.has(drawnIn(i.src)));
-    for (const [view, cams] of Object.entries(SC_VIEWS)) {
-      if (!printed.has(view)) continue;   // no back print (only hoodies have one): skip Printify's picture of a blank back
-      let im = null; for (const cam of cams) { im = mine.find((i) => String(i.src).split("camera_label=").pop() === cam); if (im) break; }
-      if (im) mockups.push({ src: im.src, alt: colour + ", " + view, colour, mockup: true });
-    }
-  }
-  return { variants, mockups };
+  return { variants };
 }
 // Etsy's photos for one garment, each tied to the colour it shows (or to every colour).
 function scGallery(pics, variants, coll) {
@@ -7498,7 +7483,7 @@ async function shopCatalogRun(env, opt) {
   const coreDue = opt.force || S.kick || !S.coreAt || !S.want || now - S.coreAt > SC.coreEvery;
   if (coreDue) {
     try {
-      const [R, P] = [await coreTable(env, "LISTING_REGISTRY_TABLE"), await coreTable(env, "PRODUCT_RULES")];
+      const [R, P, M] = [await coreTable(env, "LISTING_REGISTRY_TABLE"), await coreTable(env, "PRODUCT_RULES"), await coreTable(env, "MOCKUP_PAGES")];
       if (R.col("STATUS") < 0 || !R.rows.length) throw new Error("Core's registry came back empty");
       const active = {};
       for (let off = 0; off < 1000; off += 100) {
@@ -7519,9 +7504,11 @@ async function shopCatalogRun(env, opt) {
         want.push({ code, c: collection, stem: String(r[rc("TITLE_STEM")] || "").trim(), text: String(r[rc("GAG_TEXT")] || "").trim(), pid, eid });
       }
       const feat = {}; P.rows.forEach((r) => { feat[r[P.col("COLLECTION")] + "|" + r[P.col("PRODUCT_TYPE")]] = String(r[P.col("PRODUCT_FEATURES")] || "").trim(); });
+      const pages = {}; M.rows.forEach((r) => { const k = r[M.col("COLLECTION")] + "|" + r[M.col("PRODUCT_TYPE")]; (pages[k] = pages[k] || []).push([Number(r[M.col("POSITION")]), String(r[M.col("PAGE_NAME")] || "")]); });
+      Object.values(pages).forEach((l) => l.sort((a, b) => a[0] - b[0]));
       photos = {}; want.forEach((w) => { photos[w.eid] = active[w.eid]; });
       await env.PENDING.put(SC.photos, JSON.stringify(photos));
-      Object.assign(S, { want, feat, notes, ip, coreAt: now, kick: false, error: "" });
+      Object.assign(S, { want, feat, pages, notes, ip, coreAt: now, kick: false, error: "" });
     } catch (e) {
       // Keep the catalogue as it is and try again in half an hour (not every five minutes: each try uses Make credits).
       Object.assign(S, { error: String(e.message || e).slice(0, 200), errorAt: now, kick: false, coreAt: now - SC.coreEvery + 30 * 60e3 });
@@ -7532,7 +7519,7 @@ async function shopCatalogRun(env, opt) {
   if (!photos) photos = (await env.PENDING.get(SC.photos, "json")) || {};
   // Printify: carry over what we already know, then re-read new garments first and the longest-unchecked after them.
   const G = {};
-  for (const w of S.want) { const o = oldG[w.code]; G[w.code] = o && o.printifyId === w.pid && o.variants ? { variants: o.variants, mockups: o.mockups || [], pAt: o.pAt || 0 } : { pAt: 0 }; }
+  for (const w of S.want) { const o = oldG[w.code]; G[w.code] = o && o.printifyId === w.pid && o.variants ? { variants: o.variants, pAt: o.pAt || 0 } : { pAt: 0 }; }
   const order = S.want.slice().sort((a, b) => (G[a.code].variants ? 1 : 0) - (G[b.code].variants ? 1 : 0) || G[a.code].pAt - G[b.code].pAt);
   const gone = {};
   for (const w of order.slice(0, opt.batch || SC.batch)) {
@@ -7542,28 +7529,24 @@ async function shopCatalogRun(env, opt) {
       Object.assign(G[w.code], scFromPrintify(p), { pAt: now });
     } catch (e) { if (!G[w.code].variants) gone[w.code] = String(e.message || e).slice(0, 120); }
   }
-  // Which mockups already have their range background: the GitHub job's list, plus any made by hand earlier.
-  const done = new Set();
-  Object.values(oldG).forEach((g) => (g.mockups || []).forEach((m) => { const k = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(m.url || ""); if (k) done.add(k[1]); }));
-  try { const r = await fetch(SC.manifest + "?t=" + Math.floor(now / 3e5)); if (r.ok) Object.values(await r.json()).forEach((k) => done.add(k)); } catch (e) {}
-  const designs = {}, problems = (S.notes || []).slice(); let waiting = 0, unbuilt = 0;
+  const own = (await env.PENDING.get(SC.own, "json")) || {};   // garments whose full Canva photo sets are stored
+  const designs = {}, problems = (S.notes || []).slice(); let etsyOnly = 0, unbuilt = 0;
   for (const w of S.want) {
     const g = G[w.code], coll = SC_COLL[w.c], gagId = w.code.slice(0, 8), type = w.code.slice(9);
     if (!g.variants) { if (gone[w.code]) problems.push(w.code + ": " + gone[w.code]); else unbuilt++; continue; }
     if (!g.variants.length) { problems.push(w.code + ": no sizes switched on in Printify"); continue; }
-    const mockups = [];
-    for (const m of g.mockups) {
-      const key = await scKey(m.src), ok = done.has(key), url = ok ? "/m/" + key + ".jpg" : m.src;
-      if (!ok && SC_BACKGROUNDS.includes(coll)) waiting++;
-      mockups.push({ url, thumb: url, src: m.src, alt: m.alt, colour: m.colour, mockup: true });
-    }
-    if (!mockups.length) problems.push(w.code + ": no Printify mockups");
-    const pics = photos[w.eid] || []; if (!pics.length) problems.push(w.code + ": no Etsy photos");
+    // Photos: the garment's own stored pages if it has them (named by Core's MOCKUP_PAGES), otherwise Etsy's.
+    const o = own[w.code], names = (S.pages || {})[w.c + "|" + type] || [];
+    const two = (n) => String(n).padStart(2, "0"), base = "/p/" + w.code + "/";
+    let pics = o && names.length ? names.filter(([pos]) => pos <= o.n).map(([pos, name]) => ({ u: base + two(pos) + ".jpg?v=" + o.at, t: base + two(pos) + "t.jpg?v=" + o.at, a: name })) : [];
+    if (o && names.length && o.n !== names[names.length - 1][0]) problems.push(w.code + ": Canva has " + o.n + " mockup pages but Core's MOCKUP_PAGES lists up to " + names[names.length - 1][0]);
+    if (!pics.length) { pics = photos[w.eid] || []; etsyOnly++; }
+    if (!pics.length) problems.push(w.code + ": no photos");
     const gal = scGallery(pics, g.variants, coll);
     if (!gal.mainColour) problems.push(w.code + ": main colour " + SC_MAIN[coll] + " not offered, so its lifestyle photos are hidden");
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
     d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.pid, etsyId: w.eid, etsyUrl: "https://www.etsy.com/listing/" + w.eid,
-      priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups, tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
+      priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
       features: (S.feat || {})[w.c + "|" + type] || "", pAt: g.pAt };
   }
   const list = Object.values(designs).sort((a, b) => (a.id < b.id ? 1 : -1));
@@ -7576,9 +7559,9 @@ async function shopCatalogRun(env, opt) {
   const changed = same(cat) !== same(old);
   await env.PENDING.put(SC.cat, JSON.stringify(cat));   // saved every time: it also carries when each garment was last checked
   if (changed) S.changedAt = now;
-  Object.assign(S, { batchAt: now, waiting: unbuilt, designs: list.length, garments, pictures: waiting, problems: problems.length });
+  Object.assign(S, { batchAt: now, waiting: unbuilt, designs: list.length, garments, etsyOnly, problems: problems.length });
   await env.PENDING.put(SC.state, JSON.stringify(S));
-  return { ok: true, designs: list.length, garments, unbuilt, pictures: waiting, problems, changed };
+  return { ok: true, designs: list.length, garments, unbuilt, etsyOnly, problems, changed };
 }
 async function shopCatalogCard(env) {
   const S = (await env.PENDING.get(SC.state, "json")) || {};
@@ -7589,7 +7572,7 @@ async function shopCatalogCard(env) {
 <p class="small">The shop follows Etsy by itself: new listings, price changes and deactivated gags reach it within a few hours. In Person isn't in the shop yet.</p>
 <div>${line}</div>
 ${S.waiting ? `<div class="small">${S.waiting} new garment${S.waiting === 1 ? "" : "s"} still being added.</div>` : ""}
-${S.pictures ? `<div class="small">${S.pictures} product picture${S.pictures === 1 ? " is" : "s are"} waiting for the range background (done within the hour; until then the shop shows Printify's own).</div>` : ""}
+${S.etsyOnly ? `<div class="small">${S.etsyOnly} garment${S.etsyOnly === 1 ? " is" : "s are"} showing Etsy's photos only: the full Canva set hasn't been stored yet.</div>` : ""}
 ${S.error ? `<div class="status bad">Last check failed: ${esc(S.error)}</div>` : ""}
 ${probs.length ? `<div class="status wait">${probs.map(esc).join("<br>")}</div>` : ""}
 <button id="sccheck" class="btn-main" type="button" style="margin-top:10px">Check now</button>

@@ -16,3 +16,8 @@ PREVIEW = "yes"
 [[kv_namespaces]]
 binding = "PENDING"
 id = "1c5342ad32504af1abd1da52c342f3ce"
+
+# The shop's product photos: every page of each garment's Canva mockup design (see "Photos" in approvals-app/worker.js).
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "introvert-here-shop-photos"

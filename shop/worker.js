@@ -49,7 +49,7 @@ export default {
   async fetch(request, env, ctx) {
     const res = await route(request, env, ctx);
     if (!isPreview(env)) return res;
-    const h = new Headers(res.headers); h.set("X-Robots-Tag", "noindex, nofollow"); h.set("Cache-Control", "no-store");
+    const h = new Headers(res.headers); h.set("X-Robots-Tag", "noindex, nofollow"); if (!/^image\//.test(h.get("Content-Type") || "") || !/\?v=/.test(request.url)) h.set("Cache-Control", "no-store");
     return new Response(res.body, { status: res.status, headers: h });
   },
   // Preview copy only (it alone has a schedule): copies pictures this build sandbox can't reach (Printify's image host)
@@ -101,12 +101,12 @@ async function route(request, env, ctx) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
-      // A garment's own Canva mockup pages (every colour), /p/<product code>/<page number>[t].jpg; "t" is the small version.
-      // Preview only for now, kept in KV; the real shop will keep them in Cloudflare file storage (R2) once it is switched on.
+      // A garment's own Canva mockup pages (every colour): /p/<product code>/<page number>[t].jpg; "t" is the small version.
+      // Kept in R2 (bucket introvert-here-shop-photos, binding PHOTOS) under the same path.
       const pp = /^\/p\/([A-Z]{2}-\d{5}-[A-Z-]+)\/(\d{2}t?)\.jpg$/.exec(path);
       if (pp) {
-        const buf = isPreview(env) ? await env.PENDING.get("shop:preview:p/" + pp[1] + "/" + pp[2] + ".jpg", "arrayBuffer") : null;
-        return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
+        const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
+        return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {

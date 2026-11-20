@@ -39,8 +39,8 @@ options, do the work for him.
 - Dashboard counts shop orders on hold (plus In Person orders waiting) in "Orders to send".
 
 ### Catalogue: automatic (`shopCatalogRun` in `approvals-app/worker.js`), written 20 Nov
-- **Not deployed yet: waiting for Barry's OK** (deploy the approvals app and the shop worker, then merge the PR so the
-  hourly mockup job starts). Until then the live catalogue is the old manual one (22 designs, old prices and photos).
+- **Not deployed yet: waiting for Barry's OK** (deploy the approvals app and the shop worker; the new picture files
+  `shop:hero-EX.jpg` and `shop:bg-EX.jpg` must be put in KV first, from `shop/assets/`). Until then the live catalogue is the old manual one (22 designs, old prices and photos).
 - Joins Core `LISTING_REGISTRY` (STATUS = LIVE) + `PRODUCT_RULES`, Etsy's active listings with photos (one Make call)
   and each Printify product (direct, with the saved Printify token) into `shop:catalog`. Core + Etsy every 6 hours and
   straight after a gag is deactivated/reactivated in the app; a dozen Printify products every 30 minutes. State in
@@ -53,15 +53,31 @@ options, do the work for him.
 - Tested locally against live data on 20 Nov: 25 designs, 92 garments, no problems.
 - `shop/build_catalog.py` is the old manual build, kept for reference only.
 
-### Mockups: `shop/mockups/` (see its README)
-- Printify mockups are composited onto each range's background (`compose.py`).
-- **Automatic from 20 Nov**: GitHub job "Shop mockups" (`.github/workflows/shop-mockups.yml`, hourly, no keys) runs
-  `auto.py`: reads the shop's `/catalog.json`, composes any mockup still showing Printify's own picture and saves it
-  on the repo's `shop-mockups` branch (`m/<key>.jpg` + `processed.json`). The catalogue builder reads that list; the
-  shop worker serves `/m/<key>.jpg` from KV (the earlier hand-made ones) or from that branch. It only runs for real
-  once it is on `main`; on other branches it composes `shop/mockups/test/catalog.json` as a self-test.
-- Exclusive's Natural tee is too pale for the cut-out, so its mockup stays on white.
-- The old manual route (`run_all.py` + `mirror-worker/`) is no longer needed.
+### Photos: each garment's full Canva set (decided 20 Nov; replaces the Printify pictures and the hourly job)
+- Barry: Printify pictures are only on Etsy because of Etsy's AI rules; the shop doesn't use them. The shop shows
+  **every page** of a garment's Canva "MOCKUPS <code>" design (all colours), not just the 12-13 Etsy has room for.
+- Core `MOCKUP_PAGES` already lists every page (POSITION = Canva page number, PAGE_NAME ends with the colour); the
+  builder's `mockup_rank.js` is what trims them for Etsy.
+- Stored in **R2** bucket `introvert-here-shop-photos` (binding `PHOTOS`): `p/<code>/<NN>.jpg` (1600px) and
+  `<NN>t.jpg` (600px). KV `shop:photos` = `{code: {n, at}}` lists garments that have their set. The catalogue builder
+  uses those (named by MOCKUP_PAGES) and falls back to Etsy's photos for garments not stored yet.
+- Photo order on a product page: that colour's pictures, shared product pictures (colour line-up), size guide, then
+  the general cards (AGM, range/brand).
+- **Done so far:** only OS-00067-T-SHIRT is stored (by hand, as the sample). **To do:** a Make "Canva tool" scenario
+  (generic `canva:makeApiCall` on connection 8880982, like the Printify/Etsy tools), then a catch-up for every live
+  garment (search designs by title, export all pages, store) and an automatic pick-up of new listings in the app.
+- `shop/mockups/` (compose.py etc.) is the old Printify-on-background route, no longer used.
+
+### Preview copy and layout (20 Nov)
+- **Preview:** worker `introvert-here-shop-preview` (https://introvert-here-shop-preview.mosspit.workers.dev),
+  `shop/wrangler.preview.toml`, `PREVIEW = "yes"`: own catalogue (KV `shop:catalog-preview`, uploaded by hand from a
+  local builder run), tries `shop:preview:<file>` before real picture files, no checkout, hidden from search.
+  Barry workshops everything here first; always give him the link.
+- **Product-led:** one tile and one page per garment (`/uk/p/<title>-<garment>-<gag id>`), range tabs + product
+  filters, garments dealt out in turn on the front page, range logo top right of each tile's text.
+- **Exclusive:** tabloid banner (`shop/banners/make_ex.py`: masthead logo printed into newsprint, Anton headline,
+  Newsreader Italic sub-heading), red brick page background (`shop/assets/bg-EX.jpg`, Barry's picture).
+- Barry wants each step talked through before it is done, with previews, and the preview link in every reply.
 
 ### UK printing pilot: `shop/uk/make_pilot.py`
 - A draft UK-printed tee (Print Clever, provider 72) at the same physical print size as the Etsy Printify Choice tee
