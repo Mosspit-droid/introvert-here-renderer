@@ -21,8 +21,8 @@ const COLLECTIONS = {
   PC: { name: "PER CONTRACT", line: "For the team-building days, the mandatory fun and the after-work drinks you can’t get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included." },
   OS: { name: "OFF THE SHELF", line: "For people who’d rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly." },
   // Wording from Core's PRODUCT_RULES (COLLECTION_INTRO). Newspaper-paper banner, red brick page background (Barry, 20 Nov).
-  // Wording from Core's COLLECTION_INTRO. No banner or page background of its own yet (to come: powder blue painted slats).
-  IP: { name: "IN PERSON.", line: "Your name, printed, so you only have to say it once. Introductions, handled.", plain: true },
+  // Wording from Core's COLLECTION_INTRO. Blue painted slats (Barry's picture, 20 Nov) for the banner and page background.
+  IP: { name: "IN PERSON.", line: "Your name, printed, so you only have to say it once. Introductions, handled." },
   EX: { name: "EXCLUSIVE.", line: "Jokes about whatever everyone’s talking about this week, from someone who’d rather not join in. Hot off the press. Comment declined." },
 };
 // Mockups put on range backgrounds by the GitHub job "Shop mockups" live on the repo's shop-mockups branch.
@@ -99,7 +99,7 @@ async function route(request, env, ctx) {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
@@ -338,6 +338,9 @@ footer a{margin-right:14px}
 /* Range looks: each collection gets its own background, like the video renderer */
 body.r-PC{background:#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
 body.r-OS{background:#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
+body.r-IP{background:#2f3b52}
+body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(14,18,28,.3),rgba(14,18,28,.3)),#2f3b52 url(/bg-IP.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-IP .muted,body.r-IP .tabs a:not(.on){color:#dfe5ee}
 body.r-EX{background:#2a1410}
 body.r-EX::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(12,6,5,.5),rgba(12,6,5,.5)),#2a1410 url(/bg-EX.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-EX .muted,body.r-EX .tabs a:not(.on){color:#eadfd6}
