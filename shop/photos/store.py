@@ -66,9 +66,12 @@ def kv_get(key):
     return None if isinstance(j, dict) and j.get("success") is False else j
 
 def r2_put(key, data):
-    p = subprocess.run(["curl", "-s", "-X", "PUT", "-H", "Authorization: Bearer x", "-H", "Content-Type: image/jpeg",
-                        f"{CF}/r2/buckets/{BUCKET}/objects/{quote(key, safe='')}", "--data-binary", "@-"], input=data, capture_output=True)
-    if b'"success":true' not in p.stdout: raise RuntimeError("R2: " + p.stdout.decode()[:200])
+    for attempt in range(3):   # R2 now and then answers "internal error, please try again"
+        p = subprocess.run(["curl", "-s", "-X", "PUT", "-H", "Authorization: Bearer x", "-H", "Content-Type: image/jpeg",
+                            f"{CF}/r2/buckets/{BUCKET}/objects/{quote(key, safe='')}", "--data-binary", "@-"], input=data, capture_output=True)
+        if b'"success":true' in p.stdout: return
+        time.sleep(3 * (attempt + 1))
+    raise RuntimeError("R2: " + p.stdout.decode()[:200])
 
 def store(code, design):
     job = canva("/v1/exports", "POST", {"design_id": design["id"], "format": {"type": "jpg", "quality": 88, "width": 1600}})["job"]
