@@ -440,7 +440,7 @@ function render(){var g=G();
  var v=variant();$('price').textContent=money(v?v.price:g.priceFrom);$('add').disabled=!v||!nameOk();$('add').textContent=!nameOk()?'Type your name':v?'Add to basket':'Choose a size';
  var ps=pics();if(st.img>=ps.length)st.img=0;var cur=ps[st.img]||{},nm=st.name.trim(),lv=P&&nm&&cur.live?cur.live:null;
  // A photo with a "live" spot shows the buyer's own name: the same photo without its gag text, with the text drawn on top.
- var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;font-size:'+lv.s+'cqw;display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
+ var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;'+(lv.h?'height:'+lv.h+'%;':'')+'font-size:'+lv.s+'cqw;'+(lv.r?'transform:rotate('+lv.r+'deg);':'')+'display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
  $('main').src=(lv?cur.base:cur.url)||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
  $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
