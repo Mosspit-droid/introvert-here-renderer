@@ -21,6 +21,8 @@ const COLLECTIONS = {
   PC: { name: "PER CONTRACT", line: "For the team-building days, the mandatory fun and the after-work drinks you can’t get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included." },
   OS: { name: "OFF THE SHELF", line: "For people who’d rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly." },
   // Wording from Core's PRODUCT_RULES (COLLECTION_INTRO). Newspaper-paper banner, red brick page background (Barry, 20 Nov).
+  // Wording from Core's COLLECTION_INTRO. No banner or page background of its own yet (to come: powder blue painted slats).
+  IP: { name: "IN PERSON.", line: "Your name, printed, so you only have to say it once. Introductions, handled.", plain: true },
   EX: { name: "EXCLUSIVE.", line: "Jokes about whatever everyone’s talking about this week, from someone who’d rather not join in. Hot off the press. Comment declined." },
 };
 // Mockups put on range backgrounds by the GitHub job "Shop mockups" live on the repo's shop-mockups branch.
@@ -103,7 +105,7 @@ async function route(request, env, ctx) {
       }
       // A garment's own Canva mockup pages (every colour): /p/<product code>/<page number>[t].jpg; "t" is the small version.
       // Kept in R2 (bucket introvert-here-shop-photos, binding PHOTOS) under the same path.
-      const pp = /^\/p\/([A-Z]{2}-\d{5}-[A-Z-]+)\/(\d{2}t?)\.jpg$/.exec(path);
+      const pp = /^\/p\/([A-Z]{2}-\d{5}-[A-Z-]+)\/(b?\d{2}t?)\.jpg$/.exec(path);   // b = the same photo with the gag text left off (In Person name preview)
       if (pp) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
         return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
@@ -320,6 +322,10 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .label{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:16px 0 6px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer}
 .chip.on{border-color:var(--text);background:var(--text);color:var(--bg)}
+.stage{position:relative;container-type:inline-size;line-height:0;border-radius:7%;border:4px solid #f2f0ea;overflow:hidden;background:#000;box-shadow:0 10px 30px rgba(0,0,0,.5)}.stage .main-img{display:block;width:100%;border:0;border-radius:0;box-shadow:none}
+.live{position:absolute;display:none;color:#fff;opacity:.8;font-weight:400;line-height:1.4;text-align:right;white-space:pre-line;text-transform:uppercase;pointer-events:none}
+.pname{width:100%;max-width:340px;font:inherit;font-size:20px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--text)}
+.pname::placeholder{font-weight:400;opacity:.5}
 .swatch{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}.swatch.on{outline:3px solid var(--text);outline-offset:2px}
 .price{font-size:26px;font-weight:800;margin:18px 0 6px}
 .note{font-size:14px;color:var(--muted)}
@@ -414,7 +420,11 @@ function productPage(d, type, cat) {
   const data = { id: d.id, title: d.title, garments: { [type]: g0 }, order: [type] };
   const coll = COLLECTIONS[d.coll] || COLLECTIONS.IH;
   const script = `
-var D=${JSON.stringify(data).replace(/</g, "\\u003c")};var st={g:D.order[0],colour:null,size:null,img:0};
+var D=${JSON.stringify(data).replace(/</g, "\\u003c")};var st={g:D.order[0],colour:null,size:null,img:0,name:''};
+// In Person: the buyer's name. Letters (any alphabet's accents), spaces, hyphens and apostrophes; always capitals.
+var P=D.garments[D.order[0]].personal||null;
+function cleanName(v){v=String(v||'').toUpperCase().replace(/[’\`]/g,"'").replace(/[^\\p{L} '\\-]/gu,'').replace(/ +/g,' ').replace(/^ +/,'');return P?v.slice(0,P.max):v}
+function nameOk(){return !P||/\\p{L}/u.test(st.name.trim())}
 function $(i){return document.getElementById(i)}function money(p){return '£'+(p/100).toFixed(2)}
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
@@ -427,22 +437,30 @@ function render(){var g=G();
  $('cname').textContent=st.colour;
  var ss=sizes();if(!ss.some(function(v){return v.size===st.size}))st.size=null;
  $('sizes').innerHTML=ss.map(function(v){return '<button class="chip'+(v.size===st.size?' on':'')+'" data-s="'+v.size+'">'+v.size+'</button>'}).join('');
- var v=variant();$('price').textContent=money(v?v.price:g.priceFrom);$('add').disabled=!v;$('add').textContent=v?'Add to basket':'Choose a size';
- var ps=pics();if(st.img>=ps.length)st.img=0;$('main').src=(ps[st.img]||{}).url||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
+ var v=variant();$('price').textContent=money(v?v.price:g.priceFrom);$('add').disabled=!v||!nameOk();$('add').textContent=!nameOk()?'Type your name':v?'Add to basket':'Choose a size';
+ var ps=pics();if(st.img>=ps.length)st.img=0;var cur=ps[st.img]||{},nm=st.name.trim(),lv=P&&nm&&cur.live?cur.live:null;
+ // A photo with a "live" spot shows the buyer's own name: the same photo without its gag text, with the text drawn on top.
+ var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;font-size:'+lv.s+'cqw;display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
+ $('main').src=(lv?cur.base:cur.url)||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
  $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
  if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+if(P){$('pname').addEventListener('input',function(){var had=st.name;st.name=cleanName(this.value);if(this.value!==st.name)this.value=st.name;
+ // the first letter typed jumps to a photo that can show the name
+ if(!had.trim()&&st.name.trim()){var ps=pics(),i=ps.findIndex(function(x){return x.live});if(i>=0&&!(ps[st.img]||{}).live)st.img=i}render()})}
 $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;var b=B.get();
- var ex=b.find(function(i){return i.code===g.code&&i.variant===v.id});if(ex)ex.qty=Math.min(10,ex.qty+1);
- else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,img:(pics()[0]||{}).thumb||''});
+ var nm=P?st.name.trim():'';var ex=b.find(function(i){return i.code===g.code&&i.variant===v.id&&(i.name||'')===nm});if(ex)ex.qty=Math.min(10,ex.qty+1);
+ else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,name:nm,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
 render();`;
-  return page(name, `<div class="design"><div><img id="main" class="main-img" alt="${esc(name)}"><div id="thumbs" class="thumbs"></div></div>
+  return page(name, `<div class="design"><div><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>
 <div class="label">Size <a id="sg" href="#" target="_blank" rel="noopener" class="note" style="text-transform:none;letter-spacing:0">(size guide)</a></div><div id="sizes" class="chips"></div>
+${g0.personal ? `<div class="label">Your name</div><input id="pname" class="pname" maxlength="${g0.personal.max}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. ${esc(g0.personal.sample || "SAM")}">
+<p class="note" style="margin-top:6px">Up to ${g0.personal.max} letters, printed in capitals. The picture is a preview: we check every name before printing, and may decline an order and refund it.</p>` : ""}
 <div id="price" class="price"></div><p class="note">Free UK delivery · Printed to order, usually with you in 4–10 working days</p>
 <button id="add" class="btn" style="width:100%;margin-top:10px">Choose a size</button>
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
@@ -456,7 +474,7 @@ function basketPage() {
 function money(p){return '£'+(p/100).toFixed(2)}
 function draw(){var b=B.get(),el=document.getElementById('list');
  if(!b.length){el.innerHTML='<p class="muted">Your basket is empty. <a href="/uk">Back to the shop</a>.</p>';document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';return}
- el.innerHTML=b.map(function(i,n){return '<div class="row"><img src="'+i.img+'" alt=""><div style="flex:1"><b>'+i.title+'</b><br><span class="note">'+i.garment+' · '+i.colour+' · '+i.size+'</span></div><div class="qty"><button data-d="'+n+'">−</button>'+i.qty+'<button data-u="'+n+'">+</button></div><b>'+money(i.price*i.qty)+'</b></div>'}).join('');
+ el.innerHTML=b.map(function(i,n){return '<div class="row"><img src="'+i.img+'" alt=""><div style="flex:1"><b>'+i.title+'</b><br><span class="note">'+i.garment+' · '+i.colour+' · '+i.size+(i.name?' · Name: '+i.name:'')+'</span></div><div class="qty"><button data-d="'+n+'">−</button>'+i.qty+'<button data-u="'+n+'">+</button></div><b>'+money(i.price*i.qty)+'</b></div>'}).join('');
  document.getElementById('total').textContent='Total '+money(b.reduce(function(a,i){return a+i.price*i.qty},0))+' · free UK delivery';document.getElementById('pay').style.display='';}
 document.addEventListener('click',function(e){var b=B.get(),t=e.target;
  if(t.dataset.u){b[+t.dataset.u].qty=Math.min(10,b[+t.dataset.u].qty+1)}else if(t.dataset.d){var i=+t.dataset.d;b[i].qty--;if(b[i].qty<1)b.splice(i,1)}else return;B.set(b);draw()});
