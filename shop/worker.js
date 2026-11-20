@@ -86,14 +86,19 @@ async function route(request, env, ctx) {
         return html(countryPage((request.cf && request.cf.country) || "GB"));
       }
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
-      if (path === "/uk") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
+      if (path === "/uk") {   // old shop links (/uk?c=PC) still work
+        if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
+        return html(frontPage(await catalog(env)));
+      }
+      if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
+      if (path === HUB.path) return html(hubPage());
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);
         for (const d of cat.designs) for (const t of Object.keys(d.garments)) if (productSlug(d, t) === want) return html(productPage(d, t, cat));
         // Old addresses were one page per gag: send them to that gag's first garment.
         const old = cat.designs.find((x) => x.slug === want);
         if (old) return Response.redirect(url.origin + "/uk/p/" + productSlug(old, cat.garmentOrder.find((t) => old.garments[t])), 302);
-        return html(page("Not found", `<p>That isn't here. <a href="/uk">Back to the shop</a>.</p>`), 404);
+        return html(page("Not found", `<p>That isn't here. <a href="/uk/shop">Back to the shop</a>.</p>`), 404);
       }
       if (path === "/uk/basket") return html(basketPage());
       if (path === "/uk/thanks") return html(thanksPage());
@@ -116,7 +121,7 @@ async function route(request, env, ctx) {
         if (!buf) { const r = await fetch(MOCKUP_STORE + mk[1] + ".jpg", { cf: { cacheTtl: 86400, cacheEverything: true } }); if (r.ok) buf = await r.arrayBuffer(); }
         return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
       }
-      return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the shop</a>.</p>`), 404);
+      return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the front page</a>.</p>`), 404);
     } catch (e) {
       console.error(e);
       return html(page("Something went wrong", `<p>Sorry, something went wrong on our side. Please try again in a minute.</p>`), 500);
@@ -317,11 +322,43 @@ const STYLE = `
   :root{--bg:#121211;--panel:rgba(22,22,20,.86);--line:#3b3a35;--text:#f2f0ea;--muted:#c4c0b6;--accent:#f2f0ea}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
 /* Page backgrounds carry a light wash (Barry, 20 Nov) so each banner, cut from the same texture, stands apart from the wall behind it. Exclusive's paper banner needs none. */
-body{margin:0;background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#121211 url(/concrete.jpg?v=${ASSET_V}) center top/1800px auto repeat;color:var(--text);font:16px/1.55 "Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{margin:0;background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#121211 url(/concrete.jpg?v=${ASSET_V}) center top/1800px auto repeat;color:var(--text);font:16px/1.55 "Montserrat",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 a{color:inherit}.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
 header{border-bottom:1px solid var(--line);background:rgba(10,10,9,.55)}header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
 header img{height:56px;width:auto;display:block;border-radius:4px}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
+nav.top{display:flex;align-items:center;gap:clamp(10px,2.4vw,26px);font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+nav.top a{text-decoration:none;opacity:.78;white-space:nowrap}nav.top a:hover,nav.top a.on{opacity:1}nav.top a.on:not(.basket-link){border-bottom:2px solid currentColor;padding-bottom:2px}
+nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
+@media(max-width:520px){nav.top{font-size:12px;gap:10px;letter-spacing:.04em}header img{height:40px}nav.top .basket-link{padding:5px 10px}}
+/* Front page: two doors of equal weight, then a strip from each side */
+.doors{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);margin:clamp(14px,2.4vw,26px) 0 0}
+.door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;border:1px solid rgba(255,255,255,.16);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
+.door>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),filter .6s}
+.door .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 68%,rgba(0,0,0,.9) 100%)}
+.door .in{position:absolute;left:0;right:0;bottom:0;padding:clamp(18px,3vw,38px);display:flex;flex-direction:column;gap:8px}
+.door .kicker{font-size:12px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;opacity:.82}
+.door b{font-size:clamp(30px,4.6vw,60px);line-height:1;font-weight:800;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
+.door .say{font-size:clamp(15px,1.5vw,19px);line-height:1.45;max-width:30ch;opacity:.94}
+.door .go{align-self:flex-start;margin-top:10px;display:inline-flex;align-items:center;gap:10px;background:#f2f0ea;color:#141412;font-weight:700;font-size:15px;padding:12px 20px;border-radius:999px;transition:gap .3s,background .3s}
+.door .go i,.sh a i{font-style:normal;transition:transform .3s}
+.door:hover>img{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
+.door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}
+.strip{margin:clamp(40px,6vw,80px) 0 0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
+.sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
+.sh h2{margin:0;font-size:clamp(18px,2.2vw,24px);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.sh a{text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap;opacity:.85}.sh a:hover{opacity:1}.sh a:hover i{transform:translateX(4px);display:inline-block}
+.grid.four{grid-template-columns:repeat(4,1fr);margin:0}
+.things{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.thing{display:flex;flex-direction:column;gap:8px;text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:clamp(18px,2.4vw,28px);min-height:150px}
+.thing b{font-size:clamp(20px,2.2vw,26px);font-weight:800;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+.thing span{color:var(--muted);line-height:1.5}.thing .tag{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--text)}
+a.thing{transition:transform .3s,border-color .3s}a.thing:hover{transform:translateY(-3px);border-color:var(--text)}
+.ranges{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(10px,1.6vw,20px);align-items:center}
+.ranges a{display:block;transition:transform .3s}.ranges a:hover{transform:translateY(-4px)}.ranges img{width:100%;height:auto;display:block;filter:drop-shadow(0 8px 16px rgba(0,0,0,.4))}
+.lead{font-size:clamp(16px,1.6vw,19px);max-width:62ch;margin:clamp(18px,3vw,30px) 0}
+@media(max-width:760px){.doors{grid-template-columns:1fr}.door{aspect-ratio:1/1.08;max-height:none}.door>img{object-position:50% 12%}.door.wide{aspect-ratio:16/10}.grid.four{grid-template-columns:1fr 1fr}.ranges{grid-template-columns:repeat(3,1fr)}}
+@media(prefers-reduced-motion:no-preference){.door,.strip{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}.door:nth-child(2){animation-delay:.12s}@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}}
 h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase;font-weight:800}
 .hero{display:block;width:100%;height:auto;border-radius:clamp(8px,1.4vw,16px);margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5);box-sizing:border-box;border:clamp(3px,.6vw,7px) solid var(--frame,#f2f0ea)}
 h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04em}
@@ -386,7 +423,7 @@ function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
-<header><div class="wrap"><a href="/uk"><img src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : '<a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a>'}</div></header>
+<header><div class="wrap"><a href="/uk"><img src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p></div></footer>
@@ -427,27 +464,63 @@ function shopPage(cat, only, type) {
   if (!COLLECTIONS[only]) only = null;
   if (!TYPE_SLUG[type]) type = null;
   const present = [...new Set(cat.designs.map((d) => d.coll))];
-  const link = (c, t) => "/uk" + (c || t ? "?" + [c && "c=" + c, t && "t=" + t].filter(Boolean).join("&") : "");
+  const link = (c, t) => "/uk/shop" + (c || t ? "?" + [c && "c=" + c, t && "t=" + t].filter(Boolean).join("&") : "");
   const tabs = `<nav class="tabs"><a href="${link(null, type)}" class="${only ? "" : "on"}">All ranges</a>${Object.entries(COLLECTIONS).filter(([k]) => present.includes(k)).map(([k, c]) => `<a href="${link(k, type)}" class="${only === k ? "on" : ""}">${esc(c.name)}</a>`).join("")}</nav>`;
   const list = cat.designs.filter((d) => !only || d.coll === only);
   const types = cat.garmentOrder.filter((t) => list.some((d) => d.garments[t]));
   const kinds = `<nav class="tabs kinds"><a href="${link(only, null)}" class="${type ? "" : "on"}">Everything</a>${types.map((t) => `<a href="${link(only, t)}" class="${type === t ? "on" : ""}">${TYPE_PLURAL[t]}</a>`).join("")}</nav>`;
-  // One list per garment type, newest gag first. With no type chosen they are dealt out in turn (tee, long sleeve,
-  // sweatshirt, hoodie, ...), each list starting a quarter of the way further on so neighbours are different gags.
-  const per = (type ? [type] : types).map((t) => list.filter((d) => d.garments[t]).map((d) => ({ d, t })));
-  let items = [];
-  if (per.length === 1) items = per[0];
-  else {
-    const turned = per.map((l, k) => { const by = l.length ? Math.round((k * l.length) / per.length) % l.length : 0; return l.slice(by).concat(l.slice(0, by)); });
-    for (let i = 0; turned.some((l) => i < l.length); i++) turned.forEach((l) => { if (i < l.length) items.push(l[i]); });
-  }
-  const tiles = items.map(({ d, t }) => {
-    const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
-    const varies = g.variants.some((v) => v.price !== g.priceFrom);
-    return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
-  }).join("");
+  const tiles = mixedItems(cat, list, type ? [type] : types).map(tileHtml).join("");
   const intro = only ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only });
+  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only, nav: "shop" });
+}
+// One list per garment type, newest gag first. With several types they are dealt out in turn (tee, long sleeve,
+// sweatshirt, hoodie, ...), each list starting a quarter of the way further on so neighbours are different gags.
+function mixedItems(cat, list, types) {
+  const per = types.map((t) => list.filter((d) => d.garments[t]).map((d) => ({ d, t })));
+  if (per.length === 1) return per[0];
+  const turned = per.map((l, k) => { const by = l.length ? Math.round((k * l.length) / per.length) % l.length : 0; return l.slice(by).concat(l.slice(0, by)); });
+  const items = [];
+  for (let i = 0; turned.some((l) => i < l.length); i++) turned.forEach((l) => { if (i < l.length) items.push(l[i]); });
+  return items;
+}
+function tileHtml({ d, t }) {
+  const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
+  const varies = g.variants.some((v) => v.price !== g.priceFrom);
+  return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
+}
+
+// ---------------- front page and the hub ----------------
+// One site, two halves of equal weight (Barry, 20 Nov): the shop, and a hub for introverts (phone toys for the bus
+// queue, paper escape rooms, a vote on the next gag...). The hub's name and wording are placeholders for Barry.
+const HUB = { path: "/uk/comfort-zone", name: "The Comfort Zone", short: "Comfort Zone",
+  line: "Somewhere to be while everyone else is talking.",
+  things: [
+    { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
+    { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", soon: true },
+  ] };
+const DOOR = { shop: "/p/IH-00001-T-SHIRT/10.jpg", hub: "/p/IH-00001-HOODIE/12.jpg" };   // Barry's own photos, from the shop's store
+function hubCards() {
+  return HUB.things.map((x) => `<${x.href ? `a href="${x.href}"` : "div"} class="thing"><span class="tag">${x.soon ? "Coming soon" : "Open"}</span><b>${esc(x.name)}</b><span>${esc(x.line)}</span></${x.href ? "a" : "div"}>`).join("");
+}
+function frontPage(cat) {
+  const types = cat.garmentOrder.filter((t) => cat.designs.some((d) => d.garments[t]));
+  const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
+  const present = new Set(cat.designs.map((d) => d.coll));
+  const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}" title="${esc(c.name)}"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></a>`).join("");
+  const door = (href, img, label, title, line, cta) => `<a class="door" href="${href}"><img src="${img}" alt=""><span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
+  return page("Quiet humour for socially exhausted people", `${heroImg(null)}
+<section class="doors">
+${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
+${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), "Come in")}
+</section>
+<section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
+<section class="strip"><div class="sh"><h2>In ${esc(HUB.name)}</h2><a href="${HUB.path}">Have a look <i>→</i></a></div><div class="things">${hubCards()}</div></section>
+<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home" });
+}
+function hubPage() {
+  return page(HUB.name, `<a class="door wide" href="${HUB.path}" style="pointer-events:none"><img src="${DOOR.hub}" alt=""><span class="shade"></span><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
+<p class="muted lead">Small, quiet things for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
+<div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line });
 }
 
 function productPage(d, type, cat) {
@@ -518,7 +591,7 @@ function basketPage() {
   const script = `
 function money(p){return '£'+(p/100).toFixed(2)}
 function draw(){var b=B.get(),el=document.getElementById('list');
- if(!b.length){el.innerHTML='<p class="muted">Your basket is empty. <a href="/uk">Back to the shop</a>.</p>';document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';return}
+ if(!b.length){el.innerHTML='<p class="muted">Your basket is empty. <a href="/uk/shop">Back to the shop</a>.</p>';document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';return}
  el.innerHTML=b.map(function(i,n){return '<div class="row"><img src="'+i.img+'" alt=""><div style="flex:1"><b>'+i.title+'</b><br><span class="note">'+i.garment+' · '+i.colour+' · '+i.size+(i.name?' · Name: '+i.name:'')+'</span></div><div class="qty"><button data-d="'+n+'">−</button>'+i.qty+'<button data-u="'+n+'">+</button></div><b>'+money(i.price*i.qty)+'</b></div>'}).join('');
  document.getElementById('total').textContent='Total '+money(b.reduce(function(a,i){return a+i.price*i.qty},0))+' · free UK delivery';document.getElementById('pay').style.display='';}
 document.addEventListener('click',function(e){var b=B.get(),t=e.target;
@@ -536,7 +609,7 @@ draw();`;
 function thanksPage() {
   return page("Thank you", `<div class="centre"><h1>Thank you</h1><p>Your order's in. You'll get a receipt by email now, and tracking details once it's on its way, usually within 4–10 working days.</p>
 <p id="ipnote" class="box" style="display:none;text-align:left"></p>
-<p class="muted">We'll try not to make conversation about it.</p><p><a class="btn ghost" href="/uk">Back to the shop</a></p></div>`, { script: "try{var b=B.get(),p=b.filter(function(i){return i.name}),o=b.length-p.length,n=document.getElementById('ipnote');if(p.length){n.style.display='block';n.textContent='Your In Person '+(p.length>1?'items are':'item is')+' printed with your name, which we check by hand first, so allow an extra day or two.'+(o?' It will arrive separately from the rest of your order, so expect two parcels.':'')}localStorage.removeItem('ih_basket')}catch(e){}B.count();", noindex: true });
+<p class="muted">We'll try not to make conversation about it.</p><p><a class="btn ghost" href="/uk/shop">Back to the shop</a></p></div>`, { script: "try{var b=B.get(),p=b.filter(function(i){return i.name}),o=b.length-p.length,n=document.getElementById('ipnote');if(p.length){n.style.display='block';n.textContent='Your In Person '+(p.length>1?'items are':'item is')+' printed with your name, which we check by hand first, so allow an extra day or two.'+(o?' It will arrive separately from the rest of your order, so expect two parcels.':'')}localStorage.removeItem('ih_basket')}catch(e){}B.count();", noindex: true });
 }
 
 function legalPage(which) {
