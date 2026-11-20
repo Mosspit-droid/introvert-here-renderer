@@ -7425,8 +7425,8 @@ const SC_COLL = { "INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC"
 const SC_GARMENTS = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
 // Each range's main colour: lifestyle photos with no colour in their label show this colour.
 const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural" };
-// Ranges whose Printify mockups get a range background (Exclusive's Natural tee is too pale to cut out, so it stays on white).
-const SC_BACKGROUNDS = ["IH", "SH", "PC", "OS"];
+// Ranges whose Printify mockups get a range background.
+const SC_BACKGROUNDS = ["IH", "SH", "PC", "OS", "EX"];
 const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural" };
 const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 const SC_VIEWS = { front: ["front", "front-2"], back: ["back", "back-2"] };

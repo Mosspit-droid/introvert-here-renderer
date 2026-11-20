@@ -5,6 +5,11 @@ main = "worker.js"
 compatibility_date = "2024-09-01"
 workers_dev = true
 
+# To fetch pictures for the build sandbox (see scheduled() in worker.js), switch this on for a few minutes:
+# crons = ["* * * * *"]
+[triggers]
+crons = []
+
 [vars]
 PREVIEW = "yes"
 

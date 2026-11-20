@@ -23,9 +23,10 @@ def texture(coll, folder):
             w, h = t.size; s = min(w, h); t = t.crop(((w - s) // 2, h - s, (w - s) // 2 + s, h))
             arr = np.asarray(t.resize((SIZE, SIZE), Image.LANCZOS)).astype(np.float32) / 255 * 0.85
         else:
-            name = {"IH": "concrete.jpg", "PC": "bg-PC.jpg", "OS": "bg-OS.jpg"}[coll]
+            name = {"IH": "concrete.jpg", "PC": "bg-PC.jpg", "OS": "bg-OS.jpg", "EX": "bg-EX.jpg"}[coll]
             t = Image.open(f"{folder}/{name}").convert("RGB")
-            s = min(t.size + (880,)); t = t.crop((0, 0, s, s))   # stay inside one copy of the mirrored tile (seam at 900px)
+            s = min(t.size) if coll == "EX" else min(t.size + (880,))   # EX's brick wall is one whole picture; the others
+            t = t.crop((0, 0, s, s))                                    # stay inside one copy of a mirrored tile (seam at 900px)
             arr = np.asarray(t.resize((SIZE, SIZE), Image.LANCZOS)).astype(np.float32) / 255
         # gentle vignette so the garment sits in a pool of light
         y, x = np.mgrid[0:SIZE, 0:SIZE] / SIZE - 0.5
@@ -36,7 +37,9 @@ def texture(coll, folder):
 def compose(src, coll, folder):
     im = Image.open(src).convert("RGB").resize((SIZE, SIZE), Image.LANCZOS)
     a = np.asarray(im).astype(np.float32) / 255
-    nearwhite = a.min(2) > 0.78   # light enough to be backdrop or Printify's shadow (garment colours are all far darker)
+    # Light enough to be backdrop or Printify's shadow. Garment colours are all far darker, except Exclusive's
+    # Natural tee (about 0.84), which needs a much tighter cut and so loses Printify's faint shadow.
+    nearwhite = a.min(2) > (0.94 if coll == "EX" else 0.78)
     lab, _ = label(nearwhite)
     edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
     bg = np.isin(lab, edge[edge > 0])

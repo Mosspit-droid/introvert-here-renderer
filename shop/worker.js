@@ -20,8 +20,8 @@ const COLLECTIONS = {
   SH: { name: "SHHH.", line: "Gentle words for people who can’t always find their voice, and a quiet reminder to everyone else that struggling to say something isn’t the same as having nothing to say." },
   PC: { name: "PER CONTRACT", line: "For the team-building days, the mandatory fun and the after-work drinks you can’t get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included." },
   OS: { name: "OFF THE SHELF", line: "For people who’d rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly." },
-  // Wording from Core's PRODUCT_RULES (COLLECTION_INTRO). No banner or background of its own yet, so it uses the main ones.
-  EX: { name: "EXCLUSIVE.", line: "Jokes about whatever everyone’s talking about this week, from someone who’d rather not join in. Hot off the press. Comment declined.", plain: true },
+  // Wording from Core's PRODUCT_RULES (COLLECTION_INTRO). Newspaper-paper banner, red brick page background (Barry, 20 Nov).
+  EX: { name: "EXCLUSIVE.", line: "Jokes about whatever everyone’s talking about this week, from someone who’d rather not join in. Hot off the press. Comment declined." },
 };
 // Mockups put on range backgrounds by the GitHub job "Shop mockups" live on the repo's shop-mockups branch.
 const MOCKUP_STORE = "https://raw.githubusercontent.com/Mosspit-droid/introvert-here-renderer/shop-mockups/m/";
@@ -51,6 +51,17 @@ export default {
     if (!isPreview(env)) return res;
     const h = new Headers(res.headers); h.set("X-Robots-Tag", "noindex, nofollow"); h.set("Cache-Control", "no-store");
     return new Response(res.body, { status: res.status, headers: h });
+  },
+  // Preview copy only (it alone has a schedule): copies pictures this build sandbox can't reach (Printify's image host)
+  // into KV. Reads KV "mirror:list" ([{k, u}]) and saves each missing one under its key k.
+  async scheduled(event, env, ctx) {
+    if (!isPreview(env)) return;
+    const list = (await env.PENDING.get("mirror:list", "json")) || [];
+    for (const it of list.slice(0, 20)) {
+      if (!/^mirror:[\w.-]+$/.test(it.k || "") || (await env.PENDING.get(it.k + ":ok"))) continue;
+      const r = await fetch(it.u); if (!r.ok) { await env.PENDING.put(it.k + ":ok", "failed " + r.status, { expirationTtl: 600 }); continue; }
+      await env.PENDING.put(it.k, await r.arrayBuffer()); await env.PENDING.put(it.k + ":ok", "1");
+    }
   },
 };
 async function route(request, env, ctx) {
@@ -306,6 +317,9 @@ footer a{margin-right:14px}
 /* Range looks: each collection gets its own background, like the video renderer */
 body.r-PC{background:#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
 body.r-OS{background:#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
+body.r-EX{background:#2a1410}
+body.r-EX::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(12,6,5,.5),rgba(12,6,5,.5)),#2a1410 url(/bg-EX.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-EX .muted,body.r-EX .tabs a:not(.on){color:#eadfd6}
 body.r-SH{background:#3a2112}
 body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,10,4,.42),rgba(20,10,4,.42)),#3a2112 url(/bg-SH.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#e4d9cc}

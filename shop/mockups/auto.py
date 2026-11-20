@@ -14,7 +14,7 @@ import sys, os, json, hashlib, io, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEX = os.path.join(HERE, "textures")
-RANGES = ("IH", "SH", "PC", "OS")   # ranges with a background texture (see compose.py)
+RANGES = ("IH", "SH", "PC", "OS", "EX")   # ranges with a background texture (see compose.py)
 UA = {"User-Agent": "IntrovertHereShop/1.0"}
 
 def load(src):
