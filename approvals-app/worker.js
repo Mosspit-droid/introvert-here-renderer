@@ -1478,6 +1478,12 @@ async function creditsCheck(env, force) {
     if (k >= startKey) scenarios[i].credits += c;
     if (Date.now() - Date.parse(k) < 7 * 864e5) scenarios[i].d7 += c; }); });
   const scenUsed = scenarios.reduce((a, s) => a + s.credits, 0);
+  // Bought extras only count for the month they were bought in: clear them when Make's month resets (Barry, 20 Nov).
+  if (Number(settings.extras) > 0 && settings.extrasPeriod && settings.extrasPeriod !== startKey) {
+    const was = settings.extras; settings.extras = 0; settings.extrasPeriod = startKey;
+    await env.PENDING.put("credits-settings", JSON.stringify(settings));
+    await notify(env, "", "Make credits reset", "New month: the " + was.toLocaleString("en-GB") + " extra credits are cleared. Back to your plan's allowance.", "information_source");
+  }
   const extras = Number(settings.extras) || 0;
   const limit = (Number(settings.allowance) || 0) + extras;
   const used = scenUsed + (Number(settings.otherUsed) || 0);
@@ -1488,6 +1494,10 @@ async function creditsCheck(env, force) {
   return out;
 }
 
+function creditsPeriodStart(resetDay) {   // the current Make month's first day, as creditsCheck works it out
+  const reset = nextResetDate(resetDay, ""); const start = reset ? new Date(Date.UTC(reset.getUTCFullYear(), reset.getUTCMonth() - 1, reset.getUTCDate())) : new Date(Date.now() - 30 * 864e5);
+  return start.toISOString().slice(0, 10);
+}
 // Cloudflare Workers Paid ($5/month, from 12 Nov 2026): included each month: KV writes/deletes/lists 1M each,
 // KV reads 10M, Worker requests 10M. Counted month to date (resets on the 1st, UTC).
 const CF_LIMITS = { write: 1000000, delete: 1000000, list: 1000000, read: 10000000, requests: 10000000 };
@@ -1571,7 +1581,7 @@ async function creditsKey(request, env) {
     if (d[k] !== undefined && String(d[k]) !== String(s[k] || "")) { s[k] = str(d[k]).slice(0, 40); saved.push(k.replace(/^claude/, "Claude ").replace(/^gpt/, "ChatGPT ").replace(/^make/, "Make ").toLowerCase()); }
   }
   if (d.allowance !== undefined && d.allowance !== "") { const n = Number(String(d.allowance).replace(/[, ]/g, "")); if (!(n > 0)) return json({ error: "Monthly allowance should be a number." }, 400); s.allowance = n; saved.push("allowance"); }
-  if (d.extras !== undefined) { const n = Number(String(d.extras || 0).replace(/[, ]/g, "")); if (!(n >= 0)) return json({ error: "Extra credits should be a number." }, 400); if (n !== (s.extras || 0)) { s.extras = n; saved.push("extra credits"); } }
+  if (d.extras !== undefined) { const n = Number(String(d.extras || 0).replace(/[, ]/g, "")); if (!(n >= 0)) return json({ error: "Extra credits should be a number." }, 400); if (n !== (s.extras || 0)) { s.extras = n; s.extrasPeriod = creditsPeriodStart(s.resetDay); saved.push("extra credits"); } }
   if (d.resetDay !== undefined && d.resetDay !== "") { const n = Number(d.resetDay); if (!(n >= 1 && n <= 31)) return json({ error: "Reset day should be 1 to 31." }, 400); s.resetDay = n; saved.push("reset day"); }
   await env.PENDING.put("credits-settings", JSON.stringify(s));
   if (!saved.length) return json({ error: "Nothing to save." }, 400);
