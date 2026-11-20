@@ -1,0 +1,76 @@
+name: Shop mockups
+
+# Puts new Printify mockups onto each range's background for the shop (see shop/mockups/auto.py).
+# Runs every hour, reads the shop's public catalogue, and saves finished pictures on the "shop-mockups" branch,
+# where the shop and the approvals app pick them up. It needs no keys. Most runs find nothing to do and stop
+# within a few seconds.
+# On any other branch (a change to the mockup code being tried out) it composes the small test catalogue in
+# shop/mockups/test/ instead and keeps the pictures as a download on the run, without saving anything.
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - "shop/mockups/**"
+      - ".github/workflows/shop-mockups.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shop-mockups-${{ github.ref }}
+
+env:
+  CATALOG: https://introvert-here-shop.mosspit.workers.dev/catalog.json
+  LIVE: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Get the finished pictures so far
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if [ "$LIVE" = "true" ] && git ls-remote --exit-code --heads "$remote" shop-mockups >/dev/null; then
+            git clone --quiet --depth 1 --branch shop-mockups "$remote" store
+          else
+            mkdir store && git -C store init --quiet -b shop-mockups && git -C store remote add origin "$remote"
+          fi
+          if [ "$LIVE" != "true" ]; then echo "CATALOG=shop/mockups/test/catalog.json" >> "$GITHUB_ENV"; fi
+
+      - name: Anything waiting?
+        id: waiting
+        run: |
+          n=$(python3 shop/mockups/auto.py "$CATALOG" store --list | cut -d' ' -f1)
+          echo "$n mockups waiting"
+          echo "n=$n" >> "$GITHUB_OUTPUT"
+
+      - name: Compose them
+        if: steps.waiting.outputs.n != '0'
+        run: |
+          pip install --quiet numpy pillow scipy
+          python3 shop/mockups/auto.py "$CATALOG" store
+
+      - name: Save them
+        if: steps.waiting.outputs.n != '0' && env.LIVE == 'true'
+        run: |
+          cd store
+          git config user.name "shop-mockups"
+          git config user.email "shop-mockups@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || { git commit --quiet -m "Shop mockups on range backgrounds"; git push --quiet origin shop-mockups; }
+
+      - name: Keep the test pictures (not saved to the shop)
+        if: steps.waiting.outputs.n != '0' && env.LIVE != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-mockups
+          path: store/m
+          retention-days: 7

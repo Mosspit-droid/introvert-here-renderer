@@ -7,7 +7,7 @@
 //                                    for Barry to approve while AUTO_SEND is off) and records it for the approvals app.
 //
 // Data:  KV (binding PENDING, shared with the approvals app)
-//          shop:catalog          catalogue built by shop/build_catalog.py
+//          shop:catalog          catalogue, kept current by the approvals app (shopCatalogRun in approvals-app/worker.js)
 //          shop:orders           list of shop orders (newest first), read by the approvals app
 //          shop:order:<session>  one record per paid checkout (also the "already handled" marker)
 //        Keys come from KV namespace SECRETS (stripe_secret_key, printify_token), saved by Barry through the
@@ -20,7 +20,11 @@ const COLLECTIONS = {
   SH: { name: "SHHH.", line: "Gentle words for people who can’t always find their voice, and a quiet reminder to everyone else that struggling to say something isn’t the same as having nothing to say." },
   PC: { name: "PER CONTRACT", line: "For the team-building days, the mandatory fun and the after-work drinks you can’t get out of. Clothing for people who are contractually obliged to socialise, and not one bit more. Attendance compulsory. Enthusiasm not included." },
   OS: { name: "OFF THE SHELF", line: "For people who’d rather be somewhere else entirely: between the pages, anywhere but here. Escapism, worn proudly." },
+  // Wording from Core's PRODUCT_RULES (COLLECTION_INTRO). No banner or background of its own yet, so it uses the main ones.
+  EX: { name: "EXCLUSIVE.", line: "Jokes about whatever everyone’s talking about this week, from someone who’d rather not join in. Hot off the press. Comment declined.", plain: true },
 };
+// Mockups put on range backgrounds by the GitHub job "Shop mockups" live on the repo's shop-mockups branch.
+const MOCKUP_STORE = "https://raw.githubusercontent.com/Mosspit-droid/introvert-here-renderer/shop-mockups/m/";
 const ETSY_SHOP = "https://www.etsy.com/shop/IntrovertHereShop";
 
 let catalogCache = null, catalogAt = 0;
@@ -70,7 +74,8 @@ export default {
       }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {
-        const buf = await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer");
+        let buf = await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer");
+        if (!buf) { const r = await fetch(MOCKUP_STORE + mk[1] + ".jpg", { cf: { cacheTtl: 86400, cacheEverything: true } }); if (r.ok) buf = await r.arrayBuffer(); }
         return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
       }
       return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the shop</a>.</p>`), 404);
@@ -326,7 +331,7 @@ function elsewherePage(c) {
 }
 
 function heroImg(coll) {
-  if (coll && COLLECTIONS[coll] && coll !== "IH") return `<img class="hero" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
+  if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<img class="hero" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
   return `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people">`;
 }
 function shopPage(cat, only) {
