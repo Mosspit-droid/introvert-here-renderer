@@ -29,8 +29,8 @@ const ETSY_SHOP = "https://www.etsy.com/shop/IntrovertHereShop";
 
 let catalogCache = null, catalogAt = 0;
 async function catalog(env) {
-  if (!catalogCache || Date.now() - catalogAt > 300000) {
-    catalogCache = (await env.PENDING.get("shop:catalog", "json")) || { designs: [] };
+  if (!catalogCache || Date.now() - catalogAt > (isPreview(env) ? 15000 : 300000)) {
+    catalogCache = (await env.PENDING.get(isPreview(env) ? "shop:catalog-preview" : "shop:catalog", "json")) || { designs: [] };
     catalogAt = Date.now();
   }
   return catalogCache;
@@ -41,11 +41,25 @@ const html = (body, status = 200, extra = {}) => new Response(body, { status, he
 const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { "Content-Type": "application/json" } });
 const cookie = (req, name) => ((req.headers.get("Cookie") || "").match(new RegExp("(?:^|;\\s*)" + name + "=([^;]+)")) || [])[1];
 
+// The preview copy (worker "introvert-here-shop-preview", wrangler.preview.toml, PREVIEW = "yes") is for Barry to look at
+// changes before they reach the real shop: it reads its own catalogue (KV shop:catalog-preview), tries shop:preview:<file>
+// before the real picture files, is hidden from search engines and can't take orders.
+const isPreview = (env) => env.PREVIEW === "yes";
 export default {
   async fetch(request, env, ctx) {
+    const res = await route(request, env, ctx);
+    if (!isPreview(env)) return res;
+    const h = new Headers(res.headers); h.set("X-Robots-Tag", "noindex, nofollow"); h.set("Cache-Control", "no-store");
+    return new Response(res.body, { status: res.status, headers: h });
+  },
+};
+async function route(request, env, ctx) {
+  {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
+      if (isPreview(env) && path.startsWith("/api/")) return json({ error: "This is the preview copy of the shop, so checkout is switched off." }, 403);
+      if (isPreview(env) && path === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
       if (path === "/api/stripe-webhook" && request.method === "POST") return await stripeWebhook(request, env, ctx);
       if (path === "/api/checkout" && request.method === "POST") return await checkout(request, env, url);
       if (path === "/country") {
@@ -68,13 +82,13 @@ export default {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg"].includes(path)) {
-        const buf = await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer");
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg"].includes(path)) {
+        const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {
-        let buf = await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer");
+        let buf = (isPreview(env) && (await env.PENDING.get("shop:preview:m-" + mk[1] + ".jpg", "arrayBuffer"))) || (await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer"));
         if (!buf) { const r = await fetch(MOCKUP_STORE + mk[1] + ".jpg", { cf: { cacheTtl: 86400, cacheEverything: true } }); if (r.ok) buf = await r.arrayBuffer(); }
         return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
       }
@@ -83,8 +97,8 @@ export default {
       console.error(e);
       return html(page("Something went wrong", `<p>Sorry, something went wrong on our side. Please try again in a minute.</p>`), 500);
     }
-  },
-};
+  }
+}
 
 // ---------------- checkout ----------------
 

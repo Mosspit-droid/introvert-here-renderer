@@ -1,0 +1,13 @@
+# Private preview copy of the shop (see "preview" in worker.js). Deploy with:
+#   npx wrangler deploy -c wrangler.preview.toml
+name = "introvert-here-shop-preview"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+workers_dev = true
+
+[vars]
+PREVIEW = "yes"
+
+[[kv_namespaces]]
+binding = "PENDING"
+id = "1c5342ad32504af1abd1da52c342f3ce"
