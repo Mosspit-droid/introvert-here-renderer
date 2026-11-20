@@ -97,6 +97,13 @@ async function route(request, env, ctx) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
+      // A garment's own Canva mockup pages (every colour), /p/<product code>/<page number>[t].jpg; "t" is the small version.
+      // Preview only for now, kept in KV; the real shop will keep them in Cloudflare file storage (R2) once it is switched on.
+      const pp = /^\/p\/([A-Z]{2}-\d{5}-[A-Z-]+)\/(\d{2}t?)\.jpg$/.exec(path);
+      if (pp) {
+        const buf = isPreview(env) ? await env.PENDING.get("shop:preview:p/" + pp[1] + "/" + pp[2] + ".jpg", "arrayBuffer") : null;
+        return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
+      }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {
         let buf = (isPreview(env) && (await env.PENDING.get("shop:preview:m-" + mk[1] + ".jpg", "arrayBuffer"))) || (await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer"));
