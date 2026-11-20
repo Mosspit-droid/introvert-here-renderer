@@ -393,7 +393,7 @@ function $(i){return document.getElementById(i)}function money(p){return '£'+(p
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
 function sizes(){return G().variants.filter(function(v){return v.colour===st.colour})}
-function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];return (c===g.mainColour?own.concat(m,any):m.concat(own,any)).concat(sg)}
+function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};return (c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen))}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
  $('garments').innerHTML=D.order.map(function(t){return '<button class="chip'+(t===st.g?' on':'')+'" data-g="'+t+'">'+D.garments[t].label+'</button>'}).join('');
