@@ -3,10 +3,10 @@
 Soft cream newsprint made here (no stock photo), with the red EXCLUSIVE. logo printed into it like a masthead (ink
 only darkens the paper, so the white lettering is bare paper), then a headline in Anton (the tee headline font), an
 italic sub-heading between two rules, and a last line, all set to the same width.
-The italic is Playfair Display, standing in for the tee's body font until Barry confirms its name.
+The italic sub-heading is Newsreader Italic, the tee's body font (read from a PDF export of the tee design).
 
 Usage: python3 make_ex.py <fonts folder> <output folder>
-The fonts folder holds Anton_400Regular.ttf and PlayfairDisplay_400Regular_Italic.ttf (Google Fonts).
+The fonts folder holds Anton_400Regular.ttf and Newsreader_400Regular_Italic.ttf (Google Fonts).
 """
 import sys, os
 import numpy as np
@@ -47,7 +47,7 @@ def sun_red(layer):
     c=layer[...,:3]; red=np.clip((c[...,0]-c[...,1])*1.6,0,1)[...,None]; grey=c.mean(2,keepdims=True)
     out=layer.copy(); out[...,:3]=red*np.array([0.93,0.07,0.11])+(1-red)*np.where(grey>0.5,1.0,c)
     return out
-PF=FONTS+"/PlayfairDisplay_400Regular_Italic.ttf"; AN=FONTS+"/Anton_400Regular.ttf"
+PF=FONTS+"/Newsreader_400Regular_Italic.ttf"; AN=FONTS+"/Anton_400Regular.ttf"
 X0,X1=934,1768
 def fit(d,text,path,k,width,start):
     size=start
