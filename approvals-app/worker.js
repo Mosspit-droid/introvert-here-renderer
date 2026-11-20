@@ -39,6 +39,7 @@ export default {
     ctx.waitUntil(draftWatch(env).catch(() => {}));
     ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
+    ctx.waitUntil(ipReleaseTick(env).catch(() => {}));
     ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
     ctx.waitUntil(githubCheck(env).catch(() => {}));
     ctx.waitUntil(socialTick(env).catch(() => {}));
@@ -1821,7 +1822,8 @@ async function adHocCards(env, gags, amend) {
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
     const tgt = Number((targets || {})[code]) || 0;
     const extra = (tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${all.length >= tgt ? "reached ✓" : (tgt - all.length) + " to go"}</b></div><div class="rbar tbar"><i style="width:${Math.max(3, Math.min(100, Math.round(all.length / tgt * 100)))}%;background:var(--ok)"></i></div>` : "") +
-      (code === "IP" ? `<div class="row"><span>Not listed yet</span><b>${all.filter((g) => !ipListed.has(g.id)).length}</b></div>` : `<div class="row"><span>Listed</span><b>When news breaks</b></div>`);
+      (code === "IP" ? (() => { const dayName = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), today = new Date().toISOString().slice(0, 10), ds = all.flatMap((g) => g.ds || []).filter(Boolean).sort(), nx = ds.find((d) => d >= today), until = ds[ds.length - 1];
+        return `<div class="row"><span>Not listed yet</span><b>${all.filter((g) => !ipListed.has(g.id)).length}</b></div>` + (nx ? `<div class="row"><span>Next release</span><b>${esc(dayName(nx))}</b></div>` : "") + (until ? `<div class="row"><span>Releases planned until</span><b>${esc(dayName(until))}</b></div>` : ""); })() : `<div class="row"><span>Listed</span><b>When news breaks</b></div>`);
     return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 <div class="row"><span>Gags in Core</span><b>${all.length}</b></div>${extra}</a>`;
@@ -3227,16 +3229,16 @@ const GAG_BOXES_SCRIPT = String.raw`(function () {
   // In Person (Barry, 18 Nov): its gags, newest first, each with List it (builds all four garments as Etsy drafts).
   window.ipGagsShow = function () {
     if (col.value !== "IN PERSON") return;
-    NW.innerHTML = '<div class="news"><b>Your In Person gags</b><div class="small" style="margin:4px 0 8px">Tap List it when you want one in the shop: the app makes all four garments as Etsy drafts (about 10 minutes) and their videos come to Approvals. Or tap Next to write a new one.</div><div id="ipL"><div class="small">Loading…</div></div></div>';
+    NW.innerHTML = '<div class="news"><b>Your In Person gags</b><div class="small" style="margin:4px 0 8px">Each garment goes on sale on its date (one every fortnight) and comes to Approvals as usual. Tap List it to bring a gag forward: the app makes its remaining garments as Etsy drafts now. Or tap Next to write a new one.</div><div id="ipL"><div class="small">Loading…</div></div></div>';
     fetch("/api/ip-gags").then(function (r) { return r.json(); }).then(function (j) {
       var L = document.getElementById("ipL"); if (!L) return;
       L.innerHTML = (j.gags || []).map(function (g) { return '<div class="ni" style="cursor:default"><b>' + esc(g.id) + (g.stem ? " · " + esc(g.stem) : "") + '</b><div class="small" style="white-space:pre-line">' + esc(g.text.replace(/\[NAME\]/gi, "[NAME]")) + '</div>' +
-        (g.listed ? '<span class="small">✓ Listed</span>' : g.building ? '<span class="small">Building now…</span>' : '<button type="button" class="btn" data-iplist="' + esc(g.id) + '">List it</button>') + "</div>"; }).join("") || '<div class="small">' + esc(j.error || "No In Person gags yet.") + "</div>";
+        (g.next && !g.listed && !g.building ? '<div class="small">' + g.listedN + ' of 4 listed · next on ' + new Date(g.next + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) + '</div>' : "") + (g.listed ? '<span class="small">✓ Listed</span>' : g.building ? '<span class="small">Building now…</span>' : '<button type="button" class="btn" data-iplist="' + esc(g.id) + '">List it</button>') + "</div>"; }).join("") || '<div class="small">' + esc(j.error || "No In Person gags yet.") + "</div>";
     }).catch(function () { var L = document.getElementById("ipL"); if (L) L.innerHTML = '<div class="small">Couldn’t load them right now.</div>'; });
   };
   NW.addEventListener("click", function (e) {
     var b = e.target.closest("[data-iplist]"); if (!b) return; e.stopPropagation();
-    if (!confirm("List " + b.dataset.iplist + " now? The app makes all four garments as Etsy drafts; nothing goes live until you approve.")) return;
+    if (!confirm("List " + b.dataset.iplist + " now, ahead of its dates? The app makes its remaining garments as Etsy drafts; nothing goes live until you approve.")) return;
     b.disabled = true; b.textContent = "Starting…";
     fetch("/api/ip-list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gagId: b.dataset.iplist }) }).then(function (r) { return r.json().then(function (j) { return [r.ok, j]; }); })
       .then(function (x) { if (x[0]) b.outerHTML = '<span class="small">Building now… you’ll get a notification when it’s done.</span>'; else { alert(x[1].error || "Couldn’t start it."); b.disabled = false; b.textContent = "List it"; } });
@@ -3695,7 +3697,7 @@ const GAG_WIZARD_SCRIPT = String.raw`(function () {
     else if (el("collection").value === "IN PERSON") {   // no schedule and no listing yet: write it, save it to Core (18 Nov)
       STEPS = ["Range", "Gag", "Title stem", "Category"]; document.querySelectorAll(".o-stars,.o-season,.o-dates,.o-garm").forEach(function (x) { x.dataset.st = "9"; });
       document.querySelector(".o-news").dataset.st = "1"; if (window.ipGagsShow) window.ipGagsShow();
-      DIDS.forEach(function (id) { el(id).value = ""; }); el("save").textContent = "Save to Core";
+      el("save").textContent = "Save to Core";
     }
     else { STEPS = BASE_STEPS; el("save").textContent = NOW ? "List it now" : Object.keys(NOWSET).length ? "Publish now" : "Save to Core"; }
     go(Math.min(cur, STEPS.length));
@@ -3901,7 +3903,11 @@ function slotInfo() {
   const c = $("collection").value, pc = G && G.perCollection[c];
   if (!c || !pc) { note(""); return; }
   const n = pc.next;
-  if (c === "IN PERSON") { note("New In Person gag " + n.id + ". It's saved to Core without dates; In Person gags are listed when personalised orders are ready, not on the weekly schedule.", "small"); setDates([]); return; }
+  if (c === "IN PERSON") {   // dated releases (20 Nov): a new gag takes the next free dated space
+    var dd = function (x) { return x ? new Date(x + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""; };
+    if (n.mode === "fill") { note("New In Person gag " + n.id + ". Its T-shirt goes on sale " + dd(n.dates[0]) + ", then one garment a fortnight (hoodie " + dd(n.dates[3]) + "). " + pc.emptyLeft + " dated space" + (pc.emptyLeft === 1 ? "" : "s") + " left.", "small"); setDates(n.dates); }
+    else { note("New In Person gag " + n.id + ". All the dated spaces are used, so it's saved without dates: use List it to put it in the shop.", "small"); setDates([]); }
+    return; }
   if (window.isMulti && window.isMulti()) { note("New " + (c === "EXCLUSIVE" ? "Exclusive" : c) + " gag " + n.id + ". Exclusive gags are made on demand, not on the weekly schedule.", "small"); setDates([]); return; }
   note(n.mode === "fill"
     ? "Fills prepared row " + n.id + " (" + pc.emptyLeft + " empty " + pc.prefix + " row" + (pc.emptyLeft === 1 ? "" : "s") + " left) \u2014 its dates are filled in below."
@@ -5306,29 +5312,74 @@ async function ipImagesResult(request, env) {
   await notify(env, "", "In Person draft ready: " + job.title, images.length + " photos with the sample name " + job.sample + ". The video comes to Approvals next.", "white_check_mark");
   return json({ ok: true });
 }
-// In Person listing, when Barry chooses (Barry, 18 Nov: ad hoc, not a weekly schedule). He taps "List it" on an In Person
-// gag in the gag tool; the app builds all four garments as Etsy drafts, one after another (each needs its own Make
-// mockup run). They land in Approvals like any other listing; nothing goes live until Barry approves.
+// In Person releases (Barry, 20 Nov): each garment has a release date in Core's GAGS (columns T-SHIRT..HOODIE), one
+// listing every second Monday so the range ends the same week as the others (May 2034). On its date the app builds that
+// garment as an Etsy draft; "List it" in the gag tool brings a whole gag forward. One garment is built at a time (each
+// needs its own Make mockup run); the queue lives in KV "ip-weekly" as "GAG|TYPE" entries.
 const IP_WEEK_TYPES = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
+const ipXlDay = (v) => { const n = Number(v); return n > 30000 ? new Date(Date.UTC(1899, 11, 30) + n * 864e5).toISOString().slice(0, 10) : (/^\d{4}-\d\d-\d\d/.test(String(v || "")) ? String(v).slice(0, 10) : ""); };
+async function ipQueueAdd(env, entries, why) {
+  const st = (await env.PENDING.get("ip-weekly", "json")) || {};
+  const q = st.status === "building" ? (st.queue || []) : [], inFlight = st.status === "building" && st.cur ? [st.cur] : [];
+  const add = entries.filter((e) => !q.includes(e) && !inFlight.includes(e));
+  if (!add.length) return 0;
+  const nst = st.status === "building" ? st : { at: Date.now(), queue: [], done: [], status: "building", why };
+  nst.queue = q.concat(add); if (st.status !== "building") nst.why = why;
+  await env.PENDING.put("ip-weekly", JSON.stringify(nst));
+  return add.length;
+}
 async function ipListStart(env, gagId) {
-  const cur = (await env.PENDING.get("ip-weekly", "json")) || {};
-  if (cur.status === "building" && Date.now() - (cur.at || 0) < 2 * 3600e3) throw new Error(cur.gagId + " is still being built. Wait for it to finish (about 10 minutes).");
-  const map = await ipListingMap(env, true);
-  if (Object.values(map).some((x) => x.gagId === gagId)) throw new Error(gagId + " is already listed.");
+  const map = await ipListingMap(env, true), have = new Set(Object.values(map).map((x) => x.code));
   const G = await coreTable(env, "GAGS_TABLE"), g = G.rows.find((r) => r[G.col("GAG_ID")] === gagId);
   if (!g) throw new Error("Core has no gag " + gagId + ". If you've just saved it, wait a minute and try again.");
   if ((String(g[G.col("GAG_TEXT")] || "").match(/\[NAME\]/gi) || []).length !== 1) throw new Error(gagId + " needs [NAME] in it exactly once.");
-  const st = { gagId, at: Date.now(), queue: IP_WEEK_TYPES.slice(), done: [], status: "building" };
-  await env.PENDING.put("ip-weekly", JSON.stringify(st));
+  const todo = IP_WEEK_TYPES.filter((t) => !have.has(gagId + "-" + t)).map((t) => gagId + "|" + t);
+  if (!todo.length) throw new Error(gagId + " is already listed in all four garments.");
+  const failed = (await env.PENDING.get("ip-failed", "json")) || [];
+  if (failed.some((e) => e.startsWith(gagId + "|"))) await env.PENDING.put("ip-failed", JSON.stringify(failed.filter((e) => !e.startsWith(gagId + "|"))));
+  const n = await ipQueueAdd(env, todo, "List it: " + gagId);
+  if (!n) throw new Error(gagId + " is already being built.");
   await ipWeeklyTick(env);
-  return st;
+  return { ok: true, queued: n };
+}
+// Hourly: queue any In Person garment whose release date has come and that isn't listed yet. A due date with no gag
+// written in its space gets one alert, like the other ranges' "no gag for this slot".
+async function ipReleaseTick(env) {
+  const last = Number((await env.PENDING.get("ip-release-at")) || 0), now = Date.now();
+  if (now - last < 3600e3) return;
+  await env.PENDING.put("ip-release-at", String(now));
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const [G, map] = await Promise.all([coreTable(env, "GAGS_TABLE"), ipListingMap(env, true)]);
+  const have = new Set(Object.values(map).map((x) => x.code)), due = [], empty = [], failed = (await env.PENDING.get("ip-failed", "json")) || [];   // a failed garment waits for List it, not an hourly retry
+  for (const r of G.rows) {
+    const id = String(r[G.col("GAG_ID")] || ""); if (!/^IP-\d{5}$/.test(id)) continue;
+    const text = String(r[G.col("GAG_TEXT")] || "");
+    for (const t of IP_WEEK_TYPES) {
+      const d = ipXlDay(r[G.col(t)]); if (!d || d > today || have.has(id + "-" + t)) continue;
+      if (!text.trim()) { empty.push(id + " " + t.toLowerCase() + " (" + d + ")"); continue; }
+      if ((text.match(/\[NAME\]/gi) || []).length !== 1) { empty.push(id + ": needs [NAME] once"); continue; }
+      if (!failed.includes(id + "|" + t)) due.push(id + "|" + t);
+    }
+  }
+  if (due.length) await ipQueueAdd(env, due, "Release dates");
+  if (empty.length) {
+    const seen = (await env.PENDING.get("ip-empty-alerted", "json")) || [], fresh = empty.filter((e) => !seen.includes(e));
+    if (fresh.length) {
+      const alerts = await loadAlerts(env);
+      alerts.unshift({ id: crypto.randomUUID(), at: now, source: "app", link: "/gags", title: "In Person: no gag written for a release date", body: fresh.join(", ") + ". Write an In Person gag in the gag tool; it takes the next free space." });
+      await saveAlerts(env, alerts); await env.PENDING.put("ip-empty-alerted", JSON.stringify(seen.concat(fresh).slice(-200)));
+      await notify(env, "", "In Person gag needed", "A release date has come with no gag written. Write one in the gag tool.", "warning");
+    }
+  }
 }
 async function ipGagsList(env) {
   const [G, map] = await Promise.all([coreTable(env, "GAGS_TABLE"), ipListingMap(env, true)]);
-  const listed = new Set(Object.values(map).map((x) => x.gagId)), st = (await env.PENDING.get("ip-weekly", "json")) || {};
-  const sc = G.col("TITLE_STEM");
-  return G.rows.filter((r) => /^IP-\d+$/.test(String(r[G.col("GAG_ID")] || ""))).map((r) => { const id = String(r[G.col("GAG_ID")]);
-    return { id, stem: sc >= 0 ? String(r[sc] || "") : "", text: String(r[G.col("GAG_TEXT")] || ""), listed: listed.has(id), building: st.status === "building" && st.gagId === id }; })
+  const have = new Set(Object.values(map).map((x) => x.code)), st = (await env.PENDING.get("ip-weekly", "json")) || {};
+  const sc = G.col("TITLE_STEM"), busy = st.status === "building" ? (st.queue || []).concat(st.cur ? [st.cur] : []) : [];
+  return G.rows.filter((r) => /^IP-\d+$/.test(String(r[G.col("GAG_ID")] || "")) && String(r[G.col("GAG_TEXT")] || "").trim()).map((r) => { const id = String(r[G.col("GAG_ID")]);
+    const n = IP_WEEK_TYPES.filter((t) => have.has(id + "-" + t)).length;
+    const next = IP_WEEK_TYPES.filter((t) => !have.has(id + "-" + t)).map((t) => ipXlDay(r[G.col(t)])).filter(Boolean).sort()[0] || "";
+    return { id, stem: sc >= 0 ? String(r[sc] || "") : "", text: String(r[G.col("GAG_TEXT")] || ""), listed: n === 4, listedN: n, next, building: busy.some((e) => e.startsWith(id + "|")) }; })
     .sort((a, b) => b.id.localeCompare(a.id));
 }
 async function ipWeeklyTick(env) {
@@ -5337,25 +5388,29 @@ async function ipWeeklyTick(env) {
   if (st.ref) {   // a garment's photos are being made
     const j = await env.PENDING.get("ipjob:" + st.ref, "json");
     if (j && j.status === "photos" && Date.now() - j.at < 30 * 60e3) return;
-    st.done.push({ type: st.cur, listingId: st.listingId, ok: !!(j && j.status === "done"), msg: j && j.msg || (j && j.status === "photos" ? "Photos took too long." : "") });
+    st.done.push({ code: st.cur, listingId: st.listingId, ok: !!(j && j.status === "done"), msg: j && j.msg || (j && j.status === "photos" ? "Photos took too long." : "") });
     delete st.ref; delete st.cur; delete st.listingId;
   }
-  const type = st.queue.shift();
-  if (!type) {
+  let entry = (st.queue || []).shift();
+  if (entry && !entry.includes("|")) entry = st.gagId + "|" + entry;   // an older queue of bare garment names
+  if (!entry) {
     st.status = "finished"; await env.PENDING.put("ip-weekly", JSON.stringify(st));
     const bad = st.done.filter((x) => !x.ok);
+    if (bad.length) { const f = (await env.PENDING.get("ip-failed", "json")) || []; await env.PENDING.put("ip-failed", JSON.stringify([...new Set(f.concat(bad.map((x) => x.code).filter(Boolean)))].slice(-100))); }
+    const good = st.done.filter((x) => x.ok).map((x) => String(x.code || "").replace("|", " ").toLowerCase());
     const alerts = await loadAlerts(env);
-    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/approvals", title: "In Person " + st.gagId + " listed",
-      body: bad.length ? (st.done.length - bad.length) + " of 4 garments built. Not done: " + bad.map((x) => x.type + (x.msg ? " (" + x.msg + ")" : "")).join(", ") + ". Ask Claude to finish them." : "All 4 garments are Etsy drafts. Their videos come to Approvals next." });
+    alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: "/approvals", title: "In Person listed: " + (good.join(", ") || "nothing"),
+      body: (good.length ? "Etsy draft" + (good.length === 1 ? "" : "s") + " made; the video" + (good.length === 1 ? "" : "s") + " come to Approvals next." : "") + (bad.length ? " Not done: " + bad.map((x) => String(x.code || "").replace("|", " ") + (x.msg ? " (" + x.msg + ")" : "")).join(", ") + ". Tap List it on the gag in the gag tool to try again, or ask Claude." : "") });
     await saveAlerts(env, alerts);
-    await notify(env, "", "In Person " + st.gagId + (bad.length ? ": " + bad.length + " garment(s) need a look" : " is built"), bad.length ? "Check Alerts." : "All 4 garments are drafts. Videos to approve next.", bad.length ? "warning" : "white_check_mark");
+    await notify(env, "", bad.length ? "In Person: " + bad.length + " garment(s) need a look" : "In Person listed: " + good.join(", "), bad.length ? "Check Alerts." : "Draft ready. The video comes to Approvals next.", bad.length ? "warning" : "white_check_mark");
     return;
   }
+  const [gagId, type] = entry.split("|");
   try {
-    const dr = await ipBuildDraft(env, st.gagId, type);
+    const dr = await ipBuildDraft(env, gagId, type);
     const job = await ipImagesStart(env, dr);
-    st.cur = type; st.ref = job.ref; st.listingId = dr.listingId;
-  } catch (e) { st.done.push({ type, ok: false, msg: String(e.message || e).slice(0, 160) }); }
+    st.cur = entry; st.ref = job.ref; st.listingId = dr.listingId;
+  } catch (e) { st.done.push({ code: entry, ok: false, msg: String(e.message || e).slice(0, 160) }); }
   await env.PENDING.put("ip-weekly", JSON.stringify(st));
 }
 
