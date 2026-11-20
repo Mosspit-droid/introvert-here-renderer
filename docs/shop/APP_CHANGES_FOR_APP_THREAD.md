@@ -132,9 +132,10 @@ re-stored the set by hand. This is the case item 4 above should handle automatic
 
 ## Two more decisions from Barry (20 Nov, late)
 
-1. **In Person goes onto a dated schedule in Core.** This reverses the 19 Nov "no dated spaces" change. Pace: one
-   product a fortnight (50 gags = 200 products, finishing around May 2034 with the other spin-off ranges), with gags
-   1–4 fast-tracked so In Person has 16 products at the site's launch. Only 13 gags are written so far.
+1. **In Person is on a dated schedule in Core** (already done by the time this was written: read straight from
+   `GAGS_TABLE` on 20 Nov at 22:46 UTC). 50 rows, one product a fortnight on Mondays, ending 1 May 2034. IP-00001 has
+   no dates (it is live). IP-00002: T-shirt and long sleeve 23 Nov, sweatshirt 7 Dec, hoodie 21 Dec. IP-00003: 4 Jan
+   to 15 Feb 2027. IP-00004: 1 Mar to 12 Apr 2027. Those are the Etsy dates; the site wants gags 2–4 built early.
 2. **The app should keep the site updated from now on**, not the shop thread by hand: storing a garment's photos when
    it is built, re-storing them when its mockups are regenerated, and refreshing the catalogue when a listing is
    built, repriced or deactivated. Until that exists the shop thread refreshes things manually with
