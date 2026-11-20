@@ -6346,7 +6346,7 @@ $("scanRefresh").addEventListener("click", async () => { $("scanOut").textConten
 // AMEND_ONLY (GAGS column N) limits a gag's update to the ticked garments; the builder clears it when done.
 
 const AMEND_XL = "/v1.0/drives/b!ndnYRjl_sE21BKMMz_r6PMo1voTJfixLpQRKuPki-i9EoHVOO8R9TbWVCCuU0ua6/items/01R3POCZGZPJY6UCRSEJD3MBADE4GJ24YQ/workbook";
-const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF", IP: "IN PERSON" };
+const AMEND_COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF", EX: "EXCLUSIVE", IP: "IN PERSON" };
 const AMEND_GARMENTS = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
 const AMEND_WHAT = ["supplier", "print", "mockups", "colours", "titles", "descriptions", "tags", "shipping", "video"];
 const AMEND_RULE_COLS = { suffix: "TITLE_SUFFIX", intro: "COLLECTION_INTRO", features: "PRODUCT_FEATURES", audience: "AUDIENCE_TEXT", closing: "CLOSING_TEXT", bp: "PRINTIFY_BLUEPRINT_ID", provider: "PRINTIFY_PROVIDER_ID", ship: "SHIPPING_PROFILE_ID" };
@@ -6775,7 +6775,7 @@ const AMEND_JS = String.raw`
 var D = JSON.parse(document.getElementById("amend-data").textContent);
 var S0 = D.S, LOG = D.log || [], SHIP = D.ship || {};
 var TAXO = { "T-SHIRT": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "LONG-SLEEVE": "Clothing › Gender-Neutral Adult › Tops & Tees › T-shirts", "SWEATSHIRT": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Sweatshirts", "HOODIE": "Clothing › Gender-Neutral Adult › Hoodies & Sweatshirts › Hoodies" };
-var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"],["IP","In Person","IN PERSON"]];
+var RANGES = [["IH","Introvert Here","INTROVERT HERE…"],["SH","SHHH.","SHHH."],["PC","Per Contract","PER CONTRACT"],["OS","Off The Shelf","OFF THE SHELF"],["EX","Exclusive","EXCLUSIVE"],["IP","In Person","IN PERSON"]];
 var GARM = [["T-SHIRT","T-Shirt","T-Shirts"],["LONG-SLEEVE","Long-Sleeve","Long-Sleeves"],["SWEATSHIRT","Sweatshirt","Sweatshirts"],["HOODIE","Hoodie","Hoodies"]];
 // Listings (Barry, 14 Nov): sections in the order of Etsy's own edit page.
 var WHAT = [
@@ -7165,7 +7165,7 @@ async function tagsHook(env, body) {
 async function tagsSave(request, env) {
   const d = await request.json();
   const gagId = str(d.gagId);
-  if (!/^(IH|SH|PC|OS)-\d{5}$/.test(gagId)) return json({ error: "Unknown gag" }, 400);
+  if (!/^(IH|SH|PC|OS|EX|IP)-\d{5}$/.test(gagId)) return json({ error: "Unknown gag" }, 400);
   if (d.regenerate) return tagsHook(env, { action: "tags-save", gagId, regenerate: "true" });
   const tags = String(d.override || "").split("|").map((s) => s.replace(/\s+/g, " ").trim().toLowerCase()).filter(Boolean);
   if (tags.length && tags.length !== 5) return json({ error: "Your own tags need exactly 5 (you have " + tags.length + ")." }, 400);
