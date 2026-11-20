@@ -7432,13 +7432,15 @@ const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 // The shop's own prices in pence (Barry, 20 Nov: "option B"). Etsy shows a UK buyer Core's price plus 20% VAT and keeps
 // that VAT, then takes about 13.8% in fees; the shop pays Stripe about 1.5% + 20p and Barry isn't VAT-registered. So
 // the shop sells for about 20% less than Etsy (T-shirt £31.99 -> £25.99) and still earns £3-£4 more a sale.
-// Bigger sizes keep their surcharge, scaled by the same amount and kept to whole pounds; In Person adds £3 for the name.
+// Bigger sizes keep Etsy's surcharge in pounds, less £1 where it is £4 or more (so £2, £3, £4, £5, £6 become £2, £3, £3,
+// £4, £5); In Person adds £3 for the name.
 const SC_PRICE = { "T-SHIRT": 2599, "LONG-SLEEVE": 2999, "SWEATSHIRT": 3799, "HOODIE": 4799 }, SC_NAME_CHARGE = 300;
 // net = this size's Core/Printify price before VAT, baseNet = the garment's cheapest size, both in pence.
 function scSitePrice(type, net, baseNet) {
   const etsy = Math.round(net * SC.vat), etsyBase = Math.round(baseNet * SC.vat), base = SC_PRICE[type];
   if (!base) return Math.round((etsy * 0.81) / 100) * 100 - 1;   // a garment with no set price yet: 19% under Etsy, ending .99
-  return base + Math.floor(((etsy - etsyBase) / 100) * (base / etsyBase) + 0.5 + 1e-6) * 100;   // halves round up
+  const extra = Math.round((etsy - etsyBase) / 100);   // Etsy's surcharge for this size, in whole pounds
+  return base + (extra >= 4 ? extra - 1 : extra) * 100;
 }
 const scPhotoColour = (alt) => { const m = /_(DARK_HEATHER|FOREST_GREEN|DARK_CHOCOLATE|GREY|CHARCOAL|NAVY|BLACK|MAROON|NATURAL|PURPLE)$/.exec(String(alt || "").toUpperCase()); return m ? SC_PHOTO[m[1]] : null; };
 const scAnyColour = (alt) => /_(PROMO|AGM|RANGE|BRAND|VARIANTS)$/.test(String(alt || "").toUpperCase());
