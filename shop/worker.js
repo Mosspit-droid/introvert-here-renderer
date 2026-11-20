@@ -99,7 +99,7 @@ async function route(request, env, ctx) {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg", "/bg-IP2.jpg", "/bg-SH2.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
@@ -343,15 +343,17 @@ footer a{margin-right:14px}
 body.r-PC{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
 body.r-PC .muted,body.r-PC .tabs a:not(.on),body.r-OS .muted,body.r-OS .tabs a:not(.on){color:#ded9cf}
 body.r-OS{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
-body.r-IP{background:#2f3b52}
-body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.12)),#2f3b52 url(/bg-IP.jpg?v=${ASSET_V}) center/cover no-repeat}
-body.r-IP .muted,body.r-IP .tabs a:not(.on){color:#dfe5ee}
+/* In Person: pale oak page (Barry's picture, 20 Nov) behind the blue-slat banner. A light page, so its text is dark and its panels are cream. */
+body.r-IP{background:#e3b47e;--text:#201c17;--muted:#4f463b;--line:#a88f72;--bg:#f6ecdc;--panel:rgba(250,243,232,.9);--accent:#201c17}
+body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:#e3b47e url(/bg-IP2.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-IP header{--text:#f2f0ea;--line:#3b3a35;color:#f2f0ea}
 body.r-EX{background:#2a1410}
 body.r-EX::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(12,6,5,.5),rgba(12,6,5,.5)),#2a1410 url(/bg-EX.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-EX .muted,body.r-EX .tabs a:not(.on){color:#eadfd6}
-body.r-SH{background:#3a2112}
-body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(20,10,4,.2),rgba(20,10,4,.2)),#3a2112 url(/bg-SH.jpg?v=${ASSET_V}) center/cover no-repeat}
-body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#e4d9cc}
+/* SHHH.: sage wall with leaf shadows (Barry's picture, 20 Nov) behind the wood banner. */
+body.r-SH{background:#7b7c4b}
+body.r-SH::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(30,32,14,.28),rgba(30,32,14,.28)),#7b7c4b url(/bg-SH2.jpg?v=${ASSET_V}) center/cover no-repeat}
+body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa80}
 .countries{display:grid;gap:10px;max-width:420px;margin:24px auto}.countries a{text-align:left}
 .centre{text-align:center}
 @media(max-width:760px){.design{grid-template-columns:1fr}}
