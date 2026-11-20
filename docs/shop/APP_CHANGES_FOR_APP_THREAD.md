@@ -127,5 +127,15 @@ photo pick-up, item 3 above) before it can show.
 
 Dates are from Core as read on 20 Nov at 21:20 UTC; check them again before building.
 
-**Also wanted for launch:** regenerate EX-00001's mockups (its stored set predates a change to the Exclusive brand
-template, so its size guide is the old one).
+**EX-00001's size guide:** done. Barry regenerated its mockups on 20 Nov (new design `DAHbfc7CkrI`); the shop thread
+re-stored the set by hand. This is the case item 4 above should handle automatically.
+
+## Two more decisions from Barry (20 Nov, late)
+
+1. **In Person goes onto a dated schedule in Core.** This reverses the 19 Nov "no dated spaces" change. Pace: one
+   product a fortnight (50 gags = 200 products, finishing around May 2034 with the other spin-off ranges), with gags
+   1–4 fast-tracked so In Person has 16 products at the site's launch. Only 13 gags are written so far.
+2. **The app should keep the site updated from now on**, not the shop thread by hand: storing a garment's photos when
+   it is built, re-storing them when its mockups are regenerated, and refreshing the catalogue when a listing is
+   built, repriced or deactivated. Until that exists the shop thread refreshes things manually with
+   `shop/photos/store.py` and a local catalogue run.
