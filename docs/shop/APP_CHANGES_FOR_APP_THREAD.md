@@ -46,9 +46,11 @@ It replaces the one-off `shop/build_catalog.py`. It writes KV `shop:catalog`, wh
   That is 4 Make runs per refresh.
 - **Every 30 minutes**: re-reads 12 Printify products (new garments first, then the longest unchecked) for enabled
   sizes, colours and prices. It calls Printify directly with `SECRETS.printify_token`, falling back to `pfyTool`.
-- **Prices** are Printify's price × 1.2, rounded: Core's price plus VAT, the same as a UK buyer sees on Etsy
-  (£26.66 → £31.99). One constant, `SC.vat`. *This is the kind of site/Etsy decision Barry may have settled
-  differently with you.*
+- **Prices** (Barry's decision, 20 Nov): the shop is about 20% cheaper than Etsy. Etsy shows a UK buyer Core's price
+  plus 20% VAT and keeps that VAT; the shop has only Stripe's fee and Barry is not VAT-registered. Base prices are
+  the constant `SC_PRICE`: T-shirt £25.99, long sleeve £29.99, sweatshirt £37.99, hoodie £47.99. Bigger sizes keep
+  their surcharge, scaled by the same ratio and kept to whole pounds (`scSitePrice`); In Person adds £3. These would
+  sit better on the app's Pricing page than in a constant.
 - **Photos**: for a garment listed in KV `shop:photos`, the gallery is that garment's full Canva mockup set, named
   and colour-tagged by `MOCKUP_PAGES` (POSITION = page number; PAGE_NAME ends in the colour). Otherwise it falls
   back to the Etsy photos. No Printify pictures are used.
