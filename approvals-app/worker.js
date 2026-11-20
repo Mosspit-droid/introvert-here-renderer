@@ -41,6 +41,7 @@ export default {
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
     ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
     ctx.waitUntil(githubCheck(env).catch(() => {}));
+    ctx.waitUntil(socialTick(env).catch(() => {}));
     ctx.waitUntil(exTick(env).catch(() => {}));
     ctx.waitUntil(copyWatchTick(env).catch(() => {}));
     ctx.waitUntil(headlinesGet(env, false).catch(() => {}));
@@ -69,6 +70,21 @@ export default {
       if (pathname === "/api/amend-sync" && method === "POST") return await amendSync(request, env);
       if (pathname === "/api/ip-images-result" && method === "POST") return await ipImagesResult(request, env);
       if (pathname === "/api/mockup-preview-result" && method === "POST") return await mockupPreviewResult(request, env);
+      // Social stats from Make 8710118 (Barry, 20 Nov): Instagram + Facebook followers and latest posts.
+      if (pathname === "/api/social-result" && method === "POST") {
+        if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+        const d = await readBody(request); let o = {}; try { o = JSON.parse(str(d.json) || "{}"); } catch (e) { return json({ error: "bad json" }, 400); }
+        const num = (v) => (v === "" || v == null ? null : Number(v));
+        const rec = { at: Date.now(), igFollowers: num(o.igFollowers), igPosts: num(o.igPosts), fbFans: num(o.fbFans), fbFollowers: num(o.fbFollowers),
+          ig: (Array.isArray(o.ig) ? o.ig : []).slice(0, 15).map((x) => ({ at: str(x.at), likes: Number(x.likes) || 0, comments: Number(x.comments) || 0, url: str(x.url), text: str(x.caption).slice(0, 120), type: str(x.type) })),
+          fb: (Array.isArray(o.fb) ? o.fb : []).slice(0, 10).map((x) => ({ at: str(x.at), reactions: Number(x.reactions) || 0, url: str(x.url), text: str(x.text).slice(0, 120) })) };
+        await env.PENDING.put("social", JSON.stringify(rec));
+        const H = (await env.PENDING.get("social-hist", "json")) || {}, day = new Date().toISOString().slice(0, 10);
+        H[day] = { ig: rec.igFollowers, fb: rec.fbFollowers != null ? rec.fbFollowers : rec.fbFans };
+        const keep = Object.keys(H).sort().slice(-120), H2 = {}; keep.forEach((k) => { H2[k] = H[k]; });
+        await env.PENDING.put("social-hist", JSON.stringify(H2));
+        return json({ ok: true });
+      }
       // Builder breadcrumbs (Barry, 19 Nov: find where runs stall). Make posts a step name; the app keeps the last 300.
       if (pathname === "/api/trace" && method === "POST") {
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
@@ -4459,6 +4475,7 @@ summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 </style>
 ${brandHeader("Stats", nav)}
 ${await etsySalesCard(env)}
+${await socialCard(env)}
 <div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
 <h2>Shop totals</h2>
 <div class="stiles">
@@ -5404,6 +5421,30 @@ async function ipOrderWatch(env) {
       note: String(rc.message_from_buyer || "").slice(0, 300) });
   }
   await ipTrackTick(env);
+}
+// Social stats twice a day: Make 8710118 reads Instagram and Facebook (read-only) and posts back to /api/social-result.
+async function socialTick(env) {
+  const last = Number((await env.PENDING.get("social-tick")) || 0), now = Date.now();
+  if (now - last < 12 * 3600e3) return;
+  await env.PENDING.put("social-tick", String(now));
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
+  await fetch(MAKE_API + "/scenarios/8710118/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: false, data: {} }) });
+}
+async function socialCard(env) {
+  const S = await env.PENDING.get("social", "json"), H = (await env.PENDING.get("social-hist", "json")) || {};
+  if (!S) return `<div class="card small" style="margin-bottom:12px">Social stats arrive within 12 hours (Instagram and Facebook, read twice a day).</div>`;
+  const days = Object.keys(H).sort(), now = days[days.length - 1], weekAgo = days.filter((d) => d <= new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)).pop() || days[0];
+  const diff = (k) => { const a = H[weekAgo] && H[weekAgo][k], b = H[now] && H[now][k]; return a == null || b == null || weekAgo === now ? "" : ` <span class="small">(${b - a >= 0 ? "+" : ""}${b - a} this week)</span>`; };
+  const fbF = S.fbFollowers != null ? S.fbFollowers : S.fbFans;
+  const nice = (iso) => { const t = Date.parse(iso); return isNaN(t) ? "" : new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
+  const igRows = S.ig.slice(0, 8).map((p) => `<div class="cr"><span class="cn"><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(nice(p.at))} · ${esc((p.text || p.type || "Post").slice(0, 60))}</a></span><span class="cv"><b>♥ ${p.likes}</b><b>💬 ${p.comments}</b></span></div>`).join("");
+  const fbRows = S.fb.slice(0, 6).map((p) => `<div class="cr"><span class="cn"><a href="${esc(p.url)}" target="_blank" rel="noopener" style="color:inherit">${esc(nice(p.at))} · ${esc((p.text || "Post").slice(0, 60))}</a></span><span class="cv"><b>👍 ${p.reactions}</b></span></div>`).join("");
+  return `<div class="card" style="margin-bottom:12px"><b>Social</b> <span class="small">· read ${esc(when(S.at))}</span>
+<style>.cr{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.cn{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cv{display:flex;gap:10px;align-items:center;flex:none}.cv b{font:700 13px var(--display)}</style>
+<div class="cr"><span class="cn">Instagram followers</span><span class="cv"><b>${S.igFollowers == null ? "—" : S.igFollowers}</b>${diff("ig")}</span></div>
+<div class="cr"><span class="cn">Facebook followers</span><span class="cv"><b>${fbF == null ? "—" : fbF}</b>${diff("fb")}</span></div>
+${igRows ? `<div class="small" style="margin-top:10px"><b>Latest Instagram posts</b></div>${igRows}` : ""}
+${fbRows ? `<div class="small" style="margin-top:10px"><b>Latest Facebook posts</b></div>${fbRows}` : ""}</div>`;
 }
 // GitHub check (every 6 hours): renders are free and unlimited only while the renderer repo is public.
 const GH_REPO = "Mosspit-droid/introvert-here-renderer";
