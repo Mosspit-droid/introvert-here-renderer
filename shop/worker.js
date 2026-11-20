@@ -540,8 +540,8 @@ function thanksPage() {
 }
 
 function legalPage(which) {
-  const ADDRESS = "[Business address to be confirmed before launch]";
-  const EMAIL = "[support email to be confirmed]";
+  const ADDRESS = "Bay B52, Unit 66 Queens Court Trading Estate, Greets Green Road, West Bromwich, West Midlands, B70 9EQ";
+  const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
 <p>Prices are in pounds sterling and include delivery to UK addresses. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
@@ -550,7 +550,7 @@ function legalPage(which) {
     returns: ["Returns and refunds", `<p><b>Faulty or wrong item:</b> if your item arrives damaged, misprinted or isn't what you ordered, email ${EMAIL} within 30 days with a photo and we'll replace it or refund you in full. You won't need to send it back.</p>
 <p><b>Changed your mind:</b> you have 30 days from receiving your order to change your mind (the law gives you 14; we give you 30). Tell us by email within that time, then return the item unworn within 14 days of telling us, and we'll refund the price within 14 days of receiving it. Return postage is paid by you.</p>
 <p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full.</p>
-<p>[Return address to be confirmed before launch.]</p>`],
+<p><b>Return address:</b> Introvert Here returns, ${ADDRESS}. Please email us first so we know to expect it.</p>`],
     privacy: ["Privacy", `<p>We collect only what we need to take payment and deliver your order: your name, email, phone number and delivery address. Payment is handled by Stripe; we never see your card details. Your delivery details are passed to our print partner (Printify) to make and post your order.</p>
 <p>We keep order records for as long as the law requires for accounts. We don't sell your data, send marketing without asking, or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
 <p>Controller: Mosspit Studios, ${ADDRESS}. Questions or requests: ${EMAIL}. You can also complain to the Information Commissioner's Office (ico.org.uk).</p>`],
