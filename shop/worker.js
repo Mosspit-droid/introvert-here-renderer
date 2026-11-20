@@ -1,6 +1,6 @@
 // Introvert Here shop (Cloudflare Worker "introvert-here-shop").
 //
-// Pages: country picker (/), UK shop (/uk), design pages (/uk/p/<slug>), basket (/uk/basket),
+// Pages: country picker (/), UK shop (/uk), product pages (/uk/p/<slug>, one per garment), basket (/uk/basket),
 //        thank-you (/uk/thanks), legal pages, "elsewhere" (sends non-UK visitors to Etsy).
 // API:   POST /api/checkout       -> builds a Stripe Checkout Session from the basket (prices from the catalogue, never the browser)
 //        POST /api/stripe-webhook -> verified Stripe event; on payment, places the order with Printify (left on hold
@@ -84,10 +84,14 @@ async function route(request, env, ctx) {
         return html(countryPage((request.cf && request.cf.country) || "GB"));
       }
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
-      if (path === "/uk") return html(shopPage(await catalog(env), url.searchParams.get("c")));
+      if (path === "/uk") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
       if (path.startsWith("/uk/p/")) {
-        const d = (await catalog(env)).designs.find((x) => x.slug === path.slice(6));
-        return d ? html(designPage(d, await catalog(env))) : html(page("Not found", `<p>That design isn't here. <a href="/uk">Back to the shop</a>.</p>`), 404);
+        const cat = await catalog(env), want = path.slice(6);
+        for (const d of cat.designs) for (const t of Object.keys(d.garments)) if (productSlug(d, t) === want) return html(productPage(d, t, cat));
+        // Old addresses were one page per gag: send them to that gag's first garment.
+        const old = cat.designs.find((x) => x.slug === want);
+        if (old) return Response.redirect(url.origin + "/uk/p/" + productSlug(old, cat.garmentOrder.find((t) => old.garments[t])), 302);
+        return html(page("Not found", `<p>That isn't here. <a href="/uk">Back to the shop</a>.</p>`), 404);
       }
       if (path === "/uk/basket") return html(basketPage());
       if (path === "/uk/thanks") return html(thanksPage());
@@ -297,7 +301,9 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .muted{color:var(--muted)}
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--muted)}
 .tabs a.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.tabs.kinds{margin-top:-6px}.tabs.kinds a{border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}
+@media(max-width:520px){.grid{grid-template-columns:1fr 1fr;gap:10px}.tile div{padding:8px 9px}.tile b{font-size:14px}.tile span{font-size:13px}}
 .tile{text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
 .tile img{width:100%;aspect-ratio:1;object-fit:cover;background:#000}
 .tile div{padding:10px 12px}.tile b{display:block;font-size:15px}.tile span{color:var(--muted);font-size:14px}
@@ -369,23 +375,41 @@ function heroImg(coll) {
   if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<img class="hero" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
   return `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people">`;
 }
-function shopPage(cat, only) {
+// The shop is product-led (Barry, 20 Nov): every garment is its own tile and its own page, and the gag is its name.
+const TYPE_SLUG = { "T-SHIRT": "t-shirt", "LONG-SLEEVE": "long-sleeve", "SWEATSHIRT": "sweatshirt", "HOODIE": "hoodie" };
+const TYPE_PLURAL = { "T-SHIRT": "T-shirts", "LONG-SLEEVE": "Long sleeves", "SWEATSHIRT": "Sweatshirts", "HOODIE": "Hoodies" };
+function productSlug(d, t) { return d.slug.slice(0, -d.id.length) + TYPE_SLUG[t] + "-" + d.id.toLowerCase(); }
+function shopPage(cat, only, type) {
+  if (!COLLECTIONS[only]) only = null;
+  if (!TYPE_SLUG[type]) type = null;
   const present = [...new Set(cat.designs.map((d) => d.coll))];
-  const tabs = `<nav class="tabs"><a href="/uk" class="${only ? "" : "on"}">All</a>${Object.entries(COLLECTIONS).filter(([k]) => present.includes(k)).map(([k, c]) => `<a href="/uk?c=${k}" class="${only === k ? "on" : ""}">${esc(c.name)}</a>`).join("")}</nav>`;
+  const link = (c, t) => "/uk" + (c || t ? "?" + [c && "c=" + c, t && "t=" + t].filter(Boolean).join("&") : "");
+  const tabs = `<nav class="tabs"><a href="${link(null, type)}" class="${only ? "" : "on"}">All ranges</a>${Object.entries(COLLECTIONS).filter(([k]) => present.includes(k)).map(([k, c]) => `<a href="${link(k, type)}" class="${only === k ? "on" : ""}">${esc(c.name)}</a>`).join("")}</nav>`;
   const list = cat.designs.filter((d) => !only || d.coll === only);
-  const tiles = list.map((d) => {
-    const gs = cat.garmentOrder.map((t) => d.garments[t]).filter(Boolean);
-    const img = gs[0].tile || (gs[0].images[0] || {}).thumb || "";
-    const from = Math.min(...gs.map((g) => g.priceFrom));
-    return `<a class="tile" href="/uk/p/${d.slug}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title)}"><div><b>${esc(d.title)}</b><span>${gs.length > 1 ? "From " : ""}${money(from)} · ${gs.map((g) => g.label).join(", ")}</span></div></a>`;
+  const types = cat.garmentOrder.filter((t) => list.some((d) => d.garments[t]));
+  const kinds = `<nav class="tabs kinds"><a href="${link(only, null)}" class="${type ? "" : "on"}">Everything</a>${types.map((t) => `<a href="${link(only, t)}" class="${type === t ? "on" : ""}">${TYPE_PLURAL[t]}</a>`).join("")}</nav>`;
+  // One list per garment type, newest gag first. With no type chosen they are dealt out in turn (tee, long sleeve,
+  // sweatshirt, hoodie, ...), each list starting a quarter of the way further on so neighbours are different gags.
+  const per = (type ? [type] : types).map((t) => list.filter((d) => d.garments[t]).map((d) => ({ d, t })));
+  let items = [];
+  if (per.length === 1) items = per[0];
+  else {
+    const turned = per.map((l, k) => { const by = l.length ? Math.round((k * l.length) / per.length) % l.length : 0; return l.slice(by).concat(l.slice(0, by)); });
+    for (let i = 0; turned.some((l) => i < l.length); i++) turned.forEach((l) => { if (i < l.length) items.push(l[i]); });
+  }
+  const tiles = items.map(({ d, t }) => {
+    const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
+    const varies = g.variants.some((v) => v.price !== g.priceFrom);
+    return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div><b>${esc(d.title)}</b><span>${esc(g.label)} · ${varies ? "from " : ""}${money(g.priceFrom)}</span></div></a>`;
   }).join("");
-  const intro = only && COLLECTIONS[only] ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only && COLLECTIONS[only] ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only && COLLECTIONS[only] ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only });
+  const intro = only ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
+  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only });
 }
 
-function designPage(d, cat) {
-  const gs = cat.garmentOrder.filter((t) => d.garments[t]);
-  const data = { id: d.id, title: d.title, garments: Object.fromEntries(gs.map((t) => [t, d.garments[t]])) , order: gs };
+function productPage(d, type, cat) {
+  const g0 = d.garments[type], name = d.title + " " + g0.label;
+  const others = cat.garmentOrder.filter((t) => d.garments[t] && t !== type);
+  const data = { id: d.id, title: d.title, garments: { [type]: g0 }, order: [type] };
   const coll = COLLECTIONS[d.coll] || COLLECTIONS.IH;
   const script = `
 var D=${JSON.stringify(data).replace(/</g, "\\u003c")};var st={g:D.order[0],colour:null,size:null,img:0};
@@ -396,7 +420,6 @@ function sizes(){return G().variants.filter(function(v){return v.colour===st.col
 function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};return (c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen))}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
- $('garments').innerHTML=D.order.map(function(t){return '<button class="chip'+(t===st.g?' on':'')+'" data-g="'+t+'">'+D.garments[t].label+'</button>'}).join('');
  var cs=colours();if(!cs.some(function(v){return v.colour===st.colour}))st.colour=g.mainColour||cs[0].colour;
  $('colours').innerHTML=cs.map(function(v){return '<button class="swatch'+(v.colour===st.colour?' on':'')+'" title="'+v.colour+'" aria-label="'+v.colour+'" data-c="'+v.colour+'" style="background:'+(v.hex||'#888')+'"></button>'}).join('');
  $('cname').textContent=st.colour;
@@ -407,23 +430,23 @@ function render(){var g=G();
  $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
- if(t.dataset.g){st.g=t.dataset.g;st.img=0;render()}if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+ if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
 $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;var b=B.get();
  var ex=b.find(function(i){return i.code===g.code&&i.variant===v.id});if(ex)ex.qty=Math.min(10,ex.qty+1);
  else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
 render();`;
-  return page(d.title, `<div class="design"><div><img id="main" class="main-img" alt="${esc(d.title)}"><div id="thumbs" class="thumbs"></div></div>
-<div><p class="label">${esc(coll.name)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
+  return page(name, `<div class="design"><div><img id="main" class="main-img" alt="${esc(name)}"><div id="thumbs" class="thumbs"></div></div>
+<div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
-<div class="label">Garment</div><div id="garments" class="chips"></div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>
 <div class="label">Size <a id="sg" href="#" target="_blank" rel="noopener" class="note" style="text-transform:none;letter-spacing:0">(size guide)</a></div><div id="sizes" class="chips"></div>
 <div id="price" class="price"></div><p class="note">Free UK delivery · Printed to order, usually with you in 4–10 working days</p>
 <button id="add" class="btn" style="width:100%;margin-top:10px">Choose a size</button>
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
 <div class="box"><p class="note" style="margin:0 0 8px">${esc(coll.line)}</p><p id="features" class="note" style="white-space:pre-line;margin:0"></p></div>
-<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This design on Etsy</a></p></div></div>`, { script, coll: d.coll, desc: `${d.title}: ${d.text.replace(/\s+/g, " ")}` });
+${others.length ? `<p class="note">Also on: ${others.map((t) => `<a href="/uk/p/${productSlug(d, t)}">${esc(d.garments[t].label)}</a>`).join(" · ")}</p>` : ""}
+<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This ${esc(g0.label.toLowerCase())} on Etsy</a></p></div></div>`, { script, coll: d.coll, desc: `${name}: ${d.text.replace(/\s+/g, " ")}` });
 }
 
 function basketPage() {
