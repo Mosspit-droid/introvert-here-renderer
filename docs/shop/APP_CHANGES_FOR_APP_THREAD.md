@@ -169,3 +169,27 @@ range, and the live tees updated in Printify and Etsy. On IH-00001 the 4XL and 5
 (Core £31.66, Etsy £37.99), and Printify's cost for them is about the same as 3XL ($13.47 against $12.91), so the
 existing 3XL surcharge can simply carry over. The shop needs no change: it shows whatever sizes are switched on in
 Printify and prices 4XL and 5XL as 3XL (£30.99). The tee size guides stop at 3XL and would need the two extra rows.
+
+## Added 21 Nov: upcoming gags for the site's vote page
+
+The Escape Room has a "Vote on the next gag" page (the jar in the room, `/uk/escape-room/vote`). It shows the next
+three gags due out, so visitors can vote (Barry: "we're creating the illusion of choice"; release order doesn't change).
+
+**What the site needs from the app:** keep KV `shop:upcoming` (namespace PENDING) current, as a JSON list, soonest first:
+
+```json
+[{ "id": "IH-00119", "coll": "IH", "title": "Karaoke", "due": "2026-11-23", "text": "... OH GOD.\n\nWHY'D IT HAVE\nTO BE KARAOKE?" }]
+```
+
+- `id`: GAG_ID. `coll`: the two-letter range. `title`: TITLE_STEM. `text`: GAG_TEXT exactly as in Core.
+- `due`: the earliest of the four garment dates, as YYYY-MM-DD. Leave out gags with any garment already live.
+- Skip In Person and Exclusive (no regular schedule). Five or so entries is plenty; the site drops any whose date
+  has passed and shows the first three.
+- Until this exists, the site uses a copy of the next three it read from Core on 21 Nov.
+
+**Votes:** the site keeps counts in KV `shop:votes` as `{ "<the three ids joined with +>": { "<id>": count } }`.
+They're never shown on the site. The app could show them to Barry if he wants.
+
+**Discount for voters:** after voting, people are shown a 5% code (placeholder `VOTED5`; Barry to name it). It
+needs creating in Stripe as a promotion code (5% off, one use per customer, 30 days) before launch, with Barry's OK,
+and checkout needs to accept promotion codes.
