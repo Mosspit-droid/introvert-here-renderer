@@ -562,13 +562,13 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
 .dm{--k:0;display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:8px 12px;border-radius:10px;background:#24231f;transition:background .4s}
-.dmf{width:60px;height:60px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
-.dmf svg{width:100%;height:auto;transform-origin:50% 100%;transform:scale(calc(.32 + var(--k) * .26));transition:transform .5s}
+.dmf{width:86px;height:86px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
+.dmf img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.dm[data-lv="0"] .dmf img{max-height:46%}.dm[data-lv="1"] .dmf img{max-height:66%}.dm[data-lv="2"] .dmf img{max-height:86%}.dm[data-lv="3"] .dmf img{max-height:none;width:118%;max-width:none;margin-bottom:-10%}
 .dml{margin:0;font-size:14px;font-weight:600;line-height:1.35}.dm[data-lv="2"]{background:#33201e}.dm[data-lv="3"]{background:#4a1518}
 .hug{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,5,7,.95)}.hug[hidden]{display:none}
-.hug .in{max-width:420px;text-align:center}.hug svg{width:min(56vw,230px);height:auto;animation:hugsq 1.1s ease-in-out infinite}
+.hug .in{max-width:420px;text-align:center}.hugpic{width:min(72vw,300px);aspect-ratio:1;margin:0 auto;border:5px solid #fad00c;border-bottom-width:18px;border-radius:15px;overflow:hidden;background:#2f2d28;display:flex;align-items:flex-start;justify-content:center}.hugpic img{width:112%;max-width:none;height:auto;margin-top:-2%;animation:hugsq 1.1s ease-in-out infinite;transform-origin:50% 40%}
 .hug .ttl{font-size:clamp(60px,16vw,110px);margin:4px 0 8px}@keyframes hugsq{0%,100%{transform:scale(1)}50%{transform:scale(1.06,.96)}}
-@media (prefers-reduced-motion:reduce){.hug svg{animation:none}.dmf svg{transition:none}}
+@media (prefers-reduced-motion:reduce){.hugpic img{animation:none}}
 /* Escape the Party: a sample paper escape room. One puzzle at a time; each answer opens a padlock. */
 .ep{max-width:640px;margin:0 auto}.ep .box{--fc:#fad00c;--pad:clamp(14px,3vw,22px);margin:16px 0 18px}
 .ep h2{margin:2px 0 8px;font-size:clamp(20px,4.6vw,26px)}.ep p{line-height:1.5}
@@ -1008,14 +1008,14 @@ function gatePage() {
 // wants is a hug. Every wrong answer brings her a step closer; the fourth is a hug (and 5 minutes on your time). Ten
 // puzzles in three parts, 45 to 60 minutes. Puzzles 1 to 8 each leave you with something (keys, earbuds, a taxi,
 // leftovers, a lie, an exit, an opening, the moment); their first letters spell the code for your own front door at
-// the end: KETTLE ON. Progress is saved on the player's device. The title and the drawing of Doris are stand-ins until
-// Barry's pictures arrive. All wording is a draft for Barry.
+// the end: KETTLE ON. Progress is saved on the player's device. Doris is Barry's (brand-logos/doris/, R2 site/doris-N.png):
+// frames 1 to 4 as she gets closer, frame 4 on the hug screen until he has a picture of her hugging the mascot. The title
+// is a stand-in for his logo. All wording is a draft for Barry.
 const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66], ["#26355c", 1, 6, 75], ["#8c8c88", 1, 4, 89]];
-const DZ_DORIS = `<svg viewBox="0 0 120 150" aria-hidden="true"><path d="M60 46l-48-14M60 46l48-14" stroke="#e7b896" stroke-width="9" stroke-linecap="round"/><path d="M38 44q22-8 44 0l10 72H28z" fill="#d6418a" stroke="#000" stroke-width="2.5"/><path d="M60 44v72" stroke="#9c2560" stroke-width="2"/><circle cx="70" cy="58" r="4" fill="#f2d06b" stroke="#000" stroke-width="1.5"/><path d="M30 114h60l6 18H24z" fill="#5c4a7a" stroke="#000" stroke-width="2.5"/><path d="M42 132v12M78 132v12" stroke="#3b2f25" stroke-width="7" stroke-linecap="round"/><circle cx="60" cy="26" r="17" fill="#f0c4a0" stroke="#000" stroke-width="2.5"/><path d="M42 24q-4-18 8-20q4-8 12-4q10-4 14 6q10 4 4 18q-4-8-10-10q-8 4-14 0q-8 2-14 10z" fill="#cfcfd4" stroke="#000" stroke-width="2"/><path d="M53 32q7 6 14 0" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/><circle cx="54" cy="25" r="1.8"/><circle cx="66" cy="25" r="1.8"/></svg>`;
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
 function dorisPage() {
   const lock = (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
-  const meter = `<div class="dm" data-lv="0"><div class="dmf">${DZ_DORIS}</div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
+  const meter = `<div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
   const tail = `<p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p><p class="next"><button class="btn go" type="button">Carry on</button></p>`;
   const chap = (pt, title, body) => `<section class="box pz chap" hidden><p class="pt">${pt}</p><h2>${title}</h2>${body}<p><button class="btn go" type="button">Carry on</button></p></section>`;
   const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of 10 · ${title}</p>${meter}<h2>${h}</h2>${body}${tail}</section>`;
@@ -1055,7 +1055,7 @@ function dorisPage() {
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
-  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in">${DZ_DORIS}<p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
+  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-4.png?v=1" alt="Aunt Doris, arms wide, about to hug you"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
@@ -1073,7 +1073,8 @@ var P={
 10:{a:/KETTLE/,no:['The door stays locked. You’re so close you can smell the teabags.','No. Look at what you picked up tonight.','Not quite. Take the first letter of each thing.'],h:['Take the first letter of each thing you picked up, in order.','KETTLE ON.']}};
 // Aunt Doris walks towards you: each wrong answer is a step closer; the fourth is a hug. Hints are free.
 var DL=['Aunt Doris is at the far end of the room.','“Coo-ee!” She’s spotted you.','She’s weaving through the guests towards you.','Arms open. One more wrong move.'];
-function setLv(m,lv){m.dataset.lv=lv;m.style.setProperty('--k',lv);$('.dml',m).textContent=DL[lv]}
+function setLv(m,lv){m.dataset.lv=lv;$('img',m).src='/s/doris-'+(lv+1)+'.png?v=1';$('.dml',m).textContent=DL[lv]}
+[1,2,3,4].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
 function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
