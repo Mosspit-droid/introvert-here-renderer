@@ -397,7 +397,19 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .tabs a.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 .tabs.kinds{margin-top:-6px}.tabs.kinds a{border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}.grid .tile[hidden]{display:none}
-.more{display:flex;flex-direction:column;align-items:center;gap:12px;margin:-14px 0 44px;text-align:center}.more span{font-size:14px;color:var(--muted,#bdb8ad);letter-spacing:.02em}.more .btn{margin:0;min-width:200px}
+.more{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin:-12px 0 44px}
+.more>span{font-size:14px;color:var(--muted,#bdb8ad);letter-spacing:.02em;text-align:center}
+.mv{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#f2f0ea;-webkit-tap-highlight-color:transparent}
+.mv.ret{justify-self:start}.mv.dots{justify-self:end}
+.mv i{display:block;padding:8px 10px;background:var(--fc);border-radius:99px;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:transform .15s}
+.mv:hover i,.mv:focus-visible i{transform:translateY(-2px)}.mv:active i{transform:translateY(1px)}
+.mv b{display:flex;align-items:center;justify-content:space-evenly;width:96px;height:30px;border-radius:99px;background:#1a1a18;padding:0 10px;box-sizing:border-box}
+.mv em{width:14px;height:14px;border-radius:50%;background:var(--fc)}
+.mv svg{width:26px;height:26px;fill:none;stroke:var(--fc);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.mv small{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+.mv.dots.busy em{animation:mvtype .9s ease-in-out infinite}.mv.dots.busy em:nth-child(2){animation-delay:.15s}.mv.dots.busy em:nth-child(3){animation-delay:.3s}
+@keyframes mvtype{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+@media(max-width:520px){.mv b{width:78px;height:26px}.mv em{width:12px;height:12px}.mv small{font-size:11px;letter-spacing:.12em}.more>span{font-size:13px}}
 .tile{text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
 .tile img{width:100%;aspect-ratio:1;object-fit:cover;background:#000}
 .tile .cap{padding:10px 12px;display:flex;align-items:flex-start;gap:10px;flex:1}.tile .cap>div{flex:1;min-width:0}.tile b{display:block;font-size:15px}.tile span{color:var(--muted);font-size:14px}
@@ -624,14 +636,22 @@ function shopPage(cat, only, type, n) {
   n = Math.min(total, Math.max(SHOP_BATCH, Math.ceil((parseInt(n, 10) || 0) / SHOP_BATCH) * SHOP_BATCH));
   const tiles = items.map((it, k) => (k < n ? tileHtml(it) : tileHtml(it).replace('<a class="tile"', '<a class="tile later" hidden'))).join("");
   const moreHref = (m) => link(only, type) + (only || type ? "&" : "?") + "n=" + m;
-  const more = total > n ? `<p class="more"><span id="mcount">Showing ${n} of ${total}</span><a class="btn ghost" id="mbtn" href="${moreHref(n + SHOP_BATCH)}">Show more</a></p>` : total > SHOP_BATCH ? `<p class="more"><span>Showing all ${total}</span></p>` : "";
+  // Bottom of the list (Barry, 21 Nov): on the right, the logo's three-dot window is the "Show more" button (an
+  // ellipsis means there's more); on the left, "Retreat" takes you back up to the top. When everything is showing,
+  // the dots go and the line says so.
+  const END = "That’s everything. For now.";
+  const more = total > SHOP_BATCH ? `<div class="more"><a class="mv ret" id="mret" href="#"><i><b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></b></i><small>Retreat</small></a><span id="mcount">${total > n ? `${n} of ${total}` : END}</span>${total > n ? `<a class="mv dots" id="mbtn" href="${moreHref(n + SHOP_BATCH)}"><i><b><em></em><em></em><em></em></b></i><small>Show more</small></a>` : "<span></span>"}</div>` : "";
   const intro = only ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>${more}`, { coll: only, nav: "shop", script: total > n ? `
-(function(){var b=document.getElementById('mbtn'),c=document.getElementById('mcount'),N=${n},T=${total},B=${SHOP_BATCH};
-b.addEventListener('click',function(e){e.preventDefault();var h=document.querySelectorAll('.grid .tile.later[hidden]');
- for(var k=0;k<B&&k<h.length;k++)h[k].hidden=false;N=Math.min(T,N+B);
- try{var u=new URL(location.href);u.searchParams.set('n',N);history.replaceState(null,'',u)}catch(_){}
- if(N>=T){c.textContent='Showing all '+T;b.remove()}else{c.textContent='Showing '+N+' of '+T;var u2=new URL(b.href,location.href);u2.searchParams.set('n',N+B);b.href=u2}})})();` : "" });
+  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>${more}`, { coll: only, nav: "shop", script: total > SHOP_BATCH ? `
+(function(){var b=document.getElementById('mbtn'),c=document.getElementById('mcount'),N=${n},T=${total},B=${SHOP_BATCH},busy=false,calm=false;
+try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(_){}
+document.getElementById('mret').addEventListener('click',function(e){e.preventDefault();var t=document.querySelector('nav.tabs');scrollTo({top:t?Math.max(0,t.getBoundingClientRect().top+scrollY-12):0,behavior:calm?'auto':'smooth'})});
+if(b)b.addEventListener('click',function(e){e.preventDefault();if(busy)return;busy=true;b.classList.add('busy');
+ // the dots light up one after another for a moment, like someone typing, then the next 24 appear
+ setTimeout(function(){var h=document.querySelectorAll('.grid .tile.later[hidden]');for(var k=0;k<B&&k<h.length;k++)h[k].hidden=false;N=Math.min(T,N+B);
+  try{var u=new URL(location.href);u.searchParams.set('n',N);history.replaceState(null,'',u)}catch(_){}
+  b.classList.remove('busy');busy=false;
+  if(N>=T){c.textContent=${JSON.stringify(END)};var sp=document.createElement('span');b.replaceWith(sp);b=null}else{c.textContent=N+' of '+T;var u2=new URL(b.href,location.href);u2.searchParams.set('n',N+B);b.href=u2}},calm?0:900)})})();` : "" });
 }
 // One list per garment type, newest gag first. With several types they are dealt out in turn (tee, long sleeve,
 // sweatshirt, hoodie, ...), each list starting a quarter of the way further on so neighbours are different gags.
