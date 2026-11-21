@@ -92,7 +92,7 @@ async function route(request, env, ctx) {
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
       if (path === "/uk") {   // old shop links (/uk?c=PC) still work
         if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
-        return html(frontPage(await catalog(env), url.searchParams.get("look") === "wide"));   // ?look=wide: a variation for Barry to compare
+        return html(frontPage(await catalog(env)));
       }
       if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
       if (path === HUB.path) return html(hubPage());
@@ -327,7 +327,8 @@ async function placeOrder(env, sessionId) {
 
 // Bump ASSET_V whenever an image in KV changes, so browsers fetch the new one instead of a saved copy.
 const ASSET_V = "3";
-const LOGO = `/logo-stacked.jpg?v=${ASSET_V}`;
+// The header carries the wide logo on every page (Barry, 21 Nov); the stacked logos stay on the banners and tiles.
+const LOGO = `/logo-wide.png?v=${ASSET_V}`;
 const STYLE = `
   :root{--bg:#121211;--panel:rgba(22,22,20,.86);--line:#3b3a35;--text:#f2f0ea;--muted:#c4c0b6;--accent:#f2f0ea}
 *{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
@@ -443,7 +444,7 @@ function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
-<header><div class="wrap"><a href="/uk${opts.wide ? "?look=wide" : ""}"><img ${opts.wide ? `class="wl" src="/logo-wide.png?v=${ASSET_V}"` : `src="${LOGO}"`} alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
+<header><div class="wrap"><a href="/uk"><img class="wl" src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p></div></footer>
@@ -537,22 +538,21 @@ function doorPics(list) {
 function hubCards() {
   return HUB.things.map((x) => `<${x.href ? `a href="${x.href}"` : "div"} class="thing"><span class="tag">${x.soon ? "Coming soon" : "Open"}</span><b>${esc(x.name)}</b><span>${esc(x.line)}</span></${x.href ? "a" : "div"}>`).join("");
 }
-function frontPage(cat, wide) {
+function frontPage(cat) {
   const types = cat.garmentOrder.filter((t) => cat.designs.some((d) => d.garments[t]));
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
   const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
   const door = (href, pics, label, title, line, cta) => `<a class="door" href="${href}">${doorPics(pics)}<span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
-  // The variation (?look=wide): the wide logo in the header, and the big black banner swapped for one line of type, so
-  // the two doors are the first thing on the page.
-  return page("Quiet humour for socially exhausted people", `${wide ? '<p class="strap">Quiet humour for socially exhausted people</p>' : heroImg(null)}
+  // No banner here (Barry, 21 Nov): one line of type, so the two doors are the first thing on the page.
+  return page("Quiet humour for socially exhausted people", `<p class="strap">Quiet humour for socially exhausted people</p>
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
 ${door(HUB.path, DOOR.hub, "Get out of it", esc(HUB.name), esc(HUB.line), "Come in")}
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
 <section class="strip"><div class="sh"><h2>In ${esc(HUB.name)}</h2><a href="${HUB.path}">Have a look <i>→</i></a></div><div class="things">${hubCards()}</div></section>
-<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS, wide });
+<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
 }
 // Doors with more than one picture fade to the next every few seconds (the two doors out of step), unless the visitor
 // has asked their device for less motion. The next picture is fetched just before it is needed.
