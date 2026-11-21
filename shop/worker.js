@@ -514,7 +514,7 @@ function tileHtml({ d, t }) {
 // One site, two halves of equal weight (Barry, 20 Nov): the shop, and a hub for introverts (phone toys for the bus
 // queue, paper escape rooms, a vote on the next gag...). The hub's name and wording are placeholders for Barry.
 const HUB = { path: "/uk/escape-room", name: "The Escape Room", short: "Escape Room",   // Barry's name for it (21 Nov)
-  line: "You got out. Come in.",
+  line: "A room to get away from people. Interaction distractions inside.",   // "interaction distractions" is Barry's phrase for what's in here
   things: [
     { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
     { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", soon: true },
@@ -545,13 +545,14 @@ function frontPage(cat) {
   const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
   const door = (href, pics, label, title, line, cta) => `<a class="door" href="${href}">${doorPics(pics)}<span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
   // No banner here (Barry, 21 Nov): one line of type, so the two doors are the first thing on the page.
-  return page("Quiet humour for socially exhausted people", `<p class="strap">Quiet humour for socially exhausted people</p>
+  // The site's one-line mission statement (Barry, 21 Nov).
+  return page("Everything you need to be left the hell alone", `<p class="strap">Everything you need to be left the hell alone.</p>
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
-${door(HUB.path, DOOR.hub, "Get out of it", esc(HUB.name), esc(HUB.line), "Come in")}
+${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), "Come in")}
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
-<section class="strip"><div class="sh"><h2>In ${esc(HUB.name)}</h2><a href="${HUB.path}">Have a look <i>→</i></a></div><div class="things">${hubCards()}</div></section>
+<section class="strip"><div class="sh"><h2>Interaction distractions</h2><a href="${HUB.path}">Into ${esc(HUB.name)} <i>→</i></a></div><div class="things">${hubCards()}</div></section>
 <section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
 }
 // Doors with more than one picture fade to the next every few seconds (the two doors out of step), unless the visitor
@@ -564,7 +565,7 @@ const DOOR_JS = `
    p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
 function hubPage() {
-  return page(HUB.name, `<a class="door wide" href="${HUB.path}" style="pointer-events:none">${doorPics(DOOR.hub)}<span class="shade"></span><span class="in"><span class="kicker">Get out of it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
+  return page(HUB.name, `<a class="door wide" href="${HUB.path}" style="pointer-events:none">${doorPics(DOOR.hub)}<span class="shade"></span><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
 <p class="muted lead">Small, quiet things for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
 <div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line, script: DOOR_JS });
 }
