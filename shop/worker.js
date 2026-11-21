@@ -99,6 +99,8 @@ async function route(request, env, ctx) {
       if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
       if (path === HUB.path) return html(hubPage());
       if (path === HUB.path + "/gate") return html(gatePage());
+      if (path === HUB.path + "/look-busy") return html(lookBusyPage());
+      if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);
@@ -512,6 +514,10 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 @keyframes flick{0%,91%,100%{opacity:1}92%{opacity:.55}93.5%{opacity:1}95%{opacity:.7}96%{opacity:1}}
 @keyframes beckon{0%,100%{box-shadow:0 0 0 0 rgba(246,207,11,.5)}50%{box-shadow:0 0 0 .5em rgba(246,207,11,0)}}
 @media(prefers-reduced-motion:reduce){.tri,.alarm,.hope i{animation:none}}
+/* ---- the Excuse Generator ---- */
+.thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
+.thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
+.xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
 `;
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -595,8 +601,8 @@ const HUB = { path: "/uk/escape-room", name: "The Escape Room", short: "Escape R
   logo: "/logo-ER.png?v=6",   // the stacked logo with its DO NOT ENTER door hanger (brand-logos/escape-room/)
   line: "Salvation lies within.", cta: "Enter",   // Barry's wording (21 Nov); "interaction distractions" is his phrase for what's inside
   things: [
-    { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
-    { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", soon: true },
+    { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", href: "/uk/escape-room/look-busy" },
+    { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", href: "/uk/escape-room/excuses" },
   ] };
 // The doors' pictures. Each door can hold several and fades through them, starting somewhere different on every visit.
 // Site pictures (not product photos) live in R2 under site/<name>.jpg, served at /s/<name>.jpg; copies in shop/assets/site/.
@@ -643,6 +649,140 @@ const DOOR_JS = `
   function next(){var nx=load(i+1);if(!nx.complete||!nx.naturalWidth){setTimeout(next,600);return}
    p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
+// ---------------- interaction distractions ----------------
+// The first two things in the Escape Room. All the wording below is a first draft for Barry to edit.
+
+// Look Busy: a full-screen, very important-looking phone screen to stare at while someone decides not to talk to you.
+// Tap anywhere for the next one. It is its own bare page (no site header), because it has to pass for the real thing
+// at a glance. Everything on it is made up and generic; it copies no real app.
+const BUSY = {
+  mail: [["Head Office", "URGENT: re: re: fwd: re: the thing"], ["Compliance", "Action required: confirm you have seen this"], ["The Team", "Per my last email"],
+    ["IT Helpdesk", "Quick question (47 attachments)"], ["Facilities", "Following up on my follow-up"], ["Calendar", "Reminder: your reminder"],
+    ["Head Office", "Can you jump on a call?"], ["Finance", "FINAL_final_v7_ACTUAL.xlsx"], ["The Team", "Do you have five minutes? (It will not be five minutes)"],
+    ["Compliance", "Mandatory: please acknowledge the acknowledgement"], ["Head Office", "Did you get my email about my message?"], ["Calendar", "Meeting moved. Again."]],
+  chat: ["Are you free?", "Quick one", "It can’t wait", "Did you see my email?", "The one about my message", "Calling you now", "Actually, can you call me", "URGENT", "Ignore that", "No, don’t ignore that"],
+  sync: ["Syncing 4,812 items", "Reconciling the figures", "Uploading the big file", "Verifying the verification", "Backing up the backup"],
+};
+function lookBusyPage() {
+  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Look Busy | ${SHOP_NAME}</title><meta name="description" content="A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work."><link rel="icon" href="/icon.png">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#101114;color:#e9ebf0;font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+.scr{position:fixed;inset:0;display:none;flex-direction:column;padding:max(14px,env(safe-area-inset-top)) 0 0}.scr.on{display:flex}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;border-bottom:1px solid #262830;font-weight:700;font-size:19px}
+.bar small{font-weight:600;font-size:13px;background:#d1232b;color:#fff;border-radius:99px;padding:2px 9px;min-width:30px;text-align:center}
+.x{position:fixed;left:8px;bottom:max(8px,env(safe-area-inset-bottom));z-index:9;color:#5d606b;font-size:12px;text-decoration:none;padding:8px}
+.hint{position:fixed;left:50%;bottom:16%;transform:translateX(-50%);z-index:8;background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;white-space:nowrap;transition:opacity .8s;pointer-events:none}
+/* inbox */
+#mail .list{flex:1;overflow:hidden}
+.row{display:grid;grid-template-columns:10px 1fr auto;gap:2px 10px;padding:12px 18px;border-bottom:1px solid #1d1f26;animation:in .45s ease}
+.row i{grid-row:1/3;align-self:center;width:9px;height:9px;border-radius:50%;background:#3d8bff}
+.row b{font-size:15px}.row time{font-size:12px;color:#8b8f9c}.row span{grid-column:2/4;font-size:14px;color:#aeb2bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* progress */
+#sync{align-items:center;justify-content:center;text-align:center;padding:0 9vw}
+#sync h1{font-size:clamp(20px,5.6vw,30px);margin:0 0 8px}#sync p{margin:0;color:#9aa0ad}
+.track{width:100%;max-width:440px;height:12px;border-radius:99px;background:#23262e;margin:26px 0 12px;overflow:hidden}.track u{display:block;height:100%;width:3%;background:#3d8bff;border-radius:99px;transition:width 1.6s ease}
+#sync em{font-style:normal;font-variant-numeric:tabular-nums;font-size:34px;font-weight:700}
+#sync strong{display:block;margin-top:26px;color:#f0b429;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+/* messages */
+#chat .list{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:14px 16px 54px;overflow:hidden}
+.bub{align-self:flex-start;max-width:78%;background:#262a35;border-radius:18px 18px 18px 5px;padding:9px 14px;font-size:16px;animation:in .35s ease}
+.typing{align-self:flex-start;background:#262a35;border-radius:18px;padding:12px 14px;display:flex;gap:5px}.typing b{width:7px;height:7px;border-radius:50%;background:#8b8f9c;animation:dot 1.2s infinite}.typing b:nth-child(2){animation-delay:.2s}.typing b:nth-child(3){animation-delay:.4s}
+/* on a call */
+#call{align-items:center;justify-content:center;text-align:center;background:#0c1512}
+#call .av{width:112px;height:112px;border-radius:50%;background:#1f3a31;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:700;color:#8fd9bd;margin-bottom:22px}
+#call h1{margin:0;font-size:30px}#call p{margin:6px 0 0;color:#8fb8a8}#call em{font-style:normal;font-variant-numeric:tabular-nums;font-size:22px;display:block;margin-top:18px}
+#call .btns{display:flex;gap:26px;margin-top:44px}#call .btns b{width:62px;height:62px;border-radius:50%;background:#1b2622;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#a9c9bd}#call .btns b.end{background:#c8232b;color:#fff}
+/* security code */
+#code{align-items:center;justify-content:center;text-align:center;padding:0 8vw}
+#code p{margin:0;color:#9aa0ad}#code h1{font-size:clamp(44px,15vw,84px);letter-spacing:.08em;margin:14px 0;font-variant-numeric:tabular-nums}
+#code small{color:#f0b429;font-size:15px}
+@keyframes in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}@keyframes dot{0%,60%,100%{opacity:.3}30%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.row,.bub{animation:none}.typing b{animation:none;opacity:.7}.track u{transition:none}}
+</style></head><body>
+<section class="scr on" id="mail"><div class="bar">Inbox <small id="mc">37</small></div><div class="list" id="ml"></div></section>
+<section class="scr" id="sync"><h1 id="st"></h1><p>Step 3 of 9</p><div class="track"><u id="sb"></u></div><em id="sp">3%</em><strong>Do not interrupt</strong></section>
+<section class="scr" id="chat"><div class="bar">Work <small id="cc">3</small></div><div class="list" id="cl"></div></section>
+<section class="scr" id="call"><div class="av">HO</div><h1>Head Office</h1><p>On a call · muted</p><em id="ct">14:22</em><div class="btns"><b>Mute</b><b>Keypad</b><b class="end">End</b></div></section>
+<section class="scr" id="code"><p>Your security code</p><h1 id="cd">482 913</h1><small>Expires in <span id="ce">0:29</span>. Do not share it. Do not look up.</small></section>
+<a class="x" href="${HUB.path}">Exit</a><div class="hint" id="hint">Tap for a different excuse</div>
+<script>
+var D=${JSON.stringify(BUSY).replace(/</g, "\\u003c")};
+function $(i){return document.getElementById(i)}
+function pick(a){return a[Math.floor(Math.random()*a.length)]}
+var order=['mail','sync','chat','call','code'],at=0,timers=[];
+function every(ms,f){timers.push(setInterval(f,ms))}
+function stop(){timers.forEach(clearInterval);timers=[]}
+function row(m,t){return '<div class="row"><i></i><b>'+m[0]+'</b><time>'+t+'</time><span>'+m[1]+'</span></div>'}
+var run={
+ mail:function(){var n=37,L=$('ml'),k=0;L.innerHTML=D.mail.slice(0,7).map(function(m,i){return row(m,i?i*3+' min':'now')}).join('');$('mc').textContent=n;
+  every(3400,function(){k++;n++;$('mc').textContent=n;L.insertAdjacentHTML('afterbegin',row(D.mail[(6+k)%D.mail.length],'now'));if(L.children.length>12)L.lastChild.remove()})},
+ sync:function(){var p=3;$('st').textContent=pick(D.sync);$('sb').style.width='3%';$('sp').textContent='3%';
+  every(1700,function(){p+=(99-p)*0.045+0.2;if(p>98.6){p=41;$('st').textContent=pick(D.sync)}$('sb').style.width=p+'%';$('sp').textContent=Math.floor(p)+'%'})},
+ chat:function(){var L=$('cl'),n=3,k=3;L.innerHTML=D.chat.slice(0,3).map(function(t){return '<div class="bub">'+t+'</div>'}).join('')+'<div class="typing"><b></b><b></b><b></b></div>';$('cc').textContent=n;
+  every(3000,function(){var t=L.lastChild;t.insertAdjacentHTML('beforebegin','<div class="bub">'+D.chat[k%D.chat.length]+'</div>');k++;n++;$('cc').textContent=n;if(L.children.length>9)L.firstChild.remove()})},
+ call:function(){var s=14*60+22;function show(){$('ct').textContent=Math.floor(s/60)+':'+('0'+s%60).slice(-2)}show();every(1000,function(){s++;show()})},
+ code:function(){var s=29;function fresh(){var a=String(100+Math.floor(Math.random()*900)),b=String(100+Math.floor(Math.random()*900));$('cd').textContent=a+' '+b;s=29}
+  fresh();every(1000,function(){s--;if(s<0)fresh();$('ce').textContent='0:'+('0'+s).slice(-2)})}
+};
+function show(i){stop();at=(i+order.length)%order.length;order.forEach(function(id,k){$(id).classList.toggle('on',k===at)});run[order[at]]()}
+document.addEventListener('click',function(e){if(e.target.closest('.x'))return;show(at+1);$('hint').style.opacity=0});
+setTimeout(function(){$('hint').style.opacity=0},3800);
+show(Math.floor(Math.random()*order.length));
+</script></body></html>`;
+}
+
+// The Excuse Generator: one tap, one polite and plausible reason not to go.
+const EXCUSES = [
+  "I’d love to, but I’ve got a thing. It’s a recurring thing.",
+  "I can’t, I’m washing my hair. All of it.",
+  "My cat has made it clear I’m not to leave.",
+  "I’ve already taken my shoes off, and that decision is final.",
+  "I’m double-booked: me, and also the sofa.",
+  "I need to stay in for a parcel. It’s due between now and spring.",
+  "I’ve got an early start. I don’t, but I could.",
+  "Sorry, I’m at capacity for people this week.",
+  "I’d come, but then I’d be there.",
+  "My social battery is on 2% and the charger is at home. So am I.",
+  "I’ve a prior engagement with a book. We’re at a crucial bit.",
+  "I promised myself I’d do nothing tonight, and I never break a promise.",
+  "I can’t make it. There’s something wrong with my availability.",
+  "I would, but I’ve used up this month’s small talk.",
+  "Something’s come up. It’s the evening.",
+  "I’m expecting an important silence.",
+  "Regretfully, I’ll be busy not being there.",
+  "I have to be up early to cancel tomorrow’s plans.",
+  "My horoscope said to avoid crowds, groups, pairs and individuals.",
+  "I’ve checked my diary and it just says “no”.",
+  "I’d be terrible company. I’ve had practice.",
+  "I can’t, I’ve just sat down.",
+  "I’m saving myself for the next thing I won’t go to.",
+  "Thanks, but I’m in the middle of leaving.",
+  "I’m needed at home. By me.",
+  "I’ll be there in spirit, which is the best version of me anyway.",
+  "I’m allergic. Not to anything there. Just generally.",
+  "I’ve got to get back. The dishwasher won’t empty itself, and I intend to watch it not do so.",
+  "I’m on a call. (Hold phone to ear. Leave.)",
+  "I’d only stand in the kitchen, and I have a kitchen.",
+];
+function excusesPage() {
+  return page("The Excuse Generator", `<p class="label" style="margin-top:26px">${esc(HUB.name)} · Interaction distractions</p><h1 style="margin-top:4px">The Excuse Generator</h1>
+<p class="muted lead" style="margin-top:8px">One tap. One polite, plausible reason you can’t make it.</p>
+<div class="thing xq"><span class="tag">Your excuse</span><p id="xt" aria-live="polite"></p></div>
+<p class="xb"><button class="btn" id="xn" type="button">Give me another</button><button class="btn ghost" id="xc" type="button">Copy</button><button class="btn ghost" id="xs" type="button" hidden>Send it</button></p>
+<p class="note" id="xm" style="min-height:1.5em"></p>
+<p class="note"><a href="${HUB.path}">← Back to ${esc(HUB.name)}</a> · Need to look occupied as well? <a href="${HUB.path}/look-busy">Look Busy</a></p>`, { nav: "hub", desc: "One tap. One polite, plausible reason you can't make it.", script: `
+var X=${JSON.stringify(EXCUSES).replace(/</g, "\\u003c")},last=-1,cur='';
+function $(i){return document.getElementById(i)}
+function next(){var i;do{i=Math.floor(Math.random()*X.length)}while(i===last&&X.length>1);last=i;cur=X[i];$('xt').textContent=cur;$('xm').textContent=''}
+$('xn').addEventListener('click',next);
+$('xc').addEventListener('click',function(){var done=function(){$('xm').textContent='Copied. Paste it and put your phone down.'};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cur).then(done,function(){$('xm').textContent='Could not copy. Press and hold the excuse to copy it.'});
+ else $('xm').textContent='Press and hold the excuse to copy it.'});
+if(navigator.share){$('xs').hidden=false;$('xs').addEventListener('click',function(){navigator.share({text:cur}).catch(function(){})})}
+next();` });
+}
+
 // ---------------- the warning gate ----------------
 // The way into the Escape Room (Barry, 21 Nov): a screenful of excessive warnings, drawn here (no pictures), that fits
 // the screen without scrolling. The way in is the ENTER HERE in "Abandon hope, all ye who enter here". Nothing flashes
