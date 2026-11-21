@@ -47,6 +47,8 @@ C = dict(cw=250, ch=300, ax=118, base=292)
 iv = [cell(walk[i], ws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(acts[i], as_ * k, **C) for i, k in ((0, 1), (1, 1), (2, 1), (3, 1), (4, .93), (5, .96))]
 cr = figures(key("introvert-crawl.png"), 2); crs = acts[1].shape[0] * as_ / max(f.shape[0] for f in cr)      # crouch-walk 12-17, as tall as the crouch pose
 iv += [cell(f, crs, **C) for f in cr]
+nd = figures(key("introvert-nod.png")); assert len(nd) == 6, len(nd); nds = PPH / nd[0].shape[0]                                  # nodding: up 18, half 19, down 20, backing away 21-22, hurrying off 23 (faces left)
+iv += [cell(f, nds, **C) for f in nd]
 save("introvert", strip(iv), w=250, h=300, ax=118, base=292, n=len(iv))
 
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
