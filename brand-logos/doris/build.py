@@ -22,3 +22,4 @@ for k, i in enumerate(figs, 1):
     a = alpha * m
     img = Image.fromarray(np.dstack([np.clip(rgb, 0, 255), a * 255]).astype(np.uint8), "RGBA")
     img = img.crop(img.getbbox()); img.save(f"{OUT}/doris-{k}.png", optimize=True); print(f"doris-{k}", img.size)
+# sheet-hug.png (Doris crushing the mascot) was cut out the same way into doris-hug.png (21 Nov), max 700 x 1000.

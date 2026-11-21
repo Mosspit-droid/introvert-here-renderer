@@ -566,7 +566,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dmf img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.dm[data-lv="0"] .dmf img{max-height:46%}.dm[data-lv="1"] .dmf img{max-height:66%}.dm[data-lv="2"] .dmf img{max-height:86%}.dm[data-lv="3"] .dmf img{max-height:none;width:118%;max-width:none;margin-bottom:-10%}
 .dml{margin:0;font-size:14px;font-weight:600;line-height:1.35}.dm[data-lv="2"]{background:#33201e}.dm[data-lv="3"]{background:#4a1518}
 .hug{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,5,7,.95)}.hug[hidden]{display:none}
-.hug .in{max-width:420px;text-align:center}.hugpic{width:min(72vw,300px);aspect-ratio:1;margin:0 auto;border:5px solid #fad00c;border-bottom-width:18px;border-radius:15px;overflow:hidden;background:#2f2d28;display:flex;align-items:flex-start;justify-content:center}.hugpic img{width:112%;max-width:none;height:auto;margin-top:-2%;animation:hugsq 1.1s ease-in-out infinite;transform-origin:50% 40%}
+.hug .in{max-width:420px;text-align:center}.hugpic{width:min(60vw,250px);margin:0 auto}.hugpic img{display:block;width:100%;height:auto;max-height:52vh;object-fit:contain;animation:hugsq 1.1s ease-in-out infinite;transform-origin:50% 90%}
 .hug .ttl{font-size:clamp(60px,16vw,110px);margin:4px 0 8px}@keyframes hugsq{0%,100%{transform:scale(1)}50%{transform:scale(1.06,.96)}}
 @media (prefers-reduced-motion:reduce){.hugpic img{animation:none}}
 /* Escape the Party: a sample paper escape room. One puzzle at a time; each answer opens a padlock. */
@@ -1009,7 +1009,7 @@ function gatePage() {
 // puzzles in three parts, 45 to 60 minutes. Puzzles 1 to 8 each leave you with something (keys, earbuds, a taxi,
 // leftovers, a lie, an exit, an opening, the moment); their first letters spell the code for your own front door at
 // the end: KETTLE ON. Progress is saved on the player's device. Doris is Barry's (brand-logos/doris/, R2 site/doris-N.png):
-// frames 1 to 4 as she gets closer, frame 4 on the hug screen until he has a picture of her hugging the mascot. The title
+// frames 1 to 4 as she gets closer, doris-hug.png (her crushing the mascot) on the hug screen. The title
 // is a stand-in for his logo. All wording is a draft for Barry.
 const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66], ["#26355c", 1, 6, 75], ["#8c8c88", 1, 4, 89]];
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
@@ -1055,7 +1055,7 @@ function dorisPage() {
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
-  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-4.png?v=1" alt="Aunt Doris, arms wide, about to hug you"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
+  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
@@ -1074,7 +1074,7 @@ var P={
 // Aunt Doris walks towards you: each wrong answer is a step closer; the fourth is a hug. Hints are free.
 var DL=['Aunt Doris is at the far end of the room.','“Coo-ee!” She’s spotted you.','She’s weaving through the guests towards you.','Arms open. One more wrong move.'];
 function setLv(m,lv){m.dataset.lv=lv;$('img',m).src='/s/doris-'+(lv+1)+'.png?v=1';$('.dml',m).textContent=DL[lv]}
-[1,2,3,4].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
+[1,2,3,4,'hug'].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
 function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
