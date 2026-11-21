@@ -758,7 +758,7 @@ function lookBusyPage() {
 #sync h1{font-size:clamp(20px,5.6vw,30px);margin:0 0 8px}#sync p{margin:0;color:#9aa0ad}
 .track{width:100%;max-width:440px;height:12px;border-radius:99px;background:#23262e;margin:26px 0 12px;overflow:hidden}.track u{display:block;height:100%;width:3%;background:#3d8bff;border-radius:99px;transition:width 1.6s ease}
 #sync em{font-style:normal;font-variant-numeric:tabular-nums;font-size:34px;font-weight:700}
-#sync strong{display:block;margin-top:26px;color:#f0b429;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+#sync strong{display:block;margin-top:26px;color:#f0b429;font-size:14px;letter-spacing:.08em;text-transform:uppercase}#sync small{display:block;margin-top:8px;color:#9aa0ad;font-size:13px}
 /* messages */
 #chat .list{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:14px 16px 54px;overflow:hidden}
 .bub{align-self:flex-start;max-width:78%;background:#262a35;border-radius:18px 18px 18px 5px;padding:9px 14px;font-size:16px;animation:in .35s ease}
@@ -776,7 +776,7 @@ function lookBusyPage() {
 @media(prefers-reduced-motion:reduce){.row,.bub{animation:none}.typing b{animation:none;opacity:.7}.track u{transition:none}}
 </style></head><body>
 <section class="scr on" id="mail"><div class="bar">Inbox <small id="mc">37</small></div><div class="list" id="ml"></div></section>
-<section class="scr" id="sync"><h1 id="st"></h1><p>Step 3 of 9</p><div class="track"><u id="sb"></u></div><em id="sp">3%</em><strong>Do not interrupt</strong></section>
+<section class="scr" id="sync"><h1 id="st"></h1><p>Step 3 of 9</p><div class="track"><u id="sb"></u></div><em id="sp">3%</em><strong>Do not interrupt</strong><small>Do not switch off your device</small></section>
 <section class="scr" id="chat"><div class="bar">Work <small id="cc">3</small></div><div class="list" id="cl"></div></section>
 <section class="scr" id="call"><div class="av">HO</div><h1>Head Office</h1><p>On a call · muted</p><em id="ct">14:22</em><div class="btns"><b>Mute</b><b>Keypad</b><b class="end">End</b></div></section>
 <section class="scr" id="code"><p>Your security code</p><h1 id="cd">482 913</h1><small>Expires in <span id="ce">0:29</span>. Do not share it. Do not look up.</small></section>
@@ -793,7 +793,9 @@ var run={
  mail:function(){var n=37,L=$('ml'),k=0;L.innerHTML=D.mail.slice(0,7).map(function(m,i){return row(m,i?i*3+' min':'now')}).join('');$('mc').textContent=n;
   every(3400,function(){k++;n++;$('mc').textContent=n;L.insertAdjacentHTML('afterbegin',row(D.mail[(6+k)%D.mail.length],'now'));if(L.children.length>12)L.lastChild.remove()})},
  sync:function(){var p=3;$('st').textContent=pick(D.sync);$('sb').style.width='3%';$('sp').textContent='3%';
-  every(1700,function(){p+=(99-p)*0.045+0.2;if(p>98.6){p=41;$('st').textContent=pick(D.sync)}$('sb').style.width=p+'%';$('sp').textContent=Math.floor(p)+'%'})},
+  // Creeps up to 99% and stalls there for good, now and then slipping back to 98% (Barry, 21 Nov): true to life, and
+  // it explains why you are still staring at it ten minutes later.
+  var t=0,stuck=false;every(1700,function(){if(!stuck){p=Math.min(99,p+(99-p)*0.06+0.3);stuck=p>=99}else{t++;p=t%7===5||t%7===6?98:99}$('sb').style.width=p+'%';$('sp').textContent=Math.floor(p)+'%'})},
  chat:function(){var L=$('cl'),n=3,k=3;L.innerHTML=D.chat.slice(0,3).map(function(t){return '<div class="bub">'+t+'</div>'}).join('')+'<div class="typing"><b></b><b></b><b></b></div>';$('cc').textContent=n;
   every(3000,function(){var t=L.lastChild;t.insertAdjacentHTML('beforebegin','<div class="bub">'+D.chat[k%D.chat.length]+'</div>');k++;n++;$('cc').textContent=n;if(L.children.length>9)L.firstChild.remove()})},
  call:function(){var s=14*60+22;function show(){$('ct').textContent=Math.floor(s/60)+':'+('0'+s%60).slice(-2)}show();every(1000,function(){s++;show()})},
