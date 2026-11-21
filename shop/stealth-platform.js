@@ -1,6 +1,6 @@
 // The stealth game as a small platformer (Barry, 21 Nov): old-handheld feel, two actions, one proper level.
 //
-// You are trying to get out of the office to the door at the far end. You cannot hurt anyone. Touching a person, or one
+// The hero is Hoodini. He is trying to get out of the office to the door at the far end. You cannot hurt anyone. Touching a person, or one
 // of a talker's speech bubbles, is a conversation: it knocks a quarter off your social battery. Jump (A) over and around
 // them. Hood Up (B): sit down, hood tight, and for a couple of seconds nobody notices you, but you cannot move.
 // Steering is a thumb pad (gradual), with extra grip in the air. Low ceilings make Hood Up the only way through.
@@ -14,6 +14,7 @@
 import { ART } from "./stealth-art/art.js";
 
 const TITLE = "Just Passing Through";   // working title
+const HERO_NAME = "Hoodini";            // Barry's name for the introvert (21 Nov)
 
 // The office: 250 squares long and 20 high (two storeys; the screen shows 11). Built from a list of placements so the
 // rows cannot come out different lengths.
@@ -77,7 +78,7 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 // The game, run in the visitor's browser. Written without backticks or dollar-braces so it can sit in String.raw.
 const CLIENT = String.raw`
 (function(){
-var L=__LEVEL__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,SRC=__SRC__;
+var L=__LEVEL__,NAME=__NAME__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,SRC=__SRC__;
 var $=function(i){return document.getElementById(i)},box=$('pg'),cv=$('pgc'),cx=cv.getContext('2d'),calm=false;
 try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
 var hd=document.querySelector('header');box.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
@@ -97,14 +98,14 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
-function flat(){S.mode='lost';card('Social battery flat.',pick(FAILS),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
+function flat(){S.mode='lost';card(NAME+'’s social battery is flat.',pick(FAILS),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say('Sorry, on a call.',P.x,P.y-2.7);return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length;
- card('You’re out.',S.hits===0?'Not one conversation. They’ll assume you’re still at your desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':S.hits+' conversations endured. You are owed a quiet weekend.',
+ card(NAME+' is out.',S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':S.hits+' conversations endured. You are owed a quiet weekend.',
   'Tea '+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds','Go again')}
 
 // ---- one tick ----
@@ -269,12 +270,12 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
-<canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
+<canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
-<p>${LEVEL.name}. The door is at the far end. Everyone between you and it would love a chat.</p>
+<p>This is ${HERO_NAME}. He would like to leave ${LEVEL.name.toLowerCase()}. The door is at the far end, and everyone between him and it would love a chat.</p>
 <ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Coffee</b> makes you fast. <b>A phone</b> gets you past one person free. <b>Headphones</b> make everyone ignore you.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
