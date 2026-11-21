@@ -135,7 +135,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;
  else if(PC.state==='spot'){var gone=hidden()||Math.abs(P.x-PC.x)>q.sight+.7;if(gone){PC.state='lost';PC.st=0}else if(PC.st>=1.05){caught('pacer');return}}
  else if(PC.state==='lost'){if(PC.st>=.9){PC.state='walk';PC.t=0;if((PC.f<0&&PC.x<=q.from)||(PC.f>0&&PC.x>=q.to))PC.f=-PC.f}}
  // the Boss
- BO.t+=dt;var inDoor=!hidden()&&Math.abs(P.x-L.doorway)<DOORW/2+.06;
+ BO.t+=dt;var inDoor=!hidden()&&P.state!=='duck'&&Math.abs(P.x-L.doorway)<DOORW/2+.06;   // crouched, you are under his eyeline
  if(bossPhase()===2&&inDoor&&S.mode==='play'){BO.hold+=dt;if(BO.hold>.14){BO.hold=0;caught('boss')}}else BO.hold=0}
 
 // ---- painting ----
@@ -215,7 +215,7 @@ export function levelPage(page, hub, v) {
 <div class="card" id="sgcard"><div>
 <div id="sgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p>The meeting has finished. The fire exit is at the far end of the corridor.</p>
-<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> nods off. Creep past his door while he’s asleep. Walking wakes him.</li><li><b>Jump into the recycling</b> to hide, or crouch behind the water cooler.</li><li><b>Throw a cupcake</b> and the Pacer will stop to eat it. You have two.</li></ul>
+<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> nods off. Creep past his door while he’s asleep (walking wakes him), or crouch-walk under his eyeline.</li><li><b>Jump into the recycling</b> to hide, or crouch behind the water cooler.</li><li><b>Throw a cupcake</b> and the Pacer will stop to eat it. You have two.</li></ul>
 <p class="sm">Turn your phone sideways to see further. No sound. On a computer: arrow keys, hold Shift to creep, Space to jump, down to crouch, C to throw.</p>
 <p class="go"><button class="btn" id="sggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="sgend" hidden><p class="pre">Introvert Here…</p><h2 id="sgch"></h2><p id="sgcp"></p><p class="sm" id="sgcs"></p>
