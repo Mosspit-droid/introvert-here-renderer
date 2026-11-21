@@ -515,9 +515,10 @@ const HUB = { path: "/uk/comfort-zone", name: "The Comfort Zone", short: "Comfor
   ] };
 // The doors' pictures. Each door can hold several and fades through them, starting somewhere different on every visit.
 // Site pictures (not product photos) live in R2 under site/<name>.jpg, served at /s/<name>.jpg; copies in shop/assets/site/.
-// Shop door: introverts caught out while shopping (Barry's pictures, 21 Nov). Hub door: still one of his product photos.
+// Shop door: an introvert hiding in the scenery of a shop (Barry's pictures, 21 Nov; he wants one clear idea, someone
+// physically camouflaged, deadpan, dark). Hub door: still one of his product photos.
 const DOOR = {
-  shop: ["mannequins", "clothes-rail", "self-checkout", "eager-owner", "cereal-aisle", "free-samples", "leaving-empty-handed", "ordering-outside"].map((n) => "/s/shop-" + n + ".jpg"),
+  shop: ["mannequins", "clothes-rail"].map((n) => "/s/shop-" + n + ".jpg"),   // Barry kept these two of the first eight
   hub: ["/p/IH-00001-HOODIE/12.jpg"] };
 const SITE_V = "1";
 // The pictures of one door, in a fresh order each time; only the first is loaded straight away.
