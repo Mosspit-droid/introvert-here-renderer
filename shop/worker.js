@@ -119,6 +119,11 @@ async function route(request, env, ctx) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
         return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
+      const sp = /^\/s\/([a-z0-9-]+)\.jpg$/.exec(path);   // site pictures (door scenes and the like), from R2 site/
+      if (sp) {
+        const obj = env.PHOTOS ? await env.PHOTOS.get("site/" + sp[1] + ".jpg") : null;
+        return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
+      }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {
         let buf = (isPreview(env) && (await env.PENDING.get("shop:preview:m-" + mk[1] + ".jpg", "arrayBuffer"))) || (await env.PENDING.get("shop:m-" + mk[1] + ".jpg", "arrayBuffer"));
@@ -338,7 +343,8 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 /* Front page: two doors of equal weight, then a strip from each side */
 .doors{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);margin:clamp(14px,2.4vw,26px) 0 0}
 .door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;border:1px solid rgba(255,255,255,.16);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
-.door>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),filter .6s}
+.door>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),opacity 1.6s ease}
+.door>img.on{opacity:1}
 .door .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 68%,rgba(0,0,0,.9) 100%)}
 .door .in{position:absolute;left:0;right:0;bottom:0;padding:clamp(18px,3vw,38px);display:flex;flex-direction:column;gap:8px}
 .door .kicker{font-size:12px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;opacity:.82}
@@ -507,7 +513,18 @@ const HUB = { path: "/uk/comfort-zone", name: "The Comfort Zone", short: "Comfor
     { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
     { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", soon: true },
   ] };
-const DOOR = { shop: "/p/IH-00001-T-SHIRT/10.jpg", hub: "/p/IH-00001-HOODIE/12.jpg" };   // Barry's own photos, from the shop's store
+// The doors' pictures. Each door can hold several and fades through them, starting somewhere different on every visit.
+// Site pictures (not product photos) live in R2 under site/<name>.jpg, served at /s/<name>.jpg; copies in shop/assets/site/.
+// Shop door: introverts caught out while shopping (Barry's pictures, 21 Nov). Hub door: still one of his product photos.
+const DOOR = {
+  shop: ["mannequins", "clothes-rail", "self-checkout", "eager-owner", "cereal-aisle", "free-samples", "leaving-empty-handed", "ordering-outside"].map((n) => "/s/shop-" + n + ".jpg"),
+  hub: ["/p/IH-00001-HOODIE/12.jpg"] };
+const SITE_V = "1";
+// The pictures of one door, in a fresh order each time; only the first is loaded straight away.
+function doorPics(list) {
+  const a = list.slice(), by = Math.floor(Math.random() * a.length), turned = a.slice(by).concat(a.slice(0, by));
+  return turned.map((u, i) => `<img ${i ? "data-src" : "src"}="${u}?v=${SITE_V}" class="pic${i ? "" : " on"}" alt="">`).join("");
+}
 function hubCards() {
   return HUB.things.map((x) => `<${x.href ? `a href="${x.href}"` : "div"} class="thing"><span class="tag">${x.soon ? "Coming soon" : "Open"}</span><b>${esc(x.name)}</b><span>${esc(x.line)}</span></${x.href ? "a" : "div"}>`).join("");
 }
@@ -516,7 +533,7 @@ function frontPage(cat) {
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
   const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
-  const door = (href, img, label, title, line, cta) => `<a class="door" href="${href}"><img src="${img}" alt=""><span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
+  const door = (href, pics, label, title, line, cta) => `<a class="door" href="${href}">${doorPics(pics)}<span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
   return page("Quiet humour for socially exhausted people", `${heroImg(null)}
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
@@ -524,10 +541,19 @@ ${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), "Come in"
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
 <section class="strip"><div class="sh"><h2>In ${esc(HUB.name)}</h2><a href="${HUB.path}">Have a look <i>→</i></a></div><div class="things">${hubCards()}</div></section>
-<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home" });
+<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
 }
+// Doors with more than one picture fade to the next every few seconds (the two doors out of step), unless the visitor
+// has asked their device for less motion. The next picture is fetched just before it is needed.
+const DOOR_JS = `
+(function(){if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ [].forEach.call(document.querySelectorAll('.door'),function(d,n){var p=d.querySelectorAll('img.pic');if(p.length<2)return;var i=0;
+  function load(k){var im=p[k%p.length];if(!im.src&&im.dataset.src)im.src=im.dataset.src;return im}
+  function next(){var nx=load(i+1);if(!nx.complete||!nx.naturalWidth){setTimeout(next,600);return}
+   p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
+  setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
 function hubPage() {
-  return page(HUB.name, `<a class="door wide" href="${HUB.path}" style="pointer-events:none"><img src="${DOOR.hub}" alt=""><span class="shade"></span><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
+  return page(HUB.name, `<a class="door wide" href="${HUB.path}" style="pointer-events:none"><img class="pic on" src="${DOOR.hub[0]}" alt=""><span class="shade"></span><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
 <p class="muted lead">Small, quiet things for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
 <div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line });
 }
