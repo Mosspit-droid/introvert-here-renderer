@@ -399,7 +399,7 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}.grid .tile[hidden]{display:none}
 .more{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin:-12px 0 44px}
 .more>span{font-size:14px;color:var(--muted,#bdb8ad);letter-spacing:.02em;text-align:center}
-.mv{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:#f2f0ea;-webkit-tap-highlight-color:transparent}
+.mv{display:inline-flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;color:var(--text);-webkit-tap-highlight-color:transparent}
 .mv.ret{justify-self:start}.mv.dots{justify-self:end}
 .mv i{display:block;padding:8px 10px;background:var(--fc);border-radius:99px;box-shadow:0 6px 16px rgba(0,0,0,.35);transition:transform .15s}
 .mv:hover i,.mv:focus-visible i{transform:translateY(-2px)}.mv:active i{transform:translateY(1px)}
