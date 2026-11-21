@@ -13,6 +13,8 @@
 //        Keys come from KV namespace SECRETS (stripe_secret_key, printify_token), saved by Barry through the
 //        approvals app. STRIPE_WEBHOOK_SECRET is a worker secret.
 
+import { stealthPage } from "./stealth.js";   // the Escape Room's stealth game lives in its own file
+
 const PRINTIFY_SHOP = "27154106";
 const SHOP_NAME = "Introvert Here";
 const COLLECTIONS = {
@@ -102,6 +104,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
+      if (path === HUB.path + "/stealth") return html(stealthPage(page, HUB, url));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);
@@ -1050,7 +1053,7 @@ setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})()
 // sits, f = where its label goes (l/r = starts at the dot and runs left/right-anchored, b = below the dot).
 // A thing with "soon" isn't built yet and answers with that line instead of going anywhere.
 const ROOM = [
-  { name: "Stealth game", soon: "The console isn’t plugged in yet. The stealth game is on its way. Come back later.",
+  { name: "Stealth game", href: HUB.path + "/stealth",
     wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
   { name: "Paper escape rooms", soon: "The paper escape rooms are still at the printers. Come back later.",
     wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
