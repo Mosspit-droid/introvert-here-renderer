@@ -896,67 +896,99 @@ function gatePage() {
 }
 // ---------------- Spot the Introvert ----------------
 // The painting in the room (Barry, 21 Nov): tap it and you are looking at a painting with one person hiding in it.
-// Find them, five paintings in a row, easiest first. Wrong taps get a dry line: one of the scene's own for the thing
+// Find them: five paintings a game, drawn from the set (the ones you didn't get last time first), easiest first (lv). Wrong taps get a dry line: one of the scene's own for the thing
 // tapped (zones, each said once), otherwise the next in its list (then the last four go round). A clue is offered
 // after 20 seconds, and the best total time is remembered on the player's device.
 // The paintings are Barry's (ChatGPT, oil-painting style, 1024 x 1536); R2 site/spot-<name>.jpg, copies in shop/assets/site/.
+// ?all=1 plays every painting in one go (for checking them). also = other places that count as finding them.
 // A scene: brief; spot = where they are [x%, y%, radius as % of the width]; found; clue + clueAt [x%, y%, radius];
 // zones = [[x%, y%, w%, h%], line]; wrong = the general lines, in order. The wording is a draft for Barry to edit.
 const SPOT = [
-  { img: "xmas", alt: "A painting of a crowded Christmas party, with a heap of coats on a bench in the hall.",
+  { img: "xmas", lv: 1, alt: "A painting of a crowded Christmas party, with a heap of coats on a bench in the hall.",
     brief: "Someone at this Christmas party has had enough. Find them.", spot: [52, 49, 5],
     found: "Found. One sock. They’d like you to pretend you didn’t.", clue: "A clue, since you asked. Check the cloakroom.", clueAt: [62, 40, 24],
     zones: [[[48, 23, 30, 22], "It’s a pile of coats. Mostly."], [[88, 40, 12, 22], "That’s the fire. It’s the opposite of hiding."], [[9, 60, 30, 22], "She’s having a lovely time. Not who we’re after."]],
     wrong: ["No. They’re enjoying themselves.", "Also enjoying themselves.", "Enjoying themselves.", "It’s a party. Most of them want to be here.", "That one’s fine.", "Colder.", "No.", "They can hear you tapping, you know."] },
-  { img: "wedding", alt: "A painting of a wedding reception in a marquee, with a cake on a table with a long cloth.",
+  { img: "wedding", lv: 2, alt: "A painting of a wedding reception in a marquee, with a cake on a table with a long cloth.",
     brief: "Someone at this wedding would rather not be. Find them.", spot: [75.5, 70.9, 5],
     found: "Found. They’ve been under there since the speeches.", clue: "A clue, since you asked. Lower than you’re looking.", clueAt: [72, 66, 24],
     zones: [[[70, 35, 16, 13], "That’s the cake. Everyone found the cake."], [[54, 49, 45, 18], "That’s a tablecloth. Have a think about tablecloths."], [[35, 5, 65, 12], "Bunting. Nobody has ever hidden in bunting."]],
     wrong: ["No. That’s a guest.", "Also a guest.", "Guest.", "There are ninety of them. Narrow it down.", "That one came for the free bar.", "No.", "Colder.", "Wrong, but they do look happy."] },
-  { img: "salon", alt: "A painting of a candlelit party in a grand old room, with a heavy red curtain on the right.",
+  { img: "salon", lv: 3, alt: "A painting of a candlelit party in a grand old room, with a heavy red curtain on the right.",
     brief: "Someone was told there’d be “just a few people”. Find them.", spot: [90.3, 88.9, 5.5],
     found: "Found. Nice shoes. They’re not coming out.", clue: "A clue, since you asked. Not everyone is in the room, exactly.", clueAt: [82, 82, 24],
     zones: [[[84, 0, 16, 84], "It’s a curtain. A long one. Goes all the way to the floor."], [[44, 0, 22, 17], "That’s the chandelier. Nobody’s up there. We checked."], [[23, 0, 22, 18], "That’s a painting in a painting. Eyes down."], [[3, 74, 22, 10], "Those are grapes."]],
     wrong: ["No. That one’s mid-anecdote.", "Also not hiding. Loudly not hiding.", "No.", "People who hide don’t bring a lute.", "Colder.", "Still no.", "They’re all having a marvellous time. That’s the problem.", "No."] },
-  { img: "garden", alt: "A painting of a sunny garden party beside a glasshouse, with a clipped bush in a terracotta pot.",
+  { img: "garden", lv: 4, alt: "A painting of a sunny garden party beside a glasshouse, with a clipped bush in a terracotta pot.",
     brief: "Someone said they’d “pop along for an hour”. Find them.", spot: [29.3, 40.8, 3.5],
     found: "Found. Four fingers. That’s all you’re getting.", clue: "A clue, since you asked. Somebody’s very attached to that pot.", clueAt: [30, 42, 22],
     zones: [[[19, 57.5, 8, 6], "That’s a bun. Buns aren’t hiding. Buns are just low."], [[15, 29, 17, 9], "It’s a bush. A suspiciously well-kept one."], [[50, 0, 50, 28], "That’s a glasshouse. You’d be seen from every angle."]],
     wrong: ["No. That’s a hat with a person under it.", "Another hat.", "Hat.", "It’s a garden party. Most of it is going to be hats.", "That’s a flower.", "Colder.", "No.", "Also a hat."] },
-  { img: "library", alt: "A painting of a drinks reception in an old library, with a tall wooden cupboard among the bookshelves.",
+  { img: "library", lv: 5, alt: "A painting of a drinks reception in an old library, with a tall wooden cupboard among the bookshelves.",
     brief: "Someone came here for the quiet and got a drinks reception. Find them.", spot: [69.7, 26.7, 3.2],
     found: "Found. They saw you first.", clue: "A clue, since you asked. Try the furniture.", clueAt: [68, 30, 22],
     zones: [[[54, 13, 32, 38], "A cupboard. Shut. Mostly."], [[38, 15, 6, 7], "That’s a bust. He’s been ignoring people since 1840."], [[87, 17, 13, 25], "Books. The original way to avoid people."], [[6, 0, 24, 26], "That’s outside. Tempting, but no."]],
     wrong: ["No. Nobody’s reading, either.", "No.", "That one’s talking. In a library.", "Also talking.", "Colder.", "Somebody here remembers what libraries are for.", "No.", "Look for someone looking at you."] },
+  { img: "feast", lv: 2, alt: "A painting of a feast in the courtyard of a grand Italian house, with an olive tree in a huge terracotta pot.",
+    brief: "Someone was promised a quiet lunch. Find them.", spot: [22.6, 35.8, 4.5],
+    found: "Found. One ear. They heard everything.", clue: "A clue, since you asked. Somebody’s gone green.", clueAt: [24, 32, 22],
+    zones: [[[2, 8, 44, 24], "It’s an olive tree. Leafy. Very leafy."], [[10, 38, 24, 16], "That’s the pot. Look up a bit."], [[50, 79, 26, 7], "That’s the chicken."], [[84, 0, 10, 8], "That’s a bell tower. Too many stairs."]],
+    wrong: ["No. That one’s mid-laugh.", "Also laughing.", "No. Loud, though.", "It’s a feast. They all came on purpose.", "Colder.", "No.", "That one’s on their third glass.", "Not them either."] },
+  { img: "station", lv: 2, alt: "A painting of a crowded railway waiting room on a winter evening, with a large wicker hamper among the luggage.",
+    brief: "Someone’s train is delayed and the waiting room has turned into a party. Find them.", spot: [68.2, 39, 3.5],
+    found: "Found. Four fingers and a lid. They’re travelling as luggage.", clue: "A clue, since you asked. Check the luggage.", clueAt: [62, 42, 22],
+    zones: [[[40, 35, 31, 16], "A hamper. Big one. Roomy."], [[0, 33, 18, 30], "That’s the stove. Warm, but no."], [[75, 13, 25, 10], "That’s the train. If only."], [[5, 87, 33, 13], "That trunk’s too small. They checked."]],
+    wrong: ["No. That one’s making friends.", "Also making friends.", "Making friends.", "Strangers in a waiting room, talking. Imagine.", "Colder.", "No.", "That one’s offering round a flask.", "Not them either."] },
+  { img: "fete", lv: 3, alt: "A painting of a village fête on the lawn of an old stone house, with a striped deckchair propped upright by a stall.",
+    brief: "Someone was volunteered to help at the fête. Find them.", spot: [84.2, 31.8, 3.5], also: [[81.4, 37.8, 4]],
+    found: "Found. They’ve been holding that deckchair up for an hour.", clue: "A clue, since you asked. Deckchairs are for sitting in. Usually.", clueAt: [82, 38, 22],
+    zones: [[[72, 31, 19, 26], "It’s a deckchair. Odd way to store one."], [[85, 6, 10, 10], "That’s the church. The vicar would find you in minutes."], [[93, 34, 7, 12], "Cakes. A reasonable guess, but no."], [[16, 62, 26, 10], "That’s a teapot."]],
+    wrong: ["No. They’re mingling.", "Also mingling.", "Mingling.", "It’s a fête. Mingling is most of it.", "Colder.", "No.", "That one’s judging the sponge cakes.", "Not them either."] },
+  { img: "festival", lv: 3, alt: "A Japanese woodblock print of a crowded evening festival with lanterns and cherry blossom, and a tall rolled-up mat standing by a stall.",
+    brief: "Someone came for the dumplings and stayed for nobody. Find them.", spot: [34.5, 57.7, 4],
+    found: "Found. Sandals. That mat has never been so still.", clue: "A clue, since you asked. Not everything rolled up is just a mat.", clueAt: [35, 52, 22],
+    zones: [[[29, 38, 10, 17.5], "It’s a rolled-up mat. Standing very upright, for a mat."], [[80, 2, 10, 7], "That’s the moon. Too far, even for them."], [[12, 84, 24, 8], "Those are fish. They’re not hiding. They’ve stopped."], [[76, 39, 24, 14], "A screen. Good thinking. Wrong thing to hide behind."]],
+    wrong: ["No. That one’s laughing.", "Also laughing.", "Laughing.", "It’s a festival. Most of them are going to be laughing.", "Colder.", "No.", "Still no.", "Not them either."] },
+  { img: "cafe", lv: 4, alt: "A painting in dots of a busy riverside café terrace, with open parasols and one closed parasol by the wall.",
+    brief: "Someone agreed to “a quick coffee”. Find them.", spot: [32.9, 47.3, 3.5],
+    found: "Found. One shoe. That parasol is taken.", clue: "A clue, since you asked. One of the parasols isn’t open.", clueAt: [33, 38, 22],
+    zones: [[[27, 19, 9, 27], "A parasol. Closed. On a day like this."], [[88, 20, 7, 6], "That’s a boat. Good plan, wrong person."], [[37, 16, 48, 9], "Open parasols hide nobody. Think it through."], [[0, 0, 22, 13], "That’s the awning."]],
+    wrong: ["No. They’re having a lovely chat.", "Also chatting.", "Chatting.", "It’s a café. Chatting is the whole idea.", "Colder.", "No.", "That one’s ordered a second coffee. Staying.", "Not them either."] },
 ];
 function spotPage() {
-  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, spot: x.spot, found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
+  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
   return page("Spot the Introvert", `<h1 style="position:absolute;left:-9999px">Spot the Introvert</h1><div class="sp" id="sp">
 <p class="br" id="sb"></p><p class="tm" id="st">0:00.0</p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
 <p class="ms" id="sm" role="status" aria-live="polite"></p>
 <p class="bt"><button class="btn ghost" id="sq" type="button" hidden>Give me a clue</button><button class="btn" id="sn" type="button" hidden>Next painting</button><button class="btn" id="sa" type="button" hidden>Go again</button><a class="btn ghost" href="${HUB.path}">Back to the room</a></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
-(function(){var S=${JSON.stringify(data).replace(/</g, "\\u003c")},$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,n=0,t0=0,tot=0,run=false,cl,used={};
+(function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,n=0,t0=0,tot=0,run=false,cl,used={};
 var hd=document.querySelector('header');$('sp').style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
 function fmt(ms){var s=ms/1000,m=Math.floor(s/60);s-=m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
 function clear(){[].forEach.call(fr.querySelectorAll('.ring,.clue,.miss'),function(x){x.remove()})}
 // the clock for a painting starts when its picture has arrived, so a slow connection costs nobody time
 function go(){t0=Date.now();run=true;clearTimeout(cl);cl=setTimeout(function(){if(run)$('sq').hidden=false},20000)}
+// a game is five paintings: those not in the last game first, in a random order, then sorted easiest to hardest
+function deal(){var last=[];try{last=JSON.parse(localStorage.getItem('ih_spot_last')||'[]')}catch(_){}
+ var ix=ALL.map(function(_,k){return k}),mix=function(a){return a.map(function(v){return[Math.random(),v]}).sort(function(a,b){return a[0]-b[0]}).map(function(v){return v[1]})};
+ var pick=every?ix:mix(ix.filter(function(k){return last.indexOf(k)<0})).concat(mix(ix.filter(function(k){return last.indexOf(k)>=0}))).slice(0,5);
+ if(!every){try{localStorage.setItem('ih_spot_last',JSON.stringify(pick))}catch(_){}}
+ S=pick.sort(function(a,b){return ALL[a].lv-ALL[b].lv||a-b}).map(function(k){return ALL[k]})}
 function start(k){i=k;n=0;used={};run=false;clear();$('sb').textContent=S[i].brief;$('sm').textContent='Painting '+(i+1)+' of '+S.length+'. Tap where they’re hiding.';$('sq').hidden=$('sn').hidden=$('sa').hidden=true;
  im.alt=S[i].alt;im.onload=im.onerror=go;im.src=S[i].src;if(im.complete&&im.naturalWidth)go();if(S[i+1]){new Image().src=S[i+1].src}}
 function put(c,x,y,d){var e=document.createElement('div');e.className=c;e.style.left=x+'%';e.style.top=y+'%';if(d){e.style.width=d+'%';e.style.aspectRatio='1'}fr.appendChild(e);return e}
 fr.addEventListener('click',function(e){if(!run)return;var r=fr.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100,s=S[i].spot;
- var dx=(x-s[0])*r.width/100,dy=(y-s[1])*r.height/100,rad=Math.max(s[2]*r.width/100,24);
- if(dx*dx+dy*dy<=rad*rad){run=false;tot+=Date.now()-t0;clear();put('ring',s[0],s[1],Math.max(s[2]*2.6,14));$('sq').hidden=true;
-  if(i<S.length-1){$('sm').textContent=S[i].found;$('sn').hidden=false}else{var best=0;try{best=+localStorage.getItem('ih_spot_best5')||0}catch(_){}
-   var rec=!best||tot<best;if(rec){try{localStorage.setItem('ih_spot_best5',tot)}catch(_){}}
-   $('sm').textContent=S[i].found+' All five in '+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');$('sa').hidden=false}}
+ var hit=[s].concat(S[i].also).some(function(q){var dx=(x-q[0])*r.width/100,dy=(y-q[1])*r.height/100,rad=Math.max(q[2]*r.width/100,24);return dx*dx+dy*dy<=rad*rad});
+ if(hit){run=false;tot+=Date.now()-t0;clear();put('ring',s[0],s[1],Math.max(s[2]*2.6,14));$('sq').hidden=true;
+  if(i<S.length-1){$('sm').textContent=S[i].found;$('sn').hidden=false}else{var best=0;try{best=+localStorage.getItem(every?'ih_spot_bestall':'ih_spot_best5')||0}catch(_){}
+   var rec=!best||tot<best;if(rec){try{localStorage.setItem(every?'ih_spot_bestall':'ih_spot_best5',tot)}catch(_){}}
+   $('sm').textContent=S[i].found+(every?' All of them in ':' All five in ')+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');$('sa').hidden=false}}
  else{var w=S[i].wrong,m=put('miss',x,y),line=null;m.textContent='×';setTimeout(function(){m.remove()},1000);
   S[i].zones.some(function(z,k){var q=z[0];if(!used[k]&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3]){used[k]=1;line=z[1];return true}});
   if(!line){line=n<w.length?w[n]:w[w.length-4+(n-w.length)%4];n++}$('sm').textContent=line}});
 $('sq').addEventListener('click',function(){var c=S[i].clueAt;put('clue',c[0],c[1],c[2]*2);$('sm').textContent=S[i].clue;$('sq').hidden=true});
-$('sn').addEventListener('click',function(){start(i+1)});$('sa').addEventListener('click',function(){tot=0;start(0)});
-setInterval(function(){$('st').textContent=fmt(tot+(run?Date.now()-t0:0))},100);start(0)})();` });
+$('sn').addEventListener('click',function(){start(i+1)});$('sa').addEventListener('click',function(){tot=0;deal();start(0)});
+setInterval(function(){$('st').textContent=fmt(tot+(run?Date.now()-t0:0))},100);deal();start(0)})();` });
 }
 
 // The room (Barry, 21 Nov): one picture of the cosiest room imaginable fills the screen, and the things in it are the
