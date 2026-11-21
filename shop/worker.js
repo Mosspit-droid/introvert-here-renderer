@@ -104,7 +104,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
-      if (path === HUB.path + "/stealth") return html(stealthPage(page, HUB));
+      if (path === HUB.path + "/stealth") return html(stealthPage(page, HUB, url));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);

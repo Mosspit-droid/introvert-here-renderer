@@ -12,6 +12,8 @@
 //
 // All the wording below is a draft for Barry to edit: TITLE, the PEOPLE lines, FAILS and the tips.
 
+import { SHEET } from "./stealth-art/sheet.js";
+
 const TITLE = "Just Passing Through";   // working title: reads on from the brand name, "Introvert Here… Just Passing Through"
 
 // Where things are along the corridor, in strides from the left-hand end (the corridor is 36 long).
@@ -269,8 +271,9 @@ window.__sg={S:function(){return S},P:function(){return P},A:function(){return A
  hold:function(d){touch=d?{id:-1,y0:0,side:d,hopped:true}:null},hop:function(){hopQ=true},hide:function(){hideQ=true},step:function(n){for(var i=0;i<n;i++)update(1/30)}};
 })();`;
 
-// page = worker.js's page builder, hub = its HUB ({ path, name }).
-export function stealthPage(page, hub) {
+// page = worker.js's page builder, hub = its HUB ({ path, name }). ?sheet=1 shows the character sheet being workshopped.
+export function stealthPage(page, hub, url) {
+  if (url && url.searchParams.has("sheet")) return page("Character sheet", `<h1 style="font-size:20px;margin:18px 0 6px">Character sheet: the introvert</h1><p class="note" style="margin:0 0 12px">Options to pick from. Not in the game yet. <a href="${hub.path}/stealth">Back to the corridor test</a></p><img src="${SHEET}" alt="Four pixel-art versions of a hooded figure in a navy hoodie, each shown side on, front on and as a silhouette." style="display:block;width:100%;max-width:600px;height:auto;image-rendering:pixelated;border-radius:8px">`, { nav: "hub", noindex: true });
   const j = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const script = CLIENT.replace("__PEOPLE__", () => j(PEOPLE)).replace("__FILLER__", () => j(FILLER)).replace("__FAILS__", () => j(FAILS));
   return page(TITLE, `<style>${CSS}</style><div class="sg" id="sg">
