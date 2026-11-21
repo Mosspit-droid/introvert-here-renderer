@@ -20,7 +20,7 @@ def runs(mask, gap):
             last = i
         elif start is not None and i - last > gap: out.append((start, last + 1)); start = None
     if start is not None: out.append((start, last + 1))
-    return [r for r in out if r[1] - r[0] > 40]
+    return [r for r in out if r[1] - r[0] > 25]
 def figures(img, rows=1, gap=14):
     solid = img[..., 3] > 128; figs = []
     bands = runs(solid.any(axis=1), 12) if rows > 1 else [(0, img.shape[0])]
@@ -47,12 +47,17 @@ C = dict(cw=250, ch=300, ax=118, base=292)
 iv = [cell(walk[i], ws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(acts[i], as_ * k, **C) for i, k in ((0, 1), (1, 1), (2, 1), (3, 1), (4, .93), (5, .96))]
 save("introvert", strip(iv), w=250, h=300, ax=118, base=292, n=len(iv))
 
-# The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9
-pw = figures(key("pacer-walk.png"), 2); pp = figures(key("pacer-poses.png"))
+# The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
+pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
+# In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
+f0 = ck[0].copy(); y0 = int(f0.shape[0] * .82); parts = runs((f0[y0:, :, 3] > 128).any(axis=0), 2); assert len(parts) == 2, parts
+cup = f0[y0:, parts[1][0]:parts[1][1]].copy(); ys = np.where((cup[..., 3] > 128).any(axis=1))[0]; cup = cup[ys[0]:]
+f0[y0:, parts[1][0]:] = 0; xs = np.where((f0[..., 3] > 128).any(axis=0))[0]; ck[0] = f0[:, xs[0]:xs[-1] + 1]
 C = dict(cw=330, ch=330, ax=140, base=324, top=.25)
-pws, pps = 1.24 * PPH / max(f.shape[0] for f in pw), 1.3 * PPH / pp[1].shape[0]
-pc = [cell(pw[i], pws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(f, pps, **C) for f in pp]
+pws, pps, cks = 1.24 * PPH / max(f.shape[0] for f in pw), 1.3 * PPH / pp[1].shape[0], 1.3 * PPH / ck[0].shape[0]
+pc = [cell(pw[i], pws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(f, pps, **C) for f in pp] + [cell(f, cks, **C) for f in ck]
 save("pacer", strip(pc), w=330, h=330, ax=140, base=324, n=len(pc))
+save("cupcake", scaled(cup, cks * 1.5))
 
 # The Boss at his desk: asleep 0, stirring 1, beckoning 2, holding forth 3. Lined up on the desk's left edge and the floor.
 bs = figures(key("boss.png"), 2, gap=30); s = 1.15 * PPH / max(f.shape[1] for f in bs); bw = round(max(f.shape[1] for f in bs) * s) + 4; bh = round(max(f.shape[0] for f in bs) * s) + 4
@@ -86,7 +91,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 1500), "#fbf1e7"); y = 10
-for n in ("introvert", "pacer", "boss", "props", "bin", "caught-boss"):
+for n in ("introvert", "pacer", "cupcake", "boss", "props", "bin", "caught-boss"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
