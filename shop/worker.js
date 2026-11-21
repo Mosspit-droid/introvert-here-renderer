@@ -465,6 +465,8 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 .door .fi{position:relative;display:block;height:100%;border-radius:var(--fr);overflow:hidden;background:#000;isolation:isolate}
 .hero{--ft:clamp(4px,.55vw,7px);--fb:clamp(15px,2.1vw,27px);--fR:clamp(11px,1.5vw,18px);--fr:clamp(6px,.85vw,11px);display:block;width:100%;height:auto;margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .hero img{display:block;width:100%;height:auto;border-radius:var(--fr)}
+/* no dots window on the banners: each already shows the stacked logo, dots and all (Barry, 21 Nov) */
+.hero::after{content:none}
 .stagefr{--ft:5px;--fb:19px;--fR:18px;--fr:11px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .stagefr .stage{border:0;border-radius:var(--fr);box-shadow:none}
 `;
