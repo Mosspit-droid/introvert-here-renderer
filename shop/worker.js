@@ -342,9 +342,9 @@ header img{height:56px;width:auto;display:block;border-radius:4px}
 header img.wl{height:38px;border-radius:0}
 /* In the Escape Room the header logo wears its DO NOT ENTER hanger, which dangles below the header bar. */
 header{position:relative;z-index:5}header img.wl.er{height:72px;margin-bottom:-34px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
-.door .badge{position:absolute;left:clamp(14px,2.2vw,28px);top:clamp(14px,2.2vw,28px);width:clamp(110px,16vw,210px);height:auto;filter:drop-shadow(0 8px 18px rgba(0,0,0,.55))}
-.door.wide .badge{left:auto;right:clamp(14px,2.4vw,34px);top:clamp(12px,2vw,26px);width:clamp(120px,22vw,300px)}
-.door.er{border:clamp(3px,.6vw,7px) solid #fad00c}
+.door .badge{position:absolute;right:clamp(10px,1.6vw,22px);top:clamp(10px,1.6vw,22px);width:clamp(70px,9vw,124px);height:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
+.door.wide .badge{width:clamp(76px,11vw,150px)}
+.door.er{border-color:#fad00c}
 .strap{text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:.2em;font-size:clamp(13px,1.7vw,20px);margin:clamp(22px,3.4vw,44px) 0 clamp(4px,1vw,12px);text-wrap:balance}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
 nav.top{display:flex;align-items:center;gap:clamp(10px,2.4vw,26px);font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
@@ -353,7 +353,7 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 @media(max-width:520px){nav.top{font-size:12px;gap:10px;letter-spacing:.04em}header img{height:40px}header img.wl{height:auto;width:29vw;max-width:150px}header img.wl.er{height:auto;margin-bottom:-3.8vw}nav.top .basket-link{padding:5px 10px}}
 /* Front page: two doors of equal weight, then a strip from each side */
 .doors{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);margin:clamp(14px,2.4vw,26px) 0 0}
-.door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;border:1px solid rgba(255,255,255,.16);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
+.door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;box-sizing:border-box;border:clamp(4px,.55vw,7px) solid #f2f0ea;border-bottom-width:clamp(11px,1.5vw,19px);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
 .door>img.pic{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),opacity 1.6s ease}
 .door>img.pic.on{opacity:1}
 .door .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 68%,rgba(0,0,0,.9) 100%)}
@@ -451,7 +451,7 @@ function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
-<header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=${ASSET_V}" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
+<header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
@@ -521,8 +521,8 @@ function tileHtml({ d, t }) {
 // One site, two halves of equal weight (Barry, 20 Nov): the shop, and a hub for introverts (phone toys for the bus
 // queue, paper escape rooms, a vote on the next gag...). The hub's name and wording are placeholders for Barry.
 const HUB = { path: "/uk/escape-room", name: "The Escape Room", short: "Escape Room",   // Barry's name for it (21 Nov)
-  logo: "/logo-ER.png?v=4",   // the stacked logo with its DO NOT ENTER door hanger (brand-logos/escape-room/)
-  line: "A room to get away from people. Interaction distractions inside.",   // "interaction distractions" is Barry's phrase for what's in here
+  logo: "/logo-ER.png?v=5",   // the stacked logo with its DO NOT ENTER door hanger (brand-logos/escape-room/)
+  line: "Salvation lies within.", cta: "Enter",   // Barry's wording (21 Nov); "interaction distractions" is his phrase for what's inside
   things: [
     { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
     { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", soon: true },
@@ -557,7 +557,7 @@ function frontPage(cat) {
   return page("Everything you need to be left the hell alone", `<p class="strap">Everything you need to be left the hell alone.</p>
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
-${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), "Come in", HUB.logo)}
+${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), HUB.cta, HUB.logo)}
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
 <section class="strip"><div class="sh"><h2>Interaction distractions</h2><a href="${HUB.path}">Into ${esc(HUB.name)} <i>→</i></a></div><div class="things">${hubCards()}</div></section>
@@ -574,7 +574,7 @@ const DOOR_JS = `
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
 function hubPage() {
   return page(HUB.name, `<a class="door wide er" href="${HUB.path}" style="pointer-events:none">${doorPics(DOOR.hub)}<span class="shade"></span><img class="badge" src="${HUB.logo}" alt=""><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
-<p class="muted lead">Small, quiet things for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
+<p class="muted lead">A room to get away from people. Inside: interaction distractions for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
 <div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line, script: DOOR_JS });
 }
 
