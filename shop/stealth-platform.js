@@ -177,6 +177,20 @@ function person(p){var c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y
  else if(p.k==='T')sprite('flat-people',p.t<.55?3:2,p.x,p.y+.03,p.f<0,k);
  else sprite('flat-people',[0,4,6][p.i%3]+(near?1:0),p.x,p.y+.03,p.f<0,k)}
 function thing(name,x,y,w,flip){var it=ART['flat-things'].items[name],im=IMG['flat-things'],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART['flat-things'].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
+// Background dressing, deliberately pale and outline-free so nobody mistakes it for something to jump on.
+function backdrop(x,base,kind){var c=cx,A='#e6d4a8',B='#dcc893',D='#d2bc84';
+ if(kind===0){c.fillStyle=B;c.fillRect(x,base-1.05,2.6,.16);c.fillRect(x+.15,base-.9,.14,.9);c.fillRect(x+2.3,base-.9,.14,.9);c.fillStyle=D;rr(x+.9,base-1.95,1,.7,.06);c.fill();c.fillRect(x+1.32,base-1.25,.16,.2);c.fillStyle=A;rr(x+.98,base-1.87,.84,.54,.04);c.fill();c.fillStyle=B;rr(x+3,base-1.3,.7,.7,.2);c.fill();c.fillRect(x+3.28,base-.6,.14,.6)}
+ else if(kind===1){c.fillStyle=B;rr(x,base-2.1,3.4,2.1,.12);c.fill();c.fillStyle=A;rr(x+.2,base-1.9,1.4,.9,.06);c.fill();rr(x+1.8,base-1.9,1.4,.9,.06);c.fill();c.fillStyle=D;c.fillRect(x+.4,base-1.7,.5,.4);c.fillRect(x+2.1,base-1.6,.7,.3)}
+ else if(kind===2){c.fillStyle=D;c.beginPath();c.moveTo(x+.5,base-.7);c.lineTo(x+1.3,base-.7);c.lineTo(x+1.15,base);c.lineTo(x+.65,base);c.closePath();c.fill();c.fillStyle='#cfd3a0';for(var i=0;i<6;i++){c.beginPath();c.ellipse(x+.9+Math.cos(i*1.05+.5)*.55,base-1.5+Math.sin(i*1.05+.5)*.5,.55,.2,i*1.05+.5,0,6.2832);c.fill()}}
+ else if(kind===3){c.fillStyle=B;rr(x,base-3.2,2.2,3.2,.08);c.fill();c.fillStyle=A;for(var j=0;j<4;j++)c.fillRect(x+.15,base-3.05+j*.78,1.9,.6);c.fillStyle=D;for(var j2=0;j2<4;j2++)for(var q=0;q<5;q++)c.fillRect(x+.25+q*.36,base-2.95+j2*.78+((q+j2)%3)*.06,.22,.5-((q+j2)%3)*.06)}
+ else if(kind===4){c.fillStyle=B;rr(x,base-1.5,1.9,1.5,.1);c.fill();c.fillStyle=D;rr(x+.1,base-1.75,1.7,.3,.08);c.fill();c.fillStyle=A;c.fillRect(x+.3,base-1.1,1.3,.12);c.fillRect(x+.3,base-.7,1.3,.4)}
+ else{c.fillStyle='#d6e3e6';rr(x+.2,base-2.1,.7,.8,.25);c.fill();c.fillStyle=A;rr(x+.1,base-1.3,.9,1.3,.08);c.fill();c.fillStyle=D;c.fillRect(x+.4,base-.9,.3,.14)}}
+function poster(x,y,n){var c=cx,k=((n%4)+4)%4,bg=['#f6d9c9','#d5e6dc','#dcdcf0','#f3e6b8'][k],fg=['#e59a7a','#7fb59a','#9896cf','#d9b441'][k];c.fillStyle='#fffaf0';rr(x-.85,y,1.7,2.1,.06);c.fill();c.strokeStyle='#cdb98c';c.lineWidth=.06;c.stroke();c.fillStyle=bg;c.fillRect(x-.7,y+.15,1.4,1.45);c.fillStyle=fg;
+ if(k===0){c.beginPath();c.moveTo(x,y+.9);c.arc(x,y+.9,.5,-1.57,2.2);c.closePath();c.fill();c.globalAlpha=.45;c.beginPath();c.arc(x,y+.9,.5,0,6.2832);c.fill();c.globalAlpha=1}
+ else if(k===1){[.35,.7,.5,1].forEach(function(h,i){c.fillRect(x-.55+i*.3,y+1.5-h,.22,h)})}
+ else if(k===2){c.beginPath();c.moveTo(x-.7,y+1.6);c.lineTo(x-.2,y+.7);c.lineTo(x+.1,y+1.2);c.lineTo(x+.35,y+.9);c.lineTo(x+.7,y+1.6);c.closePath();c.fill();c.beginPath();c.arc(x+.4,y+.5,.16,0,6.2832);c.fill()}
+ else{c.lineWidth=.09;c.strokeStyle=fg;c.beginPath();c.moveTo(x-.55,y+1.35);c.lineTo(x-.2,y+1);c.lineTo(x+.1,y+1.15);c.lineTo(x+.55,y+.45);c.stroke();c.beginPath();c.moveTo(x+.55,y+.45);c.lineTo(x+.25,y+.5);c.lineTo(x+.5,y+.75);c.closePath();c.fill()}
+ c.fillStyle='#cdb98c';c.fillRect(x-.5,y+1.75,1,.07);c.fillRect(x-.35,y+1.9,.7,.05)}
 function bubbleSay(t,x,y,a){var c=cx;c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(t).width+.5;x=Math.max(cam+w/2+.1,Math.min(cam+vw-w/2-.1,x));y=Math.max(camY+.5,y);
  c.globalAlpha=a;c.fillStyle='#fff';rr(x-w/2,y-.3,w,.6,.22);c.fill();ink(.07);c.fillStyle=INK;c.fillText(t,x,y+.02);c.globalAlpha=1}
 function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c.fillRect(0,0,W,H);
@@ -186,9 +200,14 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var x0=Math.floor(cam)-1,x1=Math.ceil(cam+vw)+1,x,y,t;
  // the wall, with windows on the sky
  c.fillStyle='#f3e3c0';c.fillRect(cam,0,vw,MH);c.fillStyle='#e7d2a6';c.fillRect(cam,MH-4.8,vw,2.8);c.fillStyle='#c9ad7a';c.fillRect(cam,MH-4.88,vw,.12);
+ // the office beyond: faded furniture with no outlines, drifting a little slower than the foreground so it reads as distance
+ var par=cam*.14;c.save();c.translate(par,0);for(var bi=Math.floor((x0-par)/5)-1;bi<(x1-par)/5+1;bi++)[MH-2,9].forEach(function(base,st){var bx=bi*5+1.2+((bi*13+st*7)%3)*.5,wx=bx+par;if(wx<1||wx>MW-3)return;if(st===1&&!(solid(Math.floor(wx),9)&&solid(Math.floor(wx+2),9)))return;if(st===0&&!(solid(Math.floor(wx),MH-2)&&solid(Math.floor(wx+2),MH-2)))return;backdrop(bx,base,(bi*7+st*3+700)%6)});c.restore();
+ // strip lights along each ceiling
+ for(x=Math.floor(x0/6)*6+2;x<x1;x+=6){c.fillStyle='#fff8dc';c.strokeStyle='#d9c594';c.lineWidth=.05;rr(x,.25,2.2,.2,.08);c.fill();c.stroke();if(solid(x+1,10)&&!solid(x+1,11)){rr(x,11.12,2.2,.2,.08);c.fill();c.stroke()}}
  for(x=Math.floor(x0/9)*9+3;x<x1;x+=9)[1.4,MH-9.4].forEach(function(wy0,k){if(solid(x+1,Math.floor(wy0+1))||solid(x+1,Math.floor(wy0+3.4))||solid(x+1,Math.floor(wy0-.6)))return;
   c.fillStyle='#8fd3f4';rr(x,wy0,3,3.2,.12);c.fill();ink();c.fillStyle='#fff';c.beginPath();c.ellipse(x+.9+((x*7+k*3)%5)*.2,wy0+.9,.5,.2,0,0,6.2832);c.ellipse(x+1.9,wy0+1.7,.6,.22,0,0,6.2832);c.fill();c.fillStyle=INK;c.fillRect(x+1.46,wy0,.08,3.2);c.fillRect(x,wy0+1.56,3,.08);
-  if(!solid(x+6,Math.floor(wy0+1))){c.fillStyle='#fff';c.beginPath();c.arc(x+6,wy0+1,.42,0,6.2832);c.fill();ink();c.beginPath();c.moveTo(x+6,wy0+1);c.lineTo(x+6,wy0+.75);c.moveTo(x+6,wy0+1);c.lineTo(x+6.18,wy0+1.1);ink(.06)}});
+  if(!solid(x+6,Math.floor(wy0+1))&&!solid(x+6,Math.floor(wy0+2.4))&&(Math.floor(x/9)+k)%5!==2){poster(x+6,wy0+.3,Math.floor(x/9)*2+k)}
+  else if(!solid(x+6,Math.floor(wy0+1))){c.fillStyle='#fff';c.beginPath();c.arc(x+6,wy0+1,.42,0,6.2832);c.fill();ink();c.beginPath();c.moveTo(x+6,wy0+1);c.lineTo(x+6,wy0+.75);c.moveTo(x+6,wy0+1);c.lineTo(x+6.18,wy0+1.1);ink(.06)}});
  (L.signs||[]).forEach(function(sg){c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(sg.t).width+.5;c.fillStyle=YEL;rr(sg.x-w/2,sg.y-.3,w,.6,.1);c.fill();ink(.07);c.fillStyle=INK;c.fillText(sg.t,sg.x,sg.y+.02)});
  // gaps in the floor are a dark stairwell
  for(x=Math.max(1,x0);x<Math.min(MW-1,x1);x++)if(tile(x,MH-2)==='.'){var pg=c.createLinearGradient(0,MH-2,0,MH);pg.addColorStop(0,'#3a3350');pg.addColorStop(1,'#15131f');c.fillStyle=pg;c.fillRect(x,MH-2,1.01,2.01);c.fillStyle='rgba(255,255,255,.08)';c.fillRect(x,MH-1.4,1.01,.08);c.fillRect(x,MH-.7,1.01,.08)}
