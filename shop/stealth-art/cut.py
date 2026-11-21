@@ -77,6 +77,9 @@ save("boss", strip(cells), w=bw, h=bh, n=12, ax=round(ml + .6 * deskw), rodx=rou
 co = figures(key("coats.png")); s = 1.32 * PPH / co[0].shape[0]; cells = [scaled(f, s) for f in co]; cw = max(c.width for c in cells); out = []
 for c in cells: k = Image.new("RGBA", (cw, max(x.height for x in cells)), (0, 0, 0, 0)); k.alpha_composite(c, (0, k.height - c.height)); out.append(k)
 save("coats", strip(out), w=cw, h=out[0].height, n=2)
+pl = figures(key("plant.png")); assert len(pl) == 2, len(pl); s = 1.28 * PPH / pl[0].shape[0]; cells = [scaled(f, s) for f in pl]; pw_ = max(c.width for c in cells); out = []     # the plant: on its own 0, with you behind it 1
+for c in cells: k = Image.new("RGBA", (pw_, max(x.height for x in cells)), (0, 0, 0, 0)); k.alpha_composite(c, (0, k.height - c.height)); out.append(k)
+save("plant", strip(out), w=pw_, h=out[0].height, n=2, mid=round(cells[0].width / 2))
 lo = figures(key("locker.png")); s = 1.36 * PPH / lo[0].shape[0]; cells = [scaled(f, s) for f in lo]; lw = max(c.width for c in cells); out = []
 for c in cells: k = Image.new("RGBA", (lw, max(x.height for x in cells)), (0, 0, 0, 0)); k.alpha_composite(c, (lw - c.width, k.height - c.height)); out.append(k)
 save("locker", strip(out), w=lw, h=out[0].height, n=3, body=cells[0].width)
@@ -107,7 +110,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 1700), "#fbf1e7"); y = 10
-for n in ("introvert", "pacer", "boss", "coats", "locker"):
+for n in ("plant", "coats", "locker"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10

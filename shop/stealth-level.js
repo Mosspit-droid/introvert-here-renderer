@@ -20,7 +20,7 @@
 import { ART, PPH } from "./stealth-art/art.js";
 
 const TITLE = "Just Passing Through";   // working title
-const LEVEL = { cakes: 2, len: 17.4, start: .7, bin: 5.0, cooler: 7.4, coats: 11.3, locker: 12.25, doorway: 13.9, exit: 16.0,
+const LEVEL = { cakes: 2, len: 17.4, start: .7, plant: 2.95, bin: 5.0, cooler: 7.4, coats: 11.3, locker: 12.25, doorway: 13.9, exit: 16.0,
   pacer: { from: 3.6, to: 11.6, x: 7.5, f: -1, sight: 2.3, speed: .9, read: 2.8, name: "The Pacer", colour: "#e81f84",
     lines: ["Ooh, just the person. Have you got two minutes for a quick survey?", "There you are! I’ve got a form with your name on it.", "Perfect timing. We’re one short for the fun committee."] },
   boss: { asleep: 3.6, stir: 1.0, awake: 2.6, droop: .6, name: "The Boss", colour: "#7a5a2e",
@@ -80,9 +80,9 @@ function tip(t,s){tipEl.textContent=t;tipT=s||4;tipEl.hidden=!t}
 // How hard the stick is pushed, -1 to 1. Under CREEP of full speed counts as creeping (quiet).
 function axis(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);return k?k*(keys.Shift?.42:1):(stick?stick.v:0)}
 function ducking(){return !!(held.crouch||keys.ArrowDown||keys.s)}
-function hidden(){return P.state==='bin'||P.state==='locker'||(P.state==='coats'&&!PC.peek)||(P.state==='duck'&&Math.abs(P.x-L.cooler)<.3)}
+function hidden(){return P.state==='bin'||P.state==='locker'||P.state==='plant'||(P.state==='coats'&&!PC.peek)||(P.state==='duck'&&Math.abs(P.x-L.cooler)<.3)}
 // The coat stand or the locker, if you are standing right by one.
-function nearSpot(){if(P.y>0||!(P.state==='idle'||P.state==='walk'||P.state==='duck'))return null;return Math.abs(P.x-L.coats)<.42?'coats':Math.abs(P.x-L.locker)<.42?'locker':null}
+function nearSpot(){if(P.y>0||!(P.state==='idle'||P.state==='walk'||P.state==='duck'))return null;return Math.abs(P.x-L.plant)<.42?'plant':Math.abs(P.x-L.coats)<.42?'coats':Math.abs(P.x-L.locker)<.42?'locker':null}
 // What the Boss is up to: 0 asleep, 1 stirring, 2 awake and looking about, 3 nodding off again, 4 busy with a cupcake, 5 greeting you.
 function bossCycle(){var b=L.boss;return BO.t%(b.asleep+b.stir+b.awake+b.droop)}
 function bossPhase(){if(BO.cake)return 4;if(BO.greet)return 5;var b=L.boss,c=bossCycle();return c<b.asleep?0:c<b.asleep+b.stir?1:c<b.asleep+b.stir+b.awake?2:3}
@@ -135,14 +135,14 @@ function update(dt){if(S.mode==='chat'){chatTick(dt);return}if(S.mode!=='play'&&
  if(S.mode==='play')S.t+=dt;
  // you
  P.st+=dt;
- if(P.state==='coats'||P.state==='locker'){if(d||hopQ||hideQ){if(P.state==='locker'){P.door=.3;noise(3)}P.state='idle';PC.peek=false;tip('',.01)}}
+ if(P.state==='coats'||P.state==='locker'||P.state==='plant'){if(d||hopQ||hideQ){if(P.state==='locker'){P.door=.3;noise(3)}P.state='idle';PC.peek=false;tip('',.01)}}
  else if(P.state==='bin'){if(d||hopQ){P.state='air';P.y=RIM;P.vy=1.7;P.f=d||P.f;P.x+=(d||P.f)*.25;P.st=0;tip('',.01)}}
  else if(P.state==='crouch'){if(P.st>.09){P.state='air';P.vy=HOP;P.st=0}}
  else if(P.state==='land'){if(P.st>.13){P.state='idle';P.st=0}}
  else if(P.state==='air'){P.vy-=GRAV*dt;P.y+=P.vy*dt;if(d){P.x+=d*sp*dt;P.f=d}
   if(P.vy<0&&P.y<=RIM&&P.y>RIM-.2&&Math.abs(P.x-L.bin)<.3){P.state='bin';P.x=L.bin;P.y=0;P.vy=0;tip('In the recycling. Technically, you are paper. Walk to climb out.',4)}
   else if(P.y<=0){P.y=0;P.vy=0;P.state='land';P.st=0;noise()}}
- else if(hideQ&&spot){P.state=spot;P.x=L[spot];if(spot==='locker'){P.door=.3;tip('In the locker. Push the stick to come out.',4);noise(3)}else tip('Among the coats. Your shoes are showing. Push the stick to come out.',4)}
+ else if(hideQ&&spot){P.state=spot;P.x=L[spot];if(spot==='locker'){P.door=.3;tip('In the locker. Push the stick to come out.',4);noise(3)}else tip(spot==='plant'?'You are a plant now. Push the stick to stop being a plant.':'Among the coats. Your shoes are showing. Push the stick to come out.',4)}
  else if(duck){P.state='duck';if(d){P.f=d;P.x+=d*CRAWL*dt;P.t+=dt}}
  else{if(hopQ){P.state='crouch';P.st=0}else if(d){P.f=d;P.x+=d*sp*dt;if(P.state!=='walk'){P.state='walk';P.t=0}P.t+=dt*Math.max(.5,Math.abs(a));if(Math.abs(a)>CREEP)noise()}else P.state='idle'}
  if(throwQ&&S.mode==='play'&&!CK&&S.cakes>0&&(P.state==='idle'||P.state==='walk'||P.state==='duck')){S.cakes--;CK={x:P.x+P.f*.2,y:.7,vx:P.f*3.4,vy:2.6,landed:false};if(!S.cakeTip){S.cakeTip=true;tip('A cupcake. Nobody in an office can walk past one.',3.5)}}
@@ -199,7 +199,8 @@ function draw(){var c=cx,d0=Math.abs(axis())>.12;c.setTransform(dpr,0,0,dpr,0,0)
  if(IMG.props.naturalWidth)c.drawImage(IMG.props,dw.x,ART.props.H-dw.h,dw.w,dw.h,dx0,WALLB-dw.h*k,dw.w*k,dw.h*k);
  if((bf===9||bf===10)&&IMG.boss.naturalWidth)c.drawImage(IMG.boss,bf*b.w,0,b.rodx,b.rody,bx,by,b.rodx*k,b.rody*k);   // his fishing rod pokes out of the doorway
  if(ph===0){c.font='800 .16px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillStyle='rgba(60,45,25,.75)';for(var z=0;z<3;z++){var zt=calm?z/3:((T*.5+z/3)%1);c.globalAlpha=(1-zt)*.9;c.fillText('z',L.doorway+.12+zt*.22,oy+.42-zt*.34)}c.globalAlpha=1}
- var ct=ART.coats,lk=ART.locker,tucked=P.state==='coats'||P.state==='locker';
+ var ct=ART.coats,lk=ART.locker,tucked=P.state==='coats'||P.state==='locker'||P.state==='plant',pt=ART.plant;
+ if(IMG.plant.naturalWidth){c.fillStyle='rgba(40,30,20,.2)';c.beginPath();c.ellipse(L.plant,FEET-.06,.3,.04,0,0,6.2832);c.fill();c.drawImage(IMG.plant,(P.state==='plant'?1:0)*pt.w,0,pt.w,pt.h,L.plant-pt.mid*k,FEET-.04-pt.h*k,pt.w*k,pt.h*k)}
  if(IMG.coats.naturalWidth){c.fillStyle='rgba(40,30,20,.2)';c.beginPath();c.ellipse(L.coats,FEET-.06,.4,.04,0,0,6.2832);c.fill();c.drawImage(IMG.coats,(P.state==='coats'?1:0)*ct.w,0,ct.w,ct.h,L.coats-ct.w*k/2,FEET-.04-ct.h*k,ct.w*k,ct.h*k)}
  if(IMG.locker.naturalWidth){var lf=P.door>0?1:P.state==='locker'?2:0;c.drawImage(IMG.locker,lf*lk.w,0,lk.w,lk.h,L.locker+lk.body*k/2-lk.w*k,WALLB+.04-lk.h*k,lk.w*k,lk.h*k)}
  if((S.mode==='play'||S.mode==='ready')&&nearSpot())tag('TAP HIDE',L[nearSpot()],FEET-1.55);
@@ -258,7 +259,7 @@ export function levelPage(page, hub, v) {
 <div class="card" id="sgcard"><div>
 <div id="sgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p>The meeting has finished. The fire exit is at the far end of the corridor.</p>
-<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> dozes. Creep past his door (walking wakes him), or crouch-walk under his eyeline.</li><li><b>Hide</b> in the recycling (jump), behind the water cooler (crouch), or in the coats or the locker (the Crouch button turns to Hide).</li><li><b>Neither of them can resist a cupcake.</b> You have two.</li><li><b>Caught?</b> Conversation drains your battery. Tap Nod and steer away until you’re clear.</li></ul>
+<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> dozes. Creep past his door (walking wakes him), or crouch-walk under his eyeline.</li><li><b>Hide</b> in the recycling (jump), behind the water cooler (crouch), or in the coats or the locker (the Crouch button turns to Hide). The same goes for the plant.</li><li><b>Neither of them can resist a cupcake.</b> You have two.</li><li><b>Caught?</b> Conversation drains your battery. Tap Nod and steer away until you’re clear.</li></ul>
 <p class="sm">Turn your phone sideways to see further. No sound. On a computer: arrow keys, hold Shift to creep, Space to jump, down to crouch, C to throw.</p>
 <p class="go"><button class="btn" id="sggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="sgend" hidden><p class="pre">Introvert Here…</p><h2 id="sgch"></h2><p id="sgcp"></p><p class="sm" id="sgcs"></p>
