@@ -96,7 +96,7 @@ async function route(request, env, ctx) {
         if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
         return html(frontPage(await catalog(env)));
       }
-      if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
+      if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t"), url.searchParams.get("n")));
       if (path === HUB.path) return html(hubPage());
       if (path === HUB.path + "/gate") return html(gatePage());
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
@@ -396,7 +396,8 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}.tabs a{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;color:var(--muted)}
 .tabs a.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 .tabs.kinds{margin-top:-6px}.tabs.kinds a{border-radius:8px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px;margin:12px 0 40px}.grid .tile[hidden]{display:none}
+.more{display:flex;flex-direction:column;align-items:center;gap:12px;margin:-14px 0 44px;text-align:center}.more span{font-size:14px;color:var(--muted,#bdb8ad);letter-spacing:.02em}.more .btn{margin:0;min-width:200px}
 .tile{text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
 .tile img{width:100%;aspect-ratio:1;object-fit:cover;background:#000}
 .tile .cap{padding:10px 12px;display:flex;align-items:flex-start;gap:10px;flex:1}.tile .cap>div{flex:1;min-width:0}.tile b{display:block;font-size:15px}.tile span{color:var(--muted);font-size:14px}
@@ -606,7 +607,11 @@ function heroImg(coll) {
 const TYPE_SLUG = { "T-SHIRT": "t-shirt", "LONG-SLEEVE": "long-sleeve", "SWEATSHIRT": "sweatshirt", "HOODIE": "hoodie" };
 const TYPE_PLURAL = { "T-SHIRT": "T-shirts", "LONG-SLEEVE": "Long sleeves", "SWEATSHIRT": "Sweatshirts", "HOODIE": "Hoodies" };
 function productSlug(d, t) { return d.slug.slice(0, -d.id.length) + TYPE_SLUG[t] + "-" + d.id.toLowerCase(); }
-function shopPage(cat, only, type) {
+// The shop shows 24 at a time with a "Show more" button (Barry, 21 Nov), so it stays manageable as the gags pile up.
+// ?n= is how many are showing; the button adds the next 24 in place and updates the address, so going back to the
+// shop from a product lands on the same spot. Without scripts the button is a plain link to the bigger page.
+const SHOP_BATCH = 24;
+function shopPage(cat, only, type, n) {
   if (!COLLECTIONS[only]) only = null;
   if (!TYPE_SLUG[type]) type = null;
   const present = [...new Set(cat.designs.map((d) => d.coll))];
@@ -615,9 +620,18 @@ function shopPage(cat, only, type) {
   const list = cat.designs.filter((d) => !only || d.coll === only);
   const types = cat.garmentOrder.filter((t) => list.some((d) => d.garments[t]));
   const kinds = `<nav class="tabs kinds"><a href="${link(only, null)}" class="${type ? "" : "on"}">Everything</a>${types.map((t) => `<a href="${link(only, t)}" class="${type === t ? "on" : ""}">${TYPE_PLURAL[t]}</a>`).join("")}</nav>`;
-  const tiles = mixedItems(cat, list, type ? [type] : types).map(tileHtml).join("");
+  const items = mixedItems(cat, list, type ? [type] : types), total = items.length;
+  n = Math.min(total, Math.max(SHOP_BATCH, Math.ceil((parseInt(n, 10) || 0) / SHOP_BATCH) * SHOP_BATCH));
+  const tiles = items.map((it, k) => (k < n ? tileHtml(it) : tileHtml(it).replace('<a class="tile"', '<a class="tile later" hidden'))).join("");
+  const moreHref = (m) => link(only, type) + (only || type ? "&" : "?") + "n=" + m;
+  const more = total > n ? `<p class="more"><span id="mcount">Showing ${n} of ${total}</span><a class="btn ghost" id="mbtn" href="${moreHref(n + SHOP_BATCH)}">Show more</a></p>` : total > SHOP_BATCH ? `<p class="more"><span>Showing all ${total}</span></p>` : "";
   const intro = only ? `<p class="muted">${esc(COLLECTIONS[only].line)}</p>` : `<p class="muted">Clothing for introverts, quiet people and the reluctantly sociable. Free UK delivery on everything.</p>`;
-  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>`, { coll: only, nav: "shop" });
+  return page(only ? COLLECTIONS[only].name : "Shop", `${heroImg(only)}<h1>${only ? esc(COLLECTIONS[only].name) : "The shop"}</h1>${intro}${tabs}${kinds}<div class="grid">${tiles || '<p class="muted">Nothing here yet.</p>'}</div>${more}`, { coll: only, nav: "shop", script: total > n ? `
+(function(){var b=document.getElementById('mbtn'),c=document.getElementById('mcount'),N=${n},T=${total},B=${SHOP_BATCH};
+b.addEventListener('click',function(e){e.preventDefault();var h=document.querySelectorAll('.grid .tile.later[hidden]');
+ for(var k=0;k<B&&k<h.length;k++)h[k].hidden=false;N=Math.min(T,N+B);
+ try{var u=new URL(location.href);u.searchParams.set('n',N);history.replaceState(null,'',u)}catch(_){}
+ if(N>=T){c.textContent='Showing all '+T;b.remove()}else{c.textContent='Showing '+N+' of '+T;var u2=new URL(b.href,location.href);u2.searchParams.set('n',N+B);b.href=u2}})})();` : "" });
 }
 // One list per garment type, newest gag first. With several types they are dealt out in turn (tee, long sleeve,
 // sweatshirt, hoodie, ...), each list starting a quarter of the way further on so neighbours are different gags.
