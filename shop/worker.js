@@ -470,30 +470,44 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 .hero::after{content:none}
 .stagefr{--ft:5px;--fb:19px;--fR:18px;--fr:11px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .stagefr .stage{border:0;border-radius:var(--fr);box-shadow:none}
-/* ---- the warning gate ---- */
-body.gate{background:#0d0d0c;color:#f2f0ea}
-body.gate main{text-align:center;padding-bottom:10px}
-.tape{height:clamp(22px,3.4vw,40px);width:100vw;margin:clamp(14px,2.4vw,26px) 0 clamp(14px,2.4vw,26px) calc(50% - 50vw);background:repeating-linear-gradient(-45deg,#f6cf0b 0 clamp(18px,2.6vw,32px),#141412 clamp(18px,2.6vw,32px) clamp(36px,5.2vw,64px));box-shadow:0 6px 18px rgba(0,0,0,.6)}
-html:has(body.gate),body.gate{overflow-x:hidden}
-.gk{font-weight:800;text-transform:uppercase;letter-spacing:.24em;font-size:clamp(12px,1.5vw,17px);margin:clamp(14px,2vw,24px) 0 0;opacity:.8}
-.signs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:clamp(12px,2.2vw,30px) clamp(10px,2vw,28px);margin:clamp(18px,3vw,38px) 0}
-.sg{transform:rotate(var(--r));font-weight:800;text-transform:uppercase;line-height:1.12;letter-spacing:.03em;box-shadow:0 10px 24px rgba(0,0,0,.6);animation:flick var(--t) var(--d) infinite}
-.sg b{display:block;font-size:clamp(15px,2.1vw,25px)}.sg span{display:block;font-size:clamp(10px,1.15vw,13px);letter-spacing:.1em;margin-top:5px}
-.sg.plate{padding:clamp(10px,1.5vw,18px) clamp(14px,2vw,26px);border-radius:8px;border:4px solid #141412;outline:3px solid currentColor;outline-offset:-10px;max-width:min(78vw,340px)}
-.sg.red{background:#c8161d;color:#f2f0ea}.sg.yellow{background:#f6cf0b;color:#141412}.sg.white{background:#f2f0ea;color:#141412}
-.sg.tri,.sg.round{box-shadow:none;width:clamp(120px,17vw,190px);color:#f2f0ea}
-.sg.tri svg,.sg.round svg{display:block;width:78%;margin:0 auto 6px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.6))}
-.sg.tri b,.sg.round b{font-size:clamp(14px,1.8vw,21px);color:#f6cf0b}
-.hang{position:relative;display:block;width:clamp(170px,24vw,260px);margin:clamp(8px,2vw,22px) auto 0;transform-origin:50% 12%;animation:sway 5.5s ease-in-out infinite;text-decoration:none;color:#141412;filter:drop-shadow(0 18px 26px rgba(0,0,0,.7))}
-.hang svg{display:block;width:100%;height:auto}
-.hang .hw{position:absolute;left:0;right:0;top:47%;bottom:7%;display:flex;flex-direction:column;justify-content:center;gap:.08em;font-weight:800;text-transform:uppercase;line-height:1;font-size:clamp(27px,3.9vw,42px)}
-.hang .hw i{font-style:normal;display:block}
-.hang:hover,.hang:focus-visible{animation-play-state:paused;filter:drop-shadow(0 0 22px rgba(246,207,11,.55))}
-.gx{margin:clamp(18px,2.6vw,30px) 0 0;font-size:14px}.gx a{color:#c4c0b6;text-decoration:underline;text-underline-offset:4px}.gx a:hover{color:#fff}.gx i{font-style:normal}
-/* Slow, small and never all at once: each sign dips briefly every 7 to 12 seconds, like a faulty fitting. */
+/* ---- the warning gate: one screen, no scrolling ---- */
+html:has(body.gate){overflow:hidden}
+body.gate{background:#0d0d0c;color:#f2f0ea;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+body.gate footer{display:none}
+body.gate main{flex:1;min-height:0;width:100%;box-sizing:border-box}
+.gate{height:100%;display:flex;flex-direction:column;text-align:center;font-weight:800;text-transform:uppercase}
+.tape{flex:none;height:clamp(14px,2.6vh,30px);width:100vw;margin:clamp(8px,1.4vh,16px) 0 clamp(8px,1.4vh,16px) calc(50% - 50vw);background:repeating-linear-gradient(-45deg,#f6cf0b 0 20px,#141412 20px 40px);box-shadow:0 6px 18px rgba(0,0,0,.6)}
+.gtop{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gk{flex:1;letter-spacing:.2em;font-size:clamp(10px,1.7vh,16px);margin:0;opacity:.8;text-wrap:balance}
+.tri{flex:none;width:clamp(44px,8.5vh,82px);transform:rotate(var(--r));animation:flick 9s 2s infinite}
+.tri:last-child{animation-delay:6s}
+.tri svg{display:block;width:100%;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
+.tri b{display:block;font-size:clamp(8px,1.35vh,12px);letter-spacing:.14em;color:#f6cf0b;margin-top:2px}
+.gmid{flex:1;min-height:0;display:grid;grid-template-columns:1fr minmax(0,2.1fr) 1fr;grid-template-areas:"map hope side";align-items:center;gap:clamp(12px,2.4vw,34px);padding:clamp(6px,1.4vh,16px) 0}
+/* the way in */
+.hope{grid-area:hope;justify-self:center;display:block;text-decoration:none;color:#f2f0ea;background:#c8161d;border:clamp(4px,.7vh,7px) solid #141412;outline:clamp(2px,.45vh,4px) solid #f2f0ea;outline-offset:calc(-1*clamp(11px,1.9vh,19px));border-radius:clamp(10px,1.6vh,16px);
+  container-type:inline-size;width:min(100%,92vh);padding:0;transform:rotate(-2deg);box-shadow:0 22px 50px rgba(0,0,0,.75);line-height:1;box-sizing:border-box}
+/* the words are sized from the sign's own width, so they always fit inside it */
+.hope b{display:block;font-size:9.7cqw;letter-spacing:.01em;white-space:nowrap;margin-top:8cqw}
+.hope span{display:block;font-size:4.5cqw;letter-spacing:.18em;margin:.5em 0 .55em}
+.hope i{display:inline-block;font-style:normal;background:#f6cf0b;color:#141412;border:clamp(3px,.5vh,5px) solid #141412;border-radius:999px;padding:.34em .8em .3em;font-size:7.2cqw;white-space:nowrap;margin-bottom:8cqw;box-shadow:0 0 0 0 rgba(246,207,11,.55);animation:beckon 3.2s ease-in-out infinite}
+.hope u,.gx u{text-decoration:none;display:inline-block;transition:transform .3s}
+.hope:hover i,.hope:focus-visible i{background:#fff}.hope:hover u{transform:translateX(.25em)}
+.gmap{grid-area:map;text-transform:none;transform:rotate(-4deg);filter:drop-shadow(0 14px 22px rgba(0,0,0,.7))}
+.gmap svg{display:block;width:100%;height:auto;max-height:44vh}
+.gside{grid-area:side;display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2.2vh,24px)}
+.alarm{background:#f2f0ea;color:#141412;border:clamp(3px,.55vh,5px) solid #141412;outline:3px solid #141412;outline-offset:-11px;border-radius:9px;padding:clamp(14px,2.6vh,26px) clamp(14px,1.8vw,24px);transform:rotate(4deg);box-shadow:0 14px 30px rgba(0,0,0,.7);line-height:1.08;animation:flick 11s 4s infinite}
+.alarm b{display:block;font-size:min(2.5vw,4vh)}.alarm span{display:block;font-size:min(1.5vw,2.4vh);letter-spacing:.08em;margin-top:.5em}
+.tresp{background:#f6cf0b;color:#141412;border:3px solid #141412;border-radius:7px;padding:.6em .9em;font-size:min(1.25vw,1.9vh);letter-spacing:.06em;transform:rotate(-5deg);box-shadow:0 10px 22px rgba(0,0,0,.6)}
+.gx{flex:none;margin:0;font-size:clamp(11px,1.7vh,14px);font-weight:400;text-transform:none}.gx a{color:#c4c0b6;text-decoration:underline;text-underline-offset:4px}.gx a:hover{color:#fff}
+/* upright screens: the way in on top, the map and the alarmed sign side by side beneath it */
+@media(max-aspect-ratio:1/1){.gmid{grid-template-columns:1.15fr 1fr;grid-template-areas:"hope hope" "map side";grid-template-rows:auto minmax(0,1fr);align-content:space-evenly}
+ .hope{width:min(100%,62vh)}
+ .gmap svg{max-height:30vh}.alarm b{font-size:min(5vw,2.9vh)}.alarm span{font-size:min(3.2vw,1.9vh)}.tresp{font-size:min(2.9vw,1.6vh)}}
+/* Slow and small: a brief dip every 9 to 11 seconds, like a faulty fitting, and a gentle glow on the way in. */
 @keyframes flick{0%,91%,100%{opacity:1}92%{opacity:.55}93.5%{opacity:1}95%{opacity:.7}96%{opacity:1}}
-@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
-@media(prefers-reduced-motion:reduce){.sg,.hang{animation:none}}
+@keyframes beckon{0%,100%{box-shadow:0 0 0 0 rgba(246,207,11,.5)}50%{box-shadow:0 0 0 .5em rgba(246,207,11,0)}}
+@media(prefers-reduced-motion:reduce){.tri,.alarm,.hope i{animation:none}}
 `;
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -621,47 +635,46 @@ const DOOR_JS = `
    p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
 // ---------------- the warning gate ----------------
-// The way into the Escape Room (Barry, 21 Nov): a wall of absurdly excessive warning signs, and one door hanger that
-// says ENTER AT OWN RISK. Everything is drawn here (no pictures). The signs flicker and sway slowly; nothing flashes
+// The way into the Escape Room (Barry, 21 Nov): a screenful of excessive warnings, drawn here (no pictures), that fits
+// the screen without scrolling. The way in is the ENTER HERE in "Abandon hope, all ye who enter here". Nothing flashes
 // fast or fills the screen, it all stops for anyone whose device asks for less motion, and an "express route" link
-// skips the gate altogether. The wording is a first draft for Barry to edit.
-const GATE_SIGNS = [
-  ["tri", "skull", "Danger", "No small talk beyond this point"],
-  ["plate red", "", "Abandon hope", "all ye who enter here"],
-  ["tri", "rad", "Warning", "Highly unsociable"],
-  ["plate yellow", "", "Here be dragons", ""],
-  ["round", "", "No entry", ""],
-  ["plate white", "", "Authorised introverts only", ""],
-  ["tri", "bolt", "Caution", "May contain silence"],
-  ["plate yellow", "", "Beware of the hermit", ""],
-  ["plate red", "", "Turn back", "While you still can"],
-  ["tri", "bang", "Hazard", "Extreme peace and quiet"],
-  ["plate white", "", "This door is alarmed.", "So is the occupant."],
-  ["plate yellow", "", "Trespassers will be ignored", ""],
-];
+// skips the gate altogether.
 const GATE_ICON = {
   skull: '<circle cx="50" cy="52" r="15"/><rect x="41" y="60" width="18" height="11" rx="2"/><circle cx="44" cy="52" r="4.2" fill="#f6cf0b"/><circle cx="56" cy="52" r="4.2" fill="#f6cf0b"/><path d="M47 66v5M50 66v5M53 66v5" stroke="#f6cf0b" stroke-width="1.4"/><path d="M30 74l40 12M70 74L30 86" stroke="#141412" stroke-width="5" stroke-linecap="round"/>',
   rad: '<circle cx="50" cy="62" r="4.5"/>' + [0, 120, 240].map((a) => `<path transform="rotate(${a} 50 62)" d="M50 62 L39.5 43.8 A21 21 0 0 1 60.5 43.8 Z"/>`).join("") + '<circle cx="50" cy="62" r="7" fill="#f6cf0b"/><circle cx="50" cy="62" r="4"/>',
-  bolt: '<path d="M55 36L38 64h10l-5 22 19-30H51z"/>',
-  bang: '<rect x="46" y="38" width="8" height="30" rx="3"/><circle cx="50" cy="78" r="5"/>',
 };
-function gateSign([kind, icon, a, b], n) {
-  const st = `--r:${[-5, 3, -2, 6, -4, 2, 5, -6, 3, -3, 4, -2][n % 12]}deg;--d:${(n * 1.7) % 9}s;--t:${7 + (n * 3) % 6}s`;
-  if (kind === "tri") return `<div class="sg tri" style="${st}"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8L96 92H4Z" fill="#f6cf0b" stroke="#141412" stroke-width="5" stroke-linejoin="round"/><g fill="#141412">${GATE_ICON[icon]}</g></svg><b>${esc(a)}</b><span>${esc(b)}</span></div>`;
-  if (kind === "round") return `<div class="sg round" style="${st}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#c8161d" stroke="#f2f0ea" stroke-width="5"/><rect x="20" y="42" width="60" height="16" rx="2" fill="#f2f0ea"/></svg><b>${esc(a)}</b></div>`;
-  return `<div class="sg ${kind}" style="${st}"><b>${esc(a)}</b>${b ? `<span>${esc(b)}</span>` : ""}</div>`;
-}
+const gateTri = (icon, word, r) => `<div class="tri" style="--r:${r}deg"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8L96 92H4Z" fill="#f6cf0b" stroke="#141412" stroke-width="5" stroke-linejoin="round"/><g fill="#141412">${GATE_ICON[icon]}</g></svg><b>${word}</b></div>`;
+// "Here be dragons" as a scrap of old sea chart: coast, hills, compass rose, a dotted course, and an arrow to the words.
+const GATE_MAP = `<svg viewBox="0 0 320 232" role="img" aria-label="An old map. An arrow points to the words: Here be dragons.">
+<path d="M9 14 30 8 62 13 96 7 131 12 170 8 214 13 251 7 286 12 311 9 314 44 309 82 315 121 310 160 314 196 309 223 276 226 240 221 200 226 160 220 118 226 80 221 44 226 12 222 6 190 11 150 5 112 10 72 6 40Z" fill="#e7d3a1" stroke="#7a5a2c" stroke-width="2"/>
+<g fill="#b9955a" opacity=".35"><circle cx="52" cy="186" r="26"/><circle cx="268" cy="44" r="20"/><circle cx="200" cy="150" r="34"/></g>
+<g fill="none" stroke="#5b3d1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<path d="M22 150c14-10 22-30 40-34 16-4 22 10 38 6 14-4 16-22 34-26 14-3 22 8 30 2"/>
+<path d="M22 150c10 8 6 24 20 32 12 7 26-2 40 6 10 6 12 18 26 20" opacity=".8"/>
+<path d="M50 132l8-12 8 12M70 126l9-14 9 14M92 118l7-11 7 11" stroke-width="1.6"/>
+<path d="M196 196q8-7 16 0t16 0 16 0M214 208q8-7 16 0t16 0" stroke-width="1.4" opacity=".7"/>
+<path d="M44 168q20 14 44 4t46 2 44-6 40 8" stroke-dasharray="2 7" stroke-width="2.2"/>
+<path d="M214 176l16-58" stroke-width="2.8"/><path d="M219 124l11-7 4 13" stroke-width="2.8"/>
+<path d="M236 158c7-9 12 7 19-2s12 7 19-2 12 7 19-2" stroke-width="2.4"/><path d="M291 150l9-6-2 10" stroke-width="2.4"/><circle cx="296" cy="148" r="1.4" fill="#5b3d1c"/>
+</g>
+<g transform="translate(58 50)" fill="none" stroke="#5b3d1c" stroke-width="1.6"><circle r="20"/><path d="M0-27L5 0 0 27-5 0Z" fill="#5b3d1c"/><path d="M-27 0L0-5 27 0 0 5Z"/></g>
+<text x="58" y="16" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="11" fill="#5b3d1c">N</text>
+<text x="36" y="182" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-size="10" fill="#5b3d1c">you are here</text>
+<path d="M40 166l8 8M48 166l-8 8" stroke="#a3231c" stroke-width="2.6" stroke-linecap="round"/>
+<text x="238" y="124" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-weight="700" font-size="25" fill="#3d2810" transform="translate(0 -62)">Here be</text>
+<text x="238" y="98" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-weight="700" font-size="33" fill="#3d2810">dragons</text>
+</svg>`;
 function gatePage() {
-  const signs = GATE_SIGNS.map(gateSign), half = 5;
-  return page("Enter at own risk", `<div class="tape" aria-hidden="true"></div>
-<p class="gk">You are approaching ${esc(HUB.name)}</p>
-<div class="signs">${signs.slice(0, half).join("")}</div>
-<a class="hang" id="enter" href="${HUB.path}" aria-label="Enter at own risk">
-<svg viewBox="0 0 300 470" aria-hidden="true"><path fill-rule="evenodd" fill="#f6cf0b" stroke="#141412" stroke-width="7" stroke-linejoin="round" d="M40 14H260a26 26 0 0 1 26 26V430a26 26 0 0 1-26 26H40a26 26 0 0 1-26-26V190L92 128A62 62 0 1 1 150 172 62 62 0 0 1 104 150L14 214V40A26 26 0 0 1 40 14Z"/></svg>
-<span class="hw"><i>Enter</i><i>at own</i><i>risk</i></span></a>
-<p class="gx"><a href="${HUB.path}" id="express">Express route (no flashing) <i>→</i></a></p>
-<div class="signs">${signs.slice(half).join("")}</div>
-<div class="tape" aria-hidden="true"></div>`, { nav: "hub", body: "gate", noindex: true, script: `
+  return page("Abandon hope", `<div class="gate">
+<div class="tape" aria-hidden="true"></div>
+<div class="gtop">${gateTri("skull", "Danger", -7)}<p class="gk">You are approaching ${esc(HUB.name)}</p>${gateTri("rad", "Warning", 6)}</div>
+<div class="gmid">
+<a class="hope" id="enter" href="${HUB.path}"><b>Abandon hope</b><span>all ye who</span><i>Enter here <u>→</u></i></a>
+<div class="gmap">${GATE_MAP}</div>
+<div class="gside"><div class="alarm"><b>This door is alarmed.</b><span>So is the occupant.</span></div><div class="tresp">Trespassers will be ignored</div></div>
+</div>
+<p class="gx"><a href="${HUB.path}" id="express">Express route (no flashing) <u>→</u></a></p>
+<div class="tape" aria-hidden="true"></div></div>`, { nav: "hub", body: "gate", noindex: true, script: `
 // remember that this visitor has been through the gate, so later visits can go straight in
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
