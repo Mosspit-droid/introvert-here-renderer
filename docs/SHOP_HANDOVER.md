@@ -79,6 +79,20 @@ options, do the work for him.
   Newsreader Italic sub-heading), red brick page background (`shop/assets/bg-EX.jpg`, Barry's picture).
 - Barry wants each step talked through before it is done, with previews, and the preview link in every reply.
 
+### The Escape Room (21 Nov, preview only)
+The hub half of the site, "a room to get away from people". Everything is in `shop/worker.js`; site pictures are in
+R2 `site/` (copies in `shop/assets/site/`).
+- `/uk/escape-room/gate`: the warning gate first-time visitors pass through (remembered on their device; "express
+  route" skips it).
+- `/uk/escape-room`: Barry's room picture (`room-wide`/`room-tall`, made by `shop/room/build.py`) with tappable props
+  (`ROOM`). Working: phone (Excuse Generator), tablet (Look Busy), painting (Spot the Introvert), jar (vote), hoodie
+  (shop), door (front page). "Soon": console and TV (stealth game, being built by another thread from
+  `docs/shop/STEALTH_GAME_BRIEF.md`, on its own preview), bookshelf (paper escape rooms), noticeboard (newsletter).
+- `/look-busy`, `/excuses` (Barry's 40 excuses), `/spot` (Barry's paintings, `SPOT`; five a game; `?all=1` plays
+  all), `/vote` (next three scheduled gags; see the app note for `shop:upcoming`, the `shop:votes` tally and the
+  `VOTED5` code, which needs creating in Stripe before launch).
+- Shop list: 24 at a time; the dots window is "Show more", "Retreat" goes back up to the tabs.
+
 ### UK printing pilot: `shop/uk/make_pilot.py`
 - A draft UK-printed tee (Print Clever, provider 72) at the same physical print size as the Etsy Printify Choice tee
   (print y 0.482). Idea: UK shop orders printed in the UK. Not rolled out.
