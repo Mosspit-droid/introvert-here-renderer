@@ -520,7 +520,7 @@ const HUB = { path: "/uk/comfort-zone", name: "The Comfort Zone", short: "Comfor
 // Shop door: an introvert hiding in the scenery of a shop (Barry's pictures, 21 Nov; he wants one clear idea, someone
 // physically camouflaged, deadpan, dark). Hub door: still one of his product photos.
 const DOOR = {
-  shop: ["mannequins", "clothes-rail"].map((n) => "/s/shop-" + n + ".jpg"),   // Barry kept these two of the first eight
+  shop: ["mannequins", "clothes-rail", "jumper-shelf", "teddy-bears", "tent"].map((n) => "/s/shop-" + n + ".jpg"),   // Barry's picks
   hub: ["/p/IH-00001-HOODIE/12.jpg"] };
 const SITE_V = "1";
 // The pictures of one door, in a fresh order each time; only the first is loaded straight away.
