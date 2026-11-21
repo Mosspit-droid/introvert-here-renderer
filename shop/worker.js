@@ -662,7 +662,7 @@ const GATE_MAP = `<svg viewBox="0 0 360 260" role="img" aria-label="An old sea c
 <path d="M40 128l9-14 9 14M62 122l10-16 10 16M86 112l8-12 8 12M112 100l7-11 7 11" stroke-width="1.7"/>
 <path d="M30 192c2-6 8-6 9 0M50 204c2-6 8-6 9 0M74 214c2-6 8-6 9 0" stroke-width="1.3" opacity=".8"/>
 <path d="M44 178q22 16 48 6t50 2 40-10" stroke-dasharray="2.2 7.5" stroke-width="2.4"/>
-<path d="M190 168Q204 132 232 108" stroke-width="3"/><path d="M219 105l14 2-5 14" stroke-width="3"/>
+<path d="M190 168Q198 138 220 118" stroke-width="3"/><path d="M207 117l14 0-3 14" stroke-width="3"/>
 <!-- the sea serpent: a head and neck, three humps and a tail, breaking the waves -->
 <g stroke-width="7"><path d="M216 222c-3-26 4-46 20-50"/><path d="M246 222q13-30 26 0"/><path d="M280 222q11-24 22 0"/><path d="M310 222q8-18 20-20"/></g>
 <path d="M330 202l10-9-1 13" stroke-width="3"/>
@@ -681,8 +681,8 @@ const GATE_MAP = `<svg viewBox="0 0 360 260" role="img" aria-label="An old sea c
 <text x="62" y="20" text-anchor="middle" font-size="12" font-style="normal">N</text>
 <text x="34" y="196" font-size="10.5">you are here</text>
 <text x="96" y="244" font-size="9.5" letter-spacing="3" opacity=".75">MARE INCOGNITVM</text>
-<text x="282" y="62" text-anchor="middle" font-weight="700" font-size="27">Here be</text>
-<text x="282" y="98" text-anchor="middle" font-weight="700" font-size="37">dragons</text></g>
+<text x="262" y="60" text-anchor="middle" font-weight="700" font-size="25">Here be</text>
+<text x="262" y="93" text-anchor="middle" font-weight="700" font-size="33" textLength="118" lengthAdjust="spacingAndGlyphs">dragons</text></g>
 <path d="M38 172l9 9M47 172l-9 9" stroke="#a3231c" stroke-width="2.8" stroke-linecap="round"/>
 </svg>`;
 function gatePage() {
