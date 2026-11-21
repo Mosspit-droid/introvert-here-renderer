@@ -464,6 +464,8 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 /* pictures: the frame goes round a clipped inner */
 .door{--ft:clamp(5px,.62vw,8px);--fb:clamp(20px,2.7vw,34px);--fR:clamp(14px,1.8vw,22px);--fr:clamp(8px,1vw,13px);background:var(--fc)}
 .door .fi{position:relative;display:block;height:100%;border-radius:var(--fr);overflow:hidden;background:#000;isolation:isolate}
+.door{color:#fff;cursor:pointer}.door .hit{position:absolute;inset:0;z-index:3}
+.door .xp{position:relative;z-index:4;align-self:flex-start;margin-top:2px;color:#e8e4da;font-size:13px;text-decoration:underline;text-underline-offset:4px;opacity:.9}.door .xp:hover{color:#fff;opacity:1}.door .xp i{font-style:normal}
 .hero{--ft:clamp(4px,.55vw,7px);--fb:clamp(15px,2.1vw,27px);--fR:clamp(11px,1.5vw,18px);--fr:clamp(6px,.85vw,11px);display:block;width:100%;height:auto;margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .hero img{display:block;width:100%;height:auto;border-radius:var(--fr)}
 /* no dots window on the banners: each already shows the stacked logo, dots and all (Barry, 21 Nov) */
@@ -515,13 +517,18 @@ function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.body ? ` class="${opts.body}"` : opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
-<header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
+<header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}" data-gate${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
 <script>${BASKET_JS}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
 }
 const BASKET_JS = `
+// The Escape Room's warning gate: links marked data-gate go to the room itself, and a first-time visitor is sent
+// through the gate instead. Going through it once (or taking an express route) is remembered on their device.
+(function(){var seen=false;try{seen=!!localStorage.getItem('ih_gate')}catch(e){seen=true}
+ if(!seen&&location.pathname!=='/uk/escape-room/gate')[].forEach.call(document.querySelectorAll('a[data-gate]'),function(a){a.setAttribute('href','/uk/escape-room/gate')});
+ [].forEach.call(document.querySelectorAll('a[data-express]'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})})})();
 var B={get:function(){try{return JSON.parse(localStorage.getItem('ih_basket')||'[]')}catch(e){return[]}},
 set:function(b){try{localStorage.setItem('ih_basket',JSON.stringify(b))}catch(e){}B.count()},
 count:function(){var n=B.get().reduce(function(a,i){return a+i.qty},0);var el=document.getElementById('bc');if(el)el.textContent=n}};B.count();`;
@@ -615,16 +622,16 @@ function frontPage(cat) {
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
   const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a style="--fc:${FRAME[k] || FRAME.IH}" href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
-  const door = (href, pics, label, title, line, cta, badge) => `<a class="door${badge ? " er" : ""}" href="${href}"><span class="fi">${doorPics(pics)}<span class="shade"></span>${badge ? `<img class="badge" src="${badge}" alt="">` : ""}<span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></span></a>`;
+  const door = (href, pics, label, title, line, cta, badge, gate) => `<div class="door${badge ? " er" : ""}"><span class="fi">${doorPics(pics)}<span class="shade"></span>${badge ? `<img class="badge" src="${badge}" alt="">` : ""}<a class="hit" href="${href}"${gate ? " data-gate" : ""} aria-label="${title}"></a><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span>${gate ? `<a class="xp" href="${href}" data-express>Express route (no flashing) <i>→</i></a>` : ""}</span></span></div>`;
   // No banner here (Barry, 21 Nov): one line of type, so the two doors are the first thing on the page.
   // The site's one-line mission statement (Barry, 21 Nov).
   return page("Everything you need to be left the hell alone", `<p class="strap">Everything you need to be left the hell alone.</p>
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
-${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), HUB.cta, HUB.logo)}
+${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), HUB.cta, HUB.logo, true)}
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
-<section class="strip"><div class="sh"><h2>Interaction distractions</h2><a href="${HUB.path}">Into ${esc(HUB.name)} <i>→</i></a></div><div class="things">${hubCards()}</div></section>
+<section class="strip"><div class="sh"><h2>Interaction distractions</h2><a href="${HUB.path}" data-gate>Into ${esc(HUB.name)} <i>→</i></a></div><div class="things">${hubCards()}</div></section>
 <section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
 }
 // Doors with more than one picture fade to the next every few seconds (the two doors out of step), unless the visitor
