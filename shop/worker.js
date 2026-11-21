@@ -344,7 +344,7 @@ header img.wl{height:38px;border-radius:0}
 header{position:relative;z-index:5}header img.wl.er{height:72px;margin-bottom:-34px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.35))}
 .door .badge{position:absolute;right:clamp(10px,1.6vw,22px);top:clamp(10px,1.6vw,22px);width:clamp(70px,9vw,124px);height:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6))}
 .door.wide .badge{width:clamp(76px,11vw,150px)}
-.door.er{border-color:#fad00c}
+.door.er{--fc:#fad00c}
 .strap{text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:.2em;font-size:clamp(13px,1.7vw,20px);margin:clamp(22px,3.4vw,44px) 0 clamp(4px,1vw,12px);text-wrap:balance}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
 nav.top{display:flex;align-items:center;gap:clamp(10px,2.4vw,26px);font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
@@ -354,8 +354,8 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 /* Front page: two doors of equal weight, then a strip from each side */
 .doors{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);margin:clamp(14px,2.4vw,26px) 0 0}
 .door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;box-sizing:border-box;border:clamp(4px,.55vw,7px) solid #f2f0ea;border-bottom-width:clamp(11px,1.5vw,19px);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
-.door>img.pic{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),opacity 1.6s ease}
-.door>img.pic.on{opacity:1}
+.door .fi>img.pic{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),opacity 1.6s ease}
+.door .fi>img.pic.on{opacity:1}
 .door .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,0) 30%,rgba(0,0,0,.55) 68%,rgba(0,0,0,.9) 100%)}
 .door .in{position:absolute;left:0;right:0;bottom:0;padding:clamp(18px,3vw,38px);display:flex;flex-direction:column;gap:8px}
 .door .kicker{font-size:12px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;opacity:.82}
@@ -363,8 +363,8 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door .say{font-size:clamp(15px,1.5vw,19px);line-height:1.45;max-width:30ch;opacity:.94}
 .door .go{align-self:flex-start;margin-top:10px;display:inline-flex;align-items:center;gap:10px;background:#f2f0ea;color:#141412;font-weight:700;font-size:15px;padding:12px 20px;border-radius:999px;transition:gap .3s,background .3s}
 .door .go i,.sh a i{font-style:normal;transition:transform .3s}
-.door:hover>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
-.door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide>img.pic{object-position:50% var(--fy,30%)}
+.door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
+.door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
 .strip{margin:clamp(40px,6vw,80px) 0 0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
 .sh h2{margin:0;font-size:clamp(18px,2.2vw,24px);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
@@ -382,7 +382,7 @@ a.thing{transition:transform .3s,border-color .3s}a.thing:hover{transform:transl
 .ranges .lg{display:block;aspect-ratio:1.6;width:100%}.ranges .lg img{width:100%;height:100%;object-fit:contain;object-position:50% 0;display:block}
 .ranges b{font-size:13px;line-height:1.35;min-height:2.7em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-top:2px}.ranges span:not(.lg){font-size:13px;line-height:1.45;color:var(--muted)}
 .lead{font-size:clamp(16px,1.6vw,19px);max-width:62ch;margin:clamp(18px,3vw,30px) 0}
-@media(max-width:760px){.doors{grid-template-columns:1fr}.door{aspect-ratio:1/1.08;max-height:none}.door>img.pic{object-position:50% 12%}.door.wide{aspect-ratio:16/10}.grid.four{grid-template-columns:1fr 1fr}.ranges{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){.doors{grid-template-columns:1fr}.door{aspect-ratio:1/1.08;max-height:none}.door .fi>img.pic{object-position:50% 12%}.door.wide{aspect-ratio:16/10}.grid.four{grid-template-columns:1fr 1fr}.ranges{grid-template-columns:1fr 1fr}}
 @media(min-width:761px) and (max-width:1000px){.ranges{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:no-preference){.door,.strip{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}.door:nth-child(2){animation-delay:.12s}@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}}
 h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase;font-weight:800}
@@ -446,11 +446,32 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 .countries{display:grid;gap:10px;max-width:420px;margin:24px auto}.countries a{text-align:left}
 .centre{text-align:center}
 @media(max-width:760px){.design{grid-template-columns:1fr}}
+/* ---- House style (Barry, 21 Nov): everything is framed like the stacked logo. A line of the frame colour round
+   three sides, a fat bottom edge, rounded corners inside as well as out, and the logo's little window with three
+   dots at the right of the bottom edge. --fc is the frame colour: white by default, a range's own colour on its
+   pages, tiles and cards, yellow for the Escape Room. Proportions follow the logo (edge 72, bottom 179, corners 60/34). */
+:root{--fc:#f2f0ea}
+.door,.hero,.stagefr,.tile,.ranges a,.thing,.box{--ft:4px;--fb:15px;--fR:13px;--fr:8px;--pad:0px;position:relative;isolation:isolate;background:var(--fc);border:0;border-radius:var(--fR);
+  padding:calc(var(--ft) + var(--pad)) calc(var(--ft) + var(--pad)) calc(var(--fb) + var(--pad));overflow:visible;box-sizing:border-box}
+.door::after,.hero::after,.stagefr::after,.tile::after,.ranges a::after,.thing::after,.box::after{content:"";position:absolute;right:calc(var(--ft) + var(--fb)*.12);bottom:calc(var(--fb)*.22);height:calc(var(--fb)*.56);width:calc(var(--fb)*3.2);border-radius:99px;pointer-events:none;
+  background:radial-gradient(circle at 21% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),radial-gradient(circle at 50% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),radial-gradient(circle at 79% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),#1a1a18}
+/* panels with words in them: the dark inside is drawn behind the content */
+.tile::before,.ranges a::before,.thing::before,.box::before{content:"";position:absolute;inset:var(--ft) var(--ft) var(--fb);border-radius:var(--fr);background:#1a1a18;z-index:-1}
+.tile>img{border-radius:var(--fr) var(--fr) 0 0}
+.ranges a{--pad:11px}.thing{--pad:clamp(14px,2vw,24px);--fc:#fad00c;--ft:5px;--fb:18px;--fR:15px;--fr:9px}.box{--pad:13px}
+.ranges a:hover,a.thing:hover{border-color:transparent}
+/* pictures: the frame goes round a clipped inner */
+.door{--ft:clamp(5px,.62vw,8px);--fb:clamp(20px,2.7vw,34px);--fR:clamp(14px,1.8vw,22px);--fr:clamp(8px,1vw,13px);background:var(--fc)}
+.door .fi{position:relative;display:block;height:100%;border-radius:var(--fr);overflow:hidden;background:#000;isolation:isolate}
+.hero{--ft:clamp(4px,.55vw,7px);--fb:clamp(15px,2.1vw,27px);--fR:clamp(11px,1.5vw,18px);--fr:clamp(6px,.85vw,11px);display:block;width:100%;height:auto;margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.hero img{display:block;width:100%;height:auto;border-radius:var(--fr)}
+.stagefr{--ft:5px;--fb:19px;--fR:18px;--fr:11px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.stagefr .stage{border:0;border-radius:var(--fr);box-shadow:none}
 `;
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
-${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
+${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
 <header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
@@ -481,8 +502,8 @@ function elsewherePage(c) {
 // Each banner is framed in its range logo's own colour (Barry, 20 Nov), so it reads as a sign on the wall, not a patch of it.
 const FRAME = { IH: "#f2f0ea", SH: "#a8cea8", PC: "#a7322d", OS: "#e1aa3b", EX: "#d9141b", IP: "#4a8fe7" };
 function heroImg(coll) {
-  if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<img class="hero" style="--frame:${FRAME[coll] || FRAME.IH}" src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}">`;
-  return `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people">`;
+  if (coll && COLLECTIONS[coll] && coll !== "IH" && !COLLECTIONS[coll].plain) return `<div class="hero" style="--fc:${FRAME[coll] || FRAME.IH}"><img src="/hero-${coll}.jpg?v=${ASSET_V}" alt="${esc(COLLECTIONS[coll].name)}"></div>`;
+  return `<div class="hero"><img src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"></div>`;
 }
 // The shop is product-led (Barry, 20 Nov): every garment is its own tile and its own page, and the gag is its name.
 const TYPE_SLUG = { "T-SHIRT": "t-shirt", "LONG-SLEEVE": "long-sleeve", "SWEATSHIRT": "sweatshirt", "HOODIE": "hoodie" };
@@ -514,14 +535,14 @@ function mixedItems(cat, list, types) {
 function tileHtml({ d, t }) {
   const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
   const varies = g.variants.some((v) => v.price !== g.priceFrom);
-  return `<a class="tile" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
+  return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
 }
 
 // ---------------- front page and the hub ----------------
 // One site, two halves of equal weight (Barry, 20 Nov): the shop, and a hub for introverts (phone toys for the bus
 // queue, paper escape rooms, a vote on the next gag...). The hub's name and wording are placeholders for Barry.
 const HUB = { path: "/uk/escape-room", name: "The Escape Room", short: "Escape Room",   // Barry's name for it (21 Nov)
-  logo: "/logo-ER.png?v=5",   // the stacked logo with its DO NOT ENTER door hanger (brand-logos/escape-room/)
+  logo: "/logo-ER.png?v=6",   // the stacked logo with its DO NOT ENTER door hanger (brand-logos/escape-room/)
   line: "Salvation lies within.", cta: "Enter",   // Barry's wording (21 Nov); "interaction distractions" is his phrase for what's inside
   things: [
     { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", soon: true },
@@ -550,8 +571,8 @@ function frontPage(cat) {
   const types = cat.garmentOrder.filter((t) => cat.designs.some((d) => d.garments[t]));
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
-  const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
-  const door = (href, pics, label, title, line, cta, badge) => `<a class="door${badge ? " er" : ""}" href="${href}">${doorPics(pics)}<span class="shade"></span>${badge ? `<img class="badge" src="${badge}" alt="">` : ""}<span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
+  const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a style="--fc:${FRAME[k] || FRAME.IH}" href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
+  const door = (href, pics, label, title, line, cta, badge) => `<a class="door${badge ? " er" : ""}" href="${href}"><span class="fi">${doorPics(pics)}<span class="shade"></span>${badge ? `<img class="badge" src="${badge}" alt="">` : ""}<span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></span></a>`;
   // No banner here (Barry, 21 Nov): one line of type, so the two doors are the first thing on the page.
   // The site's one-line mission statement (Barry, 21 Nov).
   return page("Everything you need to be left the hell alone", `<p class="strap">Everything you need to be left the hell alone.</p>
@@ -573,7 +594,7 @@ const DOOR_JS = `
    p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
 function hubPage() {
-  return page(HUB.name, `<a class="door wide er" href="${HUB.path}" style="pointer-events:none">${doorPics(DOOR.hub)}<span class="shade"></span><img class="badge" src="${HUB.logo}" alt=""><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></a>
+  return page(HUB.name, `<a class="door wide er" href="${HUB.path}" style="pointer-events:none"><span class="fi">${doorPics(DOOR.hub)}<span class="shade"></span><img class="badge" src="${HUB.logo}" alt=""><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></span></a>
 <p class="muted lead">A room to get away from people. Inside: interaction distractions for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
 <div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line, script: DOOR_JS });
 }
@@ -627,7 +648,7 @@ $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;
  else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,name:nm,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
 render();`;
-  return page(name, `<div class="design"><div><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div><div id="thumbs" class="thumbs"></div></div>
+  return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>

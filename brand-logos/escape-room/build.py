@@ -84,7 +84,8 @@ def build(base, name, T, U, at, tilt):
     O = np.asarray(out).copy()
     barsh = shadow(front, 0.07 * U, 0, round(0.07 * U), 0.55)[..., 3] / 255.0 * (S & ~front)                    # the bar's shadow on the hanger
     O[..., :3] = (O[..., :3] * (1 - barsh[..., None])).astype(np.uint8)
-    behind = (LG[..., 3] > 0) & (xs < at[0]) & (np.abs(ys - at[1]) <= T * 0.5 + 3)   # every pixel of the bar, soft edges included
+    # the whole height of the bar to the left of the hole, see-through parts included (the stacked logo's dots window)
+    behind = (xs < at[0]) & (np.abs(ys - at[1]) <= T * 0.5 + 3)
     O[behind] = LG[behind]
     out = Image.fromarray(O); bb = out.getbbox(); out = out.crop((0, 0, out.width, bb[3] + 40))
     out.save(f"{OUT}/{name}.png", optimize=True); print(name, out.size)
@@ -93,4 +94,4 @@ M = HERE + "/../main-collections/"
 # wide: frame 4266 x 634 at (117, 433), bars 86 thick; the hanger hangs from the bottom bar, under the dots
 build(M + "introvert-here-wide.png", "escape-room-wide", 86, 112, (3780, 1024), 7)
 # stacked: bottom band 179 thick (983..1162); the hanger hangs from it, left of the three dots
-build(M + "introvert-here-stacked.png", "escape-room-stacked", 179, 112, (2462, 1072), 7)   # as near the three dots as it goes without covering them
+build(M + "introvert-here-stacked.png", "escape-room-stacked", 179, 112, (3070, 1072), 7)   # hooked over the bar at the dots window (Barry: it sits better on the right)
