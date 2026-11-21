@@ -519,21 +519,24 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
 .thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
 .xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
-/* Spot the Introvert: a painting in a frame, with someone hiding in it. */
+/* Spot the Introvert: a painting in a frame, with someone hiding in it. The painting gets nearly all of the screen
+   (Barry, 21 Nov: "just too small"); everything else is two thin strips above it and two below. */
 body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!important}
-.sp{height:calc(100dvh - var(--hh,63px));min-height:440px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 14px 14px;box-sizing:border-box;background:radial-gradient(ellipse at 50% 40%,#4b4135,#1d1711 85%);color:#f6efe0;-webkit-tap-highlight-color:transparent}
-.sp .br{margin:0;text-align:center;font-weight:700;font-size:clamp(15px,2.2vh,19px);line-height:1.3;max-width:620px;text-wrap:balance}
-.sp .tm{margin:0;font-variant-numeric:tabular-nums;color:#fad00c;font-weight:800;letter-spacing:.06em;font-size:14px}
+.sp{height:calc(100dvh - var(--hh,63px));min-height:420px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 8px 8px;box-sizing:border-box;background:radial-gradient(ellipse at 50% 40%,#4b4135,#1d1711 85%);color:#f6efe0;-webkit-tap-highlight-color:transparent}
+.sp .tp{width:100%;max-width:560px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin:0;padding:0 6px;box-sizing:border-box;font-size:13px;font-weight:700;letter-spacing:.04em}
+.sp .tp a{justify-self:end;color:#f6efe0;opacity:.85}.sp .tm{font-variant-numeric:tabular-nums;color:#fad00c;font-weight:800}
+.sp .br{margin:0;text-align:center;font-weight:700;font-size:clamp(14px,2vh,18px);line-height:1.25;max-width:560px;text-wrap:balance}
 .sp .fw{flex:1;min-height:0;width:100%;display:flex;justify-content:center;align-items:center;container-type:size}
-.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(8px,1.7cqh,16px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:4px;box-shadow:0 0 0 2px #2a1808,0 0 0 4px #b08a48,0 18px 40px rgba(0,0,0,.55);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}
-.sp .fr>svg,.sp .fr>img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(4px,.9cqh,12px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:3px;box-shadow:0 0 0 1px #2a1808,0 0 0 2px #b08a48,0 10px 26px rgba(0,0,0,.5);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}
+.sp .fr>img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .sp .miss{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;color:#fff;font:800 20px/26px Montserrat,sans-serif;text-align:center;text-shadow:0 1px 4px #000;animation:spmiss 1s forwards}
 @keyframes spmiss{0%{opacity:1;transform:scale(1.3)}100%{opacity:0;transform:scale(.8)}}
 .sp .ring{position:absolute;border-radius:50%;border:4px solid #fad00c;box-shadow:0 0 0 3px rgba(20,14,6,.7),0 0 22px 6px rgba(250,208,12,.6);pointer-events:none;transform:translate(-50%,-50%)}
 .sp .clue{position:absolute;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 0 200vmax rgba(10,8,5,.62)}
-.sp .ms{margin:0;min-height:2.7em;display:flex;align-items:center;text-align:center;font-weight:600;font-size:clamp(15px,2.2vh,18px);line-height:1.35;max-width:560px;text-wrap:balance}
-.sp .bt{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:44px}.sp .bt .btn{margin:0}
-.sp .bt.spn{align-items:center;min-height:0}.sp .bt.spn span{min-width:64px;text-align:center;font-weight:700;font-size:14px;letter-spacing:.04em}.sp .bt .btn:disabled{opacity:.3;cursor:default}.sp .bt.spn .btn{padding-top:9px;padding-bottom:9px}
+.sp .ms{margin:0;min-height:2.6em;display:flex;align-items:center;text-align:center;font-weight:600;font-size:clamp(14px,2vh,17px);line-height:1.3;max-width:560px;text-wrap:balance}
+.sp .bt{width:100%;max-width:560px;margin:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+.sp .bt .btn{margin:0;padding:9px 14px;font-size:14px;white-space:nowrap}.sp .bt .btn:disabled{opacity:.3;cursor:default}
+.sp .bt #sp0{justify-self:start}.sp .bt #sn{justify-self:end}.sp .bt .mid{display:flex;gap:8px;justify-content:center}
 /* The Escape Room itself: one picture of the room filling the screen, with things in it to tap. */
 body.room main{max-width:none;padding:0;margin:0}
 .rm{position:relative;height:calc(100dvh - var(--hh,63px));min-height:320px;overflow:hidden;background:#17120d;-webkit-tap-highlight-color:transparent}
@@ -959,11 +962,10 @@ const SPOT = [
 function spotPage() {
   const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
   return page("Spot the Introvert", `<h1 style="position:absolute;left:-9999px">Spot the Introvert</h1><div class="sp" id="sp">
-<p class="br" id="sb"></p><p class="tm" id="st">0:00.0</p>
+<p class="tp"><span id="sc"></span><span class="tm" id="st">0:00.0</span><a href="${HUB.path}">Back to the room</a></p><p class="br" id="sb"></p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
 <p class="ms" id="sm" role="status" aria-live="polite"></p>
-<p class="bt spn"><button class="btn ghost" id="sp0" type="button" aria-label="Previous painting">← Back</button><span id="sc"></span><button class="btn ghost" id="sn" type="button" aria-label="Next painting">Next →</button></p>
-<p class="bt"><button class="btn ghost" id="sq" type="button" hidden>Give me a clue</button><button class="btn" id="sa" type="button" hidden>Go again</button><a class="btn ghost" href="${HUB.path}">Back to the room</a></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
+<p class="bt"><button class="btn ghost" id="sp0" type="button" aria-label="Previous painting">← Back</button><span class="mid"><button class="btn ghost" id="sq" type="button" hidden>Clue</button><button class="btn" id="sa" type="button" hidden>Go again</button></span><button class="btn ghost" id="sn" type="button" aria-label="Next painting">Next →</button></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
 (function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],T=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,t0=0,run=false,cl;
 var hd=document.querySelector('header');$('sp').style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
 function fmt(ms){var s=ms/1000,m=Math.floor(s/60);s-=m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
