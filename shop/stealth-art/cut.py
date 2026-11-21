@@ -40,11 +40,13 @@ ART = {}
 def save(name, im, **meta):
     p = os.path.join(OUT, name + ".webp"); im.save(p, quality=86, method=6); ART[name] = dict(meta, W=im.width, H=im.height, kb=os.path.getsize(p) // 1024)
 
-# The introvert: walk 0-5, stand 6, crouch 7, air 8, land 9, slump 10, step 11
+# The introvert: walk 0-5, stand 6, crouch 7, air 8, land 9, slump 10, step 11, crouch-walk 12-17
 walk = figures(key("introvert-walk.png"), 2); acts = figures(key("introvert-actions.png"))
 ws, as_ = PPH / walk[2].shape[0], PPH / acts[0].shape[0]
 C = dict(cw=250, ch=300, ax=118, base=292)
 iv = [cell(walk[i], ws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(acts[i], as_ * k, **C) for i, k in ((0, 1), (1, 1), (2, 1), (3, 1), (4, .93), (5, .96))]
+cr = figures(key("introvert-crawl.png"), 2); crs = acts[1].shape[0] * as_ / max(f.shape[0] for f in cr)      # crouch-walk 12-17, as tall as the crouch pose
+iv += [cell(f, crs, **C) for f in cr]
 save("introvert", strip(iv), w=250, h=300, ax=118, base=292, n=len(iv))
 
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
@@ -59,11 +61,23 @@ pc = [cell(pw[i], pws, **C) for i in (0, 1, 2, 3, 5, 6)] + [cell(f, pps, **C) fo
 save("pacer", strip(pc), w=330, h=330, ax=140, base=324, n=len(pc))
 save("cupcake", scaled(cup, cks * 1.5))
 
-# The Boss at his desk: asleep 0, stirring 1, beckoning 2, holding forth 3. Lined up on the desk's left edge and the floor.
-bs = figures(key("boss.png"), 2, gap=30); s = 1.15 * PPH / max(f.shape[1] for f in bs); bw = round(max(f.shape[1] for f in bs) * s) + 4; bh = round(max(f.shape[0] for f in bs) * s) + 4
-cells = []
-for f in bs: im = scaled(f, s); c = Image.new("RGBA", (bw, bh), (0, 0, 0, 0)); c.alpha_composite(im, (0, bh - im.height)); cells.append(c)
-save("boss", strip(cells), w=bw, h=bh, n=4)
+# The Boss at his desk, three sheets of four, all lined up on the desk's left leg and the floor (the fishing rod sticks out to the left):
+# asleep 0, stirring 1, greeting 2, holding forth 3 | bleary 4, looking left 5, looking right 6, drooping 7 | spots cupcake 8, casts 9, reels 10, scoffs 11
+bs = [f for n in ("boss.png", "boss-wake.png", "boss-cake.png") for f in figures(key(n), 2, gap=30)]; assert len(bs) == 12, len(bs)
+def legs(f): xs = np.where((f[-60:-25, :, 3] > 128).any(axis=0))[0]; return xs[0], xs[-1]
+dl = [legs(f) for f in bs]; s = 1.15 * PPH / (dl[0][1] - dl[0][0]); ml = round(max(d[0] for d in dl) * s) + 2
+bw = ml + round(max(f.shape[1] - d[0] for f, d in zip(bs, dl)) * s) + 2; bh = round(max(f.shape[0] for f in bs) * s) + 2; cells = []
+for f, d in zip(bs, dl): im = scaled(f, s); c = Image.new("RGBA", (bw, bh), (0, 0, 0, 0)); c.alpha_composite(im, (ml - round(d[0] * s), bh - im.height)); cells.append(c)
+deskw = (dl[0][1] - dl[0][0]) * s
+save("boss", strip(cells), w=bw, h=bh, n=12, ax=round(ml + .6 * deskw), rodx=round(ml + .42 * deskw), rody=bh - round(254 * s))
+
+# Hiding places. Coat stand: empty 0, with you in it 1. Locker: shut 0, open 1, shut with your nose at the vents 2 (lined up on the right-hand side).
+co = figures(key("coats.png")); s = 1.32 * PPH / co[0].shape[0]; cells = [scaled(f, s) for f in co]; cw = max(c.width for c in cells); out = []
+for c in cells: k = Image.new("RGBA", (cw, max(x.height for x in cells)), (0, 0, 0, 0)); k.alpha_composite(c, (0, k.height - c.height)); out.append(k)
+save("coats", strip(out), w=cw, h=out[0].height, n=2)
+lo = figures(key("locker.png")); s = 1.36 * PPH / lo[0].shape[0]; cells = [scaled(f, s) for f in lo]; lw = max(c.width for c in cells); out = []
+for c in cells: k = Image.new("RGBA", (lw, max(x.height for x in cells)), (0, 0, 0, 0)); k.alpha_composite(c, (lw - c.width, k.height - c.height)); out.append(k)
+save("locker", strip(out), w=lw, h=out[0].height, n=3, body=cells[0].width)
 
 # Corridor objects, all at the scale where a door is 1.4 heights tall
 pr = figures(key("props.png")); ps = 1.4 * PPH / pr[1].shape[0]; names = ["doorway", "door", "cooler", "sign", "exit"]; cells = [scaled(f, ps) for f in pr]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
@@ -90,8 +104,8 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     f.write("// Made by cut.py from Barry's drawings in src/. Do not edit by hand.\nexport const PPH = %d;\nexport const ART = %s;\nexport const FILES = {\n" % (PPH, json.dumps(ART)))
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
-chk = Image.new("RGB", (2000, 1500), "#fbf1e7"); y = 10
-for n in ("introvert", "pacer", "cupcake", "boss", "props", "bin", "caught-boss"):
+chk = Image.new("RGB", (2000, 1700), "#fbf1e7"); y = 10
+for n in ("introvert", "pacer", "boss", "coats", "locker"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
