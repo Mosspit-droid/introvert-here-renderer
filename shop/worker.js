@@ -542,7 +542,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dz{max-width:660px;margin:0 auto}.dz .box{--fc:#fad00c;--pad:clamp(14px,3vw,22px);margin:16px 0 18px}
 .dz h2{margin:2px 0 8px;font-size:clamp(20px,4.6vw,26px)}.dz p{line-height:1.5}
 .dz .ttl{font-family:Creepster,Montserrat,sans-serif;font-weight:400;color:#c3161c;font-size:clamp(40px,10vw,74px);line-height:.95;letter-spacing:.02em;text-shadow:0 3px 0 #3b0507,0 0 26px rgba(195,22,28,.35);margin:24px 0 6px;text-transform:none}
-.dz .chap{text-align:center;padding:30px 10px}.dz .chap .pt{font-size:13px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.dz .chap{text-align:center;padding:30px 10px}.dz .tlogo{margin:6px auto 18px;max-width:560px}.dz .tlogo img{display:block;width:100%;height:auto}.dz .chap .pt{font-size:13px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 .dz .chap h2{font-family:Creepster,Montserrat,sans-serif;font-weight:400;color:#c3161c;font-size:clamp(34px,8vw,54px);letter-spacing:.03em;text-transform:none;margin:6px 0 12px}
 .dz .coo{font-style:italic;color:#e9d9a0}
 .dz .step{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}
@@ -1010,7 +1010,7 @@ function gatePage() {
 // leftovers, a lie, an exit, an opening, the moment); their first letters spell the code for your own front door at
 // the end: KETTLE ON. Progress is saved on the player's device. Doris is Barry's (brand-logos/doris/, R2 site/doris-N.png):
 // frames 1 to 4 as she gets closer, doris-hug.png (her crushing the mascot) on the hug screen. The title
-// is a stand-in for his logo. All wording is a draft for Barry.
+// is his (brand-logos/aunt-doris/, R2 site/doris-title.png). All wording is a draft for Barry.
 const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66], ["#26355c", 1, 6, 75], ["#8c8c88", 1, 4, 89]];
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
 function dorisPage() {
@@ -1021,7 +1021,7 @@ function dorisPage() {
   const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of 10 · ${title}</p>${meter}<h2>${h}</h2>${body}${tail}</section>`;
   const mag = (w, cols) => `<span>${[...w].map((c, i) => `<i style="background:${cols[i % cols.length]};color:#fff">${c}</i>`).join("")}</span>`;
   const steps = [
-    `<section class="box pz chap" data-intro><h1 class="ttl">Escape From Aunt Doris</h1>
+    `<section class="box pz chap" data-intro><h1 class="tlogo"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
 <p>It’s 8pm. Your cousin Gareth’s housewarming. You promised you’d show your face. Your face has been shown.</p><p>Now you need to get home. Unseen. Unchatted-to. Unhugged.</p><p class="coo">Because somewhere in this house is Gareth’s mum. Aunt Doris.</p>
 <p><button class="btn go" type="button" id="start">Begin</button></p><p class="note" id="resume" hidden><button class="btn ghost" type="button" id="carry">Carry on where you left off</button></p><p class="note">Your progress is saved on this device.</p></section>`,
     chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee!”</p>`),
