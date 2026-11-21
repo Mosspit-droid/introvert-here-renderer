@@ -70,6 +70,12 @@ names = ["tea", "note", "phones", "bubble", "chair", "cabinet", "quiet", "exit",
 cells = [scaled(f, tall_[i] * PPT / f.shape[0]) for i, f in enumerate(ft)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
 save("flat-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)}, ppt=PPT)
 
+# Background furniture (drawn faded behind the action), each at its own height in squares:
+# 0 desk 1 partition 2 bookshelf 3 photocopier 4 whiteboard | 5 canteen table 6 vending machine 7 kitchen counter 8 fridge | 9 lockers 10 water cooler 11 plant 12 sofa 13 reception desk
+fd = figures(key("flat-decor.png"), 3); assert len(fd) == 14, len(fd); dh = [2.2, 2.3, 2.9, 2.4, 2.6, 1.7, 2.8, 2.1, 2.8, 2.6, 2.0, 2.2, 1.6, 1.6]
+cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(fd)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("flat-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -129,7 +135,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 1700), "#fbf1e7"); y = 10
-for n in ("hero", "flat-people", "flat-movers", "flat-things"):
+for n in ("flat-decor", "flat-things"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10

@@ -58,16 +58,17 @@ function office() {
 }
 // The office changes as you go. Each zone has its own wall colours and background furniture, and its name appears as
 // you walk in. "up" is the first floor above the meeting room. tones = light, mid and dark for the faded furniture.
-// kinds: 0 desk 1 cubicle 2 plant 3 bookshelf 4 photocopier 5 water cooler 6 lockers 7 whiteboard 8 canteen table
-//        9 vending machine 10 kitchen counter 11 sofa 12 reception desk
+// kinds are Barry's background furniture (stealth-art/src/flat-decor.png), drawn faded: 0 desk 1 partition 2 bookshelf
+//        3 photocopier 4 whiteboard 5 canteen table 6 vending machine 7 kitchen counter 8 fridge 9 lockers 10 water cooler
+//        11 plant 12 sofa 13 reception desk
 const ZONES = [
-  { x0: 0, x1: 52, name: "Open Plan", wall: "#f3e3c0", dado: "#e7d2a6", rail: "#c9ad7a", tones: ["#e6d4a8", "#dcc893", "#d2bc84"], kinds: [0, 1, 3, 4, 2, 0], win: true },
-  { x0: 52, x1: 86, name: "The Back Corridor", wall: "#e6e2d6", dado: "#d3cdbd", rail: "#b3ac98", tones: ["#d9d4c5", "#cbc5b3", "#bdb6a2"], kinds: [6, 5, 6, 2], win: false },
-  { x0: 86, x1: 152, name: "The All-Hands Meeting", wall: "#efe0d8", dado: "#e2cbbf", rail: "#c2a595", tones: ["#e3cfc4", "#d6bdb0", "#c9ac9d"], kinds: [7, 2, 3, 7], win: false },
-  { x0: 152, x1: 192, name: "The Canteen", wall: "#fbe9cf", dado: "#f3d2a4", rail: "#d6a868", tones: ["#f1d8ae", "#e8c88f", "#ddb873"], kinds: [8, 9, 10, 8, 2], win: true },
-  { x0: 192, x1: 250, name: "Reception", wall: "#e2efe6", dado: "#c8dfd0", rail: "#9fc2ac", tones: ["#d3e5d9", "#c0d8c8", "#acc9b6"], kinds: [11, 2, 12, 5, 11], win: true },
+  { x0: 0, x1: 52, name: "Open Plan", wall: "#f3e3c0", dado: "#e7d2a6", rail: "#c9ad7a", tones: ["#e6d4a8", "#dcc893", "#d2bc84"], kinds: [0, 1, 2, 3, 11, 0], win: true },
+  { x0: 52, x1: 86, name: "The Back Corridor", wall: "#e6e2d6", dado: "#d3cdbd", rail: "#b3ac98", tones: ["#d9d4c5", "#cbc5b3", "#bdb6a2"], kinds: [9, 10, 9, 11], win: false },
+  { x0: 86, x1: 152, name: "The All-Hands Meeting", wall: "#efe0d8", dado: "#e2cbbf", rail: "#c2a595", tones: ["#e3cfc4", "#d6bdb0", "#c9ac9d"], kinds: [4, 11, 2, 4], win: false },
+  { x0: 152, x1: 192, name: "The Canteen", wall: "#fbe9cf", dado: "#f3d2a4", rail: "#d6a868", tones: ["#f1d8ae", "#e8c88f", "#ddb873"], kinds: [5, 6, 7, 8, 5, 11], win: true },
+  { x0: 192, x1: 250, name: "Reception", wall: "#e2efe6", dado: "#c8dfd0", rail: "#9fc2ac", tones: ["#d3e5d9", "#c0d8c8", "#acc9b6"], kinds: [12, 11, 13, 10, 12], win: true },
 ];
-const UPSTAIRS = { x0: 86, x1: 152, name: "Management", wall: "#e4eaf2", dado: "#cdd8e6", rail: "#a3b4cb", tones: ["#d5deea", "#c3cfe0", "#b0bfd4"], kinds: [0, 3, 7, 2, 1], win: true };
+const UPSTAIRS = { x0: 86, x1: 152, name: "Management", wall: "#e4eaf2", dado: "#cdd8e6", rail: "#a3b4cb", tones: ["#d5deea", "#c3cfe0", "#b0bfd4"], kinds: [0, 2, 4, 11, 1], win: true };
 const LEVEL = { name: "The Office", map: office(), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
   lines: { P: ["Have you got a sec?", "You’ll like this one.", "Are you coming to the thing?"], W: ["Ooh, just the person!", "Walk with me.", "Quick question."], T: ["How ARE you?", "Any plans for the weekend?", "Did you get my email?"], C: ["Come here, you!", "There you are!", "Don’t you run off!"], pit: ["You fell into a team-building exercise."] } };
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
@@ -191,7 +192,8 @@ function person(p){var c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y
  else sprite('flat-people',[0,4,6][p.i%3]+(near?1:0),p.x,p.y+.03,p.f<0,k)}
 function thing(name,x,y,w,flip){var it=ART['flat-things'].items[name],im=IMG['flat-things'],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART['flat-things'].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
 // Background dressing, deliberately pale and outline-free so nobody mistakes it for something to jump on.
-function backdrop(x,base,kind,tn){var c=cx,A=tn[0],B=tn[1],D=tn[2],i,j;
+function backdrop(x,base,kind,tn){var dc=ART['flat-decor'],im=IMG['flat-decor'],it=dc.items[kind];if(im&&im.naturalWidth&&it){var k3=1/dc.ppt;cx.globalAlpha=.42;cx.drawImage(im,it.x,dc.H-it.h,it.w,it.h,x+1.7-it.w*k3/2,base-it.h*k3,it.w*k3,it.h*k3);cx.globalAlpha=1}}
+function backdropOld(x,base,kind,tn){var c=cx,A=tn[0],B=tn[1],D=tn[2],i,j;
  if(kind>5){backdrop2(x,base,kind,A,B,D);return}
  if(kind===0){c.fillStyle=B;c.fillRect(x,base-1.05,2.6,.16);c.fillRect(x+.15,base-.9,.14,.9);c.fillRect(x+2.3,base-.9,.14,.9);c.fillStyle=D;rr(x+.9,base-1.95,1,.7,.06);c.fill();c.fillRect(x+1.32,base-1.25,.16,.2);c.fillStyle=A;rr(x+.98,base-1.87,.84,.54,.04);c.fill();c.fillStyle=B;rr(x+3,base-1.3,.7,.7,.2);c.fill();c.fillRect(x+3.28,base-.6,.14,.6)}
  else if(kind===1){c.fillStyle=B;rr(x,base-2.1,3.4,2.1,.12);c.fill();c.fillStyle=A;rr(x+.2,base-1.9,1.4,.9,.06);c.fill();rr(x+1.8,base-1.9,1.4,.9,.06);c.fill();c.fillStyle=D;c.fillRect(x+.4,base-1.7,.5,.4);c.fillRect(x+2.1,base-1.6,.7,.3)}
@@ -312,7 +314,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
