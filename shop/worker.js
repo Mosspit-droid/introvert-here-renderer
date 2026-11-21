@@ -518,6 +518,28 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
 .thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
 .xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+/* The Escape Room itself: one picture of the room filling the screen, with things in it to tap. */
+body.room main{max-width:none;padding:0;margin:0}
+.rm{position:relative;height:calc(100dvh - var(--hh,63px));min-height:320px;overflow:hidden;background:#17120d;-webkit-tap-highlight-color:transparent}
+.rm .bk{position:absolute;inset:-40px;background-size:cover;background-position:center;filter:blur(28px) brightness(.5)}
+.rm .rv{position:absolute;display:none}.rm .rv.on{display:block}
+.rm .rv>img{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
+.hs{position:absolute;display:block;padding:0;margin:0;border:0;background:none;color:inherit;font:inherit;cursor:pointer;border-radius:14px;outline:0;transition:background .5s}
+.hs:hover,.hs:focus-visible,.hs.lit{background:radial-gradient(ellipse at center,rgba(255,216,130,.3),rgba(255,216,130,.1) 45%,transparent 70%)}
+.hs .dot{font-style:normal;position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff3d0;box-shadow:0 0 0 2px rgba(20,14,6,.55),0 0 12px 3px rgba(255,214,120,.75);pointer-events:none}
+.hs .dot::after{content:"";position:absolute;inset:-2px;border-radius:50%;border:2px solid #ffe7a6;opacity:0;animation:rmping 7.2s ease-out infinite;animation-delay:var(--d,0s)}
+@keyframes rmping{0%{transform:scale(1);opacity:.9}14%{transform:scale(3.4);opacity:0}100%{transform:scale(3.4);opacity:0}}
+.hs .lb{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translate(-50%,4px);white-space:nowrap;padding:6px 11px;border-radius:8px;background:rgba(18,14,9,.9);border:1px solid rgba(255,231,166,.4);color:#f6efe0;font-size:13px;font-weight:700;letter-spacing:.02em;line-height:1.2;opacity:0;transition:opacity .3s,transform .3s;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.hs .lb small{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#fad00c;margin-left:8px}
+.hs .dot.b .lb{bottom:auto;top:calc(100% + 12px)}
+.hs .dot.l .lb{left:-6px;transform:translate(0,4px)}.hs .dot.r .lb{left:auto;right:-6px;transform:translate(0,4px)}
+.hs:hover .lb,.hs:focus-visible .lb,.hs.lit .lb,.rm.all .lb{opacity:1;transform:translate(-50%,0)}
+.hs:hover .dot.l .lb,.hs:focus-visible .dot.l .lb,.hs.lit .dot.l .lb,.rm.all .dot.l .lb,.hs:hover .dot.r .lb,.hs:focus-visible .dot.r .lb,.hs.lit .dot.r .lb,.rm.all .dot.r .lb{transform:none}
+.hs:hover,.hs:focus-visible,.hs.lit{z-index:3}
+.rm .rtour{position:absolute;left:14px;bottom:14px;z-index:6;padding:9px 14px;border-radius:999px;border:1px solid rgba(255,231,166,.45);background:rgba(18,14,9,.82);color:#f6efe0;font:700 13px/1 Montserrat,sans-serif;cursor:pointer}
+.rm .rmsg{position:absolute;left:50%;bottom:62px;z-index:6;transform:translate(-50%,10px);width:max-content;max-width:min(86vw,460px);padding:13px 18px;border-radius:12px;background:rgba(18,14,9,.94);border:2px solid #fad00c;border-bottom-width:5px;color:#f6efe0;font-size:15px;font-weight:600;line-height:1.4;text-align:center;text-wrap:balance;opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.rm .rmsg.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.hs .dot::after{animation:none}.hs,.hs .lb,.rm .rmsg{transition:none}}
 `;
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -857,10 +879,59 @@ function gatePage() {
 // remember that this visitor has been through the gate, so later visits can go straight in
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
+// The room (Barry, 21 Nov): one picture of the cosiest room imaginable fills the screen, and the things in it are the
+// way to everything in the Escape Room. Two pictures of the same room (shop/room/): a wide one and a tall one, picked
+// by the shape of the screen. Places are in percent of the picture: r = the areas to tap, d = where the glowing dot
+// sits, f = where its label goes (l/r = starts at the dot and runs left/right-anchored, b = below the dot).
+// A thing with "soon" isn't built yet and answers with that line instead of going anywhere.
+const ROOM = [
+  { name: "Stealth game", soon: "The console isn’t plugged in yet. The stealth game is on its way. Come back later.",
+    wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
+  { name: "Paper escape rooms", soon: "The paper escape rooms are still at the printers. Come back later.",
+    wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
+  { name: "Look Busy", href: HUB.path + "/look-busy",
+    wide: { r: [[41, 46.5, 7.6, 11.5]], d: [44.8, 52.5] }, tall: { r: [[34, 49.6, 13.8, 6.8]], d: [41, 53.2] } },
+  { name: "Excuse Generator", href: HUB.path + "/excuses",
+    wide: { r: [[49.3, 53.5, 6.4, 9.5]], d: [52.4, 58.1], f: "b" }, tall: { r: [[50.5, 52.6, 10.5, 6]], d: [55.9, 55.6], f: "b" } },
+  { name: "Newsletter", soon: "Nothing pinned up yet. The newsletter is coming. Come back later.",
+    wide: { r: [[66.5, 16.5, 7.2, 26.5]], d: [70.1, 22] }, tall: { r: [[41, 23, 13.5, 11.8]], d: [47.7, 28.5], f: "r" } },
+  { name: "The shop", href: "/uk/shop",
+    wide: { r: [[74.4, 21, 9.6, 35.5]], d: [79, 44], f: "b" }, tall: { r: [[85, 24.5, 13, 16.5]], d: [91.5, 32], f: "rb" } },
+  { name: "Vote on the next gag", soon: "The jar’s empty. Voting on the next gag opens soon. Come back later.",
+    wide: { r: [[84.3, 23, 6.2, 13]], d: [87, 30.5], f: "r" }, tall: { r: [[86, 15.5, 10.5, 8]], d: [90.8, 19.2], f: "r" } },
+  { name: "The way out", href: "/uk",
+    wide: { r: [[91.2, 4, 8.8, 85]], d: [92.9, 53.5], f: "rb" }, tall: { r: [[63, 19, 23, 26.5]], d: [72, 27] } },
+];
+function roomView(v) {
+  const spots = ROOM.map((t, i) => t[v].r.map(([x, y, w, h], k) => {
+    const at = `style="left:${x}%;top:${y}%;width:${w}%;height:${h}%"`, d = t[v].d;
+    const inner = k ? "" : `<i class="dot ${(t[v].f || "").split("").join(" ")}" style="left:${(((d[0] - x) / w) * 100).toFixed(1)}%;top:${(((d[1] - y) / h) * 100).toFixed(1)}%;--d:${(i * 0.9).toFixed(1)}s"><span class="lb">${esc(t.name)}${t.soon ? "<small>Soon</small>" : ""}</span></i>`;
+    const more = k ? ' tabindex="-1" aria-hidden="true"' : "";
+    return t.soon ? `<button type="button" class="hs" ${at} data-soon="${esc(t.soon)}"${k ? more : ` aria-label="${esc(t.name)} (coming soon)"`}>${inner}</button>` : `<a class="hs" ${at} href="${t.href}"${k ? more : ` aria-label="${esc(t.name)}"`}>${inner}</a>`;
+  }).join("")).join("");
+  return `<div class="rv ${v}" data-src="/s/room-${v}.jpg?v=1"><img alt="A small, warm room at dusk with rain on the window: an armchair with a blanket, a lamp, a bookshelf, a television and games console, a tablet, a phone, a noticeboard, a hoodie on a hook, a jar on a shelf, and a door with a Do Not Enter hanger." draggable="false">${spots}</div>`;
+}
 function hubPage() {
-  return page(HUB.name, `<a class="door wide er" href="${HUB.path}" style="pointer-events:none"><span class="fi">${doorPics(DOOR.hub)}<span class="shade"></span><img class="badge" src="${HUB.logo}" alt=""><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></span></a>
-<p class="muted lead">A room to get away from people. Inside: interaction distractions for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
-<div class="things">${hubCards()}</div>`, { nav: "hub", desc: HUB.name + ": " + HUB.line, script: DOOR_JS });
+  return page(HUB.name, `<h1 style="position:absolute;left:-9999px">${esc(HUB.name)}</h1><div class="rm" id="rm"><div class="bk"></div>${roomView("wide")}${roomView("tall")}
+<button type="button" class="rtour" id="rtour" aria-pressed="false">Show me round</button><div class="rmsg" id="rmsg" role="status" aria-live="polite"></div></div>`, { nav: "hub", body: "room", desc: HUB.name + ": " + HUB.line + " A room to get away from people.", script: `
+(function(){var rm=document.getElementById('rm'),msg=document.getElementById('rmsg'),tour=document.getElementById('rtour'),cur=null,mt,calm=false;
+try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
+// Fit the picture: fill the screen where that only trims empty wall, ceiling and rug; never trim anything you can tap.
+var FIT={wide:{ar:2508/1412,cx:.02,cy:.2,by:.22},tall:{ar:1412/2508,cx:.09,cy:.12,by:.4}};
+function lay(){var hd=document.querySelector('header');rm.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
+ var W=rm.clientWidth,H=rm.clientHeight,v=W/H<1?'tall':'wide',f=FIT[v],el=rm.querySelector('.rv.'+v);
+ if(cur!==el){[].forEach.call(rm.querySelectorAll('.rv'),function(x){x.classList.toggle('on',x===el)});var im=el.querySelector('img');if(!im.getAttribute('src'))im.src=el.dataset.src;rm.querySelector('.bk').style.backgroundImage='url('+el.dataset.src+')';cur=el;lit=-1}
+ var w=Math.min(Math.max(W,H*f.ar),W*(1+f.cx)),h=w/f.ar;if(h>H*(1+f.cy)){h=H*(1+f.cy);w=h*f.ar}
+ el.style.width=w+'px';el.style.height=h+'px';el.style.left=(W-w)/2+'px';el.style.top=(H-h)*(h>H?f.by:.5)+'px'}
+function say(t,ms){msg.textContent=t;msg.classList.add('on');clearTimeout(mt);mt=setTimeout(function(){msg.classList.remove('on')},ms||4500)}
+rm.addEventListener('click',function(e){var b=e.target.closest('[data-soon]');if(b)say(b.dataset.soon)});
+tour.addEventListener('click',function(){var on=rm.classList.toggle('all');tour.textContent=on?'Hide the labels':'Show me round';tour.setAttribute('aria-pressed',on)});
+// The things take turns to glow and show their name, so nobody has to guess what can be tapped.
+var lit=-1,busy=false;
+rm.addEventListener('pointerover',function(e){if(e.pointerType==='mouse'&&e.target.closest('.hs'))busy=true});rm.addEventListener('pointerout',function(e){if(e.target.closest('.hs'))busy=false});
+function turn(){if(!cur||calm||busy||rm.classList.contains('all')||document.hidden)return;var s=cur.querySelectorAll('.hs:not([tabindex])');[].forEach.call(s,function(x){x.classList.remove('lit')});lit=(lit+1)%s.length;s[lit].classList.add('lit')}
+addEventListener('resize',lay);lay();setInterval(turn,2600);setTimeout(turn,1800);
+setTimeout(function(){say(calm?'You’re in. Nobody knows you’re here. Press “Show me round” to see what’s what.':'You’re in. Nobody knows you’re here. Have a poke about.',5200)},700)})();` });
 }
 
 function productPage(d, type, cat) {
