@@ -98,6 +98,15 @@ R2 `site/` (copies in `shop/assets/site/`).
   (print y 0.482). Idea: UK shop orders printed in the UK. Not rolled out.
 - Note: all In Person garments use **Printify Choice (provider 99)**, which routes to the nearest printer itself.
 
+### Orders (decided 21 Nov)
+- Normal orders go to Printify for printing automatically (`AUTO_SEND = "yes"` in `shop/wrangler.toml`; takes effect
+  when the real shop is next deployed, i.e. launch day). In Person items wait in the In Person queue for Barry's check,
+  as on Etsy. If Printify refuses the automatic send, the order stays on hold in the app with a note.
+- introverthere.com is on Cloudflare (active since 21 Nov; nameservers ezra/meadow.ns.cloudflare.com at Namecheap).
+  Namecheap's parking A/CNAME records were deleted; its email-forwarding MX/TXT records were kept. Not yet attached
+  to the shop worker: do that on launch day (Workers > introvert-here-shop > Domains: introverthere.com and www),
+  then point the Stripe webhook at introverthere.com if wanted. Site email stays admin@mosspit.org (Barry's choice).
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support

@@ -5,7 +5,7 @@ workers_dev = true
 
 [vars]
 ALERT_URL = "https://mosspit-approvals.mosspit.workers.dev/api/alert"
-AUTO_SEND = "no"
+AUTO_SEND = "yes"   # Barry, 21 Nov: normal orders print automatically; In Person waits for his name check
 TEST_ORDERS_TO_PRINTIFY = "no"
 
 [[kv_namespaces]]

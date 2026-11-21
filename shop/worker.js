@@ -315,8 +315,12 @@ async function placeOrder(env, sessionId) {
       if (!res.ok || !out.id) throw new Error("Printify: " + JSON.stringify(out).slice(0, 300));
       record.printifyOrder = out.id;
       if (env.AUTO_SEND === "yes") {
-        await fetch(`https://api.printify.com/v1/shops/${PRINTIFY_SHOP}/orders/${out.id}/send_to_production.json`, { method: "POST", headers: { Authorization: "Bearer " + token, "User-Agent": "IntrovertHereShop/1.0" } });
-        record.status = "sent-to-production";
+        // Normal orders go straight to print (Barry, 21 Nov: "I don't want to spend all day authorising sales"); In Person
+        // items never get here: they wait in the In Person queue for his name check. If Printify refuses, the order stays
+        // on hold for him to send from the app.
+        const go = await fetch(`https://api.printify.com/v1/shops/${PRINTIFY_SHOP}/orders/${out.id}/send_to_production.json`, { method: "POST", headers: { Authorization: "Bearer " + token, "User-Agent": "IntrovertHereShop/1.0" } });
+        if (go.ok) record.status = "sent-to-production";
+        else { record.status = "on-hold"; record.note = "Couldn't send to Printify automatically (" + go.status + "): send it from the app."; }
       } else record.status = "on-hold";
     }
   } catch (e) {
