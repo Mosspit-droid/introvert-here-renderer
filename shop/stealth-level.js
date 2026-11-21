@@ -92,7 +92,7 @@ function bossFrame(){var ph=bossPhase(),b=L.boss;if(ph===4)return BO.ct<.8?8:BO.
 // ---- being caught ----
 // A conversation drains the battery for as long as it lasts. Tapping Nod (the Throw button) nods and edges you away in
 // the direction you are steering; stop and they close the gap. Holding it counts as slow tapping. Get clear to escape.
-var fillT=null,C=null,nodHeld=false,DRAIN=1/7,CLEAR=1.9;
+var fillT=null,C=null,nodHeld=false,throwLock=0,DRAIN=1/7,CLEAR=1.9;
 function caught(who){S.mode='chat';S.who=who;S.chats++;held={};nodHeld=false;P.state='idle';P.y=0;P.vy=0;P.nodT=0;P.away=0;C={taps:0,prog:0,auto:0,t:0,arrive:who!=='boss'};
  var d=who==='boss'?L.boss:L.pacer,tk=$('sgtalk'),mini=who!=='boss';tk.classList.toggle('mini',mini);tk.style.background=mini?'':d.colour;tk.style.top=mini?((tall?sceneH+8:40)+'px'):'';$('sgbub').style.borderColor=d.colour;
  $('sgwho').textContent=d.name;$('sgline').textContent=d.lines[Math.floor(Math.random()*d.lines.length)];var f=$('sgfill'),words=[];f.textContent='';$('sgnod').hidden=mini;tk.hidden=false;
@@ -100,8 +100,13 @@ function caught(who){S.mode='chat';S.who=who;S.chats++;held={};nodHeld=false;P.s
  if(who==='boss'){picture()}else{PC.state='talk';PC.f=P.x>=PC.x?1:-1}
  tip(mini?'Tap NOD and steer away. Keep tapping.':'Keep nodding to edge your chair out of the door.',1e9)}
 // The Boss scene is Barry's drawing; as you nod your way out it slides off, with a bar for how nearly out you are.
-function picture(){var c=$('sgpic').getContext('2d'),w=640,h=300,im=IMG['caught-boss'];c.fillStyle='#fbf1e7';c.fillRect(0,0,w,h);
- if(im.naturalWidth){var s=Math.max(w/im.naturalWidth,h/im.naturalHeight);c.drawImage(im,(w-im.naturalWidth*s)/2-C.prog*170,(h-im.naturalHeight*s)/2,im.naturalWidth*s,im.naturalHeight*s)}
+function picture(){var c=$('sgpic').getContext('2d'),w=640,h=300,im=IMG['caught-boss'],CUT=238;
+ if(!im.naturalWidth){c.fillStyle='#fbf1e7';c.fillRect(0,0,w,h);return}
+ // The drawing is split just left of the desk: the Boss and his desk stay put, and only you (and your chair) slide out.
+ var s=Math.max(w/im.naturalWidth,h/im.naturalHeight),x0=(w-im.naturalWidth*s)/2,y0=(h-im.naturalHeight*s)/2,ih=im.naturalHeight;
+ c.drawImage(im,x0,y0,im.naturalWidth*s,ih*s);if(!picture.paper){try{var px=c.getImageData(w-6,6,1,1).data;picture.paper='rgb('+px[0]+','+px[1]+','+px[2]+')'}catch(e){picture.paper='#fbf1e7'}}
+ c.fillStyle=picture.paper;c.fillRect(0,0,x0+CUT*s,h);
+ c.drawImage(im,0,0,CUT,ih,x0-Math.min(1,C.prog)*(CUT*s+x0+10),y0+(P.nodT>0?5:0),CUT*s,ih*s);
  c.fillStyle='rgba(28,22,17,.25)';c.fillRect(20,h-22,w-40,10);c.fillStyle='#1c1611';c.fillRect(20,h-22,(w-40)*Math.min(1,C.prog),10)}
 function nodTap(){if(S.mode!=='chat')return;C.taps++;P.nodT=.2;
  if(S.who==='boss'){C.prog+=.1;return}if(C.arrive)return;   // she has to reach you before you can start backing off
@@ -114,7 +119,7 @@ function chatTick(dt){C.t+=dt;S.batt-=DRAIN*dt;batt();if(P.nodT>0)P.nodT-=dt;
  if(C.arrive){if(gap<=.6)C.arrive=false;else PC.x+=PC.f*2.6*dt;return}
  if(gap>=CLEAR){free();return}if(gap>.55&&P.nodT<=0)PC.x+=PC.f*.35*dt}
 function endChat(){clearInterval(fillT);$('sgtalk').hidden=true;nodHeld=false;C=null}
-function free(){var who=S.who;endChat();S.who=null;S.mode='play';
+function free(){var who=S.who;endChat();S.who=null;S.mode='play';throwLock=1.2;held={};
  if(who==='boss'){BO.t=0;BO.greet=false;P.x=L.doorway+DOORW/2+.25;P.f=1}else{P.f=P.x>=PC.x?1:-1;P.away=.5;PC.state='walk';PC.blind=4;PC.st=0;PC.t=0}
  tip(S.batt<.34?'Battery nearly flat. Tread carefully.':'Free. Go, while they’re pleased with themselves.',3)}
 function win(){S.mode='won';card('You’re out.',S.chats===0?'Nobody saw you leave. They’ll assume you’re still in the meeting.':S.chats===1?'One conversation endured. You nodded in all the right places.':S.chats+' conversations endured. You are owed a quiet weekend.',
@@ -124,7 +129,7 @@ function card(h,p,sm,btn){$('sgch').textContent=h;$('sgcp').textContent=p;$('sgc
 // Anything louder than creeping, near the Boss's door while he is asleep, wakes him early.
 function noise(r){if(S.mode!=='play'||Math.abs(P.x-L.doorway)>(r||DOORW/2+.55)||bossPhase()!==0)return;var b=L.boss;BO.t=b.asleep+b.stir-.45;if(r){tip('The locker door clanged. The Boss is stirring.',3.5)}else if(!S.wokeTip){S.wokeTip=true;tip('Too loud. You woke him. Push the stick gently to creep past.',3.5)}}
 // ---- one tick ----
-function update(dt){if(S.mode==='chat'){chatTick(dt);return}if(S.mode!=='play'&&S.mode!=='ready')return;if(P.away>0)P.away-=dt;
+function update(dt){if(S.mode==='chat'){chatTick(dt);return}if(S.mode!=='play'&&S.mode!=='ready')return;if(P.away>0)P.away-=dt;if(throwLock>0){throwLock-=dt;if(throwQ){throwQ=false;throwLock=Math.max(throwLock,.6)}}
  if(tipT<1e8){tipT-=dt;if(tipT<=0){tip(hidden()?'In the recycling. Walk to climb out.':'',1e9)}}
  var a=axis(),d=a>.12?1:a<-.12?-1:0,sp=SPEED*Math.min(1,Math.abs(a)),spot=nearSpot(),duck=ducking()&&!spot;if(P.door>0)P.door-=dt;if(S.mode==='ready'&&(d||hopQ||duck||hideQ)){S.mode='play';tip('Watch what people are doing before you walk past them.',5)}
  if(S.mode==='play')S.t+=dt;
