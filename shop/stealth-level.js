@@ -14,7 +14,8 @@
 //   A cupcake near his door: he casts a fishing rod, reels it in and scoffs it, seeing nothing meanwhile.
 //   Coat stand: silent, but the Pacer sees your shoes if she stops to read right beside it. Locker: hides you
 //   completely, but the door clangs and wakes the Boss if he is within three heights.
-//   Hide by hopping into the recycling bin. Three conversations and your social battery is flat.
+//   Hide by hopping into the recycling bin.
+//   Caught: the conversation drains the battery until you escape by tapping Nod while steering away (see caught()).
 // Distances are in "heights": 1 = how tall the introvert stands. All wording is a draft for Barry to edit.
 import { ART, PPH } from "./stealth-art/art.js";
 
@@ -43,7 +44,10 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .sg .bub{position:relative;width:min(100%,400px);padding:14px 18px 16px;border-radius:20px;background:#fffdf6;color:#1c1611;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 .sg .bub small{display:block;margin-bottom:4px;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#6d6257}
 .sg .bub p{margin:0;font-size:17px;font-weight:700;line-height:1.3}.sg .bub .fill{margin-top:8px;font-size:14px;font-weight:600;color:#6d6257;min-height:2.8em}
-.sg .talk .btn{background:#1c1611;color:#fffdf6}
+.sg .talk .btn{background:#1c1611;color:#fffdf6;padding:16px 26px;font-size:17px;touch-action:none;user-select:none;-webkit-user-select:none}
+.sg .bub{border:3px solid transparent}
+.sg .talk.mini{inset:auto;left:0;right:0;top:40px;padding:0 10px;pointer-events:none;display:block}.sg .talk.mini canvas{display:none}.sg .talk.mini .bub{margin:0 auto;padding:8px 14px 10px;border-radius:14px;width:min(100%,420px)}.sg .talk.mini .bub p{font-size:14px}.sg .talk.mini .bub .fill{margin-top:3px;font-size:12px;min-height:1.3em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sg.wide .talk.mini .bub{width:min(56%,420px)}
 .sg .card{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(22,20,18,.72);overflow:auto}
 .sg .card>div{width:min(100%,430px);margin:auto;padding:20px 20px 18px;border-radius:16px;background:rgba(24,21,17,.97);border:2px solid #fad00c;border-bottom-width:6px;color:#f6efe0;box-shadow:0 14px 40px rgba(0,0,0,.6)}
 .sg .card .pre{margin:0;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}
@@ -68,10 +72,10 @@ var VIEW=2.5,BGH=2.18,WALLB=1.955,FEET=2.13,TILE=ART.corridor.W/ART.corridor.H*B
 var CRAWL=.42,CREEP=.6,WALK=[0,1,2,3,4,5],YEL='#fad00c',CREAM='#f6efe0',DOORW=(ART.props.hole.x1-ART.props.hole.x0)/PPH;
 
 var S,P,PC,BO,CK,T=0,tipT=0,keys={},stick=null,held={},hopQ=false,throwQ=false,hideQ=false;
-function reset(){P={x:L.start,y:0,vy:0,f:1,state:'idle',st:0,t:0,door:0};
+function reset(){P={x:L.start,y:0,vy:0,f:1,state:'idle',st:0,t:0,door:0,nodT:0,away:0};
  PC={x:L.pacer.x,f:L.pacer.f,state:'walk',st:0,t:0,blind:0,cake:false,peek:false};BO={t:0,hold:0,cake:false,ct:0,greet:false,gt:0};CK=null;
- S={mode:'ready',cells:3,chats:0,t:0,who:null,seenTip:false,wokeTip:false,cakes:L.cakes};keys={};stick=null;held={};hopQ=throwQ=hideQ=false;batt();tip('Left thumb: push gently to creep, further to walk.',1e9)}
-function batt(){var c=$('sgb').children;for(var i=0;i<c.length;i++)c[i].className=i<S.cells?'':'off';$('sgb').setAttribute('aria-label','Social battery: '+S.cells+' of 3')}
+ S={mode:'ready',batt:1,chats:0,t:0,who:null,seenTip:false,wokeTip:false,cakes:L.cakes};keys={};stick=null;held={};hopQ=throwQ=hideQ=false;batt();tip('Left thumb: push gently to creep, further to walk.',1e9)}
+function batt(){var c=$('sgb').children,b=Math.max(0,S.batt);for(var i=0;i<c.length;i++){var f=Math.max(0,Math.min(1,b*3-i));c[i].className=f<=0?'off':'';c[i].style.opacity=f<=0?'':String(.25+.75*f)}$('sgb').setAttribute('aria-label','Social battery: '+Math.round(b*100)+' percent')}
 function tip(t,s){tipEl.textContent=t;tipT=s||4;tipEl.hidden=!t}
 // How hard the stick is pushed, -1 to 1. Under CREEP of full speed counts as creeping (quiet).
 function axis(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);return k?k*(keys.Shift?.42:1):(stick?stick.v:0)}
@@ -86,23 +90,33 @@ function bossFrame(){var ph=bossPhase(),b=L.boss;if(ph===4)return BO.ct<.8?8:BO.
  var c=bossCycle()-b.asleep-b.stir;return c<.4?4:Math.floor((c-.4)/.75)%2?6:5}
 
 // ---- being caught ----
-var fillT=null,talkT=null;
-function caught(who){S.mode='talk';S.who=who;S.chats++;S.cells--;batt();stick=null;held={};keys={};P.state='idle';P.y=0;P.vy=0;
- var d=who==='boss'?L.boss:L.pacer;$('sgtalk').style.background=d.colour;$('sgwho').textContent=d.name;$('sgline').textContent=d.lines[Math.floor(Math.random()*d.lines.length)];
- var f=$('sgfill');f.textContent='';$('sgnod').hidden=true;$('sgtalk').hidden=false;tipEl.hidden=true;
- var k=0,order=FILLER.slice().sort(function(){return Math.random()-.5});clearInterval(fillT);clearInterval(talkT);picture(who,0);
- talkT=setInterval(function(){picture(who,++k)},430);
- var n=0;fillT=setInterval(function(){f.textContent+=(n?' ':'')+order[n%order.length];n++;if(n===4){$('sgnod').hidden=false;$('sgnod').focus()}if(n>7)clearInterval(fillT)},560)}
-// The picture above the speech bubble: the Boss scene is Barry's drawing; the Pacer is her talking poses over the slumped introvert.
-function picture(who,k){var c=$('sgpic').getContext('2d'),w=640,h=300;c.fillStyle='#fbf1e7';c.fillRect(0,0,w,h);
- if(who==='boss'){var im=IMG['caught-boss'];if(im.naturalWidth){var s=Math.max(w/im.naturalWidth,h/im.naturalHeight);c.drawImage(im,(w-im.naturalWidth*s)/2,(h-im.naturalHeight*s)/2,im.naturalWidth*s,im.naturalHeight*s)}return}
- var s=.88,a=ART.introvert,p=ART.pacer;c.fillStyle='#efe2d2';c.fillRect(0,262,w,38);c.fillStyle='#3b342c';c.fillRect(0,262,w,2);
- if(IMG.introvert.naturalWidth)c.drawImage(IMG.introvert,10*a.w,0,a.w,a.h,200-a.ax*s,270-a.base*s,a.w*s,a.h*s);
- if(IMG.pacer.naturalWidth){c.save();c.translate(430,270);c.scale(-1,1);c.drawImage(IMG.pacer,(8+k%2)*p.w,0,p.w,p.h,-p.ax*s,-p.base*s,p.w*s,p.h*s);c.restore()}}
-function nod(){clearInterval(fillT);clearInterval(talkT);$('sgtalk').hidden=true;var who=S.who;S.who=null;
- if(who==='boss'){BO.t=0;BO.greet=false;P.x=L.doorway+DOORW/2+.25}else{PC.state='walk';PC.blind=4;PC.st=0}
- if(S.cells<=0){S.mode='lost';card('Social battery flat.',FAILS[Math.floor(Math.random()*FAILS.length)],'Back to the start of the corridor. Nobody saw anything.','Try again');return}
- S.mode='play';tip(S.cells===1?'One bar of battery left. Tread carefully.':'Go, while they’re pleased with themselves.',3)}
+// A conversation drains the battery for as long as it lasts. Tapping Nod (the Throw button) nods and edges you away in
+// the direction you are steering; stop and they close the gap. Holding it counts as slow tapping. Get clear to escape.
+var fillT=null,C=null,nodHeld=false,DRAIN=1/7,CLEAR=1.9;
+function caught(who){S.mode='chat';S.who=who;S.chats++;held={};nodHeld=false;P.state='idle';P.y=0;P.vy=0;P.nodT=0;P.away=0;C={taps:0,prog:0,auto:0,t:0,arrive:who!=='boss'};
+ var d=who==='boss'?L.boss:L.pacer,tk=$('sgtalk'),mini=who!=='boss';tk.classList.toggle('mini',mini);tk.style.background=mini?'':d.colour;tk.style.top=mini?((tall?sceneH+8:40)+'px'):'';$('sgbub').style.borderColor=d.colour;
+ $('sgwho').textContent=d.name;$('sgline').textContent=d.lines[Math.floor(Math.random()*d.lines.length)];var f=$('sgfill'),words=[];f.textContent='';$('sgnod').hidden=mini;tk.hidden=false;
+ var n=0,order=FILLER.slice().sort(function(){return Math.random()-.5});clearInterval(fillT);fillT=setInterval(function(){words.push(order[n++%order.length]);if(words.length>5)words.shift();f.textContent=words.join(' ')},520);
+ if(who==='boss'){picture()}else{PC.state='talk';PC.f=P.x>=PC.x?1:-1}
+ tip(mini?'Tap NOD and steer away. Keep tapping.':'Keep nodding to edge your chair out of the door.',1e9)}
+// The Boss scene is Barry's drawing; as you nod your way out it slides off, with a bar for how nearly out you are.
+function picture(){var c=$('sgpic').getContext('2d'),w=640,h=300,im=IMG['caught-boss'];c.fillStyle='#fbf1e7';c.fillRect(0,0,w,h);
+ if(im.naturalWidth){var s=Math.max(w/im.naturalWidth,h/im.naturalHeight);c.drawImage(im,(w-im.naturalWidth*s)/2-C.prog*170,(h-im.naturalHeight*s)/2,im.naturalWidth*s,im.naturalHeight*s)}
+ c.fillStyle='rgba(28,22,17,.25)';c.fillRect(20,h-22,w-40,10);c.fillStyle='#1c1611';c.fillRect(20,h-22,(w-40)*Math.min(1,C.prog),10)}
+function nodTap(){if(S.mode!=='chat')return;C.taps++;P.nodT=.2;
+ if(S.who==='boss'){C.prog+=.1;return}if(C.arrive)return;   // she has to reach you before you can start backing off
+ var a=axis(),dn=Math.abs(a)>.12?(a>0?1:-1):(P.x>=PC.x?1:-1);P.x=Math.max(.35,Math.min(L.len-.3,P.x+dn*.2))}
+function chatTick(dt){C.t+=dt;S.batt-=DRAIN*dt;batt();if(P.nodT>0)P.nodT-=dt;
+ if(S.batt<=0){endChat();S.mode='lost';card('Social battery flat.',FAILS[Math.floor(Math.random()*FAILS.length)],'Back to the start of the corridor. Nobody saw anything.','Try again');return}
+ if(nodHeld){C.auto-=dt;if(C.auto<=0){nodTap();C.auto=.42}}
+ if(S.who==='boss'){C.prog=Math.max(0,C.prog-.12*dt);picture();if(C.prog>=1)free();return}
+ var gap=Math.abs(P.x-PC.x);PC.f=P.x>=PC.x?1:-1;P.f=-PC.f;
+ if(C.arrive){if(gap<=.6)C.arrive=false;else PC.x+=PC.f*2.6*dt;return}
+ if(gap>=CLEAR){free();return}if(gap>.55&&P.nodT<=0)PC.x+=PC.f*.35*dt}
+function endChat(){clearInterval(fillT);$('sgtalk').hidden=true;nodHeld=false;C=null}
+function free(){var who=S.who;endChat();S.who=null;S.mode='play';
+ if(who==='boss'){BO.t=0;BO.greet=false;P.x=L.doorway+DOORW/2+.25;P.f=1}else{P.f=P.x>=PC.x?1:-1;P.away=.5;PC.state='walk';PC.blind=4;PC.st=0;PC.t=0}
+ tip(S.batt<.34?'Battery nearly flat. Tread carefully.':'Free. Go, while they’re pleased with themselves.',3)}
 function win(){S.mode='won';card('You’re out.',S.chats===0?'Nobody saw you leave. They’ll assume you’re still in the meeting.':S.chats===1?'One conversation endured. You nodded in all the right places.':S.chats+' conversations endured. You are owed a quiet weekend.',
  'Out in '+Math.round(S.t)+' seconds.','Go again')}
 function card(h,p,sm,btn){$('sgch').textContent=h;$('sgcp').textContent=p;$('sgcs').textContent=sm;$('sgcb').textContent=btn;$('sgintro').hidden=true;$('sgend').hidden=false;$('sgcard').hidden=false;tipEl.hidden=true;$('sgcb').focus()}
@@ -110,7 +124,7 @@ function card(h,p,sm,btn){$('sgch').textContent=h;$('sgcp').textContent=p;$('sgc
 // Anything louder than creeping, near the Boss's door while he is asleep, wakes him early.
 function noise(r){if(S.mode!=='play'||Math.abs(P.x-L.doorway)>(r||DOORW/2+.55)||bossPhase()!==0)return;var b=L.boss;BO.t=b.asleep+b.stir-.45;if(r){tip('The locker door clanged. The Boss is stirring.',3.5)}else if(!S.wokeTip){S.wokeTip=true;tip('Too loud. You woke him. Push the stick gently to creep past.',3.5)}}
 // ---- one tick ----
-function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;
+function update(dt){if(S.mode==='chat'){chatTick(dt);return}if(S.mode!=='play'&&S.mode!=='ready')return;if(P.away>0)P.away-=dt;
  if(tipT<1e8){tipT-=dt;if(tipT<=0){tip(hidden()?'In the recycling. Walk to climb out.':'',1e9)}}
  var a=axis(),d=a>.12?1:a<-.12?-1:0,sp=SPEED*Math.min(1,Math.abs(a)),spot=nearSpot(),duck=ducking()&&!spot;if(P.door>0)P.door-=dt;if(S.mode==='ready'&&(d||hopQ||duck||hideQ)){S.mode='play';tip('Watch what people are doing before you walk past them.',5)}
  if(S.mode==='play')S.t+=dt;
@@ -191,38 +205,41 @@ function draw(){var c=cx,d0=Math.abs(axis())>.12;c.setTransform(dpr,0,0,dpr,0,0)
  if(S.mode==='play'&&!inBin&&Math.abs(P.x-L.bin)<.75)tag('JUMP TO HOP IN',L.bin,FEET-1.25);
  // the Pacer
  if(CK&&IMG.cupcake.naturalWidth){var cw=ART.cupcake.W*k,chh=ART.cupcake.H*k;c.drawImage(IMG.cupcake,CK.x-cw/2,FEET-.02-CK.y-chh,cw,chh)}
- var pf=PC.state==='walk'?WALK[Math.floor(PC.t/.1)%6]:PC.state==='read'?6:PC.state==='spot'?7:PC.state==='lost'?6:PC.state==='c1'?10:PC.state==='c2'?11:PC.state==='c3'?12:PC.state==='c4'?(Math.floor(PC.st/.6)%2?12:13):8;shadow(PC.x,.3,.22);spr('pacer',pf,PC.x,FEET,PC.f<0);
+ var pf=PC.state==='walk'?WALK[Math.floor(PC.t/.1)%6]:PC.state==='read'?6:PC.state==='spot'?7:PC.state==='lost'?6:PC.state==='c1'?10:PC.state==='c2'?11:PC.state==='c3'?12:PC.state==='c4'?(Math.floor(PC.st/.6)%2?12:13):PC.state==='talk'?(C&&C.arrive?WALK[Math.floor(T/.07)%6]:8+Math.floor(T/.43)%2):8;shadow(PC.x,.3,.22);spr('pacer',pf,PC.x,FEET,PC.f<0);
  if(PC.state==='spot'){c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillStyle=L.pacer.colour;c.fillText('!',PC.x+PC.f*.3,FEET-1.5)}
  if(PC.state==='lost'){c.font='800 .24px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillStyle='rgba(60,45,25,.8)';c.fillText('?',PC.x+PC.f*.25,FEET-1.5)}
  // you
- if(!inBin&&!behind&&!tucked){var f=P.state==='duck'&&d0?12+Math.floor(P.t/.16)%6:P.state==='crouch'||P.state==='duck'?7:P.state==='air'?8:P.state==='land'?9:P.state==='walk'?WALK[Math.floor(P.t/.12)%6]:6;shadow(P.x,P.y>0?.2:.27,P.y>0?.1:.2);spr('introvert',f,P.x,FEET-P.y-(P.state==='duck'&&d0?Math.abs(Math.sin(P.t*9))*.025:0),P.f<0)}
+ if(S.mode==='chat'&&S.who==='pacer'){shadow(P.x,.27,.2);spr('introvert',P.nodT>0?(C.taps%2?21:22):(Math.floor(C.t/.5)%2?19:18),P.x,FEET,P.f<0)}
+ else if(P.away>0&&P.state!=='duck'&&P.y===0){shadow(P.x,.27,.2);spr('introvert',23,P.x,FEET,P.f>0)}
+ else if(!inBin&&!behind&&!tucked){var f=P.state==='duck'&&d0?12+Math.floor(P.t/.16)%6:P.state==='crouch'||P.state==='duck'?7:P.state==='air'?8:P.state==='land'?9:P.state==='walk'?WALK[Math.floor(P.t/.12)%6]:6;shadow(P.x,P.y>0?.2:.27,P.y>0?.1:.2);spr('introvert',f,P.x,FEET-P.y-(P.state==='duck'&&d0?Math.abs(Math.sin(P.t*9))*.025:0),P.f<0)}
  c.restore();
  if(left>0){c.fillStyle=CREAM;c.font='600 14px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillText('Unrolling the carpet…',W/2,sceneY+sceneH/2)}
  // the thumb controls: a stick wherever the left thumb lands, Jump and Crouch under the right thumb
  if(tall){c.fillStyle='#1d1a17';c.fillRect(0,sceneH,W,H-sceneH);c.fillStyle='#2a2622';c.fillRect(0,sceneH,W,3)}
- if(S.mode==='play'||S.mode==='ready'){var o=stick||{x0:PAD.sx,y0:PAD.sy,v:0};c.lineWidth=2;c.strokeStyle='rgba(246,239,224,'+(stick?.7:.35)+')';c.fillStyle='rgba(22,20,18,.35)';c.beginPath();c.arc(o.x0,o.y0,PAD.sr,0,6.2832);c.fill();c.stroke();
+ if(S.mode==='play'||S.mode==='ready'||(S.mode==='chat'&&S.who==='pacer')){var chat=S.mode==='chat',o=stick||{x0:PAD.sx,y0:PAD.sy,v:0};c.lineWidth=2;c.strokeStyle='rgba(246,239,224,'+(stick?.7:.35)+')';c.fillStyle='rgba(22,20,18,.35)';c.beginPath();c.arc(o.x0,o.y0,PAD.sr,0,6.2832);c.fill();c.stroke();
   c.fillStyle=Math.abs(o.v)>CREEP?YEL:'rgba(246,239,224,'+(stick?.9:.5)+')';c.beginPath();c.arc(o.x0+o.v*PAD.sr,o.y0,PAD.sr*.45,0,6.2832);c.fill();
   c.font='700 10px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';if(!stick){c.fillStyle='rgba(246,239,224,.55)';c.fillText('CREEP · WALK',o.x0,o.y0+PAD.sr+13)}
-  [['jump','JUMP'],['crouch','CROUCH'],['throw','THROW']].forEach(function(q){var b=PAD[q[0]],on=held[q[0]]!=null;if(q[0]==='throw'){c.globalAlpha=S.cakes>0?1:.35}c.fillStyle=on?YEL:'rgba(22,20,18,.45)';c.strokeStyle='rgba(246,239,224,.7)';c.beginPath();c.arc(b.x,b.y,b.r,0,6.2832);c.fill();c.stroke();c.fillStyle=on?'#1c1611':CREAM;c.font='800 '+(b.r>34?12:10)+'px Montserrat,system-ui,sans-serif';c.fillText(q[0]==='crouch'&&nearSpot()?'HIDE':q[1],b.x,b.y+(q[0]==='throw'?-5:1));if(q[0]==='throw'){c.fillText('× '+S.cakes,b.x,b.y+9)}c.globalAlpha=1});c.textBaseline='alphabetic'}}
+  [['jump','JUMP'],['crouch','CROUCH'],['throw','THROW']].forEach(function(q){var b=PAD[q[0]],on=held[q[0]]!=null;if(chat&&q[0]!=='throw'){c.globalAlpha=.25}else if(chat){on=on||P.nodT>0||Math.floor(T*3)%2===0}else if(q[0]==='throw'){c.globalAlpha=S.cakes>0?1:.35}c.fillStyle=on?YEL:'rgba(22,20,18,.45)';c.strokeStyle='rgba(246,239,224,.7)';c.beginPath();c.arc(b.x,b.y,b.r,0,6.2832);c.fill();c.stroke();c.fillStyle=on?'#1c1611':CREAM;c.font='800 '+(b.r>34?12:10)+'px Montserrat,system-ui,sans-serif';if(chat&&q[0]==='throw'){c.fillText('NOD',b.x,b.y+1)}else{c.fillText(q[0]==='crouch'&&nearSpot()?'HIDE':q[1],b.x,b.y+(q[0]==='throw'?-5:1));if(q[0]==='throw'){c.fillText('× '+S.cakes,b.x,b.y+9)}}c.globalAlpha=1});c.textBaseline='alphabetic'}}
 var last=0;function loop(now){var dt=Math.min(.05,(now-last)/1000||0);last=now;T+=dt;if(!document.hidden&&left<=0)update(dt);draw();requestAnimationFrame(loop)}
 
 // ---- thumbs and keys ----
-function playing(){return S.mode==='play'||S.mode==='ready'}
+function playing(){return S.mode==='play'||S.mode==='ready'||(S.mode==='chat'&&S.who==='pacer')}
 function at(e){var b=cv.getBoundingClientRect();return [e.clientX-b.left,e.clientY-b.top]}
 cv.addEventListener('pointerdown',function(e){if(!playing())return;e.preventDefault();var q=at(e),hit=null;['jump','crouch','throw'].forEach(function(n){var b=PAD[n];if(Math.hypot(q[0]-b.x,q[1]-b.y)<b.r+10)hit=n});
+ if(S.mode==='chat'){if(hit==='throw'){held[hit]=e.pointerId;nodHeld=true;C.auto=.42;nodTap()}else if(!hit&&q[0]<W*.55&&!stick){stick={id:e.pointerId,x0:Math.max(PAD.sr+6,q[0]),y0:q[1],v:0};move(e)}try{cv.setPointerCapture(e.pointerId)}catch(_){}return}
  if(hit){held[hit]=e.pointerId;if(hit==='jump')hopQ=true;if(hit==='throw')throwQ=true;if(hit==='crouch')hideQ=true}else if(q[0]<W*.55&&!stick){var floatOK=!tall||q[1]>sceneH;stick={id:e.pointerId,x0:floatOK?Math.max(PAD.sr+6,q[0]):PAD.sx,y0:floatOK?q[1]:PAD.sy,v:0};move(e)}
  try{cv.setPointerCapture(e.pointerId)}catch(_){}});
 function move(e){if(!stick||e.pointerId!==stick.id)return;var v=(at(e)[0]-stick.x0)/PAD.sr;stick.v=Math.max(-1,Math.min(1,Math.abs(v)<.15?0:v))}
 cv.addEventListener('pointermove',move);
-function lift(e){if(stick&&e.pointerId===stick.id)stick=null;['jump','crouch','throw'].forEach(function(n){if(held[n]===e.pointerId)delete held[n]})}cv.addEventListener('pointerup',lift);cv.addEventListener('pointercancel',lift);
-addEventListener('keydown',function(e){if(!playing())return;var k=e.key.length===1?e.key.toLowerCase():e.key;if(/^(Arrow(Left|Right|Down)|Shift|[ads])$/.test(k)){keys[k]=1;e.preventDefault()}if(k===' '||k==='ArrowUp'||k==='w'){if(!e.repeat)hopQ=true;e.preventDefault()}if(k==='c'||k==='Enter'){if(!e.repeat)throwQ=true;e.preventDefault()}if((k==='ArrowDown'||k==='s')&&!e.repeat)hideQ=true});
-addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};stick=null;held={}});
+function lift(e){if(held['throw']===e.pointerId)nodHeld=false;if(stick&&e.pointerId===stick.id)stick=null;['jump','crouch','throw'].forEach(function(n){if(held[n]===e.pointerId)delete held[n]})}cv.addEventListener('pointerup',lift);cv.addEventListener('pointercancel',lift);
+addEventListener('keydown',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;if(S.mode==='chat'){if(/^(Arrow(Left|Right)|[ad])$/.test(k)){keys[k]=1;e.preventDefault()}if(k==='c'||k==='Enter'||k===' '){if(!e.repeat){nodTap();nodHeld=true;C.auto=.42}e.preventDefault()}return}if(!playing())return;if(/^(Arrow(Left|Right|Down)|Shift|[ads])$/.test(k)){keys[k]=1;e.preventDefault()}if(k===' '||k==='ArrowUp'||k==='w'){if(!e.repeat)hopQ=true;e.preventDefault()}if(k==='c'||k==='Enter'){if(!e.repeat)throwQ=true;e.preventDefault()}if((k==='ArrowDown'||k==='s')&&!e.repeat)hideQ=true});
+addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k];if(k==='c'||k==='Enter'||k===' ')nodHeld=false});addEventListener('blur',function(){keys={};stick=null;held={}});
 $('sggo').addEventListener('click',function(){$('sgcard').hidden=true;cv.focus()});
 $('sgcb').addEventListener('click',function(){$('sgcard').hidden=true;reset()});
-$('sgnod').addEventListener('click',nod);addEventListener('resize',lay);
+(function(b){b.addEventListener('pointerdown',function(e){e.preventDefault();if(S.mode==='chat'){nodHeld=true;C.auto=.42;nodTap()}});['pointerup','pointercancel','pointerleave'].forEach(function(n){b.addEventListener(n,function(){nodHeld=false})});b.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&!e.repeat)nodTap()})})($('sgnod'));addEventListener('resize',lay);
 reset();lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
-window.__sg={L:L,S:function(){return S},P:function(){return P},PC:function(){return PC},phase:bossPhase,ready:function(){return left<=0},hold:function(v){stick=v?{id:-1,x0:PAD.sx,y0:PAD.sy,v:v}:null},hide:function(){hideQ=true},BO:function(){return BO},frame:bossFrame,duck:function(on){if(on)held.crouch=-1;else delete held.crouch},toss:function(){throwQ=true},CK:function(){return CK},hop:function(){hopQ=true},step:function(n){for(var i=0;i<n;i++)update(1/30)}};
+window.__sg={L:L,S:function(){return S},P:function(){return P},PC:function(){return PC},phase:bossPhase,ready:function(){return left<=0},hold:function(v){stick=v?{id:-1,x0:PAD.sx,y0:PAD.sy,v:v}:null},hide:function(){hideQ=true},nod:nodTap,BO:function(){return BO},frame:bossFrame,duck:function(on){if(on)held.crouch=-1;else delete held.crouch},toss:function(){throwQ=true},CK:function(){return CK},hop:function(){hopQ=true},step:function(n){for(var i=0;i<n;i++)update(1/30)}};
 })();`;
 
 export function levelPage(page, hub, v) {
@@ -232,11 +249,11 @@ export function levelPage(page, hub, v) {
 <canvas id="sgc" tabindex="0" role="img" aria-label="A side-on view of a long office corridor. Use the on-screen stick to creep or walk, and the Jump and Crouch buttons. On a keyboard: arrow keys to walk, Shift to creep, Space to jump, down arrow to crouch."></canvas>
 <div class="hud"><span class="bat" id="sgb" role="img" aria-label="Social battery: 3 of 3"><i></i><i></i><i></i></span></div>
 <p class="tip" id="sgt" role="status" aria-live="polite"></p>
-<div class="talk" id="sgtalk" hidden><canvas id="sgpic" width="640" height="300" aria-hidden="true"></canvas><div class="bub"><small id="sgwho"></small><p id="sgline"></p><p class="fill" id="sgfill"></p></div><button class="btn" id="sgnod" type="button" hidden>Nod. Back away slowly.</button></div>
+<div class="talk" id="sgtalk" hidden><canvas id="sgpic" width="640" height="300" aria-hidden="true"></canvas><div class="bub" id="sgbub"><small id="sgwho"></small><p id="sgline"></p><p class="fill" id="sgfill"></p></div><button class="btn" id="sgnod" type="button" hidden>Nod. Keep nodding.</button></div>
 <div class="card" id="sgcard"><div>
 <div id="sgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p>The meeting has finished. The fire exit is at the far end of the corridor.</p>
-<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> dozes. Creep past his door (walking wakes him), or crouch-walk under his eyeline.</li><li><b>Hide</b> in the recycling (jump), behind the water cooler (crouch), or in the coats or the locker (the Crouch button turns to Hide).</li><li><b>Neither of them can resist a cupcake.</b> You have two.</li></ul>
+<ul><li><b>Left thumb</b> steers: push gently to creep, further to walk. <b>Right thumb</b> jumps, crouches and throws.</li><li><b>The Pacer</b> checks her clipboard at each end of her walk. That’s your moment.</li><li><b>The Boss</b> dozes. Creep past his door (walking wakes him), or crouch-walk under his eyeline.</li><li><b>Hide</b> in the recycling (jump), behind the water cooler (crouch), or in the coats or the locker (the Crouch button turns to Hide).</li><li><b>Neither of them can resist a cupcake.</b> You have two.</li><li><b>Caught?</b> Conversation drains your battery. Tap Nod and steer away until you’re clear.</li></ul>
 <p class="sm">Turn your phone sideways to see further. No sound. On a computer: arrow keys, hold Shift to creep, Space to jump, down to crouch, C to throw.</p>
 <p class="go"><button class="btn" id="sggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="sgend" hidden><p class="pre">Introvert Here…</p><h2 id="sgch"></h2><p id="sgcp"></p><p class="sm" id="sgcs"></p>
