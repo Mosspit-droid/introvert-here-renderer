@@ -1042,8 +1042,8 @@ function dorisPage() {
 <p>Which photo do you take?</p>${lock("Number", 1)}`),
     pz(5, "The tea round", "Make the teas.", `<p>You’re halfway to the back door when Doris spots you. “Ooh, you’re near the kettle! Be a love and do the teas.” Then she reels off the orders, and goes to find a plate for the biscuits.</p>
 <div class="txt" style="background:#3a1416"><small>Aunt Doris</small>Mine’s milk and two sugars. Gareth has the same as me, he always has. Our Dave has one less than Gareth, he’s cutting down for his marathon. Uncle Mike has double whatever Dave has. And your Gran has as many as the rest of us put together, she’s ninety-four, she can do what she likes.</div>
-<div class="txt"><small>Gran, from her chair</small>I don’t take sugar. I’m diabetic. She knows that. Sweeteners. Same number, mind.</div>
-<div class="txt"><small>Gareth, passing</small>Dad’s off sugar too since his check-up. Same number, but sweeteners.</div>
+<div class="txt"><small>Gran, from her chair</small>I can’t have sugar, I’m diabetic. She knows that. Give me sweeteners instead. However many sugars she just said for me, that many sweeteners.</div>
+<div class="txt"><small>Gareth, passing</small>Dad’s off sugar too since his check-up. Same for him: sweeteners instead, the number Mum said.</div>
 <p>How many sugars go on the tray, and how many sweeteners? (Sugars first, then sweeteners.)</p>${lock("Sugars, sweeteners", 1)}`),
     pz(6, "Charades", "Guess the phrase.", `<p>Uncle Mike has started a game of charades in the living room, and you’ve been put on Doris’s team. Nobody can leave until your team gets one right. Uncle Mike stands up.</p>
 <ul class="clues"><li>He holds up three fingers. Three words.</li><li>First word: he holds his arm up like a branch, then flutters his fingers slowly down to the carpet.</li><li>Second word: he points at himself.</li><li>Third word: he tugs his ear. Then he takes out his wallet, hands Gareth a fiver, and wags his finger: he wants it back.</li></ul>
