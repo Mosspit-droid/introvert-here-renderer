@@ -419,10 +419,12 @@ footer a{margin-right:14px}
 body.r-PC{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#0d1420 url(/bg-PC.jpg?v=${ASSET_V}) center top/1800px auto repeat}
 body.r-PC .muted,body.r-PC .tabs a:not(.on),body.r-OS .muted,body.r-OS .tabs a:not(.on){color:#ded9cf}
 body.r-OS{background:linear-gradient(rgba(255,255,255,.14),rgba(255,255,255,.14)),#2a0c0b url(/bg-OS.jpg?v=${ASSET_V}) center top/1800px auto repeat}
-/* In Person: pale oak page (Barry's picture, 20 Nov) behind the blue-slat banner. A light page, so its text is dark and its panels are cream. */
+/* In Person: pale oak page (Barry's picture, 20 Nov) behind the blue-slat banner. A light page, so its text is dark. */
 body.r-IP{background:#e3b47e;--text:#201c17;--muted:#4f463b;--line:#a88f72;--bg:#f6ecdc;--panel:rgba(250,243,232,.9);--accent:#201c17}
 body.r-IP::before{content:"";position:fixed;inset:0;z-index:-1;background:#e3b47e url(/bg-IP2.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-IP header{--text:#f2f0ea;--line:#3b3a35;color:#f2f0ea}
+/* ...but its product tiles and info boxes are the same dark panels as every other range (Barry, 21 Nov) */
+body.r-IP .tile,body.r-IP .box{--text:#f2f0ea;--muted:#c4c0b6;--line:#3b3a35;--panel:rgba(22,22,20,.86);color:#f2f0ea}
 body.r-EX{background:#2a1410}
 body.r-EX::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(rgba(12,6,5,.5),rgba(12,6,5,.5)),#2a1410 url(/bg-EX.jpg?v=${ASSET_V}) center/cover no-repeat}
 body.r-EX .muted,body.r-EX .tabs a:not(.on){color:#eadfd6}
