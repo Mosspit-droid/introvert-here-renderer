@@ -12,6 +12,11 @@ def key(path):
     gone = np.clip((d - 35) / 60, 0, 1) * bright
     g2 = g - np.clip(d, 0, None) * bright                                     # take the green cast off the edges
     return np.dstack([r, g2, b, (1 - gone) * 255]).astype(np.uint8)
+def key2(path):
+    """For sheets with green clothes in them: only the pure screen green goes (hardly any red or blue in it)."""
+    a = np.asarray(Image.open(os.path.join(SRC, path)).convert("RGB")).astype(np.float32); r, g, b = a[..., 0], a[..., 1], a[..., 2]
+    screen = (r < 40) & (b < 40); gone = np.where(screen, np.clip((g - 110) / 110, 0, 1), 0); g2 = np.where(screen, np.minimum(g, 25), g)
+    return np.dstack([r, g2, b, (1 - gone) * 255]).astype(np.uint8)
 def runs(mask, gap):
     out, start, last = [], None, None
     for i, v in enumerate(mask):
@@ -76,6 +81,23 @@ fd = figures(key("flat-decor.png"), 3); assert len(fd) == 14, len(fd); dh = [2.2
 cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(fd)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
 save("flat-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
 
+# Level 2, the high street. People are lined up on their feet (props like leads and musical notes stick out sideways).
+def cellf(fig, s, cw, ch, ax, base):
+    im = scaled(fig, s); a = np.asarray(im)[..., 3] > 128; xs = np.where(a[int(a.shape[0] * .9):].any(axis=0))[0]; cxf = (xs[0] + xs[-1]) / 2
+    c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - cxf), base - im.height)); return c
+# Standers: neighbour 0-1, busker 2-3, hen in a sash 4-5, hen in a boa 6-7 (idle, then talking)
+sp = figures(key2("street-people.png"), 2); assert len(sp) == 8, len(sp); s = 2.1 * PPT / sp[0].shape[0]
+save("street-people", strip([cellf(f, s, 380, 262, 150, 258) for f in sp]), w=380, h=262, ax=150, base=258, n=8)
+# Movers: charity collector walking 0-3, old school friend running 4-6 and out of breath 7. The cyclist has his own strip.
+sm = figures(key("street-movers.png"), 3); assert len(sm) == 10, len(sm); s1 = 2.05 * PPT / max(f.shape[0] for f in sm[:4]); s2 = 2.05 * PPT / sm[5].shape[0]
+save("street-movers", strip([cell(f, s1, cw=340, ch=262, ax=165, base=258, top=.4) for f in sm[:4]] + [cell(f, s2, cw=340, ch=262, ax=165, base=258, top=.4) for f in sm[4:8]]), w=340, h=262, ax=165, base=258, n=8)
+s3 = 2.05 * PPT / sm[8].shape[0]; save("street-bike", strip([cellf(f, s3, 300, 250, 150, 246) for f in sm[8:]]), w=300, h=250, ax=150, base=246, n=2)
+st = figures(key("street-things.png"), 2); assert len(st) == 7, len(st); names = ["dog", "brolly", "crate", "awning", "box", "bus", "gate"]; tall_ = [1.05, 1.5, 1.0, 1.35, 2.35, 1.85, 3.3]
+cells = [scaled(f, tall_[i] * PPT / f.shape[0]) for i, f in enumerate(st)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("street-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)}, ppt=PPT)
+sh = figures(key("street-shops.png"), 2, gap=8); assert len(sh) == 10, len(sh); cells = [scaled(f, 5.0 * PPT * .6 / f.shape[0]) for f in sh]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("street-shops", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(10)], ppt=PPT * .6)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -134,8 +156,8 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     f.write("// Made by cut.py from Barry's drawings in src/. Do not edit by hand.\nexport const PPH = %d;\nexport const ART = %s;\nexport const FILES = {\n" % (PPH, json.dumps(ART)))
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
-chk = Image.new("RGB", (2000, 1700), "#fbf1e7"); y = 10
-for n in ("flat-decor", "flat-things"):
+chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
+for n in ("street-people", "street-movers", "street-bike", "street-things", "street-shops"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
