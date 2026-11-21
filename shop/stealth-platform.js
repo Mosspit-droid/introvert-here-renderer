@@ -85,13 +85,13 @@ var RUN=5.6,ACC=46,AIR=78,JUMP=17,GRAV=42,FALLMAX=22,HOODMAX=2.4,HW=.3,HH=1.5;
 function tile(x,y){return y<0?'.':y>=MH?'.':x<0||x>=MW?'#':MAP[y].charAt(x)}
 function solid(x,y){var c=tile(x,y);return c==='#'||c==='F'}
 
-var S,P,people,items,bubbles,says,T=0,keys={},btn={},stick=null,jumpQ=0;
+var S,P,people,items,bubbles,says,T=0,keys={},btn={},stick=null,jumpQ=0,look=null,lookX=0,lookY=0,bcx=0,bcy=0;   // look = a finger dragging the picture to look around (the game waits)
 function reset(){people=[];items=[];bubbles=[];says=[];var sx=2,sy=8;
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='P'||c==='W'||c==='T'||c==='C')people.push({k:c,x:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
   else if('oNH'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
  P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,walkT:0,safe:[sx+.5,sy+1],wave:0};
- S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0}
+ S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
 function flat(){S.mode='lost';card('Social battery flat.',pick(FAILS),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
@@ -107,7 +107,7 @@ function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i
 // ---- one tick ----
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
-function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;
+function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
  // Hood Up: on the ground, while B is held and there is hood left
@@ -176,7 +176,8 @@ function person(p){var moving=p.k==='W'||(p.k==='C'&&p.run>0),c=cx,col=p.k==='W'
 function bubbleSay(t,x,y,a){var c=cx;c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(t).width+.5;x=Math.max(cam+w/2+.1,Math.min(cam+vw-w/2-.1,x));y=Math.max(camY+.5,y);
  c.globalAlpha=a;c.fillStyle='#fff';rr(x-w/2,y-.3,w,.6,.22);c.fill();ink(.07);c.fillStyle=INK;c.fillText(t,x,y+.02);c.globalAlpha=1}
 function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c.fillRect(0,0,W,H);
- var snap=calm||S.mode==='ready',want=Math.max(0,Math.min(MW-vw,P.x-vw*(P.f>0?.36:.5))),wy=Math.max(0,Math.min(MH-VIEW,P.y-VIEW*.68));cam+=(want-cam)*(snap?1:.1);camY+=(wy-camY)*(snap?1:.07);
+ cam=bcx;camY=bcy;var snap=calm||S.mode==='ready',want=Math.max(0,Math.min(MW-vw,P.x-vw*(P.f>0?.36:.5))),wy=Math.max(0,Math.min(MH-VIEW,P.y-VIEW*.68));cam+=(want-cam)*(snap?1:.1);camY+=(wy-camY)*(snap?1:.07);
+ bcx=cam;bcy=camY;if(!look){lookX*=.8;lookY*=.8;if(Math.abs(lookX)<.02)lookX=0;if(Math.abs(lookY)<.02)lookY=0}cam=Math.max(0,Math.min(MW-vw,cam+lookX));camY=Math.max(0,Math.min(MH-VIEW,camY+lookY));
  c.save();c.beginPath();c.rect(0,sceneY,W,sceneH);c.clip();c.translate(0,sceneY);c.scale(u,u);c.translate(-cam,-camY);
  var x0=Math.floor(cam)-1,x1=Math.ceil(cam+vw)+1,x,y,t;
  // the wall, with windows on the sky
@@ -217,6 +218,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var hx=W-12,hy=sceneY+10;c.fillStyle='rgba(27,27,42,.78)';rr(hx-214,hy,214,28,9);c.fill();hx-=14;
  c.strokeStyle=CREAM;c.lineWidth=2;rr(hx-188,hy+6,64,16,4);c.stroke();c.fillStyle=CREAM;c.fillRect(hx-122,hy+10,3,8);c.fillStyle=S.batt>.3?YEL:'#ff6a4f';c.fillRect(hx-185,hy+9,58*Math.max(0,S.batt),10);
  c.fillStyle=CREAM;c.font='700 12px Montserrat,system-ui,sans-serif';c.textAlign='left';c.textBaseline='middle';c.fillText('TEA '+S.tea,hx-110,hy+15);c.fillText('NOTES '+S.notes+'/3',hx-62,hy+15);
+ if(look){c.font='800 12px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var lw=c.measureText('LOOKING AROUND · GAME PAUSED').width+24;c.fillStyle=YEL;rr(W/2-lw/2,sceneY+sceneH-34,lw,24,12);c.fill();c.fillStyle='#1c1611';c.fillText('LOOKING AROUND · GAME PAUSED',W/2,sceneY+sceneH-21)}
  if(!ready){c.fillStyle=CREAM;c.textAlign='center';c.font='600 14px Montserrat,system-ui,sans-serif';c.fillText('Unrolling the carpet…',W/2,sceneY+sceneH/2)}
  // the buttons, laid out like an old handheld
  if(tall){c.fillStyle='#2b2e3a';c.fillRect(0,sceneH,W,H-sceneH);c.fillStyle='#14151c';c.fillRect(0,sceneH,W,4)}
@@ -232,19 +234,20 @@ var ptr={};
 function at(e){var b=cv.getBoundingClientRect();return [e.clientX-b.left,e.clientY-b.top]}
 function sync(){btn={};for(var id in ptr)if(ptr[id])btn[ptr[id]]=1}
 cv.addEventListener('pointerdown',function(e){if(S.mode!=='play'&&S.mode!=='ready')return;e.preventDefault();var q=at(e),hit=null;['a','b'].forEach(function(n){var p=PAD[n];if(Math.hypot(q[0]-p.x,q[1]-p.y)<p.r+18)hit=n});
- if(hit){ptr[e.pointerId]=hit;if(hit==='a')jumpQ=.12;sync()}else if(q[0]<W*.55&&!stick){var fl=!tall||q[1]>sceneH;stick={id:e.pointerId,x0:fl?Math.max(PAD.s.r+6,q[0]):PAD.s.x,y0:fl?q[1]:PAD.s.y,v:0};move(e)}
+ if(hit){ptr[e.pointerId]=hit;if(hit==='a')jumpQ=.12;sync()}else if(tall?q[1]<sceneH:q[1]<sceneY+sceneH*.52){if(!look)look={id:e.pointerId,x:q[0],y:q[1]}}   // a finger on the picture itself: drag to look around
+ else if(q[0]<W*.55&&!stick){stick={id:e.pointerId,x0:Math.max(PAD.s.r+6,q[0]),y0:q[1],v:0};move(e)}
  try{cv.setPointerCapture(e.pointerId)}catch(_){}});
-function move(e){if(!stick||e.pointerId!==stick.id)return;stick.v=Math.max(-1,Math.min(1,(at(e)[0]-stick.x0)/(PAD.s.r*.6)))}
+function move(e){if(look&&e.pointerId===look.id){var q=at(e);lookX=Math.max(-16,Math.min(16,lookX-(q[0]-look.x)/u));lookY=Math.max(-10,Math.min(10,lookY-(q[1]-look.y)/u));look.x=q[0];look.y=q[1];return}if(!stick||e.pointerId!==stick.id)return;stick.v=Math.max(-1,Math.min(1,(at(e)[0]-stick.x0)/(PAD.s.r*.6)))}
 cv.addEventListener('pointermove',move);
-function up(e){if(stick&&e.pointerId===stick.id)stick=null;delete ptr[e.pointerId];sync()}cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+function up(e){if(look&&e.pointerId===look.id)look=null;if(stick&&e.pointerId===stick.id)stick=null;delete ptr[e.pointerId];sync()}cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
 addEventListener('keydown',function(e){if(S.mode!=='play'&&S.mode!=='ready')return;var k=e.key.length===1?e.key.toLowerCase():e.key;if(/^(Arrow(Left|Right|Up|Down)|Shift| |[adwszx])$/.test(k)){if(!e.repeat&&(k==='z'||k===' '||k==='ArrowUp'||k==='w'))jumpQ=.12;keys[k]=1;e.preventDefault()}});
-addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null});
+addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null;look=null});
 $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()});
 $('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else reset()});
 addEventListener('resize',lay);reset();lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
 window.__pg={S:function(){return S},P:function(){return P},people:function(){return people},items:function(){return items},bubbles:function(){return bubbles},map:MAP,ready:function(){return ready},
- press:function(n,on){if(n==='l'||n==='r'){stick=on?{id:-1,x0:0,y0:0,v:n==='r'?1:-1}:(stick&&stick.v===(n==='r'?1:-1)?null:stick);return}if(on){btn[n]=1;if(n==='a')jumpQ=.12}else delete btn[n]},restart:function(){reset()},step:function(n){for(var i=0;i<n;i++)update(1/60)}};
+ look:function(){return [look,lookX,lookY,cam,camY]},press:function(n,on){if(n==='l'||n==='r'){stick=on?{id:-1,x0:0,y0:0,v:n==='r'?1:-1}:(stick&&stick.v===(n==='r'?1:-1)?null:stick);return}if(on){btn[n]=1;if(n==='a')jumpQ=.12}else delete btn[n]},restart:function(){reset()},step:function(n){for(var i=0;i<n;i++)update(1/60)}};
 })();`;
 
 export function platformPage(page, hub, v) {
@@ -255,7 +258,7 @@ export function platformPage(page, hub, v) {
 <div class="card" id="pgcard"><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p>${LEVEL.name}. The door is at the far end. Everyone between you and it would love a chat.</p>
-<ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
+<ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level with stand-in art. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
