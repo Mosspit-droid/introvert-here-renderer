@@ -103,6 +103,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
+      if (path === HUB.path + "/escape-the-party") return html(partyPage());
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
@@ -534,6 +535,21 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
 .thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
 .xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+/* Escape the Party: a sample paper escape room. One puzzle at a time; each answer opens a padlock. */
+.ep{max-width:640px;margin:0 auto}.ep .box{--fc:#fad00c;--pad:clamp(14px,3vw,22px);margin:16px 0 18px}
+.ep h2{margin:2px 0 8px;font-size:clamp(20px,4.6vw,26px)}.ep p{line-height:1.5}
+.ep .step{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}
+.ep .clues{margin:10px 0;padding-left:20px}.ep .clues li{margin:6px 0;line-height:1.45}
+.coats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.coats svg{width:100%;height:auto;display:block;background:#24231f;border-radius:10px}
+.txt{background:#24231f;border-radius:14px 14px 14px 4px;padding:11px 14px;max-width:85%;margin:10px 0;line-height:1.45}.txt small{display:block;color:var(--muted);font-size:12px;margin-bottom:3px}
+.lock{display:flex;flex-direction:column;align-items:center;gap:12px;margin:18px 0 6px}
+.lock svg{width:74px;height:auto;overflow:visible}.lock .sh{transition:transform .5s cubic-bezier(.3,1.6,.5,1)}.lock.open .sh{transform:translateY(-16px)}
+.lock.no svg{animation:lockno .45s}@keyframes lockno{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.lock form{display:flex;gap:8px;width:100%;max-width:340px}.lock input{flex:1;min-width:0;padding:12px 14px;border-radius:8px;border:1px solid var(--line);background:#141412;color:var(--text);font:700 20px Montserrat,sans-serif;letter-spacing:.18em;text-transform:uppercase;text-align:center}
+.lock .btn{margin:0}.ep .say{min-height:1.5em;text-align:center;color:var(--muted);margin:4px 0}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:260px;margin:12px auto}.keys b{display:flex;flex-direction:column;align-items:center;justify-content:center;height:52px;border-radius:10px;background:#24231f;font-size:20px;line-height:1}.keys b small{font-size:10px;letter-spacing:.14em;color:var(--muted);margin-top:3px;font-weight:700}
+.ep .hint{margin:0}.ep .hints p{color:#e9d9a0;font-style:italic;margin:8px 0}
+@media (prefers-reduced-motion:reduce){.lock .sh{transition:none}.lock.no svg{animation:none}}
 /* Vote on the next gag: three cards, each the gag on its range's video background, typed out like the videos. */
 .vlead{max-width:640px}
 .vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:20px 0 10px}
@@ -953,6 +969,65 @@ function gatePage() {
 // remember that this visitor has been through the gate, so later visits can go straight in
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
+// ---------------- Escape the Party (a sample paper escape room) ----------------
+// Bookshelf in the room (Barry, 21 Nov: "build the sample"). Three short puzzles; each answer opens a padlock and the
+// next step. Hints come one at a time; the second hint gives the answer away. A trial to see whether paper escape
+// rooms are worth doing properly (a printable version would follow). The wording is a draft for Barry.
+const PARTY_COATS = [   // colour, hood, buttons, tag: only one fits all four clues (53)
+  ["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66],
+];
+function partyCoat([col, hood, buttons, tag]) {
+  const b = Array.from({ length: buttons }, (_, k) => `<circle cx="60" cy="${56 + k * (60 / Math.max(buttons, 1))}" r="3.4" fill="#e9e4d6"/>`).join("");
+  return `<svg viewBox="0 0 120 150" role="img" aria-label="A coat with tag ${tag}: ${hood ? "hood" : "no hood"}, ${buttons} button${buttons === 1 ? "" : "s"}">
+<path d="M60 12v8M44 22q16-14 32 0" fill="none" stroke="#9a958a" stroke-width="3" stroke-linecap="round"/>
+${hood ? `<path d="M40 40q20-34 40 0q-6 6-20 6t-20-6z" fill="${col}" stroke="#000" stroke-opacity=".35" stroke-width="2"/>` : ""}
+<path d="M42 38l-22 14-8 60 14 4 8-44v66h52V82l8 44 14-4-8-60-22-14q-6 10-18 10t-18-10z" fill="${col}" stroke="#000" stroke-opacity=".35" stroke-width="2"/>
+<path d="M60 48v80" stroke="#000" stroke-opacity=".3" stroke-width="2"/>${b}
+<g transform="translate(78 92) rotate(10)"><rect x="0" y="0" width="30" height="22" rx="3" fill="#f2f0ea"/><text x="15" y="16" text-anchor="middle" font-family="Montserrat,sans-serif" font-weight="800" font-size="13" fill="#141412">${tag}</text></g></svg>`;
+}
+const PARTY_LOCK = `<svg viewBox="0 0 80 96" aria-hidden="true"><path class="sh" d="M20 44V28a20 20 0 0 1 40 0v16" fill="none" stroke="#c9c4b6" stroke-width="9" stroke-linecap="round"/><rect x="6" y="40" width="68" height="52" rx="10" fill="#fad00c"/><circle cx="40" cy="62" r="7" fill="#141412"/><path d="M40 64v14" stroke="#141412" stroke-width="5" stroke-linecap="round"/></svg>`;
+const PARTY_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
+function partyPage() {
+  const lock = (k, ph, mode) => `<div class="lock" data-k="${k}">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${mode === "num" ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div><p class="say" role="status" aria-live="polite"></p>`;
+  const hints = `<div class="hints"></div><p style="text-align:center"><button class="btn ghost hint" type="button">Hint, please</button></p>`;
+  return page("Escape the Party", `<div class="ep"><p class="label" style="margin-top:26px">${esc(HUB.name)} · Paper escape room (sample)</p><h1 style="margin-top:4px">Escape the Party</h1>
+<section class="box pz" data-k="0"><p class="step">The situation</p><h2>You’re at Gareth’s housewarming.</h2>
+<p>You’ve done forty minutes. You’ve admired the kitchen. You’ve heard about the boiler. That’s enough.</p>
+<p>Three things stand between you and your sofa: your coat, a way out, and the code for the back gate. Nobody can see you leave.</p>
+<p style="text-align:center"><button class="btn" id="go" type="button">Start sneaking</button></p></section>
+<section class="box pz" data-k="1" hidden><p class="step">1 of 3 · The coat pile</p><h2>Find your coat.</h2>
+<p>Every coat in the house is in a heap on the spare bed. You can’t remember which tag is yours. Luckily you remember four things about your coat:</p>
+<ul class="clues"><li>It has a hood. (Obviously. Hoods are for hiding in.)</li><li>It isn’t green.</li><li>It has more buttons than the red one.</li><li>Its tag number is odd.</li></ul>
+<div class="coats">${PARTY_COATS.map(partyCoat).join("")}</div><p>The tag number opens the padlock.</p>${lock(1, "Tag number", "num")}${hints}</section>
+<section class="box pz" data-k="2" hidden><p class="step">2 of 3 · The way out</p><h2>Pick your exit.</h2>
+<p>There are four ways out of the house: the front door, the kitchen door, the garden door, and the window in the downstairs loo. Three of them are guarded, by accident, by people who want to talk to you:</p>
+<ul class="clues"><li><b>Gareth</b> wants to show you his sourdough starter. He hasn’t left it all night.</li><li><b>Dave from accounts</b> is stretching for his marathon, somewhere he can feel grass under his feet.</li><li><b>Auntie Pam</b> wants to know why you’re still single. She’s standing by an exit she can say goodbye to everyone from, and she would never loiter near a toilet.</li></ul>
+<p>Which way do you go?</p>${lock(2, "Your exit", "text")}${hints}</section>
+<section class="box pz" data-k="3" hidden><p class="step">3 of 3 · The back gate</p><h2>Crack the gate code.</h2>
+<p>You’re out. The back gate has a keypad. Your phone buzzes:</p>
+<div class="txt"><small>Sam (the only friend who gets it)</small>Gate code is where your evening was supposed to be spent. On the ____. 4 letters. Go. 🛋</div>
+<div class="keys" aria-hidden="true">${PARTY_KEYS.map(([n, l]) => `<b>${n}<small>${l || "&nbsp;"}</small></b>`).join("")}</div>${lock(3, "4-digit code", "num")}${hints}</section>
+<section class="box pz" data-k="4" hidden><p class="step">Escaped</p><h2>You’re out. Nobody noticed.</h2>
+<p id="won"></p><p>Tomorrow you’ll text Gareth to say what a lovely evening it was. He’ll never know.</p>
+<p class="note">This is a sample. If it’s fun, more are on the way: escape the office do, the wedding, the family Christmas.</p>
+<p style="text-align:center"><a class="btn" href="${HUB.path}">Back to the room</a></p></section>
+<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", desc: "Escape the Party: a short paper escape room for people who'd rather be at home.", script: `
+(function(){var t0=0,$=function(q,r){return (r||document).querySelector(q)};
+// answers (letters and digits only), the lines for a wrong try, and two hints each (the second gives it away)
+var A={1:/^53$/,2:/LOO|WINDOW|TOILET|BATHROOM|WC|LAV/,3:/^7632$/};
+var NO={1:['That coat belongs to someone who enjoys parties.','Not yours. Smells of networking.','No. Read the clues again. Quietly.'],2:['Someone’s guarding that one. They’ve seen you.','Too risky. Somebody would want a chat.','No. Think about who’s standing where.'],3:['The gate stays shut. The dog next door starts barking.','Beep. Wrong. Very loud beep.','No. Look at the letters on the keypad.']};
+var H={1:['Cross out the coats without hoods first, then the green one. That leaves four. The red coat has two buttons.','It’s the navy coat with a hood and four buttons: tag 53.'],2:['Gareth won’t leave his sourdough, so he’s in the kitchen. Grass means the garden.','Pam’s at the front door saying goodbye to everyone. That leaves the downstairs loo window. Type LOO.'],3:['Each number on the keypad has letters under it, like an old phone. Spell the word with numbers.','The word is SOFA: S is 7, O is 6, F is 3, A is 2. The code is 7632.']};
+var tries={1:0,2:0,3:0},used={1:0,2:0,3:0};
+function show(k){[].forEach.call(document.querySelectorAll('.pz'),function(s){s.hidden=+s.dataset.k!==k});var s=$('.pz[data-k="'+k+'"]');s.scrollIntoView({block:'start'});scrollBy(0,-80);var i=$('input',s);if(i)setTimeout(function(){i.focus({preventScroll:true})},300)}
+function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
+$('#go').addEventListener('click',function(){t0=Date.now();show(1)});
+[].forEach.call(document.querySelectorAll('.lock'),function(l){var k=+l.dataset.k,s=l.closest('.pz'),say=$('.say',s);
+ $('form',l).addEventListener('submit',function(e){e.preventDefault();var v=String($('input',l).value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
+  if(A[k].test(v)){l.classList.add('open');say.textContent='Click. It opens.';setTimeout(function(){if(k<3)show(k+1);else{$('#won').textContent='Time: '+fmt(Date.now()-t0)+'. Hints used: '+(used[1]+used[2]+used[3])+'.';show(4)}},900)}
+  else{l.classList.remove('no');void l.offsetWidth;l.classList.add('no');say.textContent=NO[k][tries[k]++%NO[k].length]}});
+ $('.hint',s).addEventListener('click',function(){var h=H[k];if(used[k]<h.length){var p=document.createElement('p');p.textContent=h[used[k]++];$('.hints',s).appendChild(p)}if(used[k]>=h.length)this.hidden=true;else this.textContent='Another hint'})})})();` });
+}
+
 // ---------------- Vote on the next gag ----------------
 // The jar in the room (Barry, 21 Nov). Three gags that aren't out yet, picked automatically: the next three on the
 // release schedule ("we're creating the illusion of choice"), so they all come out anyway, in schedule order. Vote
@@ -1131,7 +1206,7 @@ setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})()
 const ROOM = [
   { name: "Stealth game", soon: "The console isn’t plugged in yet. The stealth game is on its way. Come back later.",
     wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
-  { name: "Paper escape rooms", soon: "The paper escape rooms are still at the printers. Come back later.",
+  { name: "Paper escape rooms", href: HUB.path + "/escape-the-party",
     wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
   { name: "Spot the Introvert", href: HUB.path + "/spot",
     wide: { r: [[20.5, 19, 12.2, 21]], d: [26.6, 29] }, tall: { r: [[37.3, 12.6, 20, 9.5]], d: [47.3, 15.6], f: "rb" } },
