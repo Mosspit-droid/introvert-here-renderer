@@ -92,7 +92,7 @@ async function route(request, env, ctx) {
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
       if (path === "/uk") {   // old shop links (/uk?c=PC) still work
         if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
-        return html(frontPage(await catalog(env)));
+        return html(frontPage(await catalog(env), url.searchParams.get("look") === "wide"));   // ?look=wide: a variation for Barry to compare
       }
       if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
       if (path === HUB.path) return html(hubPage());
@@ -109,7 +109,7 @@ async function route(request, env, ctx) {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
-      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg", "/bg-IP2.jpg", "/bg-SH2.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
+      if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg", "/logo-wide.png", "/bg-IP2.jpg", "/bg-SH2.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
       }
@@ -336,11 +336,13 @@ body{margin:0;background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.
 a{color:inherit}.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
 header{border-bottom:1px solid var(--line);background:rgba(10,10,9,.55)}header .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
 header img{height:56px;width:auto;display:block;border-radius:4px}
+header img.wl{height:38px;border-radius:0}
+.strap{text-align:center;font-weight:800;text-transform:uppercase;letter-spacing:.2em;font-size:clamp(13px,1.7vw,20px);margin:clamp(22px,3.4vw,44px) 0 clamp(4px,1vw,12px);text-wrap:balance}
 .basket-link{text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:600;white-space:nowrap}
 nav.top{display:flex;align-items:center;gap:clamp(10px,2.4vw,26px);font-size:14px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 nav.top a{text-decoration:none;opacity:.78;white-space:nowrap}nav.top a:hover,nav.top a.on{opacity:1}nav.top a.on:not(.basket-link){border-bottom:2px solid currentColor;padding-bottom:2px}
 nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
-@media(max-width:520px){nav.top{font-size:12px;gap:10px;letter-spacing:.04em}header img{height:40px}nav.top .basket-link{padding:5px 10px}}
+@media(max-width:520px){nav.top{font-size:12px;gap:10px;letter-spacing:.04em}header img{height:40px}header img.wl{height:auto;width:29vw;max-width:150px}nav.top .basket-link{padding:5px 10px}}
 /* Front page: two doors of equal weight, then a strip from each side */
 .doors{display:grid;grid-template-columns:1fr 1fr;gap:clamp(12px,2vw,22px);margin:clamp(14px,2.4vw,26px) 0 0}
 .door{position:relative;display:block;overflow:hidden;border-radius:clamp(14px,1.8vw,22px);aspect-ratio:4/5;max-height:74vh;width:100%;text-decoration:none;color:#fff;background:#000;border:1px solid rgba(255,255,255,.16);box-shadow:0 24px 60px rgba(0,0,0,.45);isolation:isolate}
@@ -441,7 +443,7 @@ function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}"` : ""}>
-<header><div class="wrap"><a href="/uk"><img src="${LOGO}" alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
+<header><div class="wrap"><a href="/uk${opts.wide ? "?look=wide" : ""}"><img ${opts.wide ? `class="wl" src="/logo-wide.png?v=${ASSET_V}"` : `src="${LOGO}"`} alt="${SHOP_NAME}"></a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p></div></footer>
@@ -535,20 +537,22 @@ function doorPics(list) {
 function hubCards() {
   return HUB.things.map((x) => `<${x.href ? `a href="${x.href}"` : "div"} class="thing"><span class="tag">${x.soon ? "Coming soon" : "Open"}</span><b>${esc(x.name)}</b><span>${esc(x.line)}</span></${x.href ? "a" : "div"}>`).join("");
 }
-function frontPage(cat) {
+function frontPage(cat, wide) {
   const types = cat.garmentOrder.filter((t) => cat.designs.some((d) => d.garments[t]));
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
   const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
   const door = (href, pics, label, title, line, cta) => `<a class="door" href="${href}">${doorPics(pics)}<span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
-  return page("Quiet humour for socially exhausted people", `${heroImg(null)}
+  // The variation (?look=wide): the wide logo in the header, and the big black banner swapped for one line of type, so
+  // the two doors are the first thing on the page.
+  return page("Quiet humour for socially exhausted people", `${wide ? '<p class="strap">Quiet humour for socially exhausted people</p>' : heroImg(null)}
 <section class="doors">
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
 ${door(HUB.path, DOOR.hub, "Get out of it", esc(HUB.name), esc(HUB.line), "Come in")}
 </section>
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
 <section class="strip"><div class="sh"><h2>In ${esc(HUB.name)}</h2><a href="${HUB.path}">Have a look <i>→</i></a></div><div class="things">${hubCards()}</div></section>
-<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
+<section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS, wide });
 }
 // Doors with more than one picture fade to the next every few seconds (the two doors out of step), unless the visitor
 // has asked their device for less motion. The next picture is fetched just before it is needed.
