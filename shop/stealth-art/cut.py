@@ -65,7 +65,8 @@ save("flat-people", strip([cell(f, s, cw=250, ch=262, ax=105, base=258, top=.4) 
 fm = figures(key("flat-movers.png"), 2); assert len(fm) == 8, len(fm); s1 = 2.05 * PPT / max(f.shape[0] for f in fm[:4]); s2 = 2.0 * PPT / fm[5].shape[0]
 save("flat-movers", strip([cell(f, s1, cw=340, ch=262, ax=165, base=258, top=.4) for f in fm[:4]] + [cell(f, s2, cw=340, ch=262, ax=165, base=258, top=.4) for f in fm[4:]]), w=340, h=262, ax=165, base=258, n=8)
 # Things, each at its own size (in squares high)
-ft = figures(key("flat-things.png"), 2); assert len(ft) == 9, len(ft); names = ["tea", "note", "phones", "bubble", "chair", "cabinet", "quiet", "exit", "shelf"]; tall_ = [.72, .78, .78, .8, 1.3, 1.0, 2.3, 2.1, .5]
+ft = figures(key("flat-things.png"), 2); assert len(ft) == 9, len(ft); fu = figures(key("flat-ups.png")); assert len(fu) == 2, len(fu); ft += fu
+names = ["tea", "note", "phones", "bubble", "chair", "cabinet", "quiet", "exit", "shelf", "coffee", "phone"]; tall_ = [.72, .78, .78, .8, 1.3, 1.0, 2.3, 2.1, .5, .95, .95]
 cells = [scaled(f, tall_[i] * PPT / f.shape[0]) for i, f in enumerate(ft)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
 save("flat-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)}, ppt=PPT)
 

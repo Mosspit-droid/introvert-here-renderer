@@ -98,14 +98,14 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
-function flat(){S.mode='lost';card(NAME+'’s social battery is flat.',pick(FAILS),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
+function flat(){S.mode='lost';card(NAME+' was too late.','His spirit has been crushed. By middle management.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say('Sorry, on a call.',P.x,P.y-2.7);return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length;
- card(NAME+' is out.',S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':S.hits+' conversations endured. You are owed a quiet weekend.',
+ card(NAME+' is free at last!',S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':S.hits+' conversations endured. You are owed a quiet weekend.',
   'Tea '+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds','Go again')}
 
 // ---- one tick ----
@@ -214,8 +214,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
-  if(it.k==='c'){c.fillStyle='#b5723a';c.beginPath();c.moveTo(it.x-.22,by-.2);c.lineTo(it.x+.22,by-.2);c.lineTo(it.x+.16,by+.36);c.lineTo(it.x-.16,by+.36);c.closePath();c.fill();ink(.07);c.fillStyle='#fff';rr(it.x-.26,by-.32,.52,.14,.05);c.fill();ink(.07);c.fillStyle=YEL;c.beginPath();c.moveTo(it.x+.04,by-.12);c.lineTo(it.x-.1,by+.1);c.lineTo(it.x,by+.1);c.lineTo(it.x-.04,by+.3);c.lineTo(it.x+.1,by+.04);c.lineTo(it.x,by+.04);c.closePath();c.fill()}
-  else if(it.k==='m'){c.fillStyle=INK;rr(it.x-.2,by-.34,.4,.7,.08);c.fill();c.fillStyle='#3fd16a';rr(it.x-.14,by-.26,.28,.46,.04);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(it.x,by-.03,.09,0,6.2832);c.fill()}
+  if(it.k==='c')thing('coffee',it.x,by+.48);else if(it.k==='m')thing('phone',it.x,by+.48);
   else if(it.k==='o')thing('tea',it.x,by+.46,ART['flat-things'].items.tea.w/PPT*1.4);else thing(it.k==='N'?'note':'phones',it.x,by+.42,ART['flat-things'].items[it.k==='N'?'note':'phones'].w/PPT*1.15)});
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
@@ -275,7 +274,7 @@ export function platformPage(page, hub, v) {
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
-<p>This is ${HERO_NAME}. He would like to leave ${LEVEL.name.toLowerCase()}. The door is at the far end, and everyone between him and it would love a chat.</p>
+<p>This is ${HERO_NAME}. He’s had a long day at work. A gossiping rabble stands before the exit. But he must not let that stop him. Not when his very freedom is at stake. Not to mention his sanity.</p>
 <ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Coffee</b> makes you fast. <b>A phone</b> gets you past one person free. <b>Headphones</b> make everyone ignore you.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
