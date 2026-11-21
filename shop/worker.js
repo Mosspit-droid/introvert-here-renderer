@@ -551,7 +551,9 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dz .say{min-height:1.5em;text-align:center;color:var(--muted);margin:4px 0}
 .dz .got{display:none;margin:14px 0 4px;padding:12px 14px;border-radius:10px;background:#24231f;border-left:4px solid #fad00c}.dz .got.on{display:block}.dz .got b{color:#fad00c}
 .dz .next{display:none;text-align:center}.dz .next.on{display:block}
-.dz .hints p{color:#e9d9a0;font-style:italic;margin:8px 0}
+.dz .hints p{color:#e9d9a0;font-style:italic;margin:8px 0}.dz .hints p.ans,.ep .hints p.ans{font-style:normal;font-weight:700;color:#fad00c}.hint.give{border-color:#c3161c;color:#f2b8b8}
+.dz [hidden],.ep [hidden]{display:none!important}
+.bnav{display:flex;justify-content:space-between;gap:10px;margin:-4px 0 6px}.bnav .btn{padding:7px 12px;font-size:13px;margin:0}.bnav .btn[hidden]{display:none}
 .talk .d{background:#3a1416;border-radius:14px 14px 14px 4px;padding:11px 14px;margin:10px 0;max-width:88%}.talk .d small{display:block;color:#e8a5a7;font-size:12px;margin-bottom:3px}
 .talk .opts{display:flex;flex-direction:column;gap:8px;margin:12px 0}.talk .opts button{text-align:left;font-weight:600}
 .talk .me{background:#24231f;border-radius:14px 14px 4px 14px;padding:10px 14px;margin:8px 0 8px auto;max-width:80%;text-align:right}
@@ -1098,20 +1100,27 @@ function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_)
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
-function show(i){tick();cur=i;st.at=i;save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
- if(s.dataset.n==='2')talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
+function show(i){tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
+ if(s.dataset.n==='2'&&!st.done['2'])talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
  if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
-function solved(s){var n=s.dataset.n,p=P[n];st.done[n]=1;save();$('.say',s).textContent='';var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
+function looksSolved(s){var n=s.dataset.n,p=P[n];s.dataset.r=1;$('.say',s).textContent='';var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
  if(p.got){var g=$('.got',s);g.innerHTML='<b>Added to your kit: '+p.got[1]+'</b><br>'+p.got[2];g.classList.add('on')}else $('.say',s).textContent='Click. It opens.';
- if(n==='13'){setTimeout(function(){show(cur+1)},900)}else $('.next',s).classList.add('on')}
-$$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start'){st={at:0,ms:0,hints:0,done:{}};t0=0}show(cur+1)})});
+ if(n!=='13')$('.next',s).classList.add('on')}
+function solved(s){var n=s.dataset.n;st.done[n]=1;save();looksSolved(s);if(n==='13')setTimeout(function(){show(cur+1)},900)}
+// Back and Forward (Barry, 21 Nov): every screen after the first can go back, so earlier clues can be looked at again.
+// Forward returns to the furthest screen reached. Solved puzzles show as solved when revisited.
+S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';s.insertBefore(nav,s.firstChild);
+ $('.bk',nav).addEventListener('click',function(){show(Math.max(1,cur-1))});$('.fw',nav).addEventListener('click',function(){show(st.max)})});
+$$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start')fresh();show(cur+1)})});
 var prev=load();if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#carry').addEventListener('click',function(){st=prev;show(prev.at)})}
-$('#again').addEventListener('click',function(){st={at:0,ms:0,hints:0,done:{}};t0=0;save();show(0)});
-S.forEach(function(s){var n=s.dataset.n;if(!n)return;var p=P[n],tries=0,used=0;
+// a fresh game: forget progress and put every puzzle back as it was
+function fresh(){st={at:0,ms:0,hints:0,done:{},max:0};t0=0;S.forEach(function(x){delete x.dataset.r;var l=$('.lock',x);if(l)l.classList.remove('open','no');var g=$('.got',x);if(g){g.classList.remove('on');g.innerHTML=''}var nx=$('.next',x);if(nx)nx.classList.remove('on');var hp=$('.hintp',x);if(hp)hp.hidden=false;var hs=$('.hints',x);if(hs)hs.innerHTML='';var hb=$('.hint',x);if(hb){hb.hidden=false;hb.textContent='Hint, please';hb.classList.remove('give')}var inp=$('input',x);if(inp)inp.value='';var sy=$('.say',x);if(sy)sy.textContent=''});save()}
+$('#again').addEventListener('click',function(){fresh();show(0)});
+S.forEach(function(s){var n=s.dataset.n;if(!n)return;var p=P[n],tries=0;
  var f=$('form',s);if(f)f.addEventListener('submit',function(e){e.preventDefault();if(st.done[n]&&$('.next.on',s))return;var v=String($('input',s).value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
   if(p.a.test(v))solved(s);else{var l=$('.lock',s);l.classList.remove('no');void l.offsetWidth;l.classList.add('no');$('.say',s).textContent=p.no[tries++%p.no.length];closer(s)}});
- $('.hint',s).addEventListener('click',function(){if(used<p.h.length){var q=document.createElement('p');q.textContent=p.h[used++];$('.hints',s).appendChild(q);st.hints++;save()}if(used>=p.h.length)this.hidden=true;else this.textContent='Another hint'})});
+ $('.hint',s).addEventListener('click',function(){var used=$('.hints',s).children.length;if(used<p.h.length){var q=document.createElement('p'),last=used===p.h.length-1;q.textContent=(last?'The answer: ':'')+p.h[used++];if(last)q.className='ans';$('.hints',s).appendChild(q);st.hints++;save()}if(used>=p.h.length)this.hidden=true;else{this.textContent='Just tell me the answer';this.classList.add('give')}})});
 // puzzle 2: the conversation. The right reply gives her nothing; any other reply keeps her going.
 var TALK=[["Coo-ee! There you are! Still on your own, are you?",[["Mm.",1,"Doris pauses. She isn’t used to “Mm.”"],["Yes, and honestly I’m very happy.",0,"Happy? On your own? Oh, you poor thing. My neighbour’s son is single, you know. He collects lighthouses..."],["Is that a new cardigan, Doris?",0,"Ooh, do you like it? Marks and Spencer. Well. Let me tell you about the queue..."]]],
  ["And how’s work? Still doing that... computer thing?",[["Actually it’s really interesting, I’ve just started a new project—",0,"Ooh, a project! Tell me everything. Start from the beginning. Don’t leave anything out."],["What do you mean, “that computer thing”?",0,"Well, you know. Typing. Our Kevin does typing. Have I told you about our Kevin?"],["It’s fine.",1,"“Fine,” says Doris, slowly. Her eyes narrow. She’s regrouping."]]],
@@ -1181,7 +1190,7 @@ $('#go').addEventListener('click',function(){t0=Date.now();show(1)});
  $('form',l).addEventListener('submit',function(e){e.preventDefault();var v=String($('input',l).value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
   if(A[k].test(v)){l.classList.add('open');say.textContent='Click. It opens.';setTimeout(function(){if(k<3)show(k+1);else{$('#won').textContent='Time: '+fmt(Date.now()-t0)+'. Hints used: '+(used[1]+used[2]+used[3])+'.';show(4)}},900)}
   else{l.classList.remove('no');void l.offsetWidth;l.classList.add('no');say.textContent=NO[k][tries[k]++%NO[k].length]}});
- $('.hint',s).addEventListener('click',function(){var h=H[k];if(used[k]<h.length){var p=document.createElement('p');p.textContent=h[used[k]++];$('.hints',s).appendChild(p)}if(used[k]>=h.length)this.hidden=true;else this.textContent='Another hint'})})})();` });
+ $('.hint',s).addEventListener('click',function(){var h=H[k];if(used[k]<h.length){var p=document.createElement('p'),last=used[k]===h.length-1;p.textContent=(last?'The answer: ':'')+h[used[k]++];if(last)p.className='ans';$('.hints',s).appendChild(p)}if(used[k]>=h.length)this.hidden=true;else{this.textContent='Just tell me the answer';this.classList.add('give')}})})})();` });
 }
 
 // ---------------- Vote on the next gag ----------------
