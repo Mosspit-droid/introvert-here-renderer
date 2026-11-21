@@ -8,8 +8,8 @@
 // Tea tops the battery up; three "plans cancelled" notes are hidden for the thorough; headphones make you un-talk-to-able
 // for a few seconds; office chairs bounce you. Fall down a gap and you lose a quarter and go back to the last safe spot.
 //
-// The hero is Barry's flat "sticker" drawing (stealth-art/src/hero-flat.png). Everyone and everything else is a plain
-// stand-in drawn in code, to judge whether this feels like a level before more drawing. Wording is draft for Barry.
+// The hero, the people and the objects are Barry's flat "sticker" drawings (stealth-art/src/hero-*.png, flat-*.png).
+// The floor, walls, windows and shelves are drawn in code. Wording is draft for Barry.
 import { ART } from "./stealth-art/art.js";
 
 const TITLE = "Just Passing Through";   // working title
@@ -74,11 +74,11 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 // The game, run in the visitor's browser. Written without backticks or dollar-braces so it can sit in String.raw.
 const CLIENT = String.raw`
 (function(){
-var L=__LEVEL__,HERO=__HERO__,FAILS=__FAILS__,SRC=__SRC__;
+var L=__LEVEL__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,SRC=__SRC__;
 var $=function(i){return document.getElementById(i)},box=$('pg'),cv=$('pgc'),cx=cv.getContext('2d'),calm=false;
 try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
 var hd=document.querySelector('header');box.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
-var img=new Image(),ready=false;img.onload=img.onerror=function(){ready=true};img.src=SRC+'hero';
+var IMG={},waiting=0,ready=false;Object.keys(ART).forEach(function(n){waiting++;var im=new Image();im.onload=im.onerror=function(){if(--waiting<=0)ready=true};im.src=SRC+n;IMG[n]=im});var img=IMG.hero,PPT=ART['flat-things'].ppt;
 var MAP=L.map,MW=MAP[0].length,MH=MAP.length,VIEW=11,INK='#1b1b2a',YEL='#fad00c',CREAM='#f6efe0';
 // Feel: squares per second. A full jump clears about 3.6 squares; letting go early cuts it short.
 var RUN=5.6,ACC=46,AIR=78,JUMP=17,GRAV=42,FALLMAX=22,HOODMAX=2.4,HW=.3,HH=1.5;
@@ -129,7 +129,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  if(P.vy>=0){for(i=xa;i<=xb;i++){var ty=Math.floor(ny),c=tile(i,ty);
    if((solid(i,ty)||(c==='='&&P.y<=ty+.02))&&P.y<=ty+.02+Math.max(0,P.vy*dt)){ny=ty;P.vy=0;P.ground=true;break}}}
  else{for(i=xa;i<=xb;i++)if(solid(i,Math.floor(ny-HH))){ny=Math.floor(ny-HH)+1+HH+.001;P.vy=0;break}}
- P.y=ny;if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;
+ P.y=ny;if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
  var cyy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),cyy)==='^'&&P.y>=cyy+.3){P.vy=-23;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
  if(P.ground&&solid(Math.floor(P.x),Math.floor(P.y+.1))&&solid(Math.floor(P.x-1),Math.floor(P.y+.1))&&solid(Math.floor(P.x+1),Math.floor(P.y+.1)))P.safe=[P.x,P.y];
@@ -150,7 +150,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else if(p.k==='W'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*2.1*dt}
   else if(Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='T'&&p.t>2&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  if(!unseen&&Math.abs(P.x-p.x)<.62&&P.y>p.y-1.7&&P.y-HH<p.y){if(P.inv<=0)say(pick(L.lines[p.k]),p.x,p.y-2.5);hurt(p.k,p.x)}});
+  if(!unseen&&Math.abs(P.x-p.x)<.62&&P.y>p.y-1.95&&P.y-HH<p.y){if(P.inv<=0)say(pick(L.lines[p.k]),p.x,p.y-2.5);hurt(p.k,p.x)}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
   if(!unseen&&b.life>0&&Math.abs(b.x-P.x)<.62&&b.y>P.y-HH&&b.y<P.y){if(P.inv<=0)say(b.line,P.x,P.y-2.6);hurt('bubble',b.x);b.life=0}return b.life>0});
  says=says.filter(function(s){s.life-=dt;return s.life>0})}
@@ -163,16 +163,15 @@ function lay(){W=box.clientWidth;H=box.clientHeight;dpr=Math.min(3,window.device
  else{var by=H-Math.max(96,H*.2);PAD={s:{x:Math.max(86,W*.1),y:by,r:r*1.25},b:{x:W-Math.max(70,W*.07)-r*2.4,y:by+r*.3,r:r},a:{x:W-Math.max(70,W*.07),y:by-r*.7,r:r}}}}
 function ink(w){cx.strokeStyle=INK;cx.lineWidth=w||.08;cx.lineJoin='round';cx.stroke()}
 function rr(x,y,w,h,r){cx.beginPath();cx.roundRect(x,y,w,h,r)}
-function person(p){var moving=p.k==='W'||(p.k==='C'&&p.run>0),c=cx,col=p.k==='W'?'#ff4f9a':p.k==='T'?'#ff8a1f':p.k==='C'?'#e0303a':'#22b8a5',hair=p.k==='W'?'#b5562a':p.k==='T'?'#5a3a2a':p.k==='C'?'#2b2b3a':'#e8c15a',sp=p.k==='C'?14:8,bob=moving?Math.abs(Math.sin(p.t*sp))*.06:Math.sin(p.t*2.4)*.02;
- c.save();c.translate(p.x,p.y);c.scale(p.f,1);
- c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(0,0,.45,.08,0,0,6.2832);c.fill();
- var sw=moving?Math.sin(p.t*sp)*.16:0;c.fillStyle='#3b4a6b';rr(-.2+sw,-.5,.17,.5,.06);c.fill();ink();rr(.03-sw,-.5,.17,.5,.06);c.fill();ink();
- c.translate(0,-bob);c.fillStyle=col;rr(-.3,-1.25,.6,.85,.18);c.fill();ink();
- c.fillStyle='#ffd0a6';if(p.k==='C'&&p.run>0){rr(.2,-1.2,.5,.14,.07);c.fill();ink(.06);rr(.2,-.95,.5,.14,.07);c.fill();ink(.06)}else{rr(.2,-1.1,.34,.14,.07);c.fill();ink(.06)}
- c.fillStyle=hair;c.beginPath();c.arc(-.03,-1.55,.33,0,6.2832);c.fill();ink();c.fillStyle='#ffd0a6';c.beginPath();c.arc(.05,-1.5,.27,0,6.2832);c.fill();ink();
- c.fillStyle=INK;c.beginPath();c.arc(.15,-1.55,.04,0,6.2832);c.fill();c.beginPath();c.ellipse(.17,-1.4,.07,p.k==='T'?.09:.05,0,0,6.2832);c.fill();
- c.restore();
- c.fillStyle='#fff';c.beginPath();c.ellipse(p.x+p.f*.45,p.y-2.15,.3,.2,0,0,6.2832);c.fill();ink(.06);c.fillStyle=col;if(p.k==='C'){c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.run>0?'!':p.rest>0?'~':'?',p.x+p.f*.45,p.y-2.14)}else for(var i=-1;i<2;i++){c.beginPath();c.arc(p.x+p.f*.45+i*.13,p.y-2.15,.04,0,6.2832);c.fill()}}
+// People, from Barry's flat sheets. Standers come in three kinds; each has an idle pose and a talking one.
+function sprite(name,frame,x,y,flip,k){var a=ART[name],im=IMG[name];if(!im.naturalWidth)return;cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,frame*a.w,0,a.w,a.h,-a.ax*k,-a.base*k,a.w*k,a.h*k);cx.restore()}
+function person(p){var c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y)<2.5;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.5,.08,0,0,6.2832);c.fill();
+ if(p.k==='W')sprite('flat-movers',Math.floor(p.t/.13)%4,p.x,p.y+.03,p.f<0,k);
+ else if(p.k==='C'){sprite('flat-movers',p.run>0?4+Math.floor(p.t/.1)%3:p.rest>0?7:5,p.x,p.y+.03,p.f<0,k);
+  if(p.run>0||p.rest>0){c.fillStyle='#fff';c.beginPath();c.ellipse(p.x,p.y-2.45,.26,.2,0,0,6.2832);c.fill();ink(.06);c.fillStyle='#e0303a';c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.run>0?'!':'~',p.x,p.y-2.44)}}
+ else if(p.k==='T')sprite('flat-people',p.t<.55?3:2,p.x,p.y+.03,p.f<0,k);
+ else sprite('flat-people',[0,4,6][p.i%3]+(near?1:0),p.x,p.y+.03,p.f<0,k)}
+function thing(name,x,y,w,flip){var it=ART['flat-things'].items[name],im=IMG['flat-things'],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART['flat-things'].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
 function bubbleSay(t,x,y,a){var c=cx;c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(t).width+.5;x=Math.max(cam+w/2+.1,Math.min(cam+vw-w/2-.1,x));y=Math.max(camY+.5,y);
  c.globalAlpha=a;c.fillStyle='#fff';rr(x-w/2,y-.3,w,.6,.22);c.fill();ink(.07);c.fillStyle=INK;c.fillText(t,x,y+.02);c.globalAlpha=1}
 function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c.fillRect(0,0,W,H);
@@ -190,7 +189,11 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  for(x=Math.max(1,x0);x<Math.min(MW-1,x1);x++)if(tile(x,MH-2)==='.'){var pg=c.createLinearGradient(0,MH-2,0,MH);pg.addColorStop(0,'#3a3350');pg.addColorStop(1,'#15131f');c.fillStyle=pg;c.fillRect(x,MH-2,1.01,2.01);c.fillStyle='rgba(255,255,255,.08)';c.fillRect(x,MH-1.4,1.01,.08);c.fillRect(x,MH-.7,1.01,.08)}
  // tiles
  for(y=Math.max(0,Math.floor(camY)-1);y<Math.min(MH,Math.ceil(camY+VIEW)+2);y++)for(x=Math.max(0,x0);x<Math.min(MW,x1);x++){t=MAP[y].charAt(x);
-  if(t==='K'){var on=S.cp&&S.cp[0]===x+.5;c.fillStyle='#3d5a8c';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle=on?'#ffe9a8':'#5b7db8';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=INK;c.font='800 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('QUIET',x+.5,y-.5);c.fillText('ROOM',x+.5,y-.25);c.fillStyle=on?'#3fa76a':'#d23b3b';c.beginPath();c.arc(x+.5,y+.25,.12,0,6.2832);c.fill();ink(.05)}
+  if(t==='F'){thing('cabinet',x+.5,y+1.02,1.04)}
+  else if(t==='^'){thing('chair',x+.5,y+1.02)}
+  else if(t==='D'){thing('exit',x+.5,y+1.02)}
+  else if(t==='K'){thing('quiet',x+.5,y+1.02);if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-.95,.16,0,6.2832);c.fill();ink(.06)}}
+  else if(t==='k'){var on=S.cp&&S.cp[0]===x+.5;c.fillStyle='#3d5a8c';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle=on?'#ffe9a8':'#5b7db8';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=INK;c.font='800 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('QUIET',x+.5,y-.5);c.fillText('ROOM',x+.5,y-.25);c.fillStyle=on?'#3fa76a':'#d23b3b';c.beginPath();c.arc(x+.5,y+.25,.12,0,6.2832);c.fill();ink(.05)}
   else if(t==='#'){var under=tile(x,y+1)!=='#'&&y<MH-1;if(under){c.fillStyle=INK;c.fillRect(x,y+.97,1.01,.07)}var topRow=tile(x,y-1)!=='#';c.fillStyle=topRow?'#3fa796':'#2e7f72';c.fillRect(x,y,1.01,1.01);if(under){c.fillStyle=INK;c.fillRect(x,y+.96,1.01,.08)}if(topRow){c.fillStyle='#63c7b5';c.fillRect(x,y,1.01,.16);c.fillStyle=INK;c.fillRect(x,y-.04,1.01,.08)}
    if(!solid(x-1,y)&&x>0){c.fillStyle=INK;c.fillRect(x-.04,y,.08,1.01)}if(!solid(x+1,y)&&x<MW-1){c.fillStyle=INK;c.fillRect(x+.96,y,.08,1.01)}}
   else if(t==='F'){c.fillStyle='#9fb2d1';rr(x+.03,y+.03,.94,.97,.05);c.fill();ink();c.fillStyle='#7f93b5';rr(x+.14,y+.16,.72,.3,.04);c.fill();ink(.05);rr(x+.14,y+.58,.72,.3,.04);c.fill();ink(.05);c.fillStyle=INK;c.fillRect(x+.4,y+.28,.2,.06);c.fillRect(x+.4,y+.7,.2,.06)}
@@ -200,14 +203,11 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(t==='D'){c.fillStyle='#2f7d4f';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle='#3fa76a';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=YEL;c.beginPath();c.arc(x+.78,y+.1,.07,0,6.2832);c.fill();ink(.04);
    c.fillStyle='#fff';rr(x+.5,y+.2,.34,.55,.06);c.fill();ink(.05);c.fillStyle='#d23b3b';c.font='800 .13px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('DO',x+.67,y+.38);c.fillText('NOT',x+.67,y+.52)}}
  // things to collect
- items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var by=it.y+(calm?0:Math.sin(T*3+it.x)*.06);
-  if(it.k==='o'){c.fillStyle='#fff';rr(it.x-.2,by-.14,.36,.36,.07);c.fill();ink(.06);c.beginPath();c.arc(it.x+.2,by+.04,.1,-1.3,1.3);ink(.06);c.fillStyle='#b5723a';c.fillRect(it.x-.14,by-.09,.24,.06)}
-  else if(it.k==='N'){c.fillStyle=YEL;c.save();c.translate(it.x,by);c.rotate(-.12);rr(-.28,-.3,.56,.6,.05);c.fill();ink(.06);c.beginPath();c.moveTo(-.14,-.12);c.lineTo(.14,.16);c.moveTo(.14,-.12);c.lineTo(-.14,.16);c.strokeStyle='#d23b3b';c.lineWidth=.09;c.stroke();c.restore()}
-  else{c.beginPath();c.arc(it.x,by,.26,3.3,6.1);ink(.09);c.fillStyle='#7a5cff';rr(it.x-.36,by-.08,.18,.3,.06);c.fill();ink(.06);rr(it.x+.18,by-.08,.18,.3,.06);c.fill();ink(.06)}});
+ items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var by=it.y+(calm?0:Math.sin(T*3+it.x)*.06);thing(it.k==='o'?'tea':it.k==='N'?'note':'phones',it.x,by+.38)});
  people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
- bubbles.forEach(function(b){c.fillStyle='#fff';c.beginPath();c.ellipse(b.x,b.y,.42,.3,0,0,6.2832);c.fill();ink();c.beginPath();c.moveTo(b.x-b.f*.25,b.y+.22);c.lineTo(b.x-b.f*.55,b.y+.45);c.lineTo(b.x-b.f*.05,b.y+.28);c.closePath();c.fill();ink(.06);c.fillStyle='#ff8a1f';c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('?!',b.x,b.y+.02)});
+ bubbles.forEach(function(b){thing('bubble',b.x,b.y+.42,null,b.f>0)});
  // you
- var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:!P.ground?1:Math.abs(P.vx)>.5?(Math.floor(P.walkT/.11)%2?1:0):0;
+ var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
  if(P.phones>0){c.strokeStyle='#7a5cff';c.lineWidth=.07;c.globalAlpha=.5+.3*Math.sin(T*4);c.beginPath();c.arc(P.x,P.y-.85,1.05,0,6.2832);c.stroke();c.globalAlpha=1}
  if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.globalAlpha=P.inv>0?.55:P.hood?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
@@ -252,14 +252,14 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__HERO__", () => j(ART.hero)).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVEL__", () => j(LEVEL)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p>${LEVEL.name}. The door is at the far end. Everyone between you and it would love a chat.</p>
 <ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
-<p class="sm">A test level with stand-in art. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
+<p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
 <p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p></div>

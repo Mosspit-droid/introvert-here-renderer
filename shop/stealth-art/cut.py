@@ -51,10 +51,23 @@ nd = figures(key("introvert-nod.png")); assert len(nd) == 6, len(nd); nds = PPH 
 iv += [cell(f, nds, **C) for f in nd]
 save("introvert", strip(iv), w=250, h=300, ax=118, base=292, n=len(iv))
 
-# The flat "sticker" introvert for the platformer (Barry, 21 Nov): stand 0, stride 1, sitting with hood up 2, wave 3; and his head as an icon.
+# The flat "sticker" art for the platformer (Barry, 21 Nov). PPT = picture pixels per square of the level.
+# Hero: stand 0, stride 1, sitting with hood up 2, wave 3, run 4-7, jump 8, fall 9, land 10, knocked back 11.
+PPT = 118
 hf = figures(key("hero-flat.png"), 3); assert len(hf) == 9, len(hf); hs = 200 / hf[6].shape[0]; HC = dict(cw=220, ch=230, ax=110, base=226, top=.4)
-save("hero", strip([cell(hf[i], hs, **HC) for i in (6, 0, 2, 4)]), w=220, h=230, ax=110, base=226, n=4, pph=200)
+hm = figures(key("hero-moves.png"), 2); assert len(hm) == 8, len(hm); ms = 196 / hm[1].shape[0]
+save("hero", strip([cell(hf[i], hs, **HC) for i in (6, 0, 2, 4)] + [cell(f, ms, **HC) for f in hm]), w=220, h=230, ax=110, base=226, n=12, pph=200)
 save("hero-head", scaled(hf[3], 96 / hf[3].shape[0]))
+# People who stand: teal mug woman 0-1, orange shouting man 2-3, cake woman 4-5, clipboard man 6-7 (idle, then talking)
+fp = figures(key("flat-people.png"), 2); assert len(fp) == 8, len(fp); s = 2.1 * PPT / fp[0].shape[0]
+save("flat-people", strip([cell(f, s, cw=250, ch=262, ax=105, base=258, top=.4) for f in fp]), w=250, h=262, ax=105, base=258, n=8)
+# People who move: pink walker 0-3, red hugger running 4-6 and out of breath 7
+fm = figures(key("flat-movers.png"), 2); assert len(fm) == 8, len(fm); s1 = 2.05 * PPT / max(f.shape[0] for f in fm[:4]); s2 = 2.0 * PPT / fm[5].shape[0]
+save("flat-movers", strip([cell(f, s1, cw=340, ch=262, ax=165, base=258, top=.4) for f in fm[:4]] + [cell(f, s2, cw=340, ch=262, ax=165, base=258, top=.4) for f in fm[4:]]), w=340, h=262, ax=165, base=258, n=8)
+# Things, each at its own size (in squares high)
+ft = figures(key("flat-things.png"), 2); assert len(ft) == 9, len(ft); names = ["tea", "note", "phones", "bubble", "chair", "cabinet", "quiet", "exit", "shelf"]; tall_ = [.72, .78, .78, .8, 1.3, 1.0, 2.3, 2.1, .5]
+cells = [scaled(f, tall_[i] * PPT / f.shape[0]) for i, f in enumerate(ft)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("flat-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)}, ppt=PPT)
 
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
@@ -115,7 +128,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 1700), "#fbf1e7"); y = 10
-for n in ("plant", "coats", "locker"):
+for n in ("hero", "flat-people", "flat-movers", "flat-things"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
