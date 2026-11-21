@@ -77,6 +77,7 @@ async function route(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
+      if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);   // works on the preview too (its own tally)
       if (isPreview(env) && path.startsWith("/api/")) return json({ error: "This is the preview copy of the shop, so checkout is switched off." }, 403);
       if (isPreview(env) && path === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
       if (path === "/api/stripe-webhook" && request.method === "POST") return await stripeWebhook(request, env, ctx);
@@ -102,6 +103,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
+      if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);
@@ -468,12 +470,12 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
    dots at the right of the bottom edge. --fc is the frame colour: white by default, a range's own colour on its
    pages, tiles and cards, yellow for the Escape Room. Proportions follow the logo (edge 72, bottom 179, corners 60/34). */
 :root{--fc:#f2f0ea}
-.door,.hero,.stagefr,.tile,.ranges a,.thing,.box{--ft:4px;--fb:15px;--fR:13px;--fr:8px;--pad:0px;position:relative;isolation:isolate;background:var(--fc);border:0;border-radius:var(--fR);
+.door,.hero,.stagefr,.tile,.ranges a,.thing,.box,.vc{--ft:4px;--fb:15px;--fR:13px;--fr:8px;--pad:0px;position:relative;isolation:isolate;background:var(--fc);border:0;border-radius:var(--fR);
   padding:calc(var(--ft) + var(--pad)) calc(var(--ft) + var(--pad)) calc(var(--fb) + var(--pad));overflow:visible;box-sizing:border-box}
-.door::after,.hero::after,.stagefr::after,.tile::after,.ranges a::after,.thing::after,.box::after{content:"";position:absolute;right:calc(var(--ft) + var(--fb)*.12);bottom:calc(var(--fb)*.22);height:calc(var(--fb)*.56);width:calc(var(--fb)*3.2);border-radius:99px;pointer-events:none;
+.door::after,.hero::after,.stagefr::after,.tile::after,.ranges a::after,.thing::after,.box::after,.vc::after{content:"";position:absolute;right:calc(var(--ft) + var(--fb)*.12);bottom:calc(var(--fb)*.22);height:calc(var(--fb)*.56);width:calc(var(--fb)*3.2);border-radius:99px;pointer-events:none;
   background:radial-gradient(circle at 21% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),radial-gradient(circle at 50% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),radial-gradient(circle at 79% 50%,var(--fc) 0,var(--fc) calc(var(--fb)*.135),transparent calc(var(--fb)*.135 + .7px)),#1a1a18}
 /* panels with words in them: the dark inside is drawn behind the content */
-.tile::before,.ranges a::before,.thing::before,.box::before{content:"";position:absolute;inset:var(--ft) var(--ft) var(--fb);border-radius:var(--fr);background:#1a1a18;z-index:-1}
+.tile::before,.ranges a::before,.thing::before,.box::before,.vc::before{content:"";position:absolute;inset:var(--ft) var(--ft) var(--fb);border-radius:var(--fr);background:#1a1a18;z-index:-1}
 .tile>img{border-radius:var(--fr) var(--fr) 0 0}
 .ranges a{--pad:11px}.thing{--pad:clamp(14px,2vw,24px);--fc:#fad00c;--ft:5px;--fb:18px;--fR:15px;--fr:9px}.box{--pad:13px}
 .ranges a:hover,a.thing:hover{border-color:transparent}
@@ -532,6 +534,23 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
 .thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
 .xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+/* Vote on the next gag: three cards, each the gag on its range's video background, typed out like the videos. */
+.vlead{max-width:640px}
+.vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:20px 0 10px}
+@media(max-width:820px){.vgrid{grid-template-columns:1fr;max-width:440px;margin-left:auto;margin-right:auto}}
+.vc{--fc:#fad00c;--ft:5px;--fb:18px;--fR:15px;--fr:9px;display:flex;flex-direction:column;transition:opacity .4s,filter .4s}
+.vc .art{position:relative;aspect-ratio:1;border-radius:var(--fr) var(--fr) 0 0;overflow:hidden;container-type:inline-size;background:#111}
+.vc .art img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vc .gt{position:absolute;left:26.48%;top:37.4%;width:47.13%;text-align:right;font-family:Montserrat,sans-serif;font-weight:400;line-height:1.2;letter-spacing:-.04em;color:#fff;font-size:calc(var(--k,3.9) * 1cqw)}
+.vc .gt div{white-space:normal}.vc .gt .ch{visibility:hidden}.vc .gt .ch.on{visibility:visible}
+.vc .cap{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 12px 10px}
+.vc .cap b{display:block;font-size:16px}.vc .cap span{display:block;font-size:13px;color:var(--muted)}
+.vc .cap .btn{margin:0;padding:9px 16px;white-space:nowrap}
+.vgrid.done .vc{--fc:#6b6a64;opacity:.55;filter:saturate(.6)}.vgrid.done .vc.mine{--fc:#fad00c;opacity:1;filter:none}
+.vgrid.done .vc .btn{display:none}.vc .mine-tag{display:none;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}.vgrid.done .vc.mine .mine-tag{display:block}
+.vthanks{display:none;max-width:560px;margin:8px auto 40px;text-align:center}.vthanks.on{display:block}
+.vthanks h2{margin:0 0 6px}.vcode{display:inline-flex;align-items:center;gap:10px;margin:14px 0 6px;padding:10px 12px 10px 18px;border:2px dashed #fad00c;border-radius:12px;font:800 22px/1 Montserrat,sans-serif;letter-spacing:.12em}
+.vcode .btn{margin:0;padding:8px 14px;font-size:13px;letter-spacing:0}
 /* Spot the Introvert: a painting in a frame, with someone hiding in it. The painting gets nearly all of the screen
    (Barry, 21 Nov: "just too small"); everything else is two thin strips above it and two below. */
 body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!important}
@@ -934,6 +953,66 @@ function gatePage() {
 // remember that this visitor has been through the gate, so later visits can go straight in
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
+// ---------------- Vote on the next gag ----------------
+// The jar in the room (Barry, 21 Nov). Three gags that aren't out yet, picked automatically: the next three on the
+// release schedule ("we're creating the illusion of choice"), so they all come out anyway, in schedule order. Vote
+// counts are kept but never shown, so the order of release can't contradict them. Each card is the gag on its range's
+// video background (backgrounds/, R2 site/vid-<range in lower case>.jpg), laid out like the videos and typed out the same way.
+// Voting shows a 5% discount code; the code itself is Barry's to name, and needs setting up in Stripe before launch.
+// Where the gags come from: KV shop:upcoming, which the app is to keep current from Core (see the app thread's note).
+// Until it does, VOTE_FALLBACK is a copy of the next three from Core's GAGS_TABLE (read 21 Nov), skipping In Person
+// and Exclusive, which have no regular schedule.
+const VOTE_CODE = "VOTED5";
+const VOTE_FALLBACK = [
+  { id: "IH-00119", coll: "IH", title: "Karaoke", due: "2026-11-23", text: "... OH GOD.\n\nWHY'D IT HAVE\nTO BE KARAOKE?" },
+  { id: "IH-00017", coll: "IH", title: "I Do Overthink", due: "2026-11-30", text: "... I DO OVERTHINK.\n\nBEATS WHAT\nYOU DO." },
+  { id: "OS-00002", coll: "OS", title: "Unreliable Narrator", due: "2026-12-04", text: "... I DO ENJOY A\nNOVEL WITH AN\nUNRELIABLE NARRATOR.\n\nREMINDS ME OF WHEN I\nPUT KAREN IN HER PLACE.\n\nEVERYONE CLAPPED." },
+];
+async function upcoming(env) {
+  let list = null;
+  try { list = await env.PENDING.get("shop:upcoming", "json"); } catch (_) {}
+  const today = new Date().toISOString().slice(0, 10);
+  list = (Array.isArray(list) && list.length ? list : VOTE_FALLBACK).filter((g) => !g.due || g.due > today);
+  return (list.length >= 2 ? list : VOTE_FALLBACK).slice(0, 3);
+}
+async function castVote(request, env) {
+  let b = {}; try { b = await request.json(); } catch (_) {}
+  const list = await upcoming(env), round = list.map((g) => g.id).join("+");
+  if (!list.some((g) => g.id === b.id)) return json({ ok: false }, 400);
+  const key = isPreview(env) ? "shop:votes-preview" : "shop:votes", all = (await env.PENDING.get(key, "json")) || {};
+  const r = (all[round] = all[round] || {}); r[b.id] = (r[b.id] || 0) + 1;
+  await env.PENDING.put(key, JSON.stringify(all));
+  return json({ ok: true, code: VOTE_CODE });
+}
+function votePage(list) {
+  const round = list.map((g) => g.id).join("+");
+  const card = (g) => {
+    const lines = String(g.text || "").split("\n").map((l) => (l.trim() ? `<div>${[...l].map((c) => `<span class="ch">${c === " " ? " " : esc(c)}</span>`).join("")}</div>` : "<div>&nbsp;</div>")).join("");
+    const c = COLLECTIONS[g.coll] || COLLECTIONS.IH;
+    return `<div class="vc" data-id="${esc(g.id)}"><div class="art"><img src="/s/vid-${esc(String(g.coll).toLowerCase())}.jpg?v=1" alt="" loading="lazy"><div class="gt" aria-label="${esc(String(g.text).replace(/\n+/g, " "))}">${lines}</div></div><div class="cap"><div><b>${esc(g.title)}</b><span>${esc(c.name)}</span><em class="mine-tag">Your vote</em></div><button class="btn" type="button" data-vote="${esc(g.id)}">This one</button></div></div>`;
+  };
+  return page("Vote on the next gag", `<p class="label" style="margin-top:26px">${esc(HUB.name)} · The jar</p><h1 style="margin-top:4px">Vote on the next gag</h1>
+<p class="muted lead vlead" style="margin-top:8px">Three new designs are on their way. Pick the one you want first. Voting is anonymous. Obviously.</p>
+<div class="vgrid" id="vg">${list.map(card).join("")}</div>
+<div class="vthanks" id="vt" role="status" aria-live="polite"><h2>Your vote’s in.</h2><p class="muted">We’ll let you know what’s next. As a thank you, here’s 5% off anything in the shop:</p>
+<div class="vcode"><span id="vcode">${VOTE_CODE}</span><button class="btn ghost" id="vcopy" type="button">Copy</button></div><p class="note" id="vnote">One use per customer. Expires 30 days after you vote.</p></div>
+<p class="note"><a href="${HUB.path}">← Back to the room</a></p>`, { nav: "hub", desc: "Vote on the next Introvert Here design.", script: `
+(function(){var R=${JSON.stringify(round)},g=document.getElementById('vg'),calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(_){}
+// the text is laid out like the videos: the size at which 12 capital Ws fill the text box exactly
+function fit(){var m=document.createElement('span');m.style.cssText='position:absolute;left:-9999px;white-space:nowrap;font:400 100px Montserrat,sans-serif;letter-spacing:-.04em';m.textContent='WWWWWWWWWWWW';document.body.appendChild(m);var w=m.getBoundingClientRect().width;m.remove();if(w)g.style.setProperty('--k',(47.13*100/w).toFixed(3))}
+(document.fonts&&document.fonts.load?document.fonts.load('400 100px Montserrat'):Promise.resolve()).then(fit,fit);
+// each card types itself out when it comes into view
+function type(c){var ch=c.querySelectorAll('.ch');if(calm){[].forEach.call(ch,function(x){x.classList.add('on')});return}var i=0;(function t(){if(i<ch.length){ch[i++].classList.add('on');setTimeout(t,42)}})()}
+var cards=g.querySelectorAll('.vc');if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.unobserve(e.target);setTimeout(function(){type(e.target)},250)}})},{threshold:.5});[].forEach.call(cards,function(c){io.observe(c)})}else[].forEach.call(cards,type);
+function done(id){g.classList.add('done');[].forEach.call(g.querySelectorAll('.ch'),function(x){x.classList.add('on')});[].forEach.call(cards,function(c){c.classList.toggle('mine',c.dataset.id===id)});document.getElementById('vt').classList.add('on')}
+var prev=null;try{prev=JSON.parse(localStorage.getItem('ih_vote')||'null')}catch(_){}if(prev&&prev.round===R)done(prev.id);
+g.addEventListener('click',function(e){var b=e.target.closest('[data-vote]');if(!b||g.classList.contains('done'))return;var id=b.dataset.vote;
+ try{localStorage.setItem('ih_vote',JSON.stringify({round:R,id:id,at:Date.now()}))}catch(_){}done(id);
+ fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).catch(function(){});
+ document.getElementById('vt').scrollIntoView({behavior:calm?'auto':'smooth',block:'center'})});
+document.getElementById('vcopy').addEventListener('click',function(){var c=document.getElementById('vcode').textContent,n=document.getElementById('vnote');if(navigator.clipboard)navigator.clipboard.writeText(c).then(function(){n.textContent='Copied. Use it at checkout.'},function(){})})})();` });
+}
+
 // ---------------- Spot the Introvert ----------------
 // The painting in the room (Barry, 21 Nov): tap it and you are looking at a painting with one person hiding in it.
 // Find them: five paintings a game, drawn from the set (the ones you didn't get last time first), easiest first (lv). Wrong taps get a dry line: one of the scene's own for the thing
@@ -1064,7 +1143,7 @@ const ROOM = [
     wide: { r: [[66.5, 16.5, 7.2, 26.5]], d: [70.1, 22] }, tall: { r: [[41, 23, 13.5, 11.8]], d: [47.7, 28.5], f: "r" } },
   { name: "The shop", href: "/uk/shop",
     wide: { r: [[74.4, 21, 9.6, 35.5]], d: [79, 44], f: "b" }, tall: { r: [[85, 24.5, 13, 16.5]], d: [91.5, 32], f: "rb" } },
-  { name: "Vote on the next gag", soon: "The jar’s empty. Voting on the next gag opens soon. Come back later.",
+  { name: "Vote on the next gag", href: HUB.path + "/vote",
     wide: { r: [[84.3, 23, 6.2, 13]], d: [87, 30.5], f: "r" }, tall: { r: [[86, 15.5, 10.5, 8]], d: [90.8, 19.2], f: "r" } },
   { name: "The way out", href: "/uk",
     wide: { r: [[91.2, 4, 8.8, 85]], d: [92.9, 53.5], f: "rb" }, tall: { r: [[63, 19, 23, 26.5]], d: [72, 27] } },
