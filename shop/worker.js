@@ -27,6 +27,10 @@ const COLLECTIONS = {
 };
 // Mockups put on range backgrounds by the GitHub job "Shop mockups" live on the repo's shop-mockups branch.
 const MOCKUP_STORE = "https://raw.githubusercontent.com/Mosspit-droid/introvert-here-renderer/shop-mockups/m/";
+// One short line per range for the front page's "Find your range" cards, cut down from Barry's own range wording.
+const RANGE_SHORT = { IH: "The original. What someone of few words would say, if they bothered.", SH: "Gentle words for people who can’t always find their voice.",
+  PC: "Contractually obliged to socialise, and not one bit more.", OS: "For people who’d rather be between the pages.",
+  IP: "Your name, printed, so you only have to say it once.", EX: "Hot off the press. Comment declined." };
 const ETSY_SHOP = "https://www.etsy.com/shop/IntrovertHereShop";
 
 let catalogCache = null, catalogAt = 0;
@@ -354,10 +358,15 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .thing b{font-size:clamp(20px,2.2vw,26px);font-weight:800;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
 .thing span{color:var(--muted);line-height:1.5}.thing .tag{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--text)}
 a.thing{transition:transform .3s,border-color .3s}a.thing:hover{transform:translateY(-3px);border-color:var(--text)}
-.ranges{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(10px,1.6vw,20px);align-items:center}
-.ranges a{display:block;transition:transform .3s}.ranges a:hover{transform:translateY(-4px)}.ranges img{width:100%;height:auto;display:block;filter:drop-shadow(0 8px 16px rgba(0,0,0,.4))}
+.ranges{display:grid;grid-template-columns:repeat(6,1fr);gap:clamp(10px,1.4vw,18px);align-items:stretch}
+.ranges a{display:flex;flex-direction:column;gap:8px;text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;transition:transform .3s,border-color .3s}
+.ranges a:hover{transform:translateY(-4px);border-color:var(--text)}
+/* every logo sits in the same-sized box, pinned to its top, so the cards line up whatever shape the logo's tag is */
+.ranges .lg{display:block;aspect-ratio:1.6;width:100%}.ranges .lg img{width:100%;height:100%;object-fit:contain;object-position:50% 0;display:block}
+.ranges b{font-size:13px;line-height:1.35;min-height:2.7em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-top:2px}.ranges span:not(.lg){font-size:13px;line-height:1.45;color:var(--muted)}
 .lead{font-size:clamp(16px,1.6vw,19px);max-width:62ch;margin:clamp(18px,3vw,30px) 0}
-@media(max-width:760px){.doors{grid-template-columns:1fr}.door{aspect-ratio:1/1.08;max-height:none}.door>img{object-position:50% 12%}.door.wide{aspect-ratio:16/10}.grid.four{grid-template-columns:1fr 1fr}.ranges{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){.doors{grid-template-columns:1fr}.door{aspect-ratio:1/1.08;max-height:none}.door>img{object-position:50% 12%}.door.wide{aspect-ratio:16/10}.grid.four{grid-template-columns:1fr 1fr}.ranges{grid-template-columns:1fr 1fr}}
+@media(min-width:761px) and (max-width:1000px){.ranges{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:no-preference){.door,.strip{animation:rise .9s cubic-bezier(.2,.7,.2,1) both}.door:nth-child(2){animation-delay:.12s}@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}}
 h1{font-size:clamp(26px,5vw,40px);margin:24px 0 6px;letter-spacing:.02em;text-transform:uppercase;font-weight:800}
 .hero{display:block;width:100%;height:auto;border-radius:clamp(8px,1.4vw,16px);margin:18px 0 6px;box-shadow:0 10px 30px rgba(0,0,0,.5);box-sizing:border-box;border:clamp(3px,.6vw,7px) solid var(--frame,#f2f0ea)}
@@ -506,7 +515,7 @@ function frontPage(cat) {
   const types = cat.garmentOrder.filter((t) => cat.designs.some((d) => d.garments[t]));
   const newest = mixedItems(cat, cat.designs, types).slice(0, 4).map(tileHtml).join("");
   const present = new Set(cat.designs.map((d) => d.coll));
-  const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}" title="${esc(c.name)}"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></a>`).join("");
+  const ranges = Object.entries(COLLECTIONS).filter(([k]) => present.has(k)).map(([k, c]) => `<a href="/uk/shop?c=${k}"><span class="lg"><img loading="lazy" src="/logo-${k}.png?v=${ASSET_V}" alt="${esc(c.name)}"></span><b>${esc(c.name)}</b><span>${esc(RANGE_SHORT[k] || "")}</span></a>`).join("");
   const door = (href, img, label, title, line, cta) => `<a class="door" href="${href}"><img src="${img}" alt=""><span class="shade"></span><span class="in"><span class="kicker">${label}</span><b>${title}</b><span class="say">${line}</span><span class="go">${cta} <i>→</i></span></span></a>`;
   return page("Quiet humour for socially exhausted people", `${heroImg(null)}
 <section class="doors">
