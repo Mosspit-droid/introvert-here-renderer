@@ -474,7 +474,7 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 html:has(body.gate){overflow:hidden}
 body.gate{background:#0d0d0c;color:#f2f0ea;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 body.gate footer{display:none}
-body.gate main{flex:1;min-height:0;width:100%;box-sizing:border-box}
+body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border-box}
 .gate{height:100%;display:flex;flex-direction:column;text-align:center;font-weight:800;text-transform:uppercase}
 .tape{flex:none;height:clamp(14px,2.6vh,30px);width:100vw;margin:clamp(8px,1.4vh,16px) 0 clamp(8px,1.4vh,16px) calc(50% - 50vw);background:repeating-linear-gradient(-45deg,#f6cf0b 0 20px,#141412 20px 40px);box-shadow:0 6px 18px rgba(0,0,0,.6)}
 .gtop{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -483,26 +483,28 @@ body.gate main{flex:1;min-height:0;width:100%;box-sizing:border-box}
 .tri:last-child{animation-delay:6s}
 .tri svg{display:block;width:100%;filter:drop-shadow(0 6px 10px rgba(0,0,0,.6))}
 .tri b{display:block;font-size:clamp(8px,1.35vh,12px);letter-spacing:.14em;color:#f6cf0b;margin-top:2px}
-.gmid{flex:1;min-height:0;display:grid;grid-template-columns:1fr minmax(0,2.1fr) 1fr;grid-template-areas:"map hope side";align-items:center;gap:clamp(12px,2.4vw,34px);padding:clamp(6px,1.4vh,16px) 0}
+.gmid{flex:1;min-height:0;display:grid;grid-template-columns:1.12fr minmax(0,1.5fr) .95fr;grid-template-areas:"map hope side";align-items:center;gap:clamp(12px,2.4vw,34px);padding:clamp(6px,1.4vh,16px) 0}
 /* the way in */
 .hope{grid-area:hope;justify-self:center;display:block;text-decoration:none;color:#f2f0ea;background:#c8161d;border:clamp(4px,.7vh,7px) solid #141412;outline:clamp(2px,.45vh,4px) solid #f2f0ea;outline-offset:calc(-1*clamp(11px,1.9vh,19px));border-radius:clamp(10px,1.6vh,16px);
-  container-type:inline-size;width:min(100%,92vh);padding:0;transform:rotate(-2deg);box-shadow:0 22px 50px rgba(0,0,0,.75);line-height:1;box-sizing:border-box}
+  container-type:inline-size;width:min(100%,74vh);padding:0;transform:rotate(-2deg);box-shadow:0 22px 50px rgba(0,0,0,.75);line-height:1;box-sizing:border-box}
 /* the words are sized from the sign's own width, so they always fit inside it */
-.hope b{display:block;font-size:9.7cqw;letter-spacing:.01em;white-space:nowrap;margin-top:8cqw}
-.hope span{display:block;font-size:4.5cqw;letter-spacing:.18em;margin:.5em 0 .55em}
-.hope i{display:inline-block;font-style:normal;background:#f6cf0b;color:#141412;border:clamp(3px,.5vh,5px) solid #141412;border-radius:999px;padding:.34em .8em .3em;font-size:7.2cqw;white-space:nowrap;margin-bottom:8cqw;box-shadow:0 0 0 0 rgba(246,207,11,.55);animation:beckon 3.2s ease-in-out infinite}
+.hope b{display:block;font-size:15.6cqw;line-height:.98;letter-spacing:.01em;margin-top:9cqw}.hope b em{display:block;font-style:normal}
+.hope span{display:block;font-size:6.2cqw;letter-spacing:.2em;margin:.6em 0 .6em}
+.hope i{display:inline-block;font-style:normal;background:#f6cf0b;color:#141412;border:clamp(3px,.5vh,5px) solid #141412;border-radius:999px;padding:.34em .7em .3em;font-size:9.6cqw;white-space:nowrap;margin-bottom:9cqw;box-shadow:0 0 0 0 rgba(246,207,11,.55);animation:beckon 3.2s ease-in-out infinite}
 .hope u,.gx u{text-decoration:none;display:inline-block;transition:transform .3s}
 .hope:hover i,.hope:focus-visible i{background:#fff}.hope:hover u{transform:translateX(.25em)}
+.hope,.alarm,.tresp,.tri{backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .gmap{grid-area:map;text-transform:none;transform:rotate(-4deg);filter:drop-shadow(0 14px 22px rgba(0,0,0,.7))}
-.gmap svg{display:block;width:100%;height:auto;max-height:44vh}
+.gmap svg{display:block;width:100%;height:auto;max-height:58vh}
 .gside{grid-area:side;display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2.2vh,24px)}
 .alarm{background:#f2f0ea;color:#141412;border:clamp(3px,.55vh,5px) solid #141412;outline:3px solid #141412;outline-offset:-11px;border-radius:9px;padding:clamp(14px,2.6vh,26px) clamp(14px,1.8vw,24px);transform:rotate(4deg);box-shadow:0 14px 30px rgba(0,0,0,.7);line-height:1.08;animation:flick 11s 4s infinite}
-.alarm b{display:block;font-size:min(2.5vw,4vh)}.alarm span{display:block;font-size:min(1.5vw,2.4vh);letter-spacing:.08em;margin-top:.5em}
-.tresp{background:#f6cf0b;color:#141412;border:3px solid #141412;border-radius:7px;padding:.6em .9em;font-size:min(1.25vw,1.9vh);letter-spacing:.06em;transform:rotate(-5deg);box-shadow:0 10px 22px rgba(0,0,0,.6)}
-.gx{flex:none;margin:0;font-size:clamp(11px,1.7vh,14px);font-weight:400;text-transform:none}.gx a{color:#c4c0b6;text-decoration:underline;text-underline-offset:4px}.gx a:hover{color:#fff}
+.alarm b{display:block;font-size:min(2.9vw,5.4vh)}.alarm span{display:block;font-size:min(1.7vw,3.1vh);letter-spacing:.08em;margin-top:.5em}
+.tresp{background:#f6cf0b;color:#141412;border:3px solid #141412;border-radius:7px;padding:.6em .9em;font-size:min(1.5vw,2.6vh);letter-spacing:.06em;transform:rotate(-5deg);box-shadow:0 10px 22px rgba(0,0,0,.6)}
+.gbot .tri{width:clamp(34px,6.4vh,62px)}.gbot .tri:first-child{animation-delay:8s}
+.gx{flex:1;margin:0;font-size:clamp(11px,1.7vh,14px);font-weight:400;text-transform:none}.gx a{color:#c4c0b6;text-decoration:underline;text-underline-offset:4px}.gx a:hover{color:#fff}
 /* upright screens: the way in on top, the map and the alarmed sign side by side beneath it */
 @media(max-aspect-ratio:1/1){.gmid{grid-template-columns:1.15fr 1fr;grid-template-areas:"hope hope" "map side";grid-template-rows:auto minmax(0,1fr);align-content:space-evenly}
- .hope{width:min(100%,62vh)}
+ .hope{width:min(100%,62vh)}.hope b{font-size:9.7cqw;white-space:nowrap;margin-top:8cqw}.hope b em{display:inline}.hope span{font-size:4.5cqw;margin:.5em 0 .55em}.hope i{font-size:7.2cqw;margin-bottom:8cqw}
  .gmap svg{max-height:30vh}.alarm b{font-size:min(5vw,2.9vh)}.alarm span{font-size:min(3.2vw,1.9vh)}.tresp{font-size:min(2.9vw,1.6vh)}}
 /* Slow and small: a brief dip every 9 to 11 seconds, like a faulty fitting, and a gentle glow on the way in. */
 @keyframes flick{0%,91%,100%{opacity:1}92%{opacity:.55}93.5%{opacity:1}95%{opacity:.7}96%{opacity:1}}
@@ -643,37 +645,56 @@ const GATE_ICON = {
   skull: '<circle cx="50" cy="52" r="15"/><rect x="41" y="60" width="18" height="11" rx="2"/><circle cx="44" cy="52" r="4.2" fill="#f6cf0b"/><circle cx="56" cy="52" r="4.2" fill="#f6cf0b"/><path d="M47 66v5M50 66v5M53 66v5" stroke="#f6cf0b" stroke-width="1.4"/><path d="M30 74l40 12M70 74L30 86" stroke="#141412" stroke-width="5" stroke-linecap="round"/>',
   rad: '<circle cx="50" cy="62" r="4.5"/>' + [0, 120, 240].map((a) => `<path transform="rotate(${a} 50 62)" d="M50 62 L39.5 43.8 A21 21 0 0 1 60.5 43.8 Z"/>`).join("") + '<circle cx="50" cy="62" r="7" fill="#f6cf0b"/><circle cx="50" cy="62" r="4"/>',
 };
-const gateTri = (icon, word, r) => `<div class="tri" style="--r:${r}deg"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8L96 92H4Z" fill="#f6cf0b" stroke="#141412" stroke-width="5" stroke-linejoin="round"/><g fill="#141412">${GATE_ICON[icon]}</g></svg><b>${word}</b></div>`;
+GATE_ICON.bolt = '<path d="M55 36L38 64h10l-5 22 19-30H51z"/>';
+GATE_ICON.bang = '<rect x="46" y="38" width="8" height="30" rx="3"/><circle cx="50" cy="78" r="5"/>';
+const gateTri = (icon, word, r) => `<div class="tri" style="--r:${r}deg"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8L96 92H4Z" fill="#f6cf0b" stroke="#141412" stroke-width="5" stroke-linejoin="round"/><g fill="#141412">${GATE_ICON[icon]}</g></svg>${word ? `<b>${word}</b>` : ""}</div>`;
 // "Here be dragons" as a scrap of old sea chart: coast, hills, compass rose, a dotted course, and an arrow to the words.
-const GATE_MAP = `<svg viewBox="0 0 320 232" role="img" aria-label="An old map. An arrow points to the words: Here be dragons.">
-<path d="M9 14 30 8 62 13 96 7 131 12 170 8 214 13 251 7 286 12 311 9 314 44 309 82 315 121 310 160 314 196 309 223 276 226 240 221 200 226 160 220 118 226 80 221 44 226 12 222 6 190 11 150 5 112 10 72 6 40Z" fill="#e7d3a1" stroke="#7a5a2c" stroke-width="2"/>
-<g fill="#b9955a" opacity=".35"><circle cx="52" cy="186" r="26"/><circle cx="268" cy="44" r="20"/><circle cx="200" cy="150" r="34"/></g>
-<g fill="none" stroke="#5b3d1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-<path d="M22 150c14-10 22-30 40-34 16-4 22 10 38 6 14-4 16-22 34-26 14-3 22 8 30 2"/>
-<path d="M22 150c10 8 6 24 20 32 12 7 26-2 40 6 10 6 12 18 26 20" opacity=".8"/>
-<path d="M50 132l8-12 8 12M70 126l9-14 9 14M92 118l7-11 7 11" stroke-width="1.6"/>
-<path d="M196 196q8-7 16 0t16 0 16 0M214 208q8-7 16 0t16 0" stroke-width="1.4" opacity=".7"/>
-<path d="M44 168q20 14 44 4t46 2 44-6 40 8" stroke-dasharray="2 7" stroke-width="2.2"/>
-<path d="M214 176l16-58" stroke-width="2.8"/><path d="M219 124l11-7 4 13" stroke-width="2.8"/>
-<path d="M236 158c7-9 12 7 19-2s12 7 19-2 12 7 19-2" stroke-width="2.4"/><path d="M291 150l9-6-2 10" stroke-width="2.4"/><circle cx="296" cy="148" r="1.4" fill="#5b3d1c"/>
+const GATE_MAP = `<svg viewBox="0 0 360 260" role="img" aria-label="An old sea chart. An arrow points past a sea serpent to the words: Here be dragons.">
+<defs><filter id="gpap" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".035 .05" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 .42  0 0 0 0 .3  0 0 0 0 .13  0 0 0 .5 -.12"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+<radialGradient id="gage" cx="50%" cy="48%" r="62%"><stop offset=".55" stop-color="#7a5524" stop-opacity="0"/><stop offset="1" stop-color="#6b4619" stop-opacity=".55"/></radialGradient>
+<path id="gsheet" d="M10 16 34 9 70 15 108 8 150 14 192 9 236 15 280 8 318 14 350 10 354 50 348 92 355 134 349 176 354 216 348 250 312 254 270 248 226 254 182 247 136 254 92 248 50 254 14 249 7 212 13 168 6 126 12 82 7 44Z"/></defs>
+<use href="#gsheet" fill="#e9d6a6"/><use href="#gsheet" filter="url(#gpap)"/><use href="#gsheet" fill="url(#gage)"/><use href="#gsheet" fill="none" stroke="#6b4a1f" stroke-width="2.2"/>
+<g fill="none" stroke="#5b3d1c" stroke-linecap="round" stroke-linejoin="round">
+<g stroke-width=".7" opacity=".4"><path d="M62 58L340 30M62 58L330 250M62 58L190 250M62 58L20 240M62 58L14 26M62 58L200 12"/></g>
+<path d="M14 150c12-4 16-22 32-28 14-5 22 6 36 0 12-5 12-22 28-28 13-5 22 4 32-2 8-5 10-14 20-16" stroke-width="2.2"/>
+<path d="M14 150c8 10 4 24 18 34 12 8 24 0 38 8 10 6 10 20 24 26 10 4 18 0 26 6" stroke-width="2.2"/>
+<path d="M28 146c4 8 2 16 10 24M52 136c2 9 8 14 8 24M78 128c0 10 6 18 4 30M104 112c2 8-2 18 4 26" stroke-width=".8" opacity=".5"/>
+<path d="M40 128l9-14 9 14M62 122l10-16 10 16M86 112l8-12 8 12M112 100l7-11 7 11" stroke-width="1.7"/>
+<path d="M30 192c2-6 8-6 9 0M50 204c2-6 8-6 9 0M74 214c2-6 8-6 9 0" stroke-width="1.3" opacity=".8"/>
+<path d="M44 178q22 16 48 6t50 2 40-10" stroke-dasharray="2.2 7.5" stroke-width="2.4"/>
+<path d="M190 168Q204 132 232 108" stroke-width="3"/><path d="M219 105l14 2-5 14" stroke-width="3"/>
+<!-- the sea serpent: a head and neck, three humps and a tail, breaking the waves -->
+<g stroke-width="7"><path d="M216 222c-3-26 4-46 20-50"/><path d="M246 222q13-30 26 0"/><path d="M280 222q11-24 22 0"/><path d="M310 222q8-18 20-20"/></g>
+<path d="M330 202l10-9-1 13" stroke-width="3"/>
+<path d="M233 164c6-9 20-9 26-2-4 8-16 12-26 8z" fill="#5b3d1c" stroke-width="2"/>
+<path d="M259 164l10-4M259 165l10 3" stroke="#a3231c" stroke-width="1.8"/>
+<path d="M236 160l-4-8 8 5M243 158l-2-9 7 6" stroke-width="1.6" fill="#5b3d1c"/>
+<path d="M200 226q7-6 14 0t14 0 14 0 14 0 14 0 14 0 14 0 14 0 14 0 14 0" stroke-width="1.6"/>
+<path d="M214 238q7-6 14 0t14 0 14 0 14 0 14 0 14 0 14 0" stroke-width="1.3" opacity=".7"/>
+<path d="M150 208q7-6 14 0t14 0M252 132q6-5 12 0t12 0M300 150q6-5 12 0t12 0" stroke-width="1.2" opacity=".6"/>
 </g>
-<g transform="translate(58 50)" fill="none" stroke="#5b3d1c" stroke-width="1.6"><circle r="20"/><path d="M0-27L5 0 0 27-5 0Z" fill="#5b3d1c"/><path d="M-27 0L0-5 27 0 0 5Z"/></g>
-<text x="58" y="16" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-size="11" fill="#5b3d1c">N</text>
-<text x="36" y="182" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-size="10" fill="#5b3d1c">you are here</text>
-<path d="M40 166l8 8M48 166l-8 8" stroke="#a3231c" stroke-width="2.6" stroke-linecap="round"/>
-<text x="238" y="124" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-weight="700" font-size="25" fill="#3d2810" transform="translate(0 -62)">Here be</text>
-<text x="238" y="98" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-weight="700" font-size="33" fill="#3d2810">dragons</text>
+<circle cx="248" cy="165" r="1.7" fill="#e9d6a6"/>
+<!-- a small ship, and the compass rose -->
+<g stroke="#5b3d1c" stroke-width="1.6" stroke-linejoin="round" fill="#5b3d1c"><path d="M150 198h24l-5 8h-14z"/><path d="M162 198v-18" fill="none"/><path d="M163 181q11 6 0 14z" fill="#e9d6a6"/></g>
+<g transform="translate(62 58)" stroke="#5b3d1c" stroke-width="1.5" fill="none"><circle r="23"/><circle r="17" stroke-width=".8"/><path d="M0-31L6 0 0 31-6 0Z" fill="#5b3d1c"/><path d="M-31 0L0-6 31 0 0 6Z" fill="#e9d6a6"/><path d="M-15-15L3 0-15 15M15-15L-3 0 15 15" stroke-width=".9"/></g>
+<g font-family="Georgia,'Times New Roman',serif" font-style="italic" fill="#3d2810">
+<text x="62" y="20" text-anchor="middle" font-size="12" font-style="normal">N</text>
+<text x="34" y="196" font-size="10.5">you are here</text>
+<text x="96" y="244" font-size="9.5" letter-spacing="3" opacity=".75">MARE INCOGNITVM</text>
+<text x="282" y="62" text-anchor="middle" font-weight="700" font-size="27">Here be</text>
+<text x="282" y="98" text-anchor="middle" font-weight="700" font-size="37">dragons</text></g>
+<path d="M38 172l9 9M47 172l-9 9" stroke="#a3231c" stroke-width="2.8" stroke-linecap="round"/>
 </svg>`;
 function gatePage() {
   return page("Abandon hope", `<div class="gate">
 <div class="tape" aria-hidden="true"></div>
 <div class="gtop">${gateTri("skull", "Danger", -7)}<p class="gk">You are approaching ${esc(HUB.name)}</p>${gateTri("rad", "Warning", 6)}</div>
 <div class="gmid">
-<a class="hope" id="enter" href="${HUB.path}"><b>Abandon hope</b><span>all ye who</span><i>Enter here <u>→</u></i></a>
+<a class="hope" id="enter" href="${HUB.path}"><b><em>Abandon</em> <em>hope</em></b><span>all ye who</span><i>Enter here <u>→</u></i></a>
 <div class="gmap">${GATE_MAP}</div>
 <div class="gside"><div class="alarm"><b>This door is alarmed.</b><span>So is the occupant.</span></div><div class="tresp">Trespassers will be ignored</div></div>
 </div>
-<p class="gx"><a href="${HUB.path}" id="express">Express route (no flashing) <u>→</u></a></p>
+<div class="gtop gbot">${gateTri("bolt", "", 5)}<p class="gx"><a href="${HUB.path}" id="express">Express route (no flashing) <u>→</u></a></p>${gateTri("bang", "", -6)}</div>
 <div class="tape" aria-hidden="true"></div></div>`, { nav: "hub", body: "gate", noindex: true, script: `
 // remember that this visitor has been through the gate, so later visits can go straight in
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
