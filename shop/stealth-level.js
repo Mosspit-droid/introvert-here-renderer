@@ -210,7 +210,7 @@ function draw(){var c=cx,d0=Math.abs(axis())>.12;c.setTransform(dpr,0,0,dpr,0,0)
  if(S.mode==='play'&&!inBin&&Math.abs(P.x-L.bin)<.75)tag('JUMP TO HOP IN',L.bin,FEET-1.25);
  // the Pacer
  if(CK&&IMG.cupcake.naturalWidth){var cw=ART.cupcake.W*k,chh=ART.cupcake.H*k;c.drawImage(IMG.cupcake,CK.x-cw/2,FEET-.02-CK.y-chh,cw,chh)}
- var pf=PC.state==='walk'?WALK[Math.floor(PC.t/.1)%6]:PC.state==='read'?6:PC.state==='spot'?7:PC.state==='lost'?6:PC.state==='c1'?10:PC.state==='c2'?11:PC.state==='c3'?12:PC.state==='c4'?(Math.floor(PC.st/.6)%2?12:13):PC.state==='talk'?(C&&C.arrive?WALK[Math.floor(T/.07)%6]:8+Math.floor(T/.43)%2):8;shadow(PC.x,.3,.22);spr('pacer',pf,PC.x,FEET,PC.f<0);
+ var pf=PC.state==='walk'?WALK[Math.floor(PC.t/.1)%6]:PC.state==='read'?6:PC.state==='spot'?7:PC.state==='lost'?6:PC.state==='c1'?10:PC.state==='c2'?11:PC.state==='c3'?12:PC.state==='c4'?(Math.floor(PC.st/.6)%2?12:13):PC.state==='talk'?(C&&C.arrive?WALK[Math.floor(T/.07)%6]:(C&&C.t%3.6>2.9?9:8)):8;   // mostly leaning in and talking, with the odd laugh at her own story (swapping the two quickly looked like gyrating)shadow(PC.x,.3,.22);spr('pacer',pf,PC.x,FEET,PC.f<0);
  if(PC.state==='spot'){c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillStyle=L.pacer.colour;c.fillText('!',PC.x+PC.f*.3,FEET-1.5)}
  if(PC.state==='lost'){c.font='800 .24px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillStyle='rgba(60,45,25,.8)';c.fillText('?',PC.x+PC.f*.25,FEET-1.5)}
  // you
