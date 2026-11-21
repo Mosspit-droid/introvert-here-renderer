@@ -98,6 +98,7 @@ async function route(request, env, ctx) {
       }
       if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t")));
       if (path === HUB.path) return html(hubPage());
+      if (path === HUB.path + "/gate") return html(gatePage());
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
         const cat = await catalog(env), want = path.slice(6);
@@ -469,11 +470,35 @@ body.r-SH .muted,body.r-SH .tabs a:not(.on){color:#f1efe2}body.r-SH{--line:#a9aa
 .hero::after{content:none}
 .stagefr{--ft:5px;--fb:19px;--fR:18px;--fr:11px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .stagefr .stage{border:0;border-radius:var(--fr);box-shadow:none}
+/* ---- the warning gate ---- */
+body.gate{background:#0d0d0c;color:#f2f0ea}
+body.gate main{text-align:center;padding-bottom:10px}
+.tape{height:clamp(22px,3.4vw,40px);width:100vw;margin:clamp(14px,2.4vw,26px) 0 clamp(14px,2.4vw,26px) calc(50% - 50vw);background:repeating-linear-gradient(-45deg,#f6cf0b 0 clamp(18px,2.6vw,32px),#141412 clamp(18px,2.6vw,32px) clamp(36px,5.2vw,64px));box-shadow:0 6px 18px rgba(0,0,0,.6)}
+html:has(body.gate),body.gate{overflow-x:hidden}
+.gk{font-weight:800;text-transform:uppercase;letter-spacing:.24em;font-size:clamp(12px,1.5vw,17px);margin:clamp(14px,2vw,24px) 0 0;opacity:.8}
+.signs{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:clamp(12px,2.2vw,30px) clamp(10px,2vw,28px);margin:clamp(18px,3vw,38px) 0}
+.sg{transform:rotate(var(--r));font-weight:800;text-transform:uppercase;line-height:1.12;letter-spacing:.03em;box-shadow:0 10px 24px rgba(0,0,0,.6);animation:flick var(--t) var(--d) infinite}
+.sg b{display:block;font-size:clamp(15px,2.1vw,25px)}.sg span{display:block;font-size:clamp(10px,1.15vw,13px);letter-spacing:.1em;margin-top:5px}
+.sg.plate{padding:clamp(10px,1.5vw,18px) clamp(14px,2vw,26px);border-radius:8px;border:4px solid #141412;outline:3px solid currentColor;outline-offset:-10px;max-width:min(78vw,340px)}
+.sg.red{background:#c8161d;color:#f2f0ea}.sg.yellow{background:#f6cf0b;color:#141412}.sg.white{background:#f2f0ea;color:#141412}
+.sg.tri,.sg.round{box-shadow:none;width:clamp(120px,17vw,190px);color:#f2f0ea}
+.sg.tri svg,.sg.round svg{display:block;width:78%;margin:0 auto 6px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.6))}
+.sg.tri b,.sg.round b{font-size:clamp(14px,1.8vw,21px);color:#f6cf0b}
+.hang{position:relative;display:block;width:clamp(170px,24vw,260px);margin:clamp(8px,2vw,22px) auto 0;transform-origin:50% 12%;animation:sway 5.5s ease-in-out infinite;text-decoration:none;color:#141412;filter:drop-shadow(0 18px 26px rgba(0,0,0,.7))}
+.hang svg{display:block;width:100%;height:auto}
+.hang .hw{position:absolute;left:0;right:0;top:47%;bottom:7%;display:flex;flex-direction:column;justify-content:center;gap:.08em;font-weight:800;text-transform:uppercase;line-height:1;font-size:clamp(27px,3.9vw,42px)}
+.hang .hw i{font-style:normal;display:block}
+.hang:hover,.hang:focus-visible{animation-play-state:paused;filter:drop-shadow(0 0 22px rgba(246,207,11,.55))}
+.gx{margin:clamp(18px,2.6vw,30px) 0 0;font-size:14px}.gx a{color:#c4c0b6;text-decoration:underline;text-underline-offset:4px}.gx a:hover{color:#fff}.gx i{font-style:normal}
+/* Slow, small and never all at once: each sign dips briefly every 7 to 12 seconds, like a faulty fitting. */
+@keyframes flick{0%,91%,100%{opacity:1}92%{opacity:.55}93.5%{opacity:1}95%{opacity:.7}96%{opacity:1}}
+@keyframes sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+@media(prefers-reduced-motion:reduce){.sg,.hang{animation:none}}
 `;
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
-${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
+${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.body ? ` class="${opts.body}"` : opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
 <header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}"${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
 <main class="wrap">${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
@@ -595,6 +620,51 @@ const DOOR_JS = `
   function next(){var nx=load(i+1);if(!nx.complete||!nx.naturalWidth){setTimeout(next,600);return}
    p[i%p.length].classList.remove('on');i++;nx.classList.add('on');load(i+1);setTimeout(next,6500)}
   setTimeout(function(){load(1);setTimeout(next,2000)},3500+n*2200)})})();`;
+// ---------------- the warning gate ----------------
+// The way into the Escape Room (Barry, 21 Nov): a wall of absurdly excessive warning signs, and one door hanger that
+// says ENTER AT OWN RISK. Everything is drawn here (no pictures). The signs flicker and sway slowly; nothing flashes
+// fast or fills the screen, it all stops for anyone whose device asks for less motion, and an "express route" link
+// skips the gate altogether. The wording is a first draft for Barry to edit.
+const GATE_SIGNS = [
+  ["tri", "skull", "Danger", "No small talk beyond this point"],
+  ["plate red", "", "Abandon hope", "all ye who enter here"],
+  ["tri", "rad", "Warning", "Highly unsociable"],
+  ["plate yellow", "", "Here be dragons", ""],
+  ["round", "", "No entry", ""],
+  ["plate white", "", "Authorised introverts only", ""],
+  ["tri", "bolt", "Caution", "May contain silence"],
+  ["plate yellow", "", "Beware of the hermit", ""],
+  ["plate red", "", "Turn back", "While you still can"],
+  ["tri", "bang", "Hazard", "Extreme peace and quiet"],
+  ["plate white", "", "This door is alarmed.", "So is the occupant."],
+  ["plate yellow", "", "Trespassers will be ignored", ""],
+];
+const GATE_ICON = {
+  skull: '<circle cx="50" cy="52" r="15"/><rect x="41" y="60" width="18" height="11" rx="2"/><circle cx="44" cy="52" r="4.2" fill="#f6cf0b"/><circle cx="56" cy="52" r="4.2" fill="#f6cf0b"/><path d="M47 66v5M50 66v5M53 66v5" stroke="#f6cf0b" stroke-width="1.4"/><path d="M30 74l40 12M70 74L30 86" stroke="#141412" stroke-width="5" stroke-linecap="round"/>',
+  rad: '<circle cx="50" cy="62" r="4.5"/>' + [0, 120, 240].map((a) => `<path transform="rotate(${a} 50 62)" d="M50 62 L39.5 43.8 A21 21 0 0 1 60.5 43.8 Z"/>`).join("") + '<circle cx="50" cy="62" r="7" fill="#f6cf0b"/><circle cx="50" cy="62" r="4"/>',
+  bolt: '<path d="M55 36L38 64h10l-5 22 19-30H51z"/>',
+  bang: '<rect x="46" y="38" width="8" height="30" rx="3"/><circle cx="50" cy="78" r="5"/>',
+};
+function gateSign([kind, icon, a, b], n) {
+  const st = `--r:${[-5, 3, -2, 6, -4, 2, 5, -6, 3, -3, 4, -2][n % 12]}deg;--d:${(n * 1.7) % 9}s;--t:${7 + (n * 3) % 6}s`;
+  if (kind === "tri") return `<div class="sg tri" style="${st}"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8L96 92H4Z" fill="#f6cf0b" stroke="#141412" stroke-width="5" stroke-linejoin="round"/><g fill="#141412">${GATE_ICON[icon]}</g></svg><b>${esc(a)}</b><span>${esc(b)}</span></div>`;
+  if (kind === "round") return `<div class="sg round" style="${st}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#c8161d" stroke="#f2f0ea" stroke-width="5"/><rect x="20" y="42" width="60" height="16" rx="2" fill="#f2f0ea"/></svg><b>${esc(a)}</b></div>`;
+  return `<div class="sg ${kind}" style="${st}"><b>${esc(a)}</b>${b ? `<span>${esc(b)}</span>` : ""}</div>`;
+}
+function gatePage() {
+  const signs = GATE_SIGNS.map(gateSign), half = 5;
+  return page("Enter at own risk", `<div class="tape" aria-hidden="true"></div>
+<p class="gk">You are approaching ${esc(HUB.name)}</p>
+<div class="signs">${signs.slice(0, half).join("")}</div>
+<a class="hang" id="enter" href="${HUB.path}" aria-label="Enter at own risk">
+<svg viewBox="0 0 300 470" aria-hidden="true"><path fill-rule="evenodd" fill="#f6cf0b" stroke="#141412" stroke-width="7" stroke-linejoin="round" d="M40 14H260a26 26 0 0 1 26 26V430a26 26 0 0 1-26 26H40a26 26 0 0 1-26-26V190L92 128A62 62 0 1 1 150 172 62 62 0 0 1 104 150L14 214V40A26 26 0 0 1 40 14Z"/></svg>
+<span class="hw"><i>Enter</i><i>at own</i><i>risk</i></span></a>
+<p class="gx"><a href="${HUB.path}" id="express">Express route (no flashing) <i>→</i></a></p>
+<div class="signs">${signs.slice(half).join("")}</div>
+<div class="tape" aria-hidden="true"></div>`, { nav: "hub", body: "gate", noindex: true, script: `
+// remember that this visitor has been through the gate, so later visits can go straight in
+[].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
+}
 function hubPage() {
   return page(HUB.name, `<a class="door wide er" href="${HUB.path}" style="pointer-events:none"><span class="fi">${doorPics(DOOR.hub)}<span class="shade"></span><img class="badge" src="${HUB.logo}" alt=""><span class="in"><span class="kicker">Hide in it</span><b>${esc(HUB.name)}</b><span class="say">${esc(HUB.line)}</span></span></span></a>
 <p class="muted lead">A room to get away from people. Inside: interaction distractions for bus queues, waiting rooms and parties you couldn’t get out of. No sign-up. No chat. Nobody will ask how you are.</p>
