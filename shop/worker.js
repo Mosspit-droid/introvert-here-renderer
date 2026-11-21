@@ -602,7 +602,7 @@ const HUB = { path: "/uk/escape-room", name: "The Escape Room", short: "Escape R
   line: "Salvation lies within.", cta: "Enter",   // Barry's wording (21 Nov); "interaction distractions" is his phrase for what's inside
   things: [
     { name: "Look Busy", line: "A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work.", href: "/uk/escape-room/look-busy" },
-    { name: "The Excuse Generator", line: "One tap. One polite, plausible reason you can't make it.", href: "/uk/escape-room/excuses" },
+    { name: "The Excuse Generator", line: "One tap. One watertight reason you can't make it.", href: "/uk/escape-room/excuses" },
   ] };
 // The doors' pictures. Each door can hold several and fades through them, starting somewhere different on every visit.
 // Site pictures (not product photos) live in R2 under site/<name>.jpg, served at /s/<name>.jpg; copies in shop/assets/site/.
@@ -732,46 +732,57 @@ show(Math.floor(Math.random()*order.length));
 </script></body></html>`;
 }
 
-// The Excuse Generator: one tap, one polite and plausible reason not to go.
+// The Excuse Generator: one tap, one completely absurd reason not to go.
+// Barry's own (21 Nov). His rule: they must be absolutely absurd.
 const EXCUSES = [
-  "I’d love to, but I’ve got a thing. It’s a recurring thing.",
-  "I can’t, I’m washing my hair. All of it.",
-  "My cat has made it clear I’m not to leave.",
-  "I’ve already taken my shoes off, and that decision is final.",
-  "I’m double-booked: me, and also the sofa.",
-  "I need to stay in for a parcel. It’s due between now and spring.",
-  "I’ve got an early start. I don’t, but I could.",
-  "Sorry, I’m at capacity for people this week.",
-  "I’d come, but then I’d be there.",
-  "My social battery is on 2% and the charger is at home. So am I.",
-  "I’ve a prior engagement with a book. We’re at a crucial bit.",
-  "I promised myself I’d do nothing tonight, and I never break a promise.",
-  "I can’t make it. There’s something wrong with my availability.",
-  "I would, but I’ve used up this month’s small talk.",
-  "Something’s come up. It’s the evening.",
-  "I’m expecting an important silence.",
-  "Regretfully, I’ll be busy not being there.",
-  "I have to be up early to cancel tomorrow’s plans.",
-  "My horoscope said to avoid crowds, groups, pairs and individuals.",
-  "I’ve checked my diary and it just says “no”.",
-  "I’d be terrible company. I’ve had practice.",
-  "I can’t, I’ve just sat down.",
-  "I’m saving myself for the next thing I won’t go to.",
-  "Thanks, but I’m in the middle of leaving.",
-  "I’m needed at home. By me.",
-  "I’ll be there in spirit, which is the best version of me anyway.",
-  "I’m allergic. Not to anything there. Just generally.",
-  "I’ve got to get back. The dishwasher won’t empty itself, and I intend to watch it not do so.",
-  "I’m on a call. (Hold phone to ear. Leave.)",
-  "I’d only stand in the kitchen, and I have a kitchen.",
+  "MY UNCLE’S HATCHING.",
+  "I’M DEFROSTING THE VICAR.",
+  "THE WARDROBE’S IN LABOUR.",
+  "I’VE PROMISED TO WAX THE OCTOPUS.",
+  "MY NAN’S GOT INTO THE WALLS AGAIN.",
+  "THE BADGER’S ASKED ME TO BE HIS ALIBI.",
+  "I’M TEACHING THE LOFT TO SWIM.",
+  "THE PRAWNS HAVE CALLED AN EMERGENCY MEETING.",
+  "MY SCARECROW NEEDS A LIFT TO WORK.",
+  "I’M EXPECTING A CEASEFIRE FROM THE GEESE.",
+  "THE FRIDGE HAS PICKED ME FOR JURY DUTY.",
+  "I’M REHEARSING MY GRANDFATHER’S NEXT BIRTH.",
+  "THE SQUID CAN’T FASTEN HER BRA.",
+  "I’VE DOUBLE-BOOKED THE EXORCIST.",
+  "MY SHADOW’S HAVING ITS WISDOM TEETH OUT.",
+  "I’M TAKING THE LAWN FOR ITS MOT.",
+  "THE FERRET’S RENEWING HIS VOWS.",
+  "I’M THE DESIGNATED DRIVER FOR A SWARM OF BEES.",
+  "THE BISCUIT TIN’S DEMANDING A PATERNITY TEST.",
+  "I CAN’T LEAVE WHILE THE CEILING’S STILL MARINATING.",
+  "I’M CREOSOTING THE HAMSTER.",
+  "MY GRAN’S BEEN RECALLED.",
+  "THE LLAMA’S BRIDESMAIDS HAVE PULLED OUT.",
+  "I’M WAITING FOR THE PLUMBER TO BLEED THE GIRAFFE.",
+  "THE SHED’S GONE BROODY.",
+  "I’VE GOT TO PICK MY DAD UP FROM THE TAXIDERMIST.",
+  "THE EELS NEED UNTANGLING.",
+  "I’M GRAVY BOAT CAPTAIN THIS WEEK.",
+  "MY KNEES HAVE FILED FOR SEPARATE CUSTODY.",
+  "THE TORTOISE HAS LOCKED HERSELF OUT.",
+  "I’M CHAPERONING THE MOTH TO A LAMPSHADE.",
+  "MY AUNT’S COME BACK AS A TOASTER.",
+  "THE GOLDFISH HAS BEEN SELECTED FOR A LINE-UP.",
+  "I’M LETTING THE EXORCIST READ THE METER.",
+  "THE PENGUIN’S TROUSERS NEED TAKING UP.",
+  "I’M WAITING FOR MY SKELETON TO COOL.",
+  "THE CUSTARD’S GOT MY PASSPORT.",
+  "I’VE AGREED TO WITNESS THE BADGER’S WILL.",
+  "MY OTHER GRAN’S STILL IN THE AIR FRYER.",
+  "THE CARPET FITTER WON’T WORK WHILE THE FLOOR’S AWAKE.",
 ];
 function excusesPage() {
   return page("The Excuse Generator", `<p class="label" style="margin-top:26px">${esc(HUB.name)} · Interaction distractions</p><h1 style="margin-top:4px">The Excuse Generator</h1>
-<p class="muted lead" style="margin-top:8px">One tap. One polite, plausible reason you can’t make it.</p>
+<p class="muted lead" style="margin-top:8px">One tap. One watertight reason you can’t make it.</p>
 <div class="thing xq"><span class="tag">Your excuse</span><p id="xt" aria-live="polite"></p></div>
 <p class="xb"><button class="btn" id="xn" type="button">Give me another</button><button class="btn ghost" id="xc" type="button">Copy</button><button class="btn ghost" id="xs" type="button" hidden>Send it</button></p>
 <p class="note" id="xm" style="min-height:1.5em"></p>
-<p class="note"><a href="${HUB.path}">← Back to ${esc(HUB.name)}</a> · Need to look occupied as well? <a href="${HUB.path}/look-busy">Look Busy</a></p>`, { nav: "hub", desc: "One tap. One polite, plausible reason you can't make it.", script: `
+<p class="note"><a href="${HUB.path}">← Back to ${esc(HUB.name)}</a> · Need to look occupied as well? <a href="${HUB.path}/look-busy">Look Busy</a></p>`, { nav: "hub", desc: "One tap. One watertight reason you can't make it.", script: `
 var X=${JSON.stringify(EXCUSES).replace(/</g, "\\u003c")},last=-1,cur='';
 function $(i){return document.getElementById(i)}
 function next(){var i;do{i=Math.floor(Math.random()*X.length)}while(i===last&&X.length>1);last=i;cur=X[i];$('xt').textContent=cur;$('xm').textContent=''}
