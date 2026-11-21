@@ -38,6 +38,8 @@ export default {
     ctx.waitUntil(remakeNudge(env).catch(() => {}));
     ctx.waitUntil(draftWatch(env).catch(() => {}));
     ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
+    ctx.waitUntil(shopIpTick(env).catch(() => {}));
+    ctx.waitUntil(shopPhotoTick(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
     ctx.waitUntil(ipReleaseTick(env).catch(() => {}));
     ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
@@ -236,7 +238,7 @@ export default {
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
-      if (pathname === "/api/shop-catalog-check" && method === "POST") { try { return json(await shopCatalogRun(env, { force: true })); } catch (e) { return json({ ok: false, error: String(e.message || e).slice(0, 200) }, 500); } }
+      if (pathname === "/api/shop-catalog-check" && method === "POST") { try { await spKick(env); return json(await shopCatalogRun(env, { force: true })); } catch (e) { return json({ ok: false, error: String(e.message || e).slice(0, 200) }, 500); } }
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
       if (pathname === "/api/threads-save" && method === "POST") return await threadsSave(request, env);
@@ -369,6 +371,7 @@ async function ingest(request, env, ctx, url) {
 
   const item = items[row];
   ctx.waitUntil(notify(env, url.origin, item.product + " is ready for review", item.title || "A new video is waiting for your approval.", "clapper"));
+  await scKick(env).catch(() => {}); await spKick(env).catch(() => {});   // a listing was built: the site follows (catalogue, photos)
   return json({ ok: true, hasVideo });
 }
 
@@ -376,7 +379,7 @@ async function alert(request, env, ctx, url) {
   if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
   const data = await readBody(request);
   const title = str(data.title) || "Make warning";
-  if (str(data.source) === "Pricing" && /^Prices updated/.test(title)) { const R = (await env.PENDING.get("reprice-status", "json")) || {}; R.doneAt = Date.now(); R.title = title; R.body = str(data.body); await env.PENDING.put("reprice-status", JSON.stringify(R)); }
+  if (str(data.source) === "Pricing" && /^Prices updated/.test(title)) { await scKick(env).catch(() => {}); const R = (await env.PENDING.get("reprice-status", "json")) || {}; R.doneAt = Date.now(); R.title = title; R.body = str(data.body); await env.PENDING.put("reprice-status", JSON.stringify(R)); }
   const alerts = await loadAlerts(env);
   alerts.unshift({
     id: crypto.randomUUID(),
@@ -2327,6 +2330,7 @@ async function gagsSync(request, env) {
   data.receivedAt = Date.now();
   const moved = await env.PENDING.get("gag-rows-moved"); if (moved && Date.now() - Number(moved) > 150000) await env.PENDING.delete("gag-rows-moved");   // a sync read after the rows moved
   await env.PENDING.put("gags", JSON.stringify(data));
+  await shopUpcomingPut(env, data).catch(() => {});
   return json({ ok: true });
 }
 
@@ -4485,6 +4489,7 @@ summary.srow{cursor:pointer}summary.srow::-webkit-details-marker{display:none}
 ${brandHeader("Stats", nav)}
 ${await etsySalesCard(env)}
 ${await socialCard(env)}
+${await votesCard(env)}
 <div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
 <h2>Shop totals</h2>
 <div class="stiles">
@@ -4558,6 +4563,7 @@ async function pricingSave(request, env) {
   await env.PENDING.put("pricing", JSON.stringify(cur));
   // Kept apart from "pricing" (which each sync replaces) so the page can show the live update until Make says it's done.
   if (d.reprice) await env.PENDING.put("reprice-status", JSON.stringify({ startedAt: Date.now() }));
+  await scKick(env).catch(() => {});
   return json({ ok: true });
 }
 
@@ -5488,6 +5494,27 @@ async function socialTick(env) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) return;
   await fetch(MAKE_API + "/scenarios/8710118/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: false, data: {} }) });
 }
+// The site's "Vote on the next gag" page (Barry, 21 Nov): the next gags due out on the regular schedule, soonest first,
+// written to KV "shop:upcoming" each time the app reads Core. In Person and Exclusive have no weekly slot, so they're left out,
+// as is any gag with a garment already built. The site drops any whose date has passed and shows the first three.
+async function shopUpcomingPut(env, data) {
+  const today = new Date().toISOString().slice(0, 10), text = {};
+  (data.all || []).forEach((g) => { text[g.id] = g.text; });
+  const list = (data.sched || []).filter((g) => /^(IH|SH|PC|OS)-\d+$/.test(g.id) && !(g.b || []).some(Boolean) && text[g.id])
+    .map((g) => ({ id: g.id, coll: g.id.slice(0, 2), title: g.s || "", due: (g.d || []).filter(Boolean).sort()[0] || "", text: text[g.id] }))
+    .filter((g) => g.due && g.due >= today).sort((a, b) => a.due.localeCompare(b.due) || a.id.localeCompare(b.id)).slice(0, 6);
+  if (list.length) await env.PENDING.put("shop:upcoming", JSON.stringify(list));
+}
+// Votes from the site's vote page (KV "shop:votes": {"<three ids joined with +>": {id: count}}); never shown on the site.
+async function votesCard(env) {
+  const V = (await env.PENDING.get("shop:votes", "json")) || {}, G = (await env.PENDING.get("gags", "json")) || {}, stem = {};
+  (G.sched || []).forEach((g) => { stem[g.id] = g.s; });
+  const rounds = Object.entries(V).filter(([, c]) => c && typeof c === "object").reverse().slice(0, 3);
+  const body = rounds.length ? rounds.map(([k, c]) => { const tot = Object.values(c).reduce((a, b) => a + (Number(b) || 0), 0);
+    return k.split("+").map((id) => `<div class="cr"><span class="cn">${esc(id)}${stem[id] ? " · " + esc(stem[id]) : ""}</span><span class="cv"><b>${Number(c[id]) || 0}</b>${tot ? ` <span class="small">(${Math.round((Number(c[id]) || 0) / tot * 100)}%)</span>` : ""}</span></div>`).join(""); }).join('<div style="height:8px"></div>')
+    : `<div class="small" style="margin-top:6px">No votes yet. They appear here once the site's vote page is live.</div>`;
+  return `<div class="card" style="margin-bottom:12px"><b>Site votes: next gag</b> <span class="small">· only you see these</span>${body}</div>`;
+}
 async function socialCard(env) {
   const S = await env.PENDING.get("social", "json"), H = (await env.PENDING.get("social-hist", "json")) || {};
   if (!S) return `<div class="card small" style="margin-bottom:12px">Social stats arrive within 12 hours (Instagram and Facebook, read twice a day).</div>`;
@@ -5557,6 +5584,32 @@ async function salesNote(env, receipts) {
   }
   if (added || first) { S.ids = S.ids.slice(-500); await env.PENDING.put("sales-seen", JSON.stringify(S)); await env.PENDING.put("etsy-sales", JSON.stringify(log.slice(0, 1000))); }
 }
+// In Person orders from the site (Barry, 21 Nov): the shop worker records each paid checkout in KV "shop:order:<session>"
+// and "shop:orders"; an In Person line there ("personal": code, name, colour, size, quantity) joins the same queue as an
+// Etsy order: print made with the name, Barry checks it, then it goes to Printify. Each line's status follows its order.
+async function shopIpTick(env) {
+  const list = (await env.PENDING.get("shop:orders", "json")) || [];
+  const recs = list.filter((r) => r && r.session && Array.isArray(r.personal) && r.personal.some((l) => !["shipped", "done", "cancelled"].includes(l.status)) && Date.now() - (r.at || 0) < 60 * 864e5);
+  if (!recs.length) return;
+  const map = Object.values(await ipListingMap(env)), changed = {};
+  for (const r of recs) for (let i = 0; i < r.personal.length; i++) {
+    const l = r.personal[i], ref = "site-" + r.session.slice(-14) + "-" + (i + 1);
+    let o = await ipoGet(env, ref);
+    if (!o) {
+      const m = String(l.code || "").match(/^(IP-\d+)-(.+)$/), hit = m && (map.find((x) => x.code === l.code) || { code: l.code, gagId: m[1], type: m[2] });
+      if (!hit) { if (l.status !== "problem") { l.status = "problem"; changed[r.session] = r; } continue; }
+      o = { ref, source: "site", session: r.session, test: !r.livemode, receipt: r.session, txn: "", listingId: "", ...hit, nameRaw: l.name, colour: l.colour, size: l.size, qty: l.quantity || 1,
+        ship: r.ship || { name: r.name, email: r.email || "" }, note: "Site order" + (r.livemode ? "" : " (test payment)") };
+      await ipoNew(env, o); o = await ipoGet(env, ref);
+    }
+    const st = o ? o.status : "waiting";
+    if (l.status !== st || l.ipo !== ref) { l.status = st; l.ipo = ref; if (o && o.tracking) l.tracking = o.tracking; changed[r.session] = r; }
+  }
+  const keys = Object.keys(changed); if (!keys.length) return;
+  for (const k of keys) await env.PENDING.put("shop:order:" + k, JSON.stringify(changed[k]));
+  const fresh = (await env.PENDING.get("shop:orders", "json")) || [];   // re-read: the shop may have added an order meanwhile
+  await env.PENDING.put("shop:orders", JSON.stringify(fresh.map((r) => (r && changed[r.session]) ? { ...r, personal: changed[r.session].personal } : r)));
+}
 async function ipoNew(env, o) {
   o.at = Date.now(); o.name = String(o.nameRaw || "").toUpperCase().replace(/\s+/g, " ").trim();
   try { Object.assign(o, await ipoDetails(env, o.gagId, o.type)); } catch (e) { o.status = "problem"; o.msg = e.message; }
@@ -5608,9 +5661,10 @@ async function ipoPlace(env, o) {
   // Printify fetches the full-size print from Canva's download link, which only lasts about a day.
   if (!o.printAt || Date.now() - o.printAt > 20 * 3600e3) throw new Error("The print file is over 20 hours old and its download link has run out. Press Remake print, then send it.");
   const vid = await ipoVariant(env, o), parts = String(o.ship.name || "Buyer").trim().split(/\s+/);
-  const body = { external_id: "etsy-" + o.ref + (o.test ? "-test-" + Date.now() : ""), label: o.code + " " + o.name + (o.test ? " (TEST)" : ""),
+  const site = o.source === "site";
+  const body = { external_id: (site ? "" : "etsy-") + o.ref + (o.test ? "-test-" + Date.now() : ""), label: o.code + " " + o.name + (site ? " (site)" : "") + (o.test ? " (TEST)" : ""),
     line_items: [{ blueprint_id: o.blueprint, print_provider_id: o.provider, variant_id: vid, quantity: Number(o.qty) || 1, print_areas: Object.assign({ front: [{ src: o.printUrl, x: 0.5, y: 0.5, scale: 1, angle: 0 }] }, o.printUrl2 ? { back: [{ src: o.printUrl2, x: 0.5, y: 0.5, scale: 1, angle: 0 }] } : {}) }],
-    shipping_method: 1, is_printify_express: false, send_shipping_notification: false,
+    shipping_method: 1, is_printify_express: false, send_shipping_notification: site,   // a site buyer gets tracking from Printify; Etsy buyers get it from Etsy
     address_to: { first_name: parts[0], last_name: parts.slice(1).join(" ") || "-", email: o.ship.email || "", country: o.ship.country || "GB", region: o.ship.state || "",
       address1: o.ship.first_line || "", address2: o.ship.second_line || "", city: o.ship.city || "", zip: o.ship.zip || "" } };
   const r = await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders.json", "POST", body);
@@ -5629,7 +5683,8 @@ async function ipTrackTick(env) {
     o.trackAt = Date.now();
     const p = await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/orders/" + o.printifyOrder + ".json").catch(() => null);
     const sh = p && (p.shipments || [])[0];
-    if (sh && sh.number) {
+    if (sh && sh.number && o.source === "site") { o.status = "shipped"; o.tracking = { carrier: String(sh.carrier || "other").toLowerCase(), number: sh.number, url: sh.url || "" }; o.msg = ""; }
+    else if (sh && sh.number) {
       const carrier = String(sh.carrier || "other").toLowerCase();
       let ok = await etsyJson(env, "/shops/" + IP.shop + "/receipts/" + o.receipt + "/tracking", "POST", { tracking_code: sh.number, carrier_name: carrier }).then(() => true).catch((e) => { o.msg = e.message; return false; });
       if (!ok) ok = await etsyJson(env, "/shops/" + IP.shop + "/receipts/" + o.receipt + "/tracking", "POST", { tracking_code: sh.number, carrier_name: "other" }).then(() => true).catch((e) => { o.msg = e.message; return false; });
@@ -7466,7 +7521,8 @@ async function ordersPage(env) {
   const stripeState = await last4("stripe_secret_key");
   const pState = env.SECRETS && (await env.SECRETS.get("printify_token")) ? "saved ✓" : "not saved yet";
   const gbp = (p) => (p == null ? "" : "£" + (p / 100).toFixed(2));
-  const label = { "on-hold": ["wait", "Waiting for you: send to Printify"], "sent-to-production": ["ok", "Sent to Printify for printing"], "test-not-sent": ["ok", "Test payment (not sent to Printify)"], failed: ["bad", "NOT placed: needs you"], processing: ["wait", "Processing…"] };
+  const label = { "on-hold": ["wait", "Waiting for you: send to Printify"], "sent-to-production": ["ok", "Sent to Printify for printing"], "test-not-sent": ["ok", "Test payment (not sent to Printify)"], failed: ["bad", "NOT placed: needs you"], processing: ["wait", "Processing…"], "in-person": ["ok", "In Person only: it's in the In Person orders above"] };
+  const ipWord = { waiting: "waiting to be picked up", printing: "print being made", check: "check the name above", draft: "test draft in Printify", ordered: "sent to Printify", shipped: "posted", problem: "needs you (see above)" };
   const rows = orders.map((o) => {
     const [cls, txt] = label[o.status] || ["wait", o.status];
     return `<div class="card"><div class="meta">${esc(when(o.at))}${o.livemode ? "" : " · TEST"}</div>
@@ -7474,6 +7530,7 @@ async function ordersPage(env) {
 <div class="small">${(o.items || []).map((i) => `${i.quantity} × ${esc(i.name)}`).join("<br>")}</div>
 <div class="small">${esc(o.address || "")}${o.email ? " · " + esc(o.email) : ""}</div>
 <div class="status ${cls}">${esc(txt)}${o.error ? "<br>" + esc(o.error) : ""}</div>
+${(o.personal || []).map((l) => `<div class="small">In Person ${esc(l.code || "")} · ${esc(l.name || "")}: ${esc(ipWord[l.status] || l.status || "")}</div>`).join("")}
 ${o.status === "on-hold" ? `<button class="btn-main" data-send="${esc(o.session)}" type="button">Send to Printify</button>` : ""}
 ${o.printifyOrder ? `<div class="small"><a href="https://printify.com/app/order/${esc(o.printifyOrder)}" target="_blank" rel="noopener" style="color:inherit">Open in Printify</a></div>` : ""}</div>`;
   }).join("");
@@ -7683,7 +7740,80 @@ async function shopCatalogCard(env) {
 ${S.waiting ? `<div class="small">${S.waiting} new garment${S.waiting === 1 ? "" : "s"} still being added.</div>` : ""}
 ${S.etsyOnly ? `<div class="small">${S.etsyOnly} garment${S.etsyOnly === 1 ? " is" : "s are"} showing Etsy's photos only: the full Canva set hasn't been stored yet.</div>` : ""}
 ${S.error ? `<div class="status bad">Last check failed: ${esc(S.error)}</div>` : ""}
+${await (async () => { const Q = (await env.PENDING.get(SP.q, "json")) || {}, L = Q.log || [], last = L[0];
+  return `<div class="small" style="margin-top:6px">Photos: ${Q.cur ? "saving " + esc(Q.cur.code) + " now" + ((Q.queue || []).length ? ", " + Q.queue.length + " more waiting" : "") : (Q.queue || []).length ? Q.queue.length + " garment(s) waiting" : "all saved"}${last ? " · last: " + esc(last.code) + (last.err ? " failed (" + esc(last.err) + ")" : " ✓ " + esc(when(last.at))) : ""}. New and regenerated mockups are copied to the site by themselves.</div>`; })()}
 ${probs.length ? `<div class="status wait">${probs.map(esc).join("<br>")}</div>` : ""}
 <button id="sccheck" class="btn-main" type="button" style="margin-top:10px">Check now</button>
 <p id="scmsg" class="small"></p></div>`;
+}
+
+// ---------- Shop photos: kept in step by the app (Barry, 21 Nov) ----------
+// Every 2 hours (or after a kick) the app looks at Canva's most recently changed "MOCKUPS <code>" designs. Any garment
+// whose newest design isn't the one stored for the site (a new listing, or mockups regenerated) is queued. One garment at
+// a time: export every page at 1600px, copy them into R2 (p/<code>/<NN>.jpg), export again at 600px for the small
+// pictures (<NN>t.jpg; a Worker can't resize), then record it in KV "shop:photos" and refresh the site's catalogue.
+// In Person is left to the shop thread for now: its site photos also need a copy with the gag text left off.
+const SP = { q: "shop:photo-q", scanEvery: 2 * 3600e3, settle: 20 * 60e3, perTick: 8 };
+async function canvaTool(env, path, method = "GET", body) {
+  const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("No Make token saved.");
+  const data = { path, method }; if (body !== undefined) { data.body = JSON.stringify(body); data.header = [{ key: "Content-Type", value: "application/json" }]; }
+  const r = await fetch(MAKE_API + "/scenarios/8698322/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: true, data }) });
+  const j = await r.json().catch(() => ({})); if (j.error || !j.outputs) throw new Error("Canva tool: " + String((j.error && j.error.message) || r.status).slice(0, 200));
+  let b = j.outputs.data; if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) {} }
+  return b;
+}
+async function spKick(env) { const Q = (await env.PENDING.get(SP.q, "json")) || {}; Q.scanAt = 0; await env.PENDING.put(SP.q, JSON.stringify(Q)); }
+async function shopPhotoTick(env) {
+  if (!env.PHOTOS) return;
+  const Q = (await env.PENDING.get(SP.q, "json")) || { queue: [] }, now = Date.now(); Q.queue = Q.queue || [];
+  if (!Q.cur && now - (Q.scanAt || 0) > SP.scanEvery) {   // look for new or regenerated mockup sets
+    Q.scanAt = now; await env.PENDING.put(SP.q, JSON.stringify(Q));
+    const own = (await env.PENDING.get(SC.own, "json")) || {}, newest = {};
+    const r = await canvaTool(env, "/v1/designs?query=MOCKUPS&sort_by=modified_descending").catch((e) => ({ err: e.message }));
+    if (r && r.err) { Q.lastErr = r.err; await env.PENDING.put(SP.q, JSON.stringify(Q)); return; }
+    for (const d of (r && r.items) || []) { const m = /^MOCKUPS ((IH|SH|PC|OS|EX)-\d{5}-[A-Z-]+)$/.exec(d.title || ""); if (m && !newest[m[1]]) newest[m[1]] = d; }
+    for (const [code, d] of Object.entries(newest)) {
+      const have = own[code], upd = Number(d.updated_at || 0) * 1000;
+      if (now - upd < SP.settle) continue;   // still being made: wait until it has stood for 20 minutes
+      if (have && (have.design === d.id || (!have.design && upd <= (have.at || 0) * 1000))) continue;
+      if (!Q.queue.some((x) => x.code === code)) Q.queue.push({ code, design: d.id });
+    }
+    delete Q.lastErr;
+  }
+  if (!Q.cur) { Q.cur = Q.queue.shift(); if (!Q.cur) return env.PENDING.put(SP.q, JSON.stringify(Q)); Q.cur.stage = "big"; Q.cur.at = now; }
+  const c = Q.cur;
+  try {
+    if (now - c.at > 3 * 3600e3) throw new Error("took over 3 hours");
+    if (!c.job) {   // start an export (1600px, then 600px)
+      const j = await canvaTool(env, "/v1/exports", "POST", { design_id: c.design, format: { type: "jpg", quality: c.stage === "big" ? 88 : 82, width: c.stage === "big" ? 1600 : 600 } });
+      if (!j || !j.job || !j.job.id) throw new Error("Canva didn't start the export: " + JSON.stringify(j).slice(0, 160));
+      c.job = j.job.id; c.urls = null; c.done = 0;
+    } else if (!c.urls) {
+      const j = await canvaTool(env, "/v1/exports/" + c.job);
+      const st = j && j.job && j.job.status;
+      if (st === "success") c.urls = j.job.urls || [];
+      else if (st !== "in_progress") throw new Error("Canva export " + (st || "failed") + " " + JSON.stringify((j && j.job && j.job.error) || "").slice(0, 120));
+    } else {   // copy a few pages per run (Canva's links last a day)
+      const end = Math.min(c.urls.length, c.done + SP.perTick);
+      for (let i = c.done; i < end; i++) {
+        const res = await fetch(c.urls[i]); if (!res.ok) throw new Error("download of page " + (i + 1) + " failed (" + res.status + ")");
+        await env.PHOTOS.put("p/" + c.code + "/" + String(i + 1).padStart(2, "0") + (c.stage === "big" ? "" : "t") + ".jpg", res.body, { httpMetadata: { contentType: "image/jpeg" } });
+      }
+      c.done = end;
+      if (c.done >= c.urls.length) {
+        if (c.stage === "big") { c.n = c.urls.length; c.stage = "small"; delete c.job; c.urls = null; }
+        else {
+          const own = (await env.PENDING.get(SC.own, "json")) || {};
+          own[c.code] = Object.assign({}, own[c.code] || {}, { n: c.n, at: Math.floor(Date.now() / 1000), design: c.design });
+          await env.PENDING.put(SC.own, JSON.stringify(own));
+          Q.log = [{ code: c.code, n: c.n, at: Date.now() }].concat(Q.log || []).slice(0, 20);
+          delete Q.cur; await scKick(env);
+        }
+      }
+    }
+  } catch (e) {
+    Q.log = [{ code: c.code, err: String(e.message || e).slice(0, 200), at: Date.now() }].concat(Q.log || []).slice(0, 20);
+    delete Q.cur;
+  }
+  await env.PENDING.put(SP.q, JSON.stringify(Q));
 }
