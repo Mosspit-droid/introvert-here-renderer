@@ -533,6 +533,7 @@ body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!impor
 .sp .clue{position:absolute;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 0 200vmax rgba(10,8,5,.62)}
 .sp .ms{margin:0;min-height:2.7em;display:flex;align-items:center;text-align:center;font-weight:600;font-size:clamp(15px,2.2vh,18px);line-height:1.35;max-width:560px;text-wrap:balance}
 .sp .bt{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:44px}.sp .bt .btn{margin:0}
+.sp .bt.spn{align-items:center;min-height:0}.sp .bt.spn span{min-width:64px;text-align:center;font-weight:700;font-size:14px;letter-spacing:.04em}.sp .bt .btn:disabled{opacity:.3;cursor:default}.sp .bt.spn .btn{padding-top:9px;padding-bottom:9px}
 /* The Escape Room itself: one picture of the room filling the screen, with things in it to tap. */
 body.room main{max-width:none;padding:0;margin:0}
 .rm{position:relative;height:calc(100dvh - var(--hh,63px));min-height:320px;overflow:hidden;background:#17120d;-webkit-tap-highlight-color:transparent}
@@ -961,34 +962,48 @@ function spotPage() {
 <p class="br" id="sb"></p><p class="tm" id="st">0:00.0</p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
 <p class="ms" id="sm" role="status" aria-live="polite"></p>
-<p class="bt"><button class="btn ghost" id="sq" type="button" hidden>Give me a clue</button><button class="btn" id="sn" type="button" hidden>Next painting</button><button class="btn" id="sa" type="button" hidden>Go again</button><a class="btn ghost" href="${HUB.path}">Back to the room</a></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
-(function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,n=0,t0=0,tot=0,run=false,cl,used={};
+<p class="bt spn"><button class="btn ghost" id="sp0" type="button" aria-label="Previous painting">← Back</button><span id="sc"></span><button class="btn ghost" id="sn" type="button" aria-label="Next painting">Next →</button></p>
+<p class="bt"><button class="btn ghost" id="sq" type="button" hidden>Give me a clue</button><button class="btn" id="sa" type="button" hidden>Go again</button><a class="btn ghost" href="${HUB.path}">Back to the room</a></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
+(function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],T=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,t0=0,run=false,cl;
 var hd=document.querySelector('header');$('sp').style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
 function fmt(ms){var s=ms/1000,m=Math.floor(s/60);s-=m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
 function clear(){[].forEach.call(fr.querySelectorAll('.ring,.clue,.miss'),function(x){x.remove()})}
-// the clock for a painting starts when its picture has arrived, so a slow connection costs nobody time
-function go(){t0=Date.now();run=true;clearTimeout(cl);cl=setTimeout(function(){if(run)$('sq').hidden=false},20000)}
+function put(c,x,y,d){var e=document.createElement('div');e.className=c;e.style.left=x+'%';e.style.top=y+'%';if(d){e.style.width=d+'%';e.style.aspectRatio='1'}fr.appendChild(e);return e}
 // a game is five paintings: those not in the last game first, in a random order, then sorted easiest to hardest
 function deal(){var last=[];try{last=JSON.parse(localStorage.getItem('ih_spot_last')||'[]')}catch(_){}
  var ix=ALL.map(function(_,k){return k}),mix=function(a){return a.map(function(v){return[Math.random(),v]}).sort(function(a,b){return a[0]-b[0]}).map(function(v){return v[1]})};
  var pick=every?ix:mix(ix.filter(function(k){return last.indexOf(k)<0})).concat(mix(ix.filter(function(k){return last.indexOf(k)>=0}))).slice(0,5);
  if(!every){try{localStorage.setItem('ih_spot_last',JSON.stringify(pick))}catch(_){}}
- S=pick.sort(function(a,b){return ALL[a].lv-ALL[b].lv||a-b}).map(function(k){return ALL[k]})}
-function start(k){i=k;n=0;used={};run=false;clear();$('sb').textContent=S[i].brief;$('sm').textContent='Painting '+(i+1)+' of '+S.length+'. Tap where they’re hiding.';$('sq').hidden=$('sn').hidden=$('sa').hidden=true;
- im.alt=S[i].alt;im.onload=im.onerror=go;im.src=S[i].src;if(im.complete&&im.naturalWidth)go();if(S[i+1]){new Image().src=S[i+1].src}}
-function put(c,x,y,d){var e=document.createElement('div');e.className=c;e.style.left=x+'%';e.style.top=y+'%';if(d){e.style.width=d+'%';e.style.aspectRatio='1'}fr.appendChild(e);return e}
-fr.addEventListener('click',function(e){if(!run)return;var r=fr.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100,s=S[i].spot;
- var hit=[s].concat(S[i].also).some(function(q){var dx=(x-q[0])*r.width/100,dy=(y-q[1])*r.height/100,rad=Math.max(q[2]*r.width/100,24);return dx*dx+dy*dy<=rad*rad});
- if(hit){run=false;tot+=Date.now()-t0;clear();put('ring',s[0],s[1],Math.max(s[2]*2.6,14));$('sq').hidden=true;
-  if(i<S.length-1){$('sm').textContent=S[i].found;$('sn').hidden=false}else{var best=0;try{best=+localStorage.getItem(every?'ih_spot_bestall':'ih_spot_best5')||0}catch(_){}
-   var rec=!best||tot<best;if(rec){try{localStorage.setItem(every?'ih_spot_bestall':'ih_spot_best5',tot)}catch(_){}}
-   $('sm').textContent=S[i].found+(every?' All of them in ':' All five in ')+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');$('sa').hidden=false}}
- else{var w=S[i].wrong,m=put('miss',x,y),line=null;m.textContent='×';setTimeout(function(){m.remove()},1000);
-  S[i].zones.some(function(z,k){var q=z[0];if(!used[k]&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3]){used[k]=1;line=z[1];return true}});
-  if(!line){line=n<w.length?w[n]:w[w.length-4+(n-w.length)%4];n++}$('sm').textContent=line}});
-$('sq').addEventListener('click',function(){var c=S[i].clueAt;put('clue',c[0],c[1],c[2]*2);$('sm').textContent=S[i].clue;$('sq').hidden=true});
-$('sn').addEventListener('click',function(){start(i+1)});$('sa').addEventListener('click',function(){tot=0;deal();start(0)});
-setInterval(function(){$('st').textContent=fmt(tot+(run?Date.now()-t0:0))},100);deal();start(0)})();` });
+ S=pick.sort(function(a,b){return ALL[a].lv-ALL[b].lv||a-b}).map(function(k){return ALL[k]});
+ // what has happened on each painting so far: time spent looking, found or not, wrong taps, lines used, clue shown
+ T=S.map(function(){return{t:0,done:false,n:0,used:{},clue:false,say:''}})}
+function total(){return T.reduce(function(a,x){return a+x.t},0)+(run?Date.now()-t0:0)}
+function left(){return T.filter(function(x){return !x.done}).length}
+// Back and Next move between the paintings at any time (Barry, 21 Nov). A painting's clock only runs while it is on
+// screen and its hider is still hiding, and only from when its picture has arrived.
+function stop(){if(run){T[i].t+=Date.now()-t0;run=false}clearTimeout(cl)}
+function go(){if(T[i].done||run)return;t0=Date.now();run=true;clearTimeout(cl);if(!T[i].clue)cl=setTimeout(function(){if(run)$('sq').hidden=false},Math.max(0,20000-T[i].t))}
+function show(k){stop();i=k;var s=S[i],t=T[i];clear();$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
+ $('sn').className='btn'+(t.done&&left()&&i<S.length-1?'':' ghost');$('sq').hidden=true;$('sa').hidden=left()>0;
+ if(t.done)put('ring',s.spot[0],s.spot[1],Math.max(s.spot[2]*2.6,14));else if(t.clue)put('clue',s.clueAt[0],s.clueAt[1],s.clueAt[2]*2);
+ $('sm').textContent=t.say||(t.done?s.found:'Tap where they’re hiding.');
+ im.alt=s.alt;im.onload=im.onerror=go;if(im.getAttribute('src')!==s.src)im.src=s.src;if(im.complete&&im.naturalWidth)go();if(S[i+1]){new Image().src=S[i+1].src}}
+fr.addEventListener('click',function(e){if(!run)return;var r=fr.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100,s=S[i],t=T[i];
+ var hit=[s.spot].concat(s.also).some(function(q){var dx=(x-q[0])*r.width/100,dy=(y-q[1])*r.height/100,rad=Math.max(q[2]*r.width/100,24);return dx*dx+dy*dy<=rad*rad});
+ if(hit){stop();t.done=true;var n=left();
+  if(n)t.say=s.found+(i===S.length-1?' '+n+' still hiding. Go back for them.':'');
+  else{var key=every?'ih_spot_bestall':'ih_spot_best5',best=0,tot=total();try{best=+localStorage.getItem(key)||0}catch(_){}
+   var rec=!best||tot<best;if(rec){try{localStorage.setItem(key,tot)}catch(_){}}
+   t.say=s.found+(every?' All of them in ':' All five in ')+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.')}
+  show(i)}
+ else{var w=s.wrong,m=put('miss',x,y),line=null;m.textContent='×';setTimeout(function(){m.remove()},1000);
+  s.zones.some(function(z,k){var q=z[0];if(!t.used[k]&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3]){t.used[k]=1;line=z[1];return true}});
+  if(!line){line=t.n<w.length?w[t.n]:w[w.length-4+(t.n-w.length)%4];t.n++}t.say=line;$('sm').textContent=line}});
+$('sq').addEventListener('click',function(){var c=S[i].clueAt;T[i].clue=true;T[i].say=S[i].clue;put('clue',c[0],c[1],c[2]*2);$('sm').textContent=S[i].clue;$('sq').hidden=true});
+$('sp0').addEventListener('click',function(){if(i>0)show(i-1)});$('sn').addEventListener('click',function(){if(i<S.length-1)show(i+1)});
+document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'&&i>0)show(i-1);if(e.key==='ArrowRight'&&i<S.length-1)show(i+1)});
+$('sa').addEventListener('click',function(){stop();deal();show(0)});
+setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})();` });
 }
 
 // The room (Barry, 21 Nov): one picture of the cosiest room imaginable fills the screen, and the things in it are the
