@@ -75,13 +75,17 @@ def build(base, name, T, U, at, tilt):
     # the bar is in front of the hanger; right of it the hanger is in front of the bar.
     front = (LG[..., 3] > 128) & S & (xs < at[0]) & (np.abs(ys - at[1]) <= T * 0.5 + 2)
     out = lg.copy()
-    out.alpha_composite(Image.fromarray(shadow(S, 0.16 * U, round(0.1 * U), round(0.14 * U), 0.5), "RGBA"))     # the hanger's shadow on the logo
+    # the hanger's shadow on the logo. None on the bar to the left of the hole: there the hook is behind the bar, and
+    # must not show through it in any way (no shadow, no outline).
+    sh = shadow(S, 0.16 * U, round(0.1 * U), round(0.14 * U), 0.5)
+    sh[(LG[..., 3] > 0) & (xs < at[0] + 0.5 * T) & (np.abs(ys - at[1]) <= T * 0.5 + 3), 3] = 0
+    out.alpha_composite(Image.fromarray(sh, "RGBA"))
     layer = Image.new("RGBA", size); layer.alpha_composite(tag, (ox, oy)); out.alpha_composite(layer)
     O = np.asarray(out).copy()
     barsh = shadow(front, 0.07 * U, 0, round(0.07 * U), 0.55)[..., 3] / 255.0 * (S & ~front)                    # the bar's shadow on the hanger
     O[..., :3] = (O[..., :3] * (1 - barsh[..., None])).astype(np.uint8)
-    edge = binary_dilation(front, iterations=max(2, round(line))) & ~front & S
-    O[edge] = tuple(EDGE.astype(int)) + (255,); O[front] = LG[front]
+    behind = (LG[..., 3] > 0) & (xs < at[0]) & (np.abs(ys - at[1]) <= T * 0.5 + 3)   # every pixel of the bar, soft edges included
+    O[behind] = LG[behind]
     out = Image.fromarray(O); bb = out.getbbox(); out = out.crop((0, 0, out.width, bb[3] + 40))
     out.save(f"{OUT}/{name}.png", optimize=True); print(name, out.size)
 
@@ -89,4 +93,4 @@ M = HERE + "/../main-collections/"
 # wide: frame 4266 x 634 at (117, 433), bars 86 thick; the hanger hangs from the bottom bar, under the dots
 build(M + "introvert-here-wide.png", "escape-room-wide", 86, 112, (3780, 1024), 7)
 # stacked: bottom band 179 thick (983..1162); the hanger hangs from it, left of the three dots
-build(M + "introvert-here-stacked.png", "escape-room-stacked", 179, 112, (2300, 1072), 7)
+build(M + "introvert-here-stacked.png", "escape-room-stacked", 179, 112, (2462, 1072), 7)   # as near the three dots as it goes without covering them
