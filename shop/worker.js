@@ -896,64 +896,67 @@ function gatePage() {
 }
 // ---------------- Spot the Introvert ----------------
 // The painting in the room (Barry, 21 Nov): tap it and you are looking at a painting with one person hiding in it.
-// Find them. Wrong taps get a dry line (in order, then the last few go round), a clue is offered after 20 seconds, and
-// the best time is remembered on the player's device. Barry is making the real paintings (oil-painting style, tall 2:3);
-// until they arrive the one scene is a stand-in forest drawn here. A scene: brief, picture (svg or img), spot = where
-// they are [x%, y%, radius as % of the width], the line for finding them, the clue, and the wrong-tap lines.
-function standInForest() {
-  let seed = 11; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const trunk = (x, w, top, base, fill, o) => `<path d="M${x - w / 2} ${base}C${x - w * 0.42} ${base - 300} ${x - w * 0.3} ${top + 200} ${x - w * 0.22} ${top}L${x + w * 0.22} ${top}C${x + w * 0.3} ${top + 200} ${x + w * 0.42} ${base - 300} ${x + w / 2} ${base}Z" fill="${fill}" opacity="${o}"/>`;
-  let far = "", mid = "", ferns = "";
-  for (let i = 0; i < 26; i++) far += trunk(20 + rnd() * 760, 10 + rnd() * 12, -20, 760 + rnd() * 60, "#9aa392", 0.5 + rnd() * 0.3);
-  for (const x of [70, 168, 262, 352, 455, 660, 742]) mid += trunk(x + rnd() * 16, 26 + rnd() * 14, -20, 880 + rnd() * 50, "#5d6453", 0.92);
-  for (let i = 0; i < 70; i++) { const x = rnd() * 800, y = 880 + rnd() * 300, r = 18 + rnd() * 40; ferns += `<path d="M${x} ${y}q${-r} ${-r * 0.9} ${-r * 1.6} ${-r * 0.2}M${x} ${y}q${r * 0.2} ${-r * 1.3} ${-r * 0.3} ${-r * 1.7}M${x} ${y}q${r} ${-r * 0.9} ${r * 1.6} ${-r * 0.2}" stroke="${rnd() < 0.5 ? "#4d5a34" : "#667243"}" stroke-width="${4 + rnd() * 5}" fill="none" stroke-linecap="round" opacity=".9"/>`; }
-  // the introvert: half a face, a shoulder and four fingers, behind the trunk at x = 560
-  const who = `<g><path d="M566 742c20 4 30 26 32 70l-34 2z" fill="#56603f"/><circle cx="574" cy="722" r="15" fill="#c79f84"/><path d="M560 716c4-16 26-18 31-2-10-5-20-4-31 2z" fill="#3a2a1e"/><circle cx="581" cy="723" r="2.3" fill="#1c1410"/><path d="M576 716l9-1" stroke="#3a2a1e" stroke-width="2" stroke-linecap="round"/></g>`;
-  const hide = trunk(560, 38, -20, 905, "#555c4b", 1) + `<g fill="#c79f84"><rect x="574" y="766" width="9" height="5" rx="2.5"/><rect x="574" y="773" width="10" height="5" rx="2.5"/><rect x="574" y="780" width="9" height="5" rx="2.5"/><rect x="574" y="787" width="8" height="5" rx="2.5"/></g>`;
-  const near = trunk(-10, 110, -20, 1230, "#2f3327", 1) + trunk(790, 96, -20, 1230, "#33382b", 1);
-  return `<svg viewBox="0 0 800 1200" preserveAspectRatio="xMidYMid slice" role="img" aria-label="A painting of a misty forest. Someone is hiding in it."><defs>
-<linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c9cdbd"/><stop offset=".55" stop-color="#b3b9a4"/><stop offset=".78" stop-color="#7f8a66"/><stop offset="1" stop-color="#3f4a2c"/></linearGradient>
-<radialGradient id="fglow" cx="48%" cy="46%" r="46%"><stop offset="0" stop-color="#eef0e2" stop-opacity=".85"/><stop offset="1" stop-color="#eef0e2" stop-opacity="0"/></radialGradient>
-<linearGradient id="fmist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9dccd" stop-opacity="0"/><stop offset=".5" stop-color="#d9dccd" stop-opacity=".5"/><stop offset="1" stop-color="#d9dccd" stop-opacity="0"/></linearGradient>
-<filter id="fpaint" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".018 .05" numOctaves="3" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="16"/></filter>
-<filter id="fcanvas" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .35" numOctaves="2" seed="8"/><feColorMatrix values="0 0 0 0 .2  0 0 0 0 .18  0 0 0 0 .12  0 0 0 .55 -.16"/></filter></defs>
-<g filter="url(#fpaint)"><rect x="-20" y="-20" width="840" height="1240" fill="url(#fsky)"/><rect x="-20" y="-20" width="840" height="1240" fill="url(#fglow)"/>${far}
-<rect x="-20" y="520" width="840" height="320" fill="url(#fmist)"/><path d="M330 1220C350 1050 380 930 410 850 425 810 432 790 436 770L452 770C470 860 520 1040 600 1220Z" fill="#a39a78" opacity=".85"/>
-${mid}${who}${hide}<rect x="-20" y="700" width="840" height="260" fill="url(#fmist)" opacity=".55"/>${ferns}${near}</g>
-<rect width="800" height="1200" filter="url(#fcanvas)" opacity=".5"/></svg>`;
-}
+// Find them, five paintings in a row, easiest first. Wrong taps get a dry line: one of the scene's own for the thing
+// tapped (zones, each said once), otherwise the next in its list (then the last four go round). A clue is offered
+// after 20 seconds, and the best total time is remembered on the player's device.
+// The paintings are Barry's (ChatGPT, oil-painting style, 1024 x 1536); R2 site/spot-<name>.jpg, copies in shop/assets/site/.
+// A scene: brief; spot = where they are [x%, y%, radius as % of the width]; found; clue + clueAt [x%, y%, radius];
+// zones = [[x%, y%, w%, h%], line]; wrong = the general lines, in order. The wording is a draft for Barry to edit.
 const SPOT = [
-  { brief: "Someone came out here to avoid a housewarming. Find them.", svg: standInForest(), spot: [72.2, 62.5, 4.4],
-    found: "Found. They’d like you to pretend you didn’t.", clue: "A clue, since you asked. Somewhere in the lit bit.", clueAt: [62, 58, 26],
-    wrong: ["No. That’s a tree.", "Also a tree.", "Tree.", "It’s a forest. Most of it is going to be trees.", "Still a tree.", "They can hear you tapping, you know.", "Colder.", "No.", "That’s a different tree. Well done. Still a tree."] },
+  { img: "xmas", alt: "A painting of a crowded Christmas party, with a heap of coats on a bench in the hall.",
+    brief: "Someone at this Christmas party has had enough. Find them.", spot: [52, 49, 5],
+    found: "Found. One sock. They’d like you to pretend you didn’t.", clue: "A clue, since you asked. Check the cloakroom.", clueAt: [62, 40, 24],
+    zones: [[[48, 23, 30, 22], "It’s a pile of coats. Mostly."], [[88, 40, 12, 22], "That’s the fire. It’s the opposite of hiding."], [[9, 60, 30, 22], "She’s having a lovely time. Not who we’re after."]],
+    wrong: ["No. They’re enjoying themselves.", "Also enjoying themselves.", "Enjoying themselves.", "It’s a party. Most of them want to be here.", "That one’s fine.", "Colder.", "No.", "They can hear you tapping, you know."] },
+  { img: "wedding", alt: "A painting of a wedding reception in a marquee, with a cake on a table with a long cloth.",
+    brief: "Someone at this wedding would rather not be. Find them.", spot: [75.5, 70.9, 5],
+    found: "Found. They’ve been under there since the speeches.", clue: "A clue, since you asked. Lower than you’re looking.", clueAt: [72, 66, 24],
+    zones: [[[70, 35, 16, 13], "That’s the cake. Everyone found the cake."], [[54, 49, 45, 18], "That’s a tablecloth. Have a think about tablecloths."], [[35, 5, 65, 12], "Bunting. Nobody has ever hidden in bunting."]],
+    wrong: ["No. That’s a guest.", "Also a guest.", "Guest.", "There are ninety of them. Narrow it down.", "That one came for the free bar.", "No.", "Colder.", "Wrong, but they do look happy."] },
+  { img: "salon", alt: "A painting of a candlelit party in a grand old room, with a heavy red curtain on the right.",
+    brief: "Someone was told there’d be “just a few people”. Find them.", spot: [90.3, 88.9, 5.5],
+    found: "Found. Nice shoes. They’re not coming out.", clue: "A clue, since you asked. Not everyone is in the room, exactly.", clueAt: [82, 82, 24],
+    zones: [[[84, 0, 16, 84], "It’s a curtain. A long one. Goes all the way to the floor."], [[44, 0, 22, 17], "That’s the chandelier. Nobody’s up there. We checked."], [[23, 0, 22, 18], "That’s a painting in a painting. Eyes down."], [[3, 74, 22, 10], "Those are grapes."]],
+    wrong: ["No. That one’s mid-anecdote.", "Also not hiding. Loudly not hiding.", "No.", "People who hide don’t bring a lute.", "Colder.", "Still no.", "They’re all having a marvellous time. That’s the problem.", "No."] },
+  { img: "garden", alt: "A painting of a sunny garden party beside a glasshouse, with a clipped bush in a terracotta pot.",
+    brief: "Someone said they’d “pop along for an hour”. Find them.", spot: [29.3, 40.8, 3.5],
+    found: "Found. Four fingers. That’s all you’re getting.", clue: "A clue, since you asked. Somebody’s very attached to that pot.", clueAt: [30, 42, 22],
+    zones: [[[19, 57.5, 8, 6], "That’s a bun. Buns aren’t hiding. Buns are just low."], [[15, 29, 17, 9], "It’s a bush. A suspiciously well-kept one."], [[50, 0, 50, 28], "That’s a glasshouse. You’d be seen from every angle."]],
+    wrong: ["No. That’s a hat with a person under it.", "Another hat.", "Hat.", "It’s a garden party. Most of it is going to be hats.", "That’s a flower.", "Colder.", "No.", "Also a hat."] },
+  { img: "library", alt: "A painting of a drinks reception in an old library, with a tall wooden cupboard among the bookshelves.",
+    brief: "Someone came here for the quiet and got a drinks reception. Find them.", spot: [69.7, 26.7, 3.2],
+    found: "Found. They saw you first.", clue: "A clue, since you asked. Try the furniture.", clueAt: [68, 30, 22],
+    zones: [[[54, 13, 32, 38], "A cupboard. Shut. Mostly."], [[38, 15, 6, 7], "That’s a bust. He’s been ignoring people since 1840."], [[87, 17, 13, 25], "Books. The original way to avoid people."], [[6, 0, 24, 26], "That’s outside. Tempting, but no."]],
+    wrong: ["No. Nobody’s reading, either.", "No.", "That one’s talking. In a library.", "Also talking.", "Colder.", "Somebody here remembers what libraries are for.", "No.", "Look for someone looking at you."] },
 ];
 function spotPage() {
-  const data = SPOT.map((x) => ({ brief: x.brief, spot: x.spot, found: x.found, clue: x.clue, clueAt: x.clueAt, wrong: x.wrong }));
+  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, spot: x.spot, found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
   return page("Spot the Introvert", `<h1 style="position:absolute;left:-9999px">Spot the Introvert</h1><div class="sp" id="sp">
 <p class="br" id="sb"></p><p class="tm" id="st">0:00.0</p>
-<div class="fw"><div class="fr" id="sf">${SPOT.map((x, i) => `<div class="sc" data-i="${i}"${i ? " hidden" : ""}>${x.svg || `<img src="${x.img}" alt="A painting of a crowded scene. Someone is hiding in it." draggable="false">`}</div>`).join("")}</div></div>
+<div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
 <p class="ms" id="sm" role="status" aria-live="polite"></p>
 <p class="bt"><button class="btn ghost" id="sq" type="button" hidden>Give me a clue</button><button class="btn" id="sn" type="button" hidden>Next painting</button><button class="btn" id="sa" type="button" hidden>Go again</button><a class="btn ghost" href="${HUB.path}">Back to the room</a></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
-(function(){var S=${JSON.stringify(data).replace(/</g, "\\u003c")},$=function(i){return document.getElementById(i)},fr=$('sf'),i=0,n=0,t0=0,tot=0,run=false,tick,cl;
+(function(){var S=${JSON.stringify(data).replace(/</g, "\\u003c")},$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,n=0,t0=0,tot=0,run=false,cl,used={};
 var hd=document.querySelector('header');$('sp').style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
-[].forEach.call(fr.querySelectorAll('.sc'),function(x){x.style.cssText='position:absolute;inset:0'});
 function fmt(ms){var s=ms/1000,m=Math.floor(s/60);s-=m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
-function now(){return tot+(run?Date.now()-t0:0)}
 function clear(){[].forEach.call(fr.querySelectorAll('.ring,.clue,.miss'),function(x){x.remove()})}
-function start(k){i=k;n=0;clear();[].forEach.call(fr.querySelectorAll('.sc'),function(x){x.hidden=+x.dataset.i!==i});
- $('sb').textContent=S[i].brief;$('sm').textContent=S.length>1?'Painting '+(i+1)+' of '+S.length+'.':'Tap where they’re hiding.';$('sq').hidden=$('sn').hidden=$('sa').hidden=true;
- t0=Date.now();run=true;clearTimeout(cl);cl=setTimeout(function(){if(run)$('sq').hidden=false},20000)}
+// the clock for a painting starts when its picture has arrived, so a slow connection costs nobody time
+function go(){t0=Date.now();run=true;clearTimeout(cl);cl=setTimeout(function(){if(run)$('sq').hidden=false},20000)}
+function start(k){i=k;n=0;used={};run=false;clear();$('sb').textContent=S[i].brief;$('sm').textContent='Painting '+(i+1)+' of '+S.length+'. Tap where they’re hiding.';$('sq').hidden=$('sn').hidden=$('sa').hidden=true;
+ im.alt=S[i].alt;im.onload=im.onerror=go;im.src=S[i].src;if(im.complete&&im.naturalWidth)go();if(S[i+1]){new Image().src=S[i+1].src}}
 function put(c,x,y,d){var e=document.createElement('div');e.className=c;e.style.left=x+'%';e.style.top=y+'%';if(d){e.style.width=d+'%';e.style.aspectRatio='1'}fr.appendChild(e);return e}
 fr.addEventListener('click',function(e){if(!run)return;var r=fr.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100,s=S[i].spot;
  var dx=(x-s[0])*r.width/100,dy=(y-s[1])*r.height/100,rad=Math.max(s[2]*r.width/100,24);
  if(dx*dx+dy*dy<=rad*rad){run=false;tot+=Date.now()-t0;clear();put('ring',s[0],s[1],Math.max(s[2]*2.6,14));$('sq').hidden=true;
-  if(i<S.length-1){$('sm').textContent=S[i].found;$('sn').hidden=false}else{var best=0;try{best=+localStorage.getItem('ih_spot_best')||0}catch(_){}
-   var rec=!best||tot<best;if(rec){try{localStorage.setItem('ih_spot_best',tot)}catch(_){}}
-   $('sm').textContent=S[i].found+' '+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');$('sa').hidden=false}}
- else{var w=S[i].wrong,m=put('miss',x,y);m.textContent='×';setTimeout(function(){m.remove()},1000);$('sm').textContent=n<w.length?w[n]:w[w.length-4+(n-w.length)%4];n++}});
+  if(i<S.length-1){$('sm').textContent=S[i].found;$('sn').hidden=false}else{var best=0;try{best=+localStorage.getItem('ih_spot_best5')||0}catch(_){}
+   var rec=!best||tot<best;if(rec){try{localStorage.setItem('ih_spot_best5',tot)}catch(_){}}
+   $('sm').textContent=S[i].found+' All five in '+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');$('sa').hidden=false}}
+ else{var w=S[i].wrong,m=put('miss',x,y),line=null;m.textContent='×';setTimeout(function(){m.remove()},1000);
+  S[i].zones.some(function(z,k){var q=z[0];if(!used[k]&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3]){used[k]=1;line=z[1];return true}});
+  if(!line){line=n<w.length?w[n]:w[w.length-4+(n-w.length)%4];n++}$('sm').textContent=line}});
 $('sq').addEventListener('click',function(){var c=S[i].clueAt;put('clue',c[0],c[1],c[2]*2);$('sm').textContent=S[i].clue;$('sq').hidden=true});
 $('sn').addEventListener('click',function(){start(i+1)});$('sa').addEventListener('click',function(){tot=0;start(0)});
-tick=setInterval(function(){$('st').textContent=fmt(now())},100);start(0)})();` });
+setInterval(function(){$('st').textContent=fmt(tot+(run?Date.now()-t0:0))},100);start(0)})();` });
 }
 
 // The room (Barry, 21 Nov): one picture of the cosiest room imaginable fills the screen, and the things in it are the
