@@ -112,7 +112,7 @@ async function route(request, env, ctx) {
         // Old addresses were one page per gag: send them to that gag's first garment.
         const old = cat.designs.find((x) => x.slug === want);
         if (old) return Response.redirect(url.origin + "/uk/p/" + productSlug(old, cat.garmentOrder.find((t) => old.garments[t])), 302);
-        return html(page("Not found", `<p>That isn't here. <a href="/uk/shop">Back to the shop</a>.</p>`), 404);
+        return html(page("Not found", mascotMsg("peek", "That isn’t here.", "It might have sold out, or it’s hiding. Either way, it’s not coming out.", "/uk/shop", "Back to the shop"), { noindex: true }), 404);
       }
       if (path === "/uk/basket") return html(basketPage());
       if (path === "/uk/thanks") return html(thanksPage());
@@ -129,10 +129,10 @@ async function route(request, env, ctx) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
         return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
-      const sp = /^\/s\/([a-z0-9-]+)\.jpg$/.exec(path);   // site pictures (door scenes and the like), from R2 site/
+      const sp = /^\/s\/([a-z0-9-]+)\.(jpg|png)$/.exec(path);   // site pictures (door scenes, the mascot...), from R2 site/
       if (sp) {
-        const obj = env.PHOTOS ? await env.PHOTOS.get("site/" + sp[1] + ".jpg") : null;
-        return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
+        const obj = env.PHOTOS ? await env.PHOTOS.get("site/" + sp[1] + "." + sp[2]) : null;
+        return obj ? new Response(obj.body, { headers: { "Content-Type": sp[2] === "png" ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
       const mk = /^\/m\/([0-9a-f]{16})\.jpg$/.exec(path); // Printify mockups on range backgrounds (shop/mockups/)
       if (mk) {
@@ -140,7 +140,7 @@ async function route(request, env, ctx) {
         if (!buf) { const r = await fetch(MOCKUP_STORE + mk[1] + ".jpg", { cf: { cacheTtl: 86400, cacheEverything: true } }); if (r.ok) buf = await r.arrayBuffer(); }
         return buf ? new Response(buf, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=604800" } }) : new Response("", { status: 404 });
       }
-      return html(page("Not found", `<p>Nothing here. <a href="/uk">Go to the front page</a>.</p>`), 404);
+      return html(page("Not found", mascotMsg("peek", "Nothing here.", "Or there is, and it’s hiding. Either way, it’s not coming out.", "/uk", "Go to the front page"), { noindex: true }), 404);
     } catch (e) {
       console.error(e);
       return html(page("Something went wrong", `<p>Sorry, something went wrong on our side. Please try again in a minute.</p>`), 500);
@@ -535,6 +535,8 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .thing.xq{min-height:clamp(170px,26vh,240px);justify-content:center;margin-top:clamp(18px,3vw,30px);max-width:820px}
 .thing.xq p{margin:6px 0 0;font-size:clamp(22px,3.4vw,36px);line-height:1.25;font-weight:700;color:var(--text);text-wrap:balance;user-select:text;-webkit-user-select:text}
 .xb{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+.mascot-msg{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;max-width:460px;margin:36px auto 48px}.mascot-msg img{width:min(190px,48vw);height:auto;margin-bottom:6px}.mascot-msg h1{margin:0}.mascot-msg p{margin:0 0 12px}
+.mascot-wave{display:block;width:110px;height:auto;margin:26px auto 0}
 /* Escape the Party: a sample paper escape room. One puzzle at a time; each answer opens a padlock. */
 .ep{max-width:640px;margin:0 auto}.ep .box{--fc:#fad00c;--pad:clamp(14px,3vw,22px);margin:16px 0 18px}
 .ep h2{margin:2px 0 8px;font-size:clamp(20px,4.6vw,26px)}.ep p{line-height:1.5}
@@ -1319,11 +1321,16 @@ ${others.length ? `<p class="note">Also on: ${others.map((t) => `<a href="/uk/p/
 <p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This ${esc(g0.label.toLowerCase())} on Etsy</a></p></div></div>`, { script, coll: d.coll, desc: `${name}: ${d.text.replace(/\s+/g, " ")}` });
 }
 
+// The mascot (Barry's hoodie character, brand-logos/mascot/): a short message with him in a pose, for empty or lost
+// pages. The "sticker" versions (white outline) are used because most of the site is dark.
+function mascotMsg(pose, title, line, href, cta) {
+  return `<div class="mascot-msg"><img src="/s/mascot-${pose}-sticker.png?v=1" alt="" width="200"><h1>${title}</h1><p class="muted">${line}</p><a class="btn" href="${href}">${cta}</a></div>`;
+}
 function basketPage() {
   const script = `
 function money(p){return '£'+(p/100).toFixed(2)}
 function draw(){var b=B.get(),el=document.getElementById('list');
- if(!b.length){el.innerHTML='<p class="muted">Your basket is empty. <a href="/uk/shop">Back to the shop</a>.</p>';document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';return}
+ if(!b.length){el.innerHTML=${JSON.stringify(mascotMsg("sit", "Your basket’s empty.", "Just him in here, and he likes it that way. You don’t have to.", "/uk/shop", "Go shopping"))};document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';document.getElementById('bh').hidden=document.getElementById('bn').hidden=true;return}
  el.innerHTML=b.map(function(i,n){return '<div class="row"><img src="'+i.img+'" alt=""><div style="flex:1"><b>'+i.title+'</b><br><span class="note">'+i.garment+' · '+i.colour+' · '+i.size+(i.name?' · Name: '+i.name:'')+'</span></div><div class="qty"><button data-d="'+n+'">−</button>'+i.qty+'<button data-u="'+n+'">+</button></div><b>'+money(i.price*i.qty)+'</b></div>'}).join('');
  document.getElementById('total').textContent='Total '+money(b.reduce(function(a,i){return a+i.price*i.qty},0))+' · free UK delivery';document.getElementById('pay').style.display='';}
 document.addEventListener('click',function(e){var b=B.get(),t=e.target;
@@ -1333,13 +1340,13 @@ document.getElementById('pay').addEventListener('click',async function(){var btn
  var o=await r.json();if(o.url){location.href=o.url;return}alert(o.error||'Sorry, checkout is unavailable right now.')}catch(e){alert('Sorry, checkout is unavailable right now.')}
  btn.disabled=false;btn.textContent='Checkout securely';});
 draw();`;
-  return page("Basket", `<h1>Your basket</h1><div id="list"></div><p id="total" class="price" style="font-size:20px"></p>
+  return page("Basket", `<h1 id="bh">Your basket</h1><div id="list"></div><p id="total" class="price" style="font-size:20px"></p>
 <button id="pay" class="btn" style="width:100%;max-width:420px">Checkout securely</button>
-<p class="note">You'll pay on Stripe's secure checkout page. We never see your card details.</p>`, { script, noindex: true });
+<p class="note" id="bn">You'll pay on Stripe's secure checkout page. We never see your card details.</p>`, { script, noindex: true });
 }
 
 function thanksPage() {
-  return page("Thank you", `<div class="centre"><h1>Thank you</h1><p>Your order's in. You'll get a receipt by email now, and tracking details once it's on its way, usually within 4–10 working days.</p>
+  return page("Thank you", `<div class="centre"><img class="mascot-wave" src="/s/mascot-wave-sticker.png?v=1" alt="" width="120"><h1>Thank you</h1><p>Your order's in. You'll get a receipt by email now, and tracking details once it's on its way, usually within 4–10 working days.</p>
 <p id="ipnote" class="box" style="display:none;text-align:left"></p>
 <p class="muted">We'll try not to make conversation about it.</p><p><a class="btn ghost" href="/uk/shop">Back to the shop</a></p></div>`, { script: "try{var b=B.get(),p=b.filter(function(i){return i.name}),o=b.length-p.length,n=document.getElementById('ipnote');if(p.length){n.style.display='block';n.textContent='Your In Person '+(p.length>1?'items are':'item is')+' printed with your name, which we check by hand first, so allow an extra day or two.'+(o?' It will arrive separately from the rest of your order, so expect two parcels.':'')}localStorage.removeItem('ih_basket')}catch(e){}B.count();", noindex: true });
 }
