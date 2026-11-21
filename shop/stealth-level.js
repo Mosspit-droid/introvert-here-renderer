@@ -19,7 +19,7 @@
 import { ART, PPH } from "./stealth-art/art.js";
 
 const TITLE = "Just Passing Through";   // working title
-const LEVEL = { cakes: 2, len: 17.4, start: .7, bin: 5.0, cooler: 7.4, coats: 9.5, locker: 12.2, doorway: 13.9, exit: 16.0,
+const LEVEL = { cakes: 2, len: 17.4, start: .7, bin: 5.0, cooler: 7.4, coats: 11.3, locker: 12.25, doorway: 13.9, exit: 16.0,
   pacer: { from: 3.6, to: 11.6, x: 7.5, f: -1, sight: 2.3, speed: .9, read: 2.8, name: "The Pacer", colour: "#e81f84",
     lines: ["Ooh, just the person. Have you got two minutes for a quick survey?", "There you are! I’ve got a form with your name on it.", "Perfect timing. We’re one short for the fun committee."] },
   boss: { asleep: 3.6, stir: 1.0, awake: 2.6, droop: .6, name: "The Boss", colour: "#7a5a2e",
