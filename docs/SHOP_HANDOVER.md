@@ -100,6 +100,13 @@ R2 `site/` (copies in `shop/assets/site/`).
 
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
+- 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support
+  email admin@mosspit.org, support/privacy/terms URLs on introverthere.com, private profile). A live webhook
+  destination exists ("charming-triumph", description "Introvert Here shop orders") pointing at
+  `https://introvert-here-shop.mosspit.workers.dev/api/stripe-webhook`, listening to `checkout.session.completed` and
+  `checkout.session.async_payment_succeeded`. **Launch day:** Barry puts its signing secret (whsec_...) into the
+  shop worker's `STRIPE_WEBHOOK_SECRET` (Cloudflare), and his live secret key into the app's Orders page. Never in
+  chat. The webhook URL may need changing to introverthere.com once the domain points at the shop.
 
 ## Make scenarios involved (team 2110125, org 8311421)
 - **7896436 Build Next Listing (Core)**: creates the Printify product (module 39) in shop 27154106 and publishes to
