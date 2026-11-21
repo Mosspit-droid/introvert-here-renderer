@@ -51,6 +51,11 @@ nd = figures(key("introvert-nod.png")); assert len(nd) == 6, len(nd); nds = PPH 
 iv += [cell(f, nds, **C) for f in nd]
 save("introvert", strip(iv), w=250, h=300, ax=118, base=292, n=len(iv))
 
+# The flat "sticker" introvert for the platformer (Barry, 21 Nov): stand 0, stride 1, sitting with hood up 2, wave 3; and his head as an icon.
+hf = figures(key("hero-flat.png"), 3); assert len(hf) == 9, len(hf); hs = 200 / hf[6].shape[0]; HC = dict(cw=220, ch=230, ax=110, base=226, top=.4)
+save("hero", strip([cell(hf[i], hs, **HC) for i in (6, 0, 2, 4)]), w=220, h=230, ax=110, base=226, n=4, pph=200)
+save("hero-head", scaled(hf[3], 96 / hf[3].shape[0]))
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.

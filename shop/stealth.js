@@ -15,9 +15,10 @@
 import { SHEET } from "./stealth-art/sheet.js";
 import { walkTestPage } from "./stealth-test.js";
 import { levelPage } from "./stealth-level.js";
+import { platformPage } from "./stealth-platform.js";
 import { FILES } from "./stealth-art/art.js";
 
-const ART_V = 5;   // put this up by one whenever the pictures change, so phones fetch the new ones
+const ART_V = 6;   // put this up by one whenever the pictures change, so phones fetch the new ones
 
 const TITLE = "Just Passing Through";   // working title: reads on from the brand name, "Introvert Here… Just Passing Through"
 
@@ -287,7 +288,8 @@ export function stealthPage(page, hub, url) {
     return new Response(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)), { headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=31536000, immutable" } });
   }
   if (q.has("walk")) return walkTestPage(page, hub);
-  if (!q.has("sheet") && !q.has("old")) return levelPage(page, hub, ART_V);
+  if (q.has("corridor")) return levelPage(page, hub, ART_V);   // the pen-and-ink corridor with the Pacer and the Boss
+  if (!q.has("sheet") && !q.has("old")) return platformPage(page, hub, ART_V);   // the game as it stands: the platformer
   if (url && url.searchParams.has("sheet")) return page("Character sheet", `<h1 style="font-size:20px;margin:18px 0 6px">Character sheet: the introvert</h1><p class="note" style="margin:0 0 12px">Options to pick from. Not in the game yet. <a href="${hub.path}/stealth">Back to the corridor test</a></p><img src="${SHEET}" alt="Four pixel-art versions of a hooded figure in a navy hoodie, each shown side on, front on and as a silhouette." style="display:block;width:100%;max-width:600px;height:auto;image-rendering:pixelated;border-radius:8px">`, { nav: "hub", noindex: true });
   const j = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const script = CLIENT.replace("__PEOPLE__", () => j(PEOPLE)).replace("__FILLER__", () => j(FILLER)).replace("__FAILS__", () => j(FAILS));
