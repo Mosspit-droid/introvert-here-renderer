@@ -560,10 +560,15 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .playlist{background:#141412;border-radius:12px;padding:6px 0;margin:12px 0}.playlist div{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid #2a2925}.playlist div:last-child{border:0}.playlist b{color:var(--muted);width:18px;font-variant-numeric:tabular-nums}
 .rounds{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}.rounds td,.rounds th{border:1px solid #3b3a35;padding:7px 8px;text-align:left}.rounds th{color:var(--muted);font-weight:700}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
-.kitchen{position:relative;margin:12px 0;border-radius:12px;overflow:hidden;cursor:crosshair;touch-action:manipulation}.kitchen svg{display:block;width:100%;height:auto}
-.kitchen .ring{position:absolute;width:15%;aspect-ratio:1;border-radius:50%;border:4px solid #fad00c;box-shadow:0 0 0 3px rgba(20,14,6,.7),0 0 18px 4px rgba(250,208,12,.5);transform:translate(-50%,-50%);pointer-events:none}
-.kitchen .miss{position:absolute;color:#fff;font:800 20px/1 Montserrat,sans-serif;transform:translate(-50%,-50%);text-shadow:0 1px 4px #000;pointer-events:none;animation:spmiss 1s forwards}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
+.dm{--k:0;display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:8px 12px;border-radius:10px;background:#24231f;transition:background .4s}
+.dmf{width:60px;height:60px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
+.dmf svg{width:100%;height:auto;transform-origin:50% 100%;transform:scale(calc(.32 + var(--k) * .26));transition:transform .5s}
+.dml{margin:0;font-size:14px;font-weight:600;line-height:1.35}.dm[data-lv="2"]{background:#33201e}.dm[data-lv="3"]{background:#4a1518}
+.hug{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,5,7,.95)}.hug[hidden]{display:none}
+.hug .in{max-width:420px;text-align:center}.hug svg{width:min(56vw,230px);height:auto;animation:hugsq 1.1s ease-in-out infinite}
+.hug .ttl{font-size:clamp(60px,16vw,110px);margin:4px 0 8px}@keyframes hugsq{0%,100%{transform:scale(1)}50%{transform:scale(1.06,.96)}}
+@media (prefers-reduced-motion:reduce){.hug svg{animation:none}.dmf svg{transition:none}}
 /* Escape the Party: a sample paper escape room. One puzzle at a time; each answer opens a padlock. */
 .ep{max-width:640px;margin:0 auto}.ep .box{--fc:#fad00c;--pad:clamp(14px,3vw,22px);margin:16px 0 18px}
 .ep h2{margin:2px 0 8px;font-size:clamp(20px,4.6vw,26px)}.ep p{line-height:1.5}
@@ -999,58 +1004,47 @@ function gatePage() {
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
 // ---------------- Escape From Aunt Doris (the full paper escape room) ----------------
-// Barry's title (21 Nov), spoof horror: Aunt Doris is the villain stalking you through Gareth's housewarming. Ten
+// Barry's title (21 Nov). Aunt Doris (your cousin Gareth's mum) stalks you through Gareth's housewarming; what she
+// wants is a hug. Every wrong answer brings her a step closer; the fourth is a hug (and 5 minutes on your time). Ten
 // puzzles in three parts, 45 to 60 minutes. Puzzles 1 to 8 each leave you with something (keys, earbuds, a taxi,
 // leftovers, a lie, an exit, an opening, the moment); their first letters spell the code for your own front door at
-// the end: KETTLE ON. Progress is saved on the player's device. Puzzle 4's kitchen and the title are stand-ins until
+// the end: KETTLE ON. Progress is saved on the player's device. The title and the drawing of Doris are stand-ins until
 // Barry's pictures arrive. All wording is a draft for Barry.
 const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66], ["#26355c", 1, 6, 75], ["#8c8c88", 1, 4, 89]];
-const DZ_NOSE = (x, y, s = 1, flip = false) => `<g transform="translate(${x} ${y}) scale(${flip ? -s : s} ${s})"><path d="M-16 6q2-22 22-22q18 0 22 18q-4 8-18 8z" fill="#1d2747" stroke="#000" stroke-width="2"/><path d="M-6 2q0-12 12-12q14 0 18 10q-4 8-18 8q-12 0-12-6z" fill="#120f0d"/><ellipse cx="12" cy="1" rx="9" ry="6.5" fill="#f2a27a" stroke="#000" stroke-width="2"/></g>`;
-// a stand-in kitchen: four other introverts hiding (curtain, fridge, under the table, behind the plant), and some decoys
-const DZ_KITCHEN = `<svg viewBox="0 0 400 300" role="img" aria-label="Gareth's kitchen, full of guests. Somewhere, four people are hiding.">
-<rect width="400" height="300" fill="#e8dcc4"/><rect y="210" width="400" height="90" fill="#b89a74"/><path d="M0 210h400" stroke="#8a6f50" stroke-width="3"/>
-<rect x="20" y="40" width="96" height="80" fill="#9fc3d9" stroke="#6b5a45" stroke-width="5"/><path d="M68 40v80M20 80h96" stroke="#6b5a45" stroke-width="3"/>
-<path d="M10 30h40v130q-14 6-40 0z" fill="#b43b3b"/><path d="M126 30h-34v130q12 6 34 0z" fill="#b43b3b"/>
-${DZ_NOSE(134, 104, 0.9, false)}
-<rect x="150" y="70" width="70" height="140" rx="6" fill="#f4f4f2" stroke="#9a9a96" stroke-width="3"/><path d="M150 120h70" stroke="#9a9a96" stroke-width="3"/>
-<path d="M220 124l26 8v74l-26 4z" fill="#dcdcd8" stroke="#9a9a96" stroke-width="2"/>${DZ_NOSE(214, 168, 0.8, false)}
-<rect x="270" y="110" width="110" height="100" fill="#c9b08a" stroke="#8a6f50" stroke-width="3"/><rect x="276" y="92" width="98" height="20" fill="#7d6247"/>
-<ellipse cx="300" cy="88" rx="22" ry="8" fill="#e8e2d0" stroke="#7d6247" stroke-width="2"/><circle cx="292" cy="82" r="7" fill="#f2a27a" stroke="#7a4a2a" stroke-width="2"/><circle cx="304" cy="81" r="6" fill="#d23a2a"/><circle cx="312" cy="84" r="6" fill="#e3c13c"/>
-<rect x="330" y="76" width="14" height="18" rx="3" fill="#fff" stroke="#7d6247" stroke-width="2"/>
-<rect x="60" y="196" width="150" height="10" fill="#7d6247"/><path d="M60 206q75 40 150 0v40H60z" fill="#e9e3d6" stroke="#b5ad9a" stroke-width="2"/>${DZ_NOSE(118, 240, 0.8, true)}
-<path d="M360 300l10-60h-40l10 60z" fill="#a3542a"/><path d="M350 240q-40-40-30-90q20 30 30 0q10 30 30 0q14 50-30 90z" fill="#3f7a3a" stroke="#2a5228" stroke-width="2"/>${DZ_NOSE(352, 196, 0.7, true)}
-<g fill="#5a4a3a"><circle cx="246" cy="250" r="16" fill="#b75d3a"/><rect x="236" y="262" width="20" height="38" fill="#3a3a6a"/><circle cx="20" cy="250" r="15" fill="#e0b48a"/><rect x="8" y="262" width="24" height="38" fill="#6a3a3a"/></g>
-<circle cx="196" cy="40" r="15" fill="#fff" stroke="#6b5a45" stroke-width="3"/><path d="M196 40v-9M196 40l6 4" stroke="#333" stroke-width="2"/></svg>`;
+const DZ_DORIS = `<svg viewBox="0 0 120 150" aria-hidden="true"><path d="M60 46l-48-14M60 46l48-14" stroke="#e7b896" stroke-width="9" stroke-linecap="round"/><path d="M38 44q22-8 44 0l10 72H28z" fill="#d6418a" stroke="#000" stroke-width="2.5"/><path d="M60 44v72" stroke="#9c2560" stroke-width="2"/><circle cx="70" cy="58" r="4" fill="#f2d06b" stroke="#000" stroke-width="1.5"/><path d="M30 114h60l6 18H24z" fill="#5c4a7a" stroke="#000" stroke-width="2.5"/><path d="M42 132v12M78 132v12" stroke="#3b2f25" stroke-width="7" stroke-linecap="round"/><circle cx="60" cy="26" r="17" fill="#f0c4a0" stroke="#000" stroke-width="2.5"/><path d="M42 24q-4-18 8-20q4-8 12-4q10-4 14 6q10 4 4 18q-4-8-10-10q-8 4-14 0q-8 2-14 10z" fill="#cfcfd4" stroke="#000" stroke-width="2"/><path d="M53 32q7 6 14 0" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/><circle cx="54" cy="25" r="1.8"/><circle cx="66" cy="25" r="1.8"/></svg>`;
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
 function dorisPage() {
   const lock = (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
+  const meter = `<div class="dm" data-lv="0"><div class="dmf">${DZ_DORIS}</div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
   const tail = `<p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p><p class="next"><button class="btn go" type="button">Carry on</button></p>`;
   const chap = (pt, title, body) => `<section class="box pz chap" hidden><p class="pt">${pt}</p><h2>${title}</h2>${body}<p><button class="btn go" type="button">Carry on</button></p></section>`;
-  const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of 10 · ${title}</p><h2>${h}</h2>${body}${tail}</section>`;
+  const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of 10 · ${title}</p>${meter}<h2>${h}</h2>${body}${tail}</section>`;
   const mag = (w, cols) => `<span>${[...w].map((c, i) => `<i style="background:${cols[i % cols.length]};color:#fff">${c}</i>`).join("")}</span>`;
   const steps = [
-    `<section class="box pz chap" data-intro><p class="pt">A spoof horror escape room · 45 to 60 minutes</p><h1 class="ttl">Escape From Aunt Doris</h1>
-<p>It’s 8pm. Gareth’s housewarming. You promised you’d show your face. Your face has been shown.</p><p>Now you need to get home. Unseen. Unchatted-to. Unasked about your love life.</p><p class="coo">Because somewhere in this house is Aunt Doris.</p>
-<p><button class="btn go" type="button" id="start">Begin</button></p><p class="note" id="resume" hidden><button class="btn ghost" type="button" id="carry">Carry on where you left off</button></p><p class="note">Ten puzzles. Hints if you need them. Your progress is saved on this device.</p></section>`,
-    chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee!”</p><p>First things first. You can’t leave without your coat.</p>`),
-    pz(1, "The coat pile", "Find your coat.", `<p>Every coat in the house is heaped on the spare bed. You remember five things about yours:</p>
+    `<section class="box pz chap" data-intro><h1 class="ttl">Escape From Aunt Doris</h1>
+<p>It’s 8pm. Your cousin Gareth’s housewarming. You promised you’d show your face. Your face has been shown.</p><p>Now you need to get home. Unseen. Unchatted-to. Unhugged.</p><p class="coo">Because somewhere in this house is Gareth’s mum. Aunt Doris.</p>
+<p><button class="btn go" type="button" id="start">Begin</button></p><p class="note" id="resume" hidden><button class="btn ghost" type="button" id="carry">Carry on where you left off</button></p><p class="note">Your progress is saved on this device.</p></section>`,
+    chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee!”</p>`),
+    pz(1, "The coat pile", "Find your coat.", `<p>Every coat in the house is heaped on the spare bed. Yours is in there somewhere.</p>
 <ul class="clues"><li>It has a hood. (Hoods are for hiding in.)</li><li>It isn’t green.</li><li>It has more buttons than the red one.</li><li>It isn’t grey. Grey coats belong to Aunt Doris. Never touch Aunt Doris’s coats.</li><li>Its tag number is under 60.</li></ul>
-<div class="coats">${DZ_COATS.map(partyCoat).join("")}</div><p>The tag number opens the padlock.</p>${lock("Tag number", 1)}`),
-    `<section class="box pz talk" data-n="2" hidden><p class="step">2 of 10 · Cornered</p><h2>She’s found you.</h2><p>You turn round with your coat and there she is, between you and the door. Get out of this conversation alive. Give her nothing to work with.</p><div id="tk"></div>${tail}</section>`,
-    pz(3, "The dead phone", "Charge your phone.", `<p>Your phone is on 2%. You need it to book a taxi. Gareth’s chargers live in a kitchen drawer with a three-digit lock, and there’s a note stuck to it:</p>
+<div class="coats">${DZ_COATS.map(partyCoat).join("")}</div>${lock("Tag number", 1)}`),
+    `<section class="box pz talk" data-n="2" hidden><p class="step">2 of 10 · Cornered</p>${meter}<h2>She’s found you.</h2><p>You turn round with your coat and there she is, between you and the door. Her arms are already starting to open.</p><div id="tk"></div>${tail}</section>`,
+    pz(3, "The dead phone", "Charge your phone.", `<p>Your phone is on 2%. Gareth’s chargers live in a kitchen drawer with a three-digit lock, and there’s a note stuck to it:</p>
 <div class="note-y">Charger drawer! Code’s on the fridge. Sorry, the kids keep moving the letters. G x</div><p>The fridge:</p>
 <div class="magnets">${mag("ENO", ["#c3161c", "#2a62c9", "#e1aa3b"])}${mag("XSI", ["#3f8a3a", "#c3161c", "#2a62c9"])}${mag("NNIE", ["#e1aa3b", "#3f8a3a", "#c3161c", "#2a62c9"])}</div>${lock("Drawer code", 1)}`),
-    chap("Part two", "She’s in the kitchen", `<p class="coo">Doris is asking Gareth if he’s seen you. Gareth says you were here a minute ago. Thanks, Gareth.</p><p>You duck into the kitchen. It’s packed. And you realise you’re not the only one trying not to be here.</p>`),
-    `<section class="box pz" data-n="4" hidden><p class="step">4 of 10 · Kindred spirits</p><h2>Find the other four.</h2><p>Four other guests are hiding in this kitchen. Tap each one. Once you’ve found all four, they’ll slip you something for the journey.</p><div class="kitchen" id="kit">${DZ_KITCHEN}</div>${tail}</section>`,
+    chap("Part two", "She’s in the kitchen", `<p class="coo">Doris is asking Gareth if he’s seen you. Gareth says you were here a minute ago. Thanks, Gareth.</p>`),
+    pz(4, "The tea round", "Make the teas.", `<p>You’re halfway to the back door when Doris spots you. “Ooh, you’re near the kettle! Be a love and do the teas.” Then she reels off the orders, and goes to find a plate for the biscuits.</p>
+<div class="txt" style="background:#3a1416"><small>Aunt Doris</small>Mine’s milk and two sugars. Gareth has the same as me, he always has. Our Dave has one less than Gareth, he’s cutting down for his marathon. Uncle Mike has double whatever Dave has. And your Gran has as many as the rest of us put together, she’s ninety-four, she can do what she likes.</div>
+<p>How many sugars go on the tray?</p>${lock("Sugars", 1)}`),
     pz(5, "Sam’s text", "Get your story straight.", `<p>Your phone buzzes. It’s Sam, the only friend who gets it, with your excuse for leaving. But Sam’s phone has a fault: every letter comes out one along in the alphabet. Sam has never fixed it.</p>
 <div class="txt"><small>Sam</small>TBZ UIF CPJMFS JT MFBLJOH</div><p>What’s broken at your house tonight? (One word.)</p>${lock("One word", 0)}`),
-    pz(6, "The exits", "Choose your way out.", `<p>There are five ways out: the front door, the kitchen door, the garden door, the garage, and the window in the downstairs loo. Four of them are guarded, by people who would love a chat:</p>
-<ul class="clues"><li><b>Gareth</b> hasn’t left his sourdough starter all night. It lives by the kitchen door.</li><li><b>Dave from accounts</b> is doing calf stretches for his marathon, somewhere he can feel grass under his feet.</li><li><b>Mike</b> is standing next to his new car, waiting for someone to ask about it.</li><li><b>Aunt Doris</b> has positioned herself where she can catch everyone on their way out, and she would never, ever stand near a toilet.</li></ul><p>Which way do you go?</p>${lock("Your exit", 0)}`),
-    pz(7, "The playlist", "Wait for your moment.", `<p>Gareth has put his phone on the speaker. Someone has hidden a message in the queue: read it, and you’ll know what to wait for.</p>
-<div class="playlist">${["Small Talk (Extended Mix)", "Let’s All Go Round Gareth’s", "Oh No, It’s the Conga", "Who Brought the Ukulele?", "Shots! Shots! Shots! (Doris Remix)", "One More Before Midnight", "Nobody Leaves This Party", "Grab Your Partner, Don’t Grab Me"].map((t, i) => `<div><b>${i + 1}</b><span>${t}</span></div>`).join("")}</div><p>What are you waiting for?</p>${lock("The message", 0)}`),
+    pz(6, "The exits", "Choose your way out.", `<p>There are five ways out: the front door, the kitchen door, the garden door, the garage, and the window in the downstairs loo. Four of them are guarded:</p>
+<ul class="clues"><li><b>Gareth</b> hasn’t left his sourdough starter all night. It lives by the kitchen door.</li><li><b>Cousin Dave</b> is doing calf stretches for his marathon, somewhere he can feel grass under his feet.</li><li><b>Uncle Mike</b> is standing next to his new car, waiting for someone to ask about it.</li><li><b>Aunt Doris</b> has positioned herself where she can catch everyone on their way out, and she would never, ever stand near a toilet.</li></ul><p>Which way do you go?</p>${lock("Your exit", 0)}`),
+    pz(7, "The playlist", "Wait for the slow one.", `<p>When the slow song comes on, everyone pairs off in the living room and nobody watches the hall. Gareth’s speaker is showing tonight’s queue. The first song started at exactly 10:00.</p>
+<div class="playlist"><div><b>1</b><span style="flex:1">Small Talk (Extended Mix)</span><em>4:00</em><em>124 bpm</em></div><div><b>2</b><span style="flex:1">Let’s All Go Round Gareth’s</span><em>3:00</em><em>118 bpm</em></div><div><b>3</b><span style="flex:1">Oh No, It’s the Conga</span><em>5:00</em><em>132 bpm</em></div><div><b>4</b><span style="flex:1">Who Brought the Ukulele?</span><em>2:00</em><em>140 bpm</em></div><div><b>5</b><span style="flex:1">Shots! Shots! Shots! (Doris Remix)</span><em>3:00</em><em>128 bpm</em></div><div><b>6</b><span style="flex:1">Hold Me Closer, Auntie</span><em>4:00</em><em>64 bpm</em></div><div><b>7</b><span style="flex:1">Nobody Leaves This Party</span><em>3:00</em><em>126 bpm</em></div></div><p>What time does the slow song start? (Type it like 10:30.)</p>${lock("Time", 0)}`),
     chap("Part three", "Don’t look behind you", `<p class="coo">She’s checked the garden. She’s checked the loo queue. She is now checking the coats. She will notice one is missing.</p><p>Time to go.</p>`),
     pz(8, "The hallway", "Time your run.", `<p>To reach the loo window you have to cross the hall, and three people keep walking through it, exactly on these minutes:</p>
-<table class="rounds"><tr><th>Who</th><th>Walks through the hall at</th></tr><tr><td>Gareth</td><td>10:00, then every 3 minutes</td></tr><tr><td>Aunt Doris</td><td>10:01, then every 4 minutes</td></tr><tr><td>Dave from accounts</td><td>10:00, then every 5 minutes</td></tr></table>
+<table class="rounds"><tr><th>Who</th><th>Walks through the hall at</th></tr><tr><td>Gareth</td><td>10:00, then every 3 minutes</td></tr><tr><td>Aunt Doris</td><td>10:01, then every 4 minutes</td></tr><tr><td>Cousin Dave</td><td>10:00, then every 5 minutes</td></tr></table>
 <p>The slow song plays from 10:17 to 10:21. You need a minute while it’s playing when none of them is in the hall.</p><p>What time do you go? (Type it like 10:30.)</p>${lock("Time", 0)}`),
     pz(9, "The back gate", "Crack the gate code.", `<p>You’re out of the window and into the garden. The back gate has a keypad. Your phone buzzes:</p>
 <div class="txt"><small>Sam</small>Gate code is where you’d rather be. Starts with H. Four letters. And no, it’s not “hell”. That’s where you are.</div>
@@ -1061,31 +1055,36 @@ function dorisPage() {
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
-  return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
+  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in">${DZ_DORIS}<p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
+  return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
 // answers (letters and digits only), what each puzzle leaves you with, wrong-answer lines, and two hints each
 var P={
 1:{a:/^53$/,got:['K','Keys','Your coat. And in the pocket: your keys.'],no:['That coat belongs to someone who enjoys parties.','Not yours. It smells of networking.','No. Read the clues again. Quietly.'],h:['Cross out the coats with no hood, then the green one and the grey ones. The red coat has two buttons.','It’s the navy coat with a hood and four buttons: tag 53.']},
-2:{got:['E','Earbuds','You put your earbuds back in. Nobody talks to someone wearing earbuds.'],h:['Short, closed answers. Never give her a topic, a question, or a day of the week.','Mm. It’s fine. I’ve got a bad knee. Lovely to see you too.']},
+2:{got:['E','Earbuds','You put your earbuds back in. Nobody hugs someone wearing earbuds.'],h:['Short, closed answers. Never give her a topic, a question, or a day of the week.','Mm. It’s fine. I’ve got a bad knee. Lovely to see you too.']},
 3:{a:/^169$/,got:['T','Taxi','Phone charged. Taxi booked. Arriving in 25 minutes.'],no:['The drawer doesn’t budge. Somewhere, Doris laughs.','Click. Nothing. The kids have a lot to answer for.','No. Unscramble the fridge.'],h:['Each group of magnets is a number with its letters jumbled up.','ONE, SIX, NINE: the code is 169.']},
-4:{got:['T','Tupperware','The four of them nod at you, silently. One presses a tub of leftovers into your hands. You will never see them again. You will always remember them.'],h:['Look at the edges of things: curtains, doors, tablecloths, plants.','Behind the curtain, inside the fridge door, under the tablecloth, and in the plant by the back door.']},
+4:{a:/^14$/,got:['T','Tupperware','Teas done. Gareth’s partner presses a tub of leftovers into your hands as thanks. You slip out of the kitchen with it.'],no:['Gran sends hers back. Doris looks round.','Uncle Mike says it’s too sweet. Loudly.','No. Work through them one at a time.'],h:['Doris 2, Gareth 2. Dave has one less than Gareth, Mike double Dave.','Doris 2, Gareth 2, Dave 1, Mike 2, so Gran has 7. That’s 14.']},
 5:{a:/^BOILER$/,got:['L','Lie','Your cover story: a leaking boiler. Nobody has ever questioned a boiler.'],no:['That’s not what it says. Sam would be disappointed.','No. Try moving each letter one back.','Not quite. B is A, U is T...'],h:['Move every letter one back in the alphabet: T becomes S, B becomes A.','It says SAY THE BOILER IS LEAKING. Type BOILER.']},
 6:{a:/LOO|WINDOW|TOILET|BATHROOM|WC|LAV/,got:['E','Exit','The downstairs loo window. Small, but so are your social ambitions.'],no:['Someone’s guarding that one. They’ve seen you.','Too risky. Somebody would want a chat.','No. Think about who’s standing where.'],h:['Gareth has the kitchen door, Dave the garden, Mike the garage.','Doris is at the front door saying goodbye to everyone. That leaves the downstairs loo window.']},
-7:{a:/^(SLOWSONG|THESLOWSONG|ASLOWSONG)$/,got:['O','Opening','When the slow song comes on, everyone pairs off in the living room. Nobody watches the hall.'],no:['That’s not the message. Gareth turns the music up.','No. Look at the start of each song.','Not quite. Read down, not across.'],h:['Read the first letter of each song, top to bottom.','S, L, O, W, S, O, N, G: SLOW SONG.']},
+7:{a:/^(1017|1017PM)$/,got:['O','Opening','10:17: “Hold Me Closer, Auntie”. Everyone pairs off. Nobody is watching the hall.'],no:['That’s the conga. Somebody grabs your waist.','No. Find the slow one first, then add up the songs before it.','Not quite. Add up the lengths of the songs that play before it.'],h:['The slow song is the one with by far the lowest bpm: song 6.','Songs 1 to 5 last 4 + 3 + 5 + 2 + 3 = 17 minutes, so it starts at 10:17.']},
 8:{a:/^(1019|19|1019PM)$/,got:['N','Now','10:19. Nobody in the hall. You go.'],no:['Gareth walks straight into you. “Off already?”','Doris rounds the corner. You freeze. She doesn’t see you. This time.','No. Write out each person’s minutes between 10:17 and 10:21.'],h:['Gareth is in the hall at 10:18 and 10:21, Doris at 10:17 and 10:21, Dave at 10:20.','That leaves 10:19.']},
 9:{a:/^4663$/,no:['The gate stays shut. The dog next door starts barking.','Beep. Wrong. Very loud beep.','No. Look at the letters on the keypad.'],h:['Each number has letters under it, like an old phone. Spell the word.','HOME: H is 4, O is 6, M is 6, E is 3. The code is 4663.']},
 10:{a:/KETTLE/,no:['The door stays locked. You’re so close you can smell the teabags.','No. Look at what you picked up tonight.','Not quite. Take the first letter of each thing.'],h:['Take the first letter of each thing you picked up, in order.','KETTLE ON.']}};
-var NOSES=[[36,35],[56,56],[27,80],[86,66]],nosesFound={},kitLines={peach:'That’s a peach. Nice try.',man:'He’s not hiding. He’s telling everyone about his loft conversion.',clock:'That’s the clock. It says you should have left an hour ago.'};
+// Aunt Doris walks towards you: each wrong answer is a step closer; the fourth is a hug. Hints are free.
+var DL=['Aunt Doris is at the far end of the room.','“Coo-ee!” She’s spotted you.','She’s weaving through the guests towards you.','Arms open. One more wrong move.'];
+function setLv(m,lv){m.dataset.lv=lv;m.style.setProperty('--k',lv);$('.dml',m).textContent=DL[lv]}
+function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
+$('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
-function show(i){tick();cur=i;st.at=i;save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];if(i>0&&!t0)t0=Date.now();
+function show(i){tick();cur=i;st.at=i;save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
  if(s.dataset.n==='2')talkStart();if(s.dataset.n==='10')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
  if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
-function solved(s){var n=s.dataset.n,p=P[n];st.done[n]=1;save();var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
+function solved(s){var n=s.dataset.n,p=P[n];st.done[n]=1;save();$('.say',s).textContent='';var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
  if(p.got){var g=$('.got',s);g.innerHTML='<b>Added to your kit: '+p.got[1]+'</b><br>'+p.got[2];g.classList.add('on')}else $('.say',s).textContent='Click. It opens.';
  if(n==='10'){setTimeout(function(){show(cur+1)},900)}else $('.next',s).classList.add('on')}
 $$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start'){st={at:0,ms:0,hints:0,done:{}};t0=0}show(cur+1)})});
@@ -1093,7 +1092,7 @@ var prev=load();if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#car
 $('#again').addEventListener('click',function(){st={at:0,ms:0,hints:0,done:{}};t0=0;save();show(0)});
 S.forEach(function(s){var n=s.dataset.n;if(!n)return;var p=P[n],tries=0,used=0;
  var f=$('form',s);if(f)f.addEventListener('submit',function(e){e.preventDefault();if(st.done[n]&&$('.next.on',s))return;var v=String($('input',s).value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
-  if(p.a.test(v))solved(s);else{var l=$('.lock',s);l.classList.remove('no');void l.offsetWidth;l.classList.add('no');$('.say',s).textContent=p.no[tries++%p.no.length]}});
+  if(p.a.test(v))solved(s);else{var l=$('.lock',s);l.classList.remove('no');void l.offsetWidth;l.classList.add('no');$('.say',s).textContent=p.no[tries++%p.no.length];closer(s)}});
  $('.hint',s).addEventListener('click',function(){if(used<p.h.length){var q=document.createElement('p');q.textContent=p.h[used++];$('.hints',s).appendChild(q);st.hints++;save()}if(used>=p.h.length)this.hidden=true;else this.textContent='Another hint'})});
 // puzzle 2: the conversation. The right reply gives her nothing; any other reply keeps her going.
 var TALK=[["Coo-ee! There you are! Still on your own, are you?",[["Mm.",1,"Doris pauses. She isn’t used to “Mm.”"],["Yes, and honestly I’m very happy.",0,"Happy? On your own? Oh, you poor thing. My neighbour’s son is single, you know. He collects lighthouses..."],["Is that a new cardigan, Doris?",0,"Ooh, do you like it? Marks and Spencer. Well. Let me tell you about the queue..."]]],
@@ -1104,13 +1103,7 @@ var tk=0;function talkStart(){if(st.done['2']){return}tk=0;$('#tk').innerHTML=''
 function talkNode(){var box=$('#tk'),node=TALK[tk],d=document.createElement('div');d.className='d';d.innerHTML='<small>Aunt Doris</small>';d.appendChild(document.createTextNode(node[0]));box.appendChild(d);
  var o=document.createElement('div');o.className='opts';node[1].forEach(function(r){var b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent=r[0];b.addEventListener('click',function(){
   o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>Aunt Doris</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
-  if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. Try again.';setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
-// puzzle 4: the kitchen. Tap the four hidden guests; some things just look like noses.
-var kit=$('#kit');kit.addEventListener('click',function(e){var s=kit.closest('.pz');if(st.done['4'])return;var r=kit.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*100,y=(e.clientY-r.top)/r.height*100,hit=-1;
- NOSES.forEach(function(q,k){var dx=(x-q[0])*r.width/100,dy=(y-q[1])*r.height/100;if(dx*dx+dy*dy<Math.max(26,r.width*.06)*Math.max(26,r.width*.06))hit=k});
- var say=$('.say',s);if(hit>=0){if(!nosesFound[hit]){nosesFound[hit]=1;var g=document.createElement('div');g.className='ring';g.style.left=NOSES[hit][0]+'%';g.style.top=NOSES[hit][1]+'%';kit.appendChild(g)}var c=Object.keys(nosesFound).length;say.textContent=c<4?['One. They put a finger to their lips.','Two. They give you a tiny nod.','Three. One more.'][c-1]:'All four.';if(c===4)solved(s);return}
- var line=x>68&&x<80&&y>22&&y<32?kitLines.peach:(x<10&&y>78)||(x>57&&x<66&&y>76)?kitLines.man:x>45&&x<53&&y<19?kitLines.clock:['No. That’s just kitchen.','Nobody there.','Just a cupboard. Unless... no. Just a cupboard.'][Math.floor(Math.random()*3)];
- var m=document.createElement('div');m.className='miss';m.textContent='×';m.style.left=x+'%';m.style.top=y+'%';kit.appendChild(m);setTimeout(function(){m.remove()},1000);say.textContent=line});
+  if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. She edges closer.';closer(box.closest('.pz'));setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
 addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0)})();` });
 }
 
@@ -1124,8 +1117,8 @@ const PARTY_COATS = [   // colour, hood, buttons, tag: only one fits all four cl
 function partyCoat([col, hood, buttons, tag]) {
   const b = Array.from({ length: buttons }, (_, k) => `<circle cx="60" cy="${56 + k * (60 / Math.max(buttons, 1))}" r="3.4" fill="#e9e4d6"/>`).join("");
   return `<svg viewBox="0 0 120 150" role="img" aria-label="A coat with tag ${tag}: ${hood ? "hood" : "no hood"}, ${buttons} button${buttons === 1 ? "" : "s"}">
-<path d="M60 12v8M44 22q16-14 32 0" fill="none" stroke="#9a958a" stroke-width="3" stroke-linecap="round"/>
-${hood ? `<path d="M40 40q20-34 40 0q-6 6-20 6t-20-6z" fill="${col}" stroke="#000" stroke-opacity=".35" stroke-width="2"/>` : ""}
+<path d="M60 2v7M45 13q15-11 30 0" fill="none" stroke="#9a958a" stroke-width="3" stroke-linecap="round"/>
+${hood ? `<path d="M31 50Q28 16 60 13Q92 16 89 50Q75 42 60 42Q45 42 31 50z" fill="${col}" stroke="#000" stroke-opacity=".45" stroke-width="2"/><path d="M40 47Q40 25 60 23Q80 25 80 47Q70 41 60 41Q50 41 40 47z" fill="#0d0c0b" fill-opacity=".72"/><path d="M47 44l-2 12M73 44l2 12" stroke="#e9e4d6" stroke-width="2.2" stroke-linecap="round"/><circle cx="45" cy="57" r="2.4" fill="#e9e4d6"/><circle cx="75" cy="57" r="2.4" fill="#e9e4d6"/>` : ""}
 <path d="M42 38l-22 14-8 60 14 4 8-44v66h52V82l8 44 14-4-8-60-22-14q-6 10-18 10t-18-10z" fill="${col}" stroke="#000" stroke-opacity=".35" stroke-width="2"/>
 <path d="M60 48v80" stroke="#000" stroke-opacity=".3" stroke-width="2"/>${b}
 <g transform="translate(78 92) rotate(10)"><rect x="0" y="0" width="30" height="22" rx="3" fill="#f2f0ea"/><text x="15" y="16" text-anchor="middle" font-family="Montserrat,sans-serif" font-weight="800" font-size="13" fill="#141412">${tag}</text></g></svg>`;
