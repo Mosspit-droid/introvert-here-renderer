@@ -1,6 +1,7 @@
 // A bare movement test for the stealth game's introvert (Barry's drawings, cut into a strip by stealth-art/cut.py).
 // Nothing but the character on a plain floor: hold right to walk, left to go back, swipe up to hop.
-import { INTROVERT } from "./stealth-art/introvert.js";
+import { ART, FILES } from "./stealth-art/art.js";
+const INTROVERT = { ...ART.introvert, src: "data:image/webp;base64," + FILES.introvert };
 
 const CSS = `
 body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-top:0}

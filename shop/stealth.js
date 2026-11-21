@@ -14,6 +14,10 @@
 
 import { SHEET } from "./stealth-art/sheet.js";
 import { walkTestPage } from "./stealth-test.js";
+import { levelPage } from "./stealth-level.js";
+import { FILES } from "./stealth-art/art.js";
+
+const ART_V = 1;   // put this up by one whenever the pictures change, so phones fetch the new ones
 
 const TITLE = "Just Passing Through";   // working title: reads on from the brand name, "Introvert Here… Just Passing Through"
 
@@ -274,8 +278,16 @@ window.__sg={S:function(){return S},P:function(){return P},A:function(){return A
 
 // page = worker.js's page builder, hub = its HUB ({ path, name }). ?sheet=1 shows the character sheet being workshopped.
 export function stealthPage(page, hub, url) {
-  // While the look is being workshopped with Barry, the console shows the bare walk test. ?old=1 is the earlier corridor test.
-  if (url && !url.searchParams.has("sheet") && !url.searchParams.has("old")) return walkTestPage(page, hub);
+  // The game is the corridor in Barry's drawings (stealth-level.js). Its pictures are served from here too: ?a=<name>.
+  // Earlier stages, kept to compare: ?walk=1 the bare walk test, ?old=1 the first side-on corridor, ?sheet=1 the pixel sheet.
+  const q = url ? url.searchParams : new URLSearchParams();
+  if (q.has("a")) {
+    const b64 = Object.prototype.hasOwnProperty.call(FILES, q.get("a")) ? FILES[q.get("a")] : null;
+    if (!b64) return new Response("Not found", { status: 404 });
+    return new Response(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)), { headers: { "Content-Type": "image/webp", "Cache-Control": "public, max-age=31536000, immutable" } });
+  }
+  if (q.has("walk")) return walkTestPage(page, hub);
+  if (!q.has("sheet") && !q.has("old")) return levelPage(page, hub, ART_V);
   if (url && url.searchParams.has("sheet")) return page("Character sheet", `<h1 style="font-size:20px;margin:18px 0 6px">Character sheet: the introvert</h1><p class="note" style="margin:0 0 12px">Options to pick from. Not in the game yet. <a href="${hub.path}/stealth">Back to the corridor test</a></p><img src="${SHEET}" alt="Four pixel-art versions of a hooded figure in a navy hoodie, each shown side on, front on and as a silhouette." style="display:block;width:100%;max-width:600px;height:auto;image-rendering:pixelated;border-radius:8px">`, { nav: "hub", noindex: true });
   const j = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const script = CLIENT.replace("__PEOPLE__", () => j(PEOPLE)).replace("__FILLER__", () => j(FILLER)).replace("__FAILS__", () => j(FAILS));
