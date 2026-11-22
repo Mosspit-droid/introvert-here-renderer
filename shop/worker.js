@@ -647,7 +647,7 @@ body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!impor
 .sp .bt #sp0{justify-self:start}.sp .bt #sn{justify-self:end}.sp .bt .mid{display:flex;gap:8px;justify-content:center}
 /* The Hoodini hunt */
 .hoodb{position:absolute;z-index:6;display:block;overflow:hidden;aspect-ratio:268/238;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.hoodb img{position:absolute;left:0;top:0;width:100%;height:auto;transition:transform .5s cubic-bezier(.3,1.4,.5,1);pointer-events:none}
+.hoodb img{position:absolute;left:0;top:0;width:100%!important;height:auto!important;aspect-ratio:auto!important;object-fit:contain!important;background:none!important;border-radius:0!important;transition:transform .5s cubic-bezier(.3,1.4,.5,1);pointer-events:none}
 .hb-r img{transform:translateX(-102%)}.hb-r.out img{transform:translateX(-38%)}
 .hb-l img{transform:translateX(102%) scaleX(-1)}.hb-l.out img{transform:translateX(38%) scaleX(-1)}
 .hb-u img{transform:translateY(102%)}.hb-u.out img{transform:translateY(30%)}
@@ -691,7 +691,7 @@ body.room main{max-width:none;padding:0;margin:0}
 //   3 room: behind the curtain in the Escape Room   4 basket: the empty basket's Hoodini, tapped
 //   5 lost: the page-not-found Hoodini, tapped     6 night: asleep on the front page, 10pm to 6am
 //   7 excuse: after the 10th excuse in the Excuse Generator
-const HUNT_JS = `(function(){var K='ih_hood',N=7,CODE='HOODINI5',S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
+const huntJs = () => `(function(){var K='ih_hood',N=7,CODE='HOODINI5',S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(_){}}
 function toast(t){var d=document.createElement('div');d.className='hoodt';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.classList.add('on')},20);setTimeout(function(){d.classList.remove('on');setTimeout(function(){d.remove()},400)},3200)}
 function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+CODE+'</b> <button class="btn ghost" type="button">Copy</button></p><p><button class="btn" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
@@ -703,7 +703,7 @@ function peek(id,parent,css,dir,now){if(!parent)return;var b=document.createElem
  var go=function(){setTimeout(function(){if(b.classList.contains('gone'))return;b.classList.add('out');setTimeout(function(){b.classList.remove('out')},4000)},now?200:1200)};
  if(now||!('IntersectionObserver' in window))go();else{var io=new IntersectionObserver(function(es){if(es[0].isIntersecting){io.disconnect();go()}},{threshold:.9});io.observe(b)}return b}
 window.ihHood={found:found,peek:peek};
-var R=function(){return Math.random()<1/6},P=location.pathname;
+var R=function(){return Math.random()<1/6},P=location.pathname;${STAMP ? `try{if(/[?&]hoodini=all/.test(location.search))sessionStorage.setItem('ih_hood_all','1');if(sessionStorage.getItem('ih_hood_all'))R=function(){return true}}catch(_){}` : ''}
 document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-hood]');if(t){found(t.dataset.hood);t.classList.add('hoodwig');setTimeout(function(){t.classList.remove('hoodwig')},600)}});
 if(/^\\/uk\\/shop/.test(P)&&R()){var ts=document.querySelectorAll('.grid .tile:not([hidden])');if(ts.length)peek('tile',ts[Math.floor(Math.random()*Math.min(ts.length,12))],'right:14px;top:-34px;width:40px','u')}
 if(R()){var f=document.querySelector('footer');if(f&&document.documentElement.scrollHeight>innerHeight*2){f.style.position='relative';peek('footer',f,'left:10%;top:-48px;width:56px','u')}}
@@ -719,7 +719,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" 
 <main class="wrap">${opts.nav === "shop" || opts.nav === "home" || opts.coll ? (opts.noXmas ? "" : xmasNotice(false)) : ""}${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
-<script>${BASKET_JS}</script><script>${HUNT_JS}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
+<script>${BASKET_JS}</script><script>${huntJs()}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
 }
 const BASKET_JS = `
 // The Escape Room's warning gate: links marked data-gate go to the room itself, and a first-time visitor is sent

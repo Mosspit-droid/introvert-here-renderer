@@ -124,7 +124,7 @@ R2 `site/` (copies in `shop/assets/site/`).
 - The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
 
 ### The Hoodini hunt (22 Nov)
-- Hoodini hides in 7 places (see `HUNT_JS` in `shop/worker.js`); all 7 shows the code **HOODINI5** (5% off). Like
+- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one); all 7 shows the code **HOODINI5** (5% off). Like
   VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
 
 ### Stripe
