@@ -43,6 +43,7 @@ export default {
     ctx.waitUntil(siteBuildTick(env).catch(() => {}));
     ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
     ctx.waitUntil(siteAheadTick(env).catch(() => {}));
+    ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -7999,8 +8000,12 @@ async function siteKick(env) {
 async function siteBuildNext(env) {
   const Q = await env.PENDING.get(SB, "json"); if (!Q) return "";
   const now = Date.now();
-  if (Q.cur && (Q.cur.pid || now - Q.cur.at < 45 * 60e3)) return "";   // one at a time: this one is still being built or finished off
-  if (Q.cur) { Q.log = [{ code: Q.cur.code, ok: false, at: now, msg: "The builder didn't report back within 45 minutes." }].concat(Q.log || []).slice(0, 40); delete Q.cur; }
+  if (Q.cur && (Q.cur.pid || now - Q.cur.at < 30 * 60e3)) return "";   // one at a time: this one is still being built or finished off
+  if (Q.cur) {   // handed out but not built (due Etsy work went first, or the run stopped): back to the front of the queue, three tries
+    Q.tries = Q.tries || {}; Q.tries[Q.cur.code] = (Q.tries[Q.cur.code] || 0) + 1;
+    if (Q.tries[Q.cur.code] < 3) (Q.queue = Q.queue || []).unshift(Q.cur.code);
+    else Q.log = [{ code: Q.cur.code, ok: false, at: now, msg: "The builder didn't build it after three tries." }].concat(Q.log || []).slice(0, 40);
+    delete Q.cur; }
   const code = (Q.queue || []).shift();
   if (!code) { if (Q.log && Q.log[0] && Q.log[0].at === now) await env.PENDING.put(SB, JSON.stringify(Q)); return ""; }   // nothing to hand out: don't write back a copy that may be out of date
   Q.cur = { code, at: now };
@@ -8210,4 +8215,11 @@ async function sitePricesSave(env, d) {
   S.kick = true; await env.PENDING.put(SC.state, JSON.stringify(S));
   await logSetting(env, "Website prices: " + Object.entries(want).map(([t, v]) => SC_GARMENTS[t] + " £" + (v / 100).toFixed(2)).join(", ")).catch(() => {});
   return { ok: true, changed: n };
+}
+
+// Tag saves queued by Claude in KV "pending-tag-saves" (same as saving on the Tags page), sent on the next cron run.
+async function pendingTagSaves(env) {
+  const L = await env.PENDING.get("pending-tag-saves", "json"); if (!Array.isArray(L) || !L.length) return;
+  await env.PENDING.put("pending-tag-saves", "[]");
+  for (const d of L) await tagsHook(env, { action: "tags-save", gagId: str(d.gagId), stemTag: str(d.stemTag).slice(0, 60), approved: d.approved ? "true" : "false", override: str(d.override || ""), regenerate: "false" }).catch(() => {});
 }
