@@ -181,24 +181,24 @@ function familyDo() {
   box(0, W - 1, 18, 19, "#"); box(0, 0, 0, 19, "#"); box(W - 1, W - 1, 0, 19, "#");
   put(2, G, "S");
   // 1. The patio: tea, a relative, the uncle with the joke, a portaloo, a pack of children
-  row(5, 7, G, "o"); put(11, G, "P"); put(18, G, "T"); put(24, G, "K"); put(27, G, "w"); put(30, G, "J"); put(33, G, "J"); put(38, G, "w");
+  row(5, 7, G, "o"); put(11, G, "P"); put(18, G, "T"); put(24, G, "K"); put(27, G, "w"); put(32, G, "J"); put(38, G, "w");
   // 2. The marquee: a low roof with the uncle's brother shouting down it, the aunt with the cheek-pinch, the photographer
-  box(44, 54, 13, 15, "#"); row(47, 50, G, "o"); put(57, G, "T"); put(62, G, "w"); put(63, G, "c"); put(67, G, "C"); put(69, G, "F"); row(71, 74, 14, "="); put(73, 13, "N"); put(80, G, "X");
+  box(44, 54, 13, 15, "#"); row(47, 50, G, "o"); put(57, G, "T"); put(62, G, "w"); put(63, G, "c"); put(67, G, "C"); put(69, G, "F"); row(84, 86, G, "o"); row(71, 74, 14, "="); put(73, 13, "N"); put(80, G, "X");
   // 3. The buffet: Gran, who wants a cup of tea from the top shelf (bouncy castle up to it), then the buffet huddle and a baby
   put(92, G, "K"); put(95, G, "^"); row(96, 99, 12, "="); put(98, 11, "t"); put(103, G, "Y"); put(107, G, "b"); row(110, 114, G, "P"); put(118, G, "N"); row(120, 122, G, "o");
   // 4. The bouncy castle: up and over the hedge, children on the far side, another aunt
-  put(137, G, "^"); box(140, 146, 13, G, "#"); row(141, 145, 12, "o"); put(143, 9, "N"); put(149, G, "w"); put(152, G, "J"); put(155, G, "J"); put(158, G, "J"); put(161, G, "w"); put(162, G, "c"); put(166, G, "C");
+  put(132, G, "K"); put(137, G, "^"); box(140, 146, 13, G, "#"); row(141, 145, 12, "o"); put(143, 9, "N"); put(149, G, "w"); put(152, G, "J"); put(157, G, "J"); put(161, G, "w"); row(163, 165, G, "o");
   // 5. The kids' table: a portaloo, the uncle again, the photographer again, two relatives, a paddling pool
-  put(172, G, "K"); put(178, G, "T"); put(186, G, "X"); put(192, G, "P"); put(196, G, "P"); pit(199, 201);
+  put(172, G, "K"); put(178, G, "T"); put(186, G, "X"); row(189, 191, G, "o"); put(194, G, "P"); pit(199, 201);
   // 6. The car park: one last aunt, children on scooters, the gate
-  put(206, G, "w"); put(210, G, "C"); put(213, G, "w"); put(216, G, "J"); put(219, G, "J"); put(224, G, "w"); row(226, 228, G, "o"); put(231, G, "D");
+  put(204, G, "K"); put(206, G, "w"); put(210, G, "C"); put(213, G, "w"); put(218, G, "J"); put(224, G, "w"); row(226, 228, G, "o"); put(231, G, "D");
   return g.map((r) => r.join(""));
 }
 const FAMILY_ZONES = [
   { x0: 0, x1: 40, name: "The Patio", kinds: [12, 14, 13] }, { x0: 40, x1: 90, name: "The Marquee", kinds: [4, 2, 3, 2], tent: true }, { x0: 90, x1: 135, name: "The Buffet", kinds: [8, 4, 8, 13] },
   { x0: 135, x1: 170, name: "The Bouncy Castle", kinds: [13, 14] }, { x0: 170, x1: 200, name: "The Kids’ Table", kinds: [2, 8, 13] }, { x0: 200, x1: 236, name: "The Car Park", kinds: [14, 13] },
 ];
-const FAMILY = { name: "The Family Do", out: "the family do", theme: "family", lost: "The family has absorbed him.", talkEvery: 1.5, chaseSpeed: 4.0, walkSpeed: 2.6, follow: true, map: familyDo(), zones: FAMILY_ZONES, upstairs: null,
+const FAMILY = { name: "The Family Do", out: "the family do", theme: "family", lost: "The family has absorbed him.", talkEvery: 2.1, chaseSpeed: 3.5, walkSpeed: 2.2, kidSpeed: 2.2, flashEvery: 4.6, follow: true, map: familyDo(), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini slipped out of the back gate and straight into a family do he had forgotten about. Everyone has a question.",
   signs: [{ x: 41.8, y: 14.2, t: "HOOD UP" }, { x: 78, y: 13.4, t: "MIND THE FLASH" }, { x: 97.5, y: 9.6, t: "TEA" }, { x: 137.5, y: 13.6, t: "BOUNCY CASTLE" }],
   toll: { item: "CUP OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
@@ -335,12 +335,12 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   if(p.k==='C'&&party&&isDark(zoneAt(p.x,p.y-.5))){p.run=0;p.rest=0;p.wind=0;p.lost=true;var gx=p.x+p.f*.5;if(solid(Math.floor(gx),Math.floor(p.y-.5))||tile(Math.floor(gx),Math.floor(p.y-.5))==='w'||!solid(Math.floor(gx),Math.floor(p.y+.1)))p.f=-p.f;else p.x+=p.f*.55*dt}
   else if(p.k==='C'){p.lost=false;if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=2.2}else if(near&&!un&&S.mode==='play'){p.run=3.1;p.wind=.55;say(pick(L.lines.C),p.x,p.y-2.5)}
    if(p.wind>0)p.wind-=dt;else if(p.run>0){if(!un)p.f=P.x<p.x?-1:1;var cx2=p.x+p.f*.5;if(!(solid(Math.floor(cx2),Math.floor(p.y-.5))||tile(Math.floor(cx2),Math.floor(p.y-.5))==='w'||!solid(Math.floor(cx2),Math.floor(p.y+.1))))p.x+=p.f*(L.chaseSpeed||3.7)*dt}}
-  else if(p.k==='W'||p.k==='J'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*(p.k==='J'?3.5:(L.walkSpeed||2.1))*dt}
-  else if(p.k==='X'){p.fixed=true;if(p.flash>0)p.flash-=dt;if(p.t>3.4){p.t=0;p.flash=.3;var fd=(P.x-p.x)*p.f;if(!unseen&&S.mode==='play'&&fd>0&&fd<4.6&&Math.abs(P.y-p.y)<2.2){say(pick(L.lines.X),p.x,p.y-2.6);hurt('X',p.x)}}}
-  else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.7*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
+  else if(p.k==='W'||p.k==='J'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*(p.k==='J'?(L.kidSpeed||3):(L.walkSpeed||2.1))*dt}
+  else if(p.k==='X'){p.fixed=true;if(p.flash>0)p.flash-=dt;var fe=L.flashEvery||3.4;p.fe=fe;if(p.t>fe){p.t=0;p.flash=.3;var fd=(P.x-p.x)*p.f;if(!unseen&&S.mode==='play'&&fd>0&&fd<3.6&&Math.abs(P.y-p.y)<2.2){say(pick(L.lines.X),p.x,p.y-2.6);hurt('X',p.x)}}}
+  else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&!un&&Math.abs(P.x-p.x)<(small?.5:.62)&&P.y>p.y-(small?.95:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
+  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=b.x1+7;b.t=0}}else{b.x-=11*dt;if(b.x<b.x0-7)b.x=null;
    else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
@@ -362,8 +362,8 @@ function sprite(name,frame,x,y,flip,k){var a=ART[name],im=IMG[name];if(!im.natur
 function person(p){if(p.k==='G'){dog(p);return}if(p.k==='Y'){crier(p);return}var PEO=street?'street-people':(party||family)?'party-people':'flat-people',MOV=(street||family)?'street-movers':'flat-movers',c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y)<2.5;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.5,.08,0,0,6.2832);c.fill();
  if(p.k==='J'){sprite(MOV,Math.floor(p.t/.09)%4,p.x,p.y+.03,p.f<0,k*.5);return}
  if(p.k==='X'){sprite(PEO,6,p.x,p.y+.03,p.f<0,k);var cxx=p.x+p.f*.5,cyy2=p.y-1.25;c.fillStyle=INK;rr(cxx-.2,cyy2-.14,.4,.28,.05);c.fill();c.fillStyle='#9fd3ff';c.beginPath();c.arc(cxx+p.f*.12,cyy2,.09,0,6.2832);c.fill();
-  var ch=Math.max(0,(p.t-2.5)/.9);if(ch>0&&!(p.flash>0)){c.strokeStyle=YEL;c.lineWidth=.09;c.beginPath();c.arc(cxx,cyy2-.55,.26,-1.57,-1.57+6.283*Math.min(1,ch));c.stroke()}
-  if(p.flash>0){var fg=c.createLinearGradient(cxx,0,cxx+p.f*4.6,0);fg.addColorStop(0,'rgba(255,255,255,.95)');fg.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=fg;c.beginPath();c.moveTo(cxx,cyy2);c.lineTo(cxx+p.f*4.6,cyy2-2.2);c.lineTo(cxx+p.f*4.6,p.y+.05);c.closePath();c.fill()}return}
+  var ch=Math.max(0,(p.t-((p.fe||3.4)-1.3))/1.3);if(ch>0&&!(p.flash>0)){c.strokeStyle=YEL;c.lineWidth=.09;c.beginPath();c.arc(cxx,cyy2-.55,.26,-1.57,-1.57+6.283*Math.min(1,ch));c.stroke()}
+  if(p.flash>0){var fg=c.createLinearGradient(cxx,0,cxx+p.f*3.6,0);fg.addColorStop(0,'rgba(255,255,255,.95)');fg.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=fg;c.beginPath();c.moveTo(cxx,cyy2);c.lineTo(cxx+p.f*3.6,cyy2-2.2);c.lineTo(cxx+p.f*3.6,p.y+.05);c.closePath();c.fill()}return}
  if(p.k==='W'){if(party)sprite('party-dancer',Math.floor(p.t/.16)%4,p.x,p.y+.03,p.f<0,k);else sprite(MOV,Math.floor(p.t/.13)%4,p.x,p.y+.03,p.f<0,k)}
  else if(p.k==='C'&&party){sprite('party-host',p.lost?[4,5,4,6,5,7][Math.floor(p.t/.5)%6]:p.wind>0?1:p.run>0?Math.floor(p.t/.1)%3:p.rest>0?3:1,p.x,p.y+.03,p.f<0,k);
   if(p.run>0||p.rest>0){c.fillStyle='#fff';c.beginPath();c.ellipse(p.x,p.y-2.85,.26,.2,0,0,6.2832);c.fill();ink(.06);c.fillStyle='#e0303a';c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.run>0?'!':'~',p.x,p.y-2.84)}}
