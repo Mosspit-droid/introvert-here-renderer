@@ -187,7 +187,7 @@ function park() {
   // 1. The picnic: the uncle with the joke, Gran wanting her tea (trampoline up to the flask), a baby for the picnic rug
   row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P");
   // 2. The playground: up the ladder and down the slide, swings over the sandpit, a roundabout that flings you over a crowd
-  row(41, 42, 25, "="); row(41, 42, 23, "="); row(41, 44, 21, "="); row(42, 43, 20, "o"); put(48, G, "P"); put(51, G, "P");
+  row(41, 42, 26, "="); row(41, 44, 24, "="); row(42, 43, 23, "o"); put(47, G, "P"); put(49, G, "P");
   pit(58, 70); row(62, 66, 22, "o"); row(74, 76, G, "="); row(79, 84, G, "P");
   // 3. The bouncy castle: balloons straight above it. Then a seesaw up to the treehouse.
   put(91, G, "K"); row(97, 101, G, "B"); put(99, 18, "a"); row(103, 105, 21, "o"); put(111, G, "Q");
@@ -206,8 +206,8 @@ const FAMILY_ZONES = [
 ];
 const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, map: park(), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
-  signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 18.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 14.2, t: "THE BANDSTAND" }],
-  sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 21, 25, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 21, x1: 55, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
+  signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 21.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 14.2, t: "THE BANDSTAND" }],
+  sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 24, 26, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 24, x1: 51, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
   movers: [{ sw: true, x: 61, y: 26.3, amp: 2.4, per: 3.6, ph: 0 }, { sw: true, x: 67, y: 26.3, amp: 2.4, per: 3.6, ph: 1.8 }, { sw: true, x: 207.5, y: 26.3, amp: 2.7, per: 3.6, ph: 0 }],
   toll: { item: "FLASK OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
   lines: { P: ["Still single, are you?", "When are you getting a proper job?", "You’ve lost weight. Or put it on.", "Are you still doing the computers?"], T: ["I’ve got a joke for you!", "Why did the chicken…", "Wait, you’ll like this one."],
@@ -318,7 +318,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=!!jumpKey();P.bn=good?Math.min(2,P.bn+1):0;   // no timing: hold A and each bounce goes higher; let go to settle
   P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
  if(!P.slide&&P.ground&&sv>0)(L.slides||[]).forEach(function(sl){if(Math.abs(P.x-sl.x0)<.45&&Math.abs(P.y-sl.y0)<.2)P.slide={s:sl,u:0}});
- if(P.slide){var sl2=P.slide.s;P.slide.u+=dt*11/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.vx=RUN*1.6}}
+ if(P.slide){var sl2=P.slide.s;P.slide.v=Math.min(17,(P.slide.v||5)+26*dt);P.slide.u+=dt*P.slide.v/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.fling=.24;P.vx=13;say('WHEEE!',P.x,P.y-2.4)}}
  var onSpin=false;(L.spins||[]).forEach(function(sp){if(P.ground&&Math.abs(P.x-sp.x)<1.3&&Math.abs(P.y-sp.y)<.2)onSpin=true});if(onSpin){P.spinT+=dt;if(P.spinT>.75){P.spinT=0;P.fling=.95;P.vy=-19;P.sprung=true;P.ground=false;P.y-=.05;say('WHEEE!',P.x,P.y-2.4)}}else P.spinT=0;
  var onSee=false;(L.seesaws||[]).forEach(function(se){if(P.ground&&Math.abs(P.x-se.x)<.6&&P.y>MH-2.2)onSee=true});if(onSee){P.seeT+=dt;if(P.seeT>.65){P.seeT=0;P.vy=-30;P.sprung=true;P.ground=false;P.y-=.05;pops.push({x:P.x,y:P.y,life:.5,big:true})}}else P.seeT=0;
  var cyy=Math.floor(P.y-.01),onChair=tile(Math.floor(P.x),cyy)==='^'||tile(Math.floor(P.x+.55),cyy)==='^'||tile(Math.floor(P.x-.55),cyy)==='^';if(P.vy>=0&&onChair&&P.y>=cyy+.15){   // generous: brush against it and up you go
@@ -442,10 +442,11 @@ function playground(x0,x1){var c=cx,base=MH-2,x,y;
  (L.slides||[]).forEach(function(sl){var w=(sl.x1-sl.x0)/.64,h=(sl.y1-sl.y0)/.673,lx=sl.x0-.33*w;if(lx+w<x0||lx>x1)return;pdraw('slide',lx+w/2,sl.y1+.15,w,h,false)});
  if(L.tree&&L.tree.x>x0-5&&L.tree.x<x1+5){var th=5.4,ty=L.tree.y+th*.45;[-2.36,2.04].forEach(function(o){c.fillStyle=INK;c.fillRect(L.tree.x+o-.06,ty-.4,.44,base-ty+.4);c.fillStyle='#cf7a2a';c.fillRect(L.tree.x+o,ty-.4,.32,base-ty+.4)});pdraw('treehouse',L.tree.x,ty,5.7,th,false)}
  if(L.band&&L.band.x>x0-9&&L.band.x<x1+9){pdraw2('bandstand',L.band.x,L.band.y+8.6*.18,13.4,8.6)}
- (L.spins||[]).forEach(function(sp){if(sp.x<x0-3||sp.x>x1+3)return;pdraw('roundabout',sp.x,base+.05,4.3,2.9*1,P.spinT>0&&Math.floor(T*9)%2===1)});
+ (L.spins||[]).forEach(function(sp){if(sp.x<x0-3||sp.x>x1+3)return;pdraw('roundabout',sp.x,base+.05,4.3,2.9,false);if(calm)return;sp.a=(sp.a||0)+(P.spinT>0?.22:.035);for(var i=0;i<8;i++){var q=sp.a+i*.7854,sn=Math.sin(q);if(sn<.12)continue;var mx=sp.x+Math.cos(q)*2.02,my=base-1.02+sn*.4;c.fillStyle='#fff';c.globalAlpha=.9;c.beginPath();c.ellipse(mx,my,.13*sn+.04,.09,0,0,6.2832);c.fill();c.globalAlpha=1;ink(.04)}});
  (L.seesaws||[]).forEach(function(se){if(se.x<x0-4||se.x>x1+4)return;pdraw('seesaw',se.x+1.5,base+.05,4.3,2.3,!(P.seeT>.3))});
- movers.forEach(function(m){if(!m.sw||m.cx<x0-5||m.cx>x1+5)return;var fh=6.6,py=base-fh*.9,dx=m.x-m.cx,dy=m.y-py,d=Math.sqrt(dx*dx+dy*dy),a=ART['park-play'],it=a.items.swingseat,im=IMG['park-play'];pdraw('swingframe',m.cx,base+.05,5.9,fh,false);if(!im.naturalWidth)return;
-  c.save();c.translate(m.cx,py);c.rotate(-Math.atan2(dx,dy));var sh=(d+.22)/.93;c.drawImage(im,it.x+2,a.H-it.h,it.w-4,it.h,-1.1,0,2.2,sh);c.restore()});
+ movers.forEach(function(m){if(!m.sw||m.cx<x0-5||m.cx>x1+5)return;var fh=5.3,py=base-fh*.9,a=ART['park-play'],it=a.items.swingseat,im=IMG['park-play'];pdraw('swingframe',m.cx,base+.05,5,fh,false);if(!im.naturalWidth)return;
+  [-1,1].forEach(function(o){c.lineCap='round';c.strokeStyle=INK;c.lineWidth=.11;c.beginPath();c.moveTo(m.cx+o*.5,py);c.lineTo(m.x+o*.85,m.y+.08);c.stroke();c.strokeStyle='#c9ccd3';c.lineWidth=.05;c.stroke()});
+  var sh2=Math.round(it.h*.25);c.drawImage(im,it.x+2,a.H-sh2,it.w-4,sh2,m.x-1.05,m.y-.08,2.1,.48)});
  for(x=Math.max(0,x0);x<Math.min(MW,x1);x++)if(MAP[base-1].charAt(x)==='B'&&MAP[base-1].charAt(x-1)!=='B'){var n=0;while(MAP[base-1].charAt(x+n)==='B')n++;var sq=(P.bn>0&&P.x>x-1&&P.x<x+n+1&&P.y>base-1.4)?.12:0;pdraw('castle',x+n/2,base+.05,n*1.42,3.5-sq,false)}}
 function pdraw2(name,x,y,w,h){var a=ART['park-things'],it=a.items[name],im=IMG['park-things'];if(!im.naturalWidth)return;cx.drawImage(im,it.x,a.H-it.h,it.w,it.h,x-w/2,y-h,w,h)}
 function babyPic(x,y,sc){thing('baby',x,y+.3*sc,.9*sc,false,'park-things')}
@@ -540,13 +541,13 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(party)people.forEach(function(q){if(q.k!=='C'||!q.lost||q.x<x0||q.x>x1)return;c.globalAlpha=.55;person(q);c.globalAlpha=1;c.fillStyle='#fff';c.beginPath();c.ellipse(q.x,q.y-2.45,.3,.24,0,0,6.2832);c.fill();ink(.06);c.fillStyle=INK;c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('?',q.x,q.y-2.43)});
  if(L.torch)people.forEach(function(q){if(q.k!=='C'||!isDark(zoneAt(q.x,q.y-.5)))return;var tg=c.createLinearGradient(q.x,0,q.x+q.f*5,0);tg.addColorStop(0,'rgba(255,240,170,.55)');tg.addColorStop(1,'rgba(255,240,170,0)');c.fillStyle=tg;c.beginPath();c.moveTo(q.x+q.f*.3,q.y-1.1);c.lineTo(q.x+q.f*5,q.y-2.4);c.lineTo(q.x+q.f*5,q.y+.05);c.closePath();c.fill();person(q)});
  // you
- var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
+ var k=1.7/HERO.pph,f=(P.hood||P.slide)?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
  if(P.phones>0){c.strokeStyle='#7a5cff';c.lineWidth=.07;c.globalAlpha=.5+.3*Math.sin(T*4);c.beginPath();c.arc(P.x,P.y-.85,1.05,0,6.2832);c.stroke();c.globalAlpha=1}
  if(P.balloons)balloons(P.x-P.f*.15,P.y-2.25,1.05);
  if(P.float)thing('brolly',P.x+P.f*.22,P.y-.75,1.9,false,'street-things');
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
- if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.globalAlpha=P.inv>0?.55:P.hood?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
+ if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(P.slide)c.rotate(.35);c.globalAlpha=P.inv>0?.55:(P.hood&&!P.slide)?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
  if(P.plate)thing('plate',P.x+P.f*.45,P.y-.72,.7,false,'party-things');
  if(P.tissues&&family)thing('flask',P.x+P.f*.45,P.y-.55,.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
  if(P.baby>0)babyPic(P.x+P.f*.35,P.y-.85,.8);
