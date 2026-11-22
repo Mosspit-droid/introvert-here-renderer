@@ -153,6 +153,10 @@ _, pk_, _, _ = boxes("park-kid.png", [(150, 390, 0, 400), (540, 790, 0, 400), (9
 s = 1.25 * PPT / pk_[0].shape[0]; save("park-kid", strip([cellf(f, s, 260, 300, 130, 296) for f in pk_[:4]]), w=260, h=300, ax=130, base=296, n=4)
 s = 2.25 * PPT / pk_[4].shape[0]; save("park-parents", strip([cellf(f, s, 360, 290, 180, 286) for f in pk_[4:]]), w=360, h=290, ax=180, base=286, n=2)
 
+# The arch nemesis, the colleague who points and laughs: smug 0, laughing 1-2, peeking (head and arm only) 3, caught 4, defeated 5
+kn = key("nemesis.png"); nq = kn.shape[1] / 2000; nf = [trimmed(kn[round(90 * nq):round(610 * nq), round(x0 * nq):round(x1 * nq)]) for x0, x1 in [(40, 270), (340, 652), (655, 1005), (1040, 1320), (1350, 1650), (1700, 1970)]]
+s = 2.1 * PPT / nf[0].shape[0]; save("nemesis", strip([cellf(f, s, 440, 270, 170, 266) for f in nf]), w=440, h=270, ax=170, base=266, n=6)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -212,7 +216,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
+for n in ("nemesis", "park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
