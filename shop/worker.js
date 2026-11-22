@@ -105,7 +105,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
-      if (path === HUB.path + "/aunt-doris") return html(dorisPage());
+      if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env)));
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
       if (path.startsWith("/uk/p/")) {
@@ -573,6 +573,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .rounds{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}.rounds td,.rounds th{border:1px solid #3b3a35;padding:7px 8px;text-align:left}.rounds th{color:var(--muted);font-weight:700}
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.photos figure{margin:0;background:#f2efe6;color:#2a2622;border-radius:3px;padding:7px 7px 9px;box-shadow:0 3px 8px rgba(0,0,0,.35);font-size:12px;line-height:1.3}.photos figure:nth-child(odd){transform:rotate(-1.5deg)}.photos figure:nth-child(even){transform:rotate(1.2deg)}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#8b8172;color:#f2efe6;font-size:22px;margin-bottom:6px}.photos small{display:block;color:#6d665c;margin-top:3px}@media(max-width:520px){.photos{grid-template-columns:repeat(2,1fr)}}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
+.gtee{margin:22px auto 6px;text-align:center}.gtee .tile{text-align:left}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
 .dm{--k:0;display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:8px 12px;border-radius:10px;background:#24231f;transition:background .4s}
 .dmf{width:86px;height:86px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
@@ -1101,7 +1102,15 @@ const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5
 const DZ_PHOTOS = [["Elf costume, howling", "Christmas, aged 2"], ["Paddling pool, giggling", "Summer, aged 3"], ["Sheep in the nativity, sobbing", "Christmas, aged 4"], ["The bowl haircut, scowling", "Spring, aged 4"],
   ["In a little suit at a wedding, in floods of tears", "Summer, aged 3"], ["Pirate at a party, grinning", "Summer, aged 4"], ["Sailor suit at the seaside, wailing", "Summer, aged 4"], ["Pumpkin costume, wailing", "Autumn, aged 4"]];
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
-function dorisPage() {
+// Sharing a result (Barry, 22 Nov): the phone's own share sheet where there is one, otherwise copy to the clipboard.
+const SHARE_JS = `function ihShare(text,url,btn){var full=text+' '+url;function done(m){var o=btn.textContent;btn.textContent=m;setTimeout(function(){btn.textContent=o},2200)}
+ if(navigator.share){navigator.share({text:text,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(full).then(function(){done('Copied. Paste it anywhere.')},function(){done('Couldn’t copy')})}else done('Couldn’t share')}`;
+// The tee shown at the end of a game: a gag that fits it, in the first garment it comes in.
+function gameTee(cat, ids, line) {
+  for (const id of ids) { const d = (cat.designs || []).find((x) => x.id === id); if (!d) continue; const t = cat.garmentOrder.find((g) => d.garments[g]); if (t) return `<div class="gtee"><p class="pt step">${line}</p><div class="grid four" style="grid-template-columns:minmax(0,260px);justify-content:center">${tileHtml({ d, t })}</div></div>`; }
+  return "";
+}
+function dorisPage(cat) {
   const lock = (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
   const meter = `<div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
   const tail = `<p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p><p class="next"><button class="btn go" type="button">Carry on</button></p>`;
@@ -1153,7 +1162,9 @@ function dorisPage() {
 <p>Your kit, in the order you got it:</p><div class="kit" id="kitlist"></div>${lock("Your code", 0)}`),
     `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. Nobody knows you’ve gone.</p><p id="won"></p>
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
-<p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn" href="${HUB.path}">Back to the room</a></p></section>`,
+<p style="text-align:center"><button class="btn" type="button" id="share">Share your escape</button></p>
+${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH-00014"], "Survived Doris? Dress for the next one.")}
+<p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn ghost" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
@@ -1178,7 +1189,7 @@ var P={
 var DL=['Aunt Doris is at the far end of the room.','“Coo-ee!” She’s spotted you.','She’s weaving through the guests towards you.','Arms open. One more wrong move.'];
 function setLv(m,lv){m.dataset.lv=lv;$('img',m).src='/s/doris-'+(lv+1)+'.png?v=1';$('.dml',m).textContent=DL[lv]}
 [1,2,3,4,'hug'].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
-function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
+function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;st.hugs=(st.hugs||0)+1;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
@@ -1186,7 +1197,7 @@ function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' 
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
 function show(i){tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
  if(s.dataset.n==='2'&&!st.done['2'])talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
- if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'.';t0=0}
+ if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'. Hugs: '+(st.hugs||0)+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
 function looksSolved(s){var n=s.dataset.n,p=P[n];s.dataset.r=1;$('.say',s).textContent='';var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
  if(p.got){var g=$('.got',s);g.innerHTML='<b>Added to your kit: '+p.got[1]+'</b><br>'+p.got[2];g.classList.add('on')}else $('.say',s).textContent='Click. It opens.';
@@ -1201,6 +1212,9 @@ var prev=load();if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#car
 // a fresh game: forget progress and put every puzzle back as it was
 function fresh(){st={at:0,ms:0,hints:0,done:{},max:0};t0=0;S.forEach(function(x){delete x.dataset.r;var l=$('.lock',x);if(l)l.classList.remove('open','no');var g=$('.got',x);if(g){g.classList.remove('on');g.innerHTML=''}var nx=$('.next',x);if(nx)nx.classList.remove('on');var hp=$('.hintp',x);if(hp)hp.hidden=false;var hs=$('.hints',x);if(hs)hs.innerHTML='';var hb=$('.hint',x);if(hb){hb.hidden=false;hb.textContent='Hint, please';hb.classList.remove('give')}var inp=$('input',x);if(inp)inp.value='';var sy=$('.say',x);if(sy)sy.textContent=''});save()}
 $('#again').addEventListener('click',function(){fresh();show(0)});
+$('#share').addEventListener('click',function(){var m=Math.max(1,Math.round(st.ms/60000)),h=st.hugs||0;
+ ihShare('I escaped Aunt Doris in '+m+' minute'+(m===1?'':'s')+(h?' and only got hugged '+(h===1?'once':h===2?'twice':h+' times'):' without a single hug')+'. Can you get out?',location.origin+location.pathname,this)});
+${SHARE_JS}
 S.forEach(function(s){var n=s.dataset.n;if(!n)return;var p=P[n],tries=0;
  var f=$('form',s);if(f)f.addEventListener('submit',function(e){e.preventDefault();if(st.done[n]&&$('.next.on',s))return;var v=String($('input',s).value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
   if(p.a.test(v))solved(s);else{var l=$('.lock',s);l.classList.remove('no');void l.offsetWidth;l.classList.add('no');$('.say',s).textContent=p.no[tries++%p.no.length];closer(s)}});
@@ -1404,8 +1418,10 @@ function spotPage() {
 <p class="tp"><span id="sc"></span><span class="tm" id="st">0:00.0</span><a href="${HUB.path}">Back to the room</a></p><p class="br" id="sb"></p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
 <p class="ms" id="sm" role="status" aria-live="polite"></p>
-<p class="bt"><button class="btn ghost" id="sp0" type="button" aria-label="Previous painting">← Back</button><span class="mid"><button class="btn ghost" id="sq" type="button" hidden>Clue</button><button class="btn" id="sa" type="button" hidden>Go again</button></span><button class="btn ghost" id="sn" type="button" aria-label="Next painting">Next →</button></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
-(function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],T=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,t0=0,run=false,cl;
+<p class="bt"><button class="btn ghost" id="sp0" type="button" aria-label="Previous painting">← Back</button><span class="mid"><button class="btn ghost" id="sq" type="button" hidden>Clue</button><button class="btn" id="sa" type="button" hidden>Go again</button><button class="btn ghost" id="ssh" type="button" hidden>Share</button></span><button class="btn ghost" id="sn" type="button" aria-label="Next painting">Next →</button></p></div>`, { nav: "hub", body: "spot", desc: "Spot the Introvert: someone in this painting would rather not be found. Find them.", script: `
+(function(){var ALL=${JSON.stringify(data).replace(/</g, "\\u003c")},S=[],T=[],every=/[?&]all=1/.test(location.search),$=function(i){return document.getElementById(i)},fr=$('sf'),im=$('si'),i=0,t0=0,run=false,cl,lastTot=0;
+${SHARE_JS}
+
 var hd=document.querySelector('header');$('sp').style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
 function fmt(ms){var s=ms/1000,m=Math.floor(s/60);s-=m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
 function clear(){[].forEach.call(fr.querySelectorAll('.ring,.clue,.miss'),function(x){x.remove()})}
@@ -1425,7 +1441,7 @@ function left(){return T.filter(function(x){return !x.done}).length}
 function stop(){if(run){T[i].t+=Date.now()-t0;run=false}clearTimeout(cl)}
 function go(){if(T[i].done||run)return;t0=Date.now();run=true;clearTimeout(cl);if(!T[i].clue)cl=setTimeout(function(){if(run)$('sq').hidden=false},Math.max(0,20000-T[i].t))}
 function show(k){stop();i=k;var s=S[i],t=T[i];clear();$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
- $('sn').className='btn'+(t.done&&left()&&i<S.length-1?'':' ghost');$('sq').hidden=true;$('sa').hidden=left()>0;
+ $('sn').className='btn'+(t.done&&left()&&i<S.length-1?'':' ghost');$('sq').hidden=true;$('sa').hidden=$('ssh').hidden=left()>0;
  if(t.done)put('ring',s.spot[0],s.spot[1],Math.max(s.spot[2]*2.6,14));else if(t.clue)put('clue',s.clueAt[0],s.clueAt[1],s.clueAt[2]*2);
  $('sm').textContent=t.say||(t.done?s.found:'Tap where they’re hiding.');
  im.alt=s.alt;im.onload=im.onerror=go;if(im.getAttribute('src')!==s.src)im.src=s.src;if(im.complete&&im.naturalWidth)go();if(S[i+1]){new Image().src=S[i+1].src}}
@@ -1435,7 +1451,7 @@ fr.addEventListener('click',function(e){if(!run)return;var r=fr.getBoundingClien
   if(n)t.say=s.found+(i===S.length-1?' '+n+' still hiding. Go back for them.':'');
   else{var key=every?'ih_spot_bestall':'ih_spot_best5',best=0,tot=total();try{best=+localStorage.getItem(key)||0}catch(_){}
    var rec=!best||tot<best;if(rec){try{localStorage.setItem(key,tot)}catch(_){}}
-   t.say=s.found+(every?' All of them in ':' All five in ')+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.')}
+   t.say=s.found+(every?' All of them in ':' All five in ')+fmt(tot)+(rec?(best?'. A new best.':'. That’s your time to beat.'):'. Your best is '+fmt(best)+'.');lastTot=tot}
   show(i)}
  else{var w=s.wrong,m=put('miss',x,y),line=null;m.textContent='×';setTimeout(function(){m.remove()},1000);
   s.zones.some(function(z,k){var q=z[0];if(!t.used[k]&&x>=q[0]&&x<=q[0]+q[2]&&y>=q[1]&&y<=q[1]+q[3]){t.used[k]=1;line=z[1];return true}});
@@ -1444,6 +1460,7 @@ $('sq').addEventListener('click',function(){var c=S[i].clueAt;T[i].clue=true;T[i
 $('sp0').addEventListener('click',function(){if(i>0)show(i-1)});$('sn').addEventListener('click',function(){if(i<S.length-1)show(i+1)});
 document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'&&i>0)show(i-1);if(e.key==='ArrowRight'&&i<S.length-1)show(i+1)});
 $('sa').addEventListener('click',function(){stop();deal();show(0)});
+$('ssh').addEventListener('click',function(){ihShare('I found all five hidden introverts in '+fmt(lastTot)+'. They’d rather I hadn’t. Can you find them?',location.origin+location.pathname,this)});
 setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})();` });
 }
 
