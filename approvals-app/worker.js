@@ -42,6 +42,7 @@ export default {
     ctx.waitUntil(shopPhotoTick(env).catch(() => {}));
     ctx.waitUntil(siteBuildTick(env).catch(() => {}));
     ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
+    ctx.waitUntil(siteAheadTick(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -243,6 +244,7 @@ export default {
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
+      if (pathname === "/api/site-prices" && method === "POST") { try { return json(await sitePricesSave(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 200) }, 400); } }
       if (pathname === "/api/site-build" && method === "POST") { try { return json(await siteBuildQueue(env, (await request.json().catch(() => ({}))).codes)); } catch (e) { return json({ error: String(e.message || e).slice(0, 200) }, 400); } }
       if (pathname === "/api/shop-catalog-check" && method === "POST") { try { await spKick(env); return json(await shopCatalogRun(env, { force: true })); } catch (e) { return json({ ok: false, error: String(e.message || e).slice(0, 200) }, 500); } }
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
@@ -1896,6 +1898,8 @@ async function dashboardPage(env) {
     return (daily && daily.runway || []).find((x) => x.collection === coll);
   };
   const targets = (await env.PENDING.get("gag-targets", "json")) || {};
+  // Garments on the website ahead of their Etsy date (built for the site only), per range.
+  const early = {}; (((await env.PENDING.get(SC.cat, "json")) || {}).designs || []).forEach((d) => Object.values(d.garments || {}).forEach((g) => { if (g.siteOnly) early[d.id.slice(0, 2)] = (early[d.id.slice(0, 2)] || 0) + 1; }));
   const ranges = DASH_ALL.map(([code, coll, name, colour]) => {
     const inCore = ((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-")).length, tgt = Number(targets[code]) || 0;
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
@@ -1909,6 +1913,7 @@ async function dashboardPage(env) {
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 <div class="row"><span>Gags in Core</span><b>${inCore}</b></div>
+<div class="row"><span>On the website early</span><b>${early[code] || 0}</b></div>
 ${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(${colour})"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${adhoc ? "When news breaks" : r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
   }).join("");
@@ -4402,7 +4407,17 @@ async function etsySalesCard(env) {
   const last = log[0];
   return `<div class="card" style="margin-bottom:12px"><b>Sales from Etsy</b> <span class="small">· items sold, and what buyers paid (after discounts, before Etsy's fees)${last ? " · last sale " + esc(when(last.at)) : ""}</span>
 <style>.cr{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}.cn{flex:1;font-size:14px}.cv{display:flex;gap:8px;align-items:center}.cv b{font:700 14px var(--display);min-width:40px;text-align:right}.cv small{color:var(--muted)}</style>
-${rows || '<p class="small">No sales recorded yet.</p>'}</div>`;
+${rows || '<p class="small">No sales recorded yet.</p>'}</div>${await siteSalesCard(env)}`;
+}
+// Sales from the website (live payments only), next to Etsy's (Barry, 22 Nov).
+async function siteSalesCard(env) {
+  const orders = ((await env.PENDING.get("shop:orders", "json")) || []).filter((o) => o && o.livemode && o.status !== "failed");
+  const now = Date.now(), d30 = now - 30 * 864e5, agg = {};
+  orders.forEach((o) => (o.items || []).forEach((i) => { const c = /^(IH|SH|PC|OS|EX|IP)-/.test(i.code || "") ? i.code.slice(0, 2) : "OTHER", a = (agg[c] ||= { n: 0, n30: 0, gbp: 0 });
+    const q = Number(i.quantity) || 1; a.n += q; a.gbp += (Number(i.amount) || 0) / 100; if ((o.at || 0) >= d30) a.n30 += q; }));
+  const rows = ["IH", "SH", "PC", "OS", "EX", "IP", "OTHER"].filter((c) => agg[c]).map((c) => `<div class="cr"><span class="cn">${esc(COLL_LABEL[c] || "Other")}</span><span class="cv"><b>${agg[c].n30}</b><small>30 days</small><b>${agg[c].n}</b><small>all</small><b>£${agg[c].gbp.toFixed(2)}</b></span></div>`).join("");
+  return `<div class="card" style="margin-bottom:12px"><b>Sales from your website</b> <span class="small">· items sold and what buyers paid${orders[0] ? " · last sale " + esc(when(orders[0].at)) : ""}</span>
+${rows || '<p class="small">No website sales yet. They appear here from launch day.</p>'}</div>`;
 }
 async function statsPage(env, url) {
   const st = await env.PENDING.get("stats", "json");
@@ -4637,6 +4652,7 @@ ${brandHeader("Pricing", nav)}
   <p class="small" style="margin:0 0 12px">Type an amount in any box and the others work it out.${fx ? " Rates from " + esc(new Date(fx.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })) + "." : " Rates aren't available right now."}</p>
   <div class="fxg">${[["GBP", "£", "UK"], ["USD", "$", "US"], ["EUR", "€", "Europe"], ["CAD", "C$", "Canada"], ["AUD", "A$", "Australia"]].map(([c, sym, where]) => `<label class="fx"><span>${c} <small>${where}</small></span><div><b>${sym}</b><input inputmode="decimal" data-cur="${c}" placeholder="0.00"></div></label>`).join("")}</div>
 </div></div>
+${await sitePricesCard(env, data)}
 <style>
 .fxg{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .fx{display:flex;flex-direction:column;gap:6px;font:800 12px var(--display);letter-spacing:.1em;color:var(--muted)}
@@ -4868,7 +4884,10 @@ async function calendarPage(env) {
   ((g && g.sched) || []).forEach((e) => (e.d || []).forEach((d, i) => add(d, { id: e.id, garment: TY[i], stem: e.s || "", edit: editableIds.has(e.id), built: !!(e.b && e.b[i]) })));
   ((g && g.editable) || []).forEach((e) => (e.dates || []).forEach((d, i) => add(d, { id: e.id, garment: TY[i], stem: e.stem || "", edit: true })));
   ((daily && daily.upcoming) || []).forEach((u) => add(u.date, { id: u.gag, garment: u.type, stem: u.title || "", built: !!u.built }));
-  Object.values(ev).forEach((l) => l.forEach((o) => { o.gname = garmentName(o.garment); }));
+  // Each garment also goes on the website SITE_LEAD_DAYS before its Etsy date (Barry, 22 Nov): shown as its own entry.
+  const lead = await siteLead(env);
+  if (lead) ((g && g.sched) || []).forEach((e) => { if (!/^(IH|SH|PC|OS|EX)-/.test(e.id)) return; (e.d || []).forEach((d, i) => add(siteDay(d, lead), { id: e.id, garment: TY[i], stem: e.s || "", site: true, etsy: d, built: !!(e.b && e.b[i]) })); });
+  Object.values(ev).forEach((l) => l.forEach((o) => { o.gname = (o.site ? "on the site · " : "") + garmentName(o.garment); }));
   return shell(`
 ${brandHeader("Calendar")}
 <style>
@@ -4891,7 +4910,7 @@ ${brandHeader("Calendar")}
 <p class="small" style="margin:0 0 10px"><a href="/settings?part=shift">Move a whole range's release dates ›</a></p>
 <div class="calbar"><button class="btn" id="cPrev" type="button">‹</button><h2 id="cTitle"></h2><button class="btn" id="cToday" type="button">Today</button><button class="btn" id="cNext" type="button">›</button></div>
 <div class="calgrid" id="cGrid"></div>
-<div class="legend"><span><i style="background:var(--ih)"></i>Introvert Here</span><span><i style="background:var(--sh)"></i>SHHH.</span><span><i style="background:var(--pc)"></i>Per Contract</span><span><i style="background:var(--os)"></i>Off The Shelf</span><span><i style="background:#ff9a5c"></i>Sales date</span><span><i style="background:#9fc6ef"></i>Seasonal tags</span></div>
+<div class="legend"><span><i style="background:var(--ih)"></i>Introvert Here</span><span><i style="background:var(--sh)"></i>SHHH.</span><span><i style="background:var(--pc)"></i>Per Contract</span><span><i style="background:var(--os)"></i>Off The Shelf</span><span><i style="background:#ff9a5c"></i>Sales date</span><span><i style="background:#9fc6ef"></i>Seasonal tags</span><span><i style="background:var(--muted);border-radius:2px;opacity:.7"></i>Square = goes on the website (${lead} days before Etsy)</span></div>
 <div class="cdet card" id="cDet"></div>
 <script>
 (function () {
@@ -4943,7 +4962,7 @@ ${brandHeader("Calendar")}
     for (var i = 0; i < 42; i++) { var d = add(start, i), k = iso(d), it = items(k), rows = [];
       if (i >= 35 && d.getMonth() !== cur.getMonth()) break;
       it.oth.forEach(function (o) { rows.push('<div class="cr ' + (o.hol ? "hol" : "sea") + '"><i style="background:' + (o.hol ? "#ff9a5c" : "#9fc6ef") + '"></i><span>' + h(o.t) + "</span></div>"); });
-      it.rel.forEach(function (o) { rows.push('<div class="cr"><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + '"></i><span>' + h(o.id) + " " + h(o.gname) + "</span></div>"); });
+      it.rel.forEach(function (o) { rows.push('<div class="cr"' + (o.site ? ' style="opacity:.7"' : '') + '><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + (o.site ? ';border-radius:2px' : '') + '"></i><span>' + h(o.id) + " " + h(o.gname) + "</span></div>"); });
       var shown = rows.slice(0, 4).join("") + (rows.length > 4 ? '<div class="cr more">+' + (rows.length - 4) + " more</div>" : "");
       html += '<button type="button" class="cday' + (d.getMonth() !== cur.getMonth() ? " out" : "") + (k === iso(now) ? " today" : "") + (k === sel ? " sel" : "") + '" data-d="' + k + '"><span class="dn">' + d.getDate() + '</span><span class="crs">' + shown + "</span></button>"; }
     document.getElementById("cGrid").innerHTML = html; det();
@@ -4952,7 +4971,7 @@ ${brandHeader("Calendar")}
     var out = '<h3>' + d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + "</h3>";
     it.oth.forEach(function (o) { out += '<div class="ditem ' + (o.hol ? "hol" : "sea") + '"><i style="background:' + (o.hol ? "#ff9a5c" : "#9fc6ef") + '"></i><div><b>' + h(o.t) + "</b>" + (o.n ? '<div class="small">' + h(o.n) + "</div>" : "") + "</div></div>"; });
     it.rel.forEach(function (o) { var href = o.edit ? "/gags?edit=" + encodeURIComponent(o.id) : "/gag/" + encodeURIComponent(o.id);
-      out += '<a class="ditem" href="' + href + '"><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + '"></i><div><b>' + h(o.id) + " · " + h(o.gname) + "</b><div class=\\"small\\">" + h(o.stem) + "</div></div><span class=\\"small\\">" + (o.built ? "Built ✓" : o.edit ? "Tap to edit" : "") + "</span></a>"; });
+      out += '<a class="ditem" href="' + href + '"><i style="background:' + (COL[o.id.slice(0, 2)] || "var(--muted)") + '"></i><div><b>' + h(o.id) + " · " + h(o.gname) + "</b><div class=\\"small\\">" + h(o.stem) + (o.site ? " · on Etsy " + h(o.etsy) : "") + "</div></div><span class=\\"small\\">" + (o.built ? "Built ✓" : o.edit ? "Tap to edit" : "") + "</span></a>"; });
     if (!it.oth.length && !it.rel.length) out += '<p class="small">Nothing on this day.</p>';
     document.getElementById("cDet").innerHTML = out; }
   document.getElementById("cGrid").addEventListener("click", function (e) { var b = e.target.closest("[data-d]"); if (!b) return; sel = b.dataset.d; draw(); if (window.innerWidth < 700) document.getElementById("cDet").scrollIntoView({ behavior: "smooth" }); });
@@ -5526,11 +5545,14 @@ async function socialTick(env) {
 // The site's "Vote on the next gag" page (Barry, 21 Nov): the next gags due out on the regular schedule, soonest first,
 // written to KV "shop:upcoming" each time the app reads Core. In Person and Exclusive have no weekly slot, so they're left out,
 // as is any gag with a garment already built. The site drops any whose date has passed and shows the first three.
+// A garment goes on the site SITE_LEAD_DAYS (Core APP_SETTINGS, 28) before its Etsy date.
+const siteDay = (etsyDay, lead) => etsyDay ? new Date(Date.parse(etsyDay + "T12:00:00Z") - (lead || 0) * 864e5).toISOString().slice(0, 10) : "";
+async function siteLead(env) { const S = await coreSettings(env); return S.siteLead === undefined ? 28 : S.siteLead; }
 async function shopUpcomingPut(env, data) {
-  const today = new Date().toISOString().slice(0, 10), text = {};
+  const today = new Date().toISOString().slice(0, 10), text = {}, lead = await siteLead(env);   // "due" = when it reaches the site
   (data.all || []).forEach((g) => { text[g.id] = g.text; });
   const list = (data.sched || []).filter((g) => /^(IH|SH|PC|OS)-\d+$/.test(g.id) && !(g.b || []).some(Boolean) && text[g.id])
-    .map((g) => ({ id: g.id, coll: g.id.slice(0, 2), title: g.s || "", due: (g.d || []).filter(Boolean).sort()[0] || "", text: text[g.id] }))
+    .map((g) => ({ id: g.id, coll: g.id.slice(0, 2), title: g.s || "", due: siteDay((g.d || []).filter(Boolean).sort()[0] || "", lead), text: text[g.id] }))
     .filter((g) => g.due && g.due >= today).sort((a, b) => a.due.localeCompare(b.due) || a.id.localeCompare(b.id)).slice(0, 6);
   if (list.length) await env.PENDING.put("shop:upcoming", JSON.stringify(list));
 }
@@ -8080,7 +8102,7 @@ async function coreSettingsTick(env, force) {
   await env.PENDING.put("gag-targets", JSON.stringify(targets));
   await env.PENDING.put(STARS_KEY, JSON.stringify(stars));
   await env.PENDING.put("season-locks", JSON.stringify(locks));
-  await env.PENDING.put("core-settings", JSON.stringify({ at: now, ipNames: names, nameMax: Number(val.IP_NAME_MAX) || IP.nameMax }));
+  await env.PENDING.put("core-settings", JSON.stringify({ at: now, ipNames: names, nameMax: Number(val.IP_NAME_MAX) || IP.nameMax, siteLead: Number(val.SITE_LEAD_DAYS) >= 0 && String(val.SITE_LEAD_DAYS).trim() !== "" ? Number(val.SITE_LEAD_DAYS) : 28 }));
 }
 
 // ---------- Orders log in Core (ORDERS table) ----------
@@ -8128,4 +8150,64 @@ async function shopOrdersLog(env) {
   }
   if (rows.length) await orderLog(env, rows);
   await env.PENDING.put("orders-site-seen", JSON.stringify([...done].slice(-1000)));
+}
+
+// The site's head start (Barry, 22 Nov): every garment is built for the site SITE_LEAD_DAYS before its Etsy date, the
+// same way as the 21 early builds (Printify product + mockups, no Etsy listing); on its Etsy date the builder makes the
+// Etsy listing as usual. Hourly: queue any garment whose site day has come, that isn't built and isn't due on Etsy in the
+// next two days (the Etsy build will cover it). In Person isn't included yet: its site page is made from its Etsy listing.
+async function siteAheadTick(env) {
+  const last = Number((await env.PENDING.get("site-ahead-at")) || 0), now = Date.now();
+  if (now - last < 3600e3) return;
+  await env.PENDING.put("site-ahead-at", String(now));
+  const g = await env.PENDING.get("gags", "json"); if (!g || !Array.isArray(g.sched)) return;
+  const lead = await siteLead(env); if (!lead) return;
+  const today = new Date().toISOString().slice(0, 10), soon = new Date(now + 2 * 864e5).toISOString().slice(0, 10);
+  const T = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"], due = [];
+  for (const x of g.sched) {
+    if (!/^(IH|SH|PC|OS|EX)-\d{5}$/.test(x.id)) continue;
+    (x.d || []).forEach((d, i) => { if (!d || (x.b || [])[i]) return; if (d <= soon) return; if (siteDay(d, lead) <= today) due.push(x.id + "-" + T[i]); });
+  }
+  const Q = (await env.PENDING.get(SB, "json")) || { queue: [], log: [] }, tried = new Set((Q.log || []).map((l) => l.code));
+  const fresh = due.filter((c) => !(Q.queue || []).includes(c) && !(Q.cur && Q.cur.code === c) && !tried.has(c));
+  if (fresh.length) await siteBuildQueue(env, fresh.slice(0, 40));
+}
+
+// Website prices on the Pricing page (Barry, 22 Nov): Etsy's price a UK buyer sees next to the site's, per garment. The
+// site's own figures live in Core (PRODUCT_RULES SITE_PRICE_GBP, the same for every range); bigger sizes follow the rule
+// in scSitePrice. Saving writes Core and refreshes the site within minutes.
+async function sitePricesCard(env, data) {
+  const st = (await env.PENDING.get(SC.state, "json")) || {}, P = (data && data.prices) || {};
+  const gbp = (p) => "£" + (p / 100).toFixed(2);
+  const rows = Object.keys(SC_GARMENTS).map((t) => {
+    const e = P[t] || {}, net = Math.round((Number(e.price) || 0) * 100), n2 = net + Math.round((Number(e.x2) || 0) * 100), n3 = net + Math.round((Number(e.x3) || 0) * 100);
+    const site = ((st.price || {})["INTROVERT HERE…|" + t] || {}).site || SC_PRICE[t];
+    const eb = Math.round(net * SC.vat), sb = scSitePrice(t, net, net, site), s2 = scSitePrice(t, n2, net, site), s3 = scSitePrice(t, n3, net, site);
+    const diff = eb - sb, warn = diff <= 0;
+    return `<tr><td>${esc(SC_GARMENTS[t])}</td><td>${net ? gbp(eb) : "—"}<div class="small2">2XL ${net ? gbp(Math.round(n2 * SC.vat)) : "—"} · 3XL ${net ? gbp(Math.round(n3 * SC.vat)) : "—"}</div></td>
+<td><input inputmode="decimal" data-sp="${t}" value="${(site / 100).toFixed(2)}" style="width:90px;padding:8px;font:600 15px Montserrat;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);text-align:right"><div class="small2">2XL ${gbp(s2)} · 3XL ${gbp(s3)}</div></td>
+<td class="${warn ? "bad" : "good"}">${net ? (warn ? "Not cheaper!" : gbp(diff) + " less") : ""}</td></tr>`; }).join("");
+  return `<div class="frame" style="margin-bottom:18px"><div class="card">
+<h3 style="margin:0 0 4px;font:800 16px var(--display);letter-spacing:.06em;text-transform:uppercase">Website prices</h3>
+<p class="small" style="margin:0 0 6px">What a buyer pays on Etsy (with VAT) next to your website. The website price is for S–XL in every range; bigger sizes add the same pounds as Etsy, £1 less where that's £4 or more. In Person adds the name charge (Core, PRODUCT_RULES). Saved to Core; the website follows within minutes.</p>
+<table class="pt"><tr><th>Garment</th><th>Etsy</th><th>Website</th><th></th></tr>${rows}</table>
+<button class="btn-main" id="spSave" type="button" style="margin-top:12px">Save website prices</button><p class="small" id="spMsg"></p></div></div>
+<script>(function () { var b = document.getElementById("spSave"); if (!b) return; b.addEventListener("click", function () {
+  var p = {}; document.querySelectorAll("[data-sp]").forEach(function (i) { p[i.dataset.sp] = i.value; });
+  b.disabled = true; document.getElementById("spMsg").textContent = "Saving to Core…";
+  fetch("/api/site-prices", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prices: p }) }).then(function (r) { return r.json(); }).then(function (j) {
+    document.getElementById("spMsg").textContent = j.error ? j.error : "Saved. The website shows the new prices within a few minutes."; b.disabled = false; if (!j.error) setTimeout(function () { location.reload(); }, 1500); }); }); })();</script>`;
+}
+async function sitePricesSave(env, d) {
+  const want = {}; Object.entries((d && d.prices) || {}).forEach(([t, v]) => { const n = Math.round(parseFloat(String(v).replace(/[^0-9.]/g, "")) * 100); if (SC_GARMENTS[t] && n >= 500 && n <= 20000) want[t] = n; });
+  if (!Object.keys(want).length) throw new Error("Type a price for each garment, like 25.99.");
+  const P = await coreTable(env, "PRODUCT_RULES"), c = P.col("SITE_PRICE_GBP"); if (c < 0) throw new Error("Core's PRODUCT_RULES has no SITE_PRICE_GBP column.");
+  let n = 0;
+  for (let i = 0; i < P.rows.length; i++) { const t = P.rows[i][P.col("PRODUCT_TYPE")], v = want[t]; if (!v || Math.round(Number(P.rows[i][c]) * 100) === v) continue;
+    await coreTool(env, CORE_WB() + "/tables/PRODUCT_RULES/columns/SITE_PRICE_GBP/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [[v / 100]] }); n++; }
+  const S = (await env.PENDING.get(SC.state, "json")) || {}; S.price = S.price || {};
+  P.rows.forEach((r) => { const k = r[P.col("COLLECTION")] + "|" + r[P.col("PRODUCT_TYPE")]; if (want[r[P.col("PRODUCT_TYPE")]]) S.price[k] = Object.assign({}, S.price[k] || {}, { site: want[r[P.col("PRODUCT_TYPE")]] }); });
+  S.kick = true; await env.PENDING.put(SC.state, JSON.stringify(S));
+  await logSetting(env, "Website prices: " + Object.entries(want).map(([t, v]) => SC_GARMENTS[t] + " £" + (v / 100).toFixed(2)).join(", ")).catch(() => {});
+  return { ok: true, changed: n };
 }
