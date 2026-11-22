@@ -968,7 +968,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 @media (max-width:640px){.ranges{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ranges .rng{padding:12px;gap:9px}.ranges .rng .row{font-size:12px;padding-top:8px}.ranges .rng .row b{font-size:12px}.ranges .rlbtn{top:6px;right:6px;min-height:28px;padding:0 9px;font-size:10px}.ranges .rng img{max-width:70%}}
 .rng{padding:16px;border-radius:var(--r);background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;text-decoration:none;color:var(--text);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .rng{position:relative}.rlbtn{position:absolute;top:10px;right:10px;min-height:34px;padding:0 12px;border-radius:99px;border:1.5px solid var(--line);background:rgba(0,0,0,.45);color:var(--text);font:800 11px var(--display);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;z-index:2}
-.rng img{width:100%;max-width:240px;height:auto;display:block}
+.rng img{width:100%;max-width:240px;height:auto;display:block;margin-bottom:auto}
 .rng .row{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px}
 .rng .row b{color:var(--text);font:700 13px var(--display);letter-spacing:.04em}
 .rng .row b.low{color:var(--warn)}
@@ -1906,7 +1906,7 @@ async function dashboardPage(env) {
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 <div class="row"><span>Gags in Core</span><b>${inCore}</b></div>
-${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(--ok)"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
+${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(${colour})"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
 ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${adhoc ? "When news breaks" : r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
   }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
