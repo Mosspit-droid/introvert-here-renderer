@@ -41,6 +41,9 @@ export default {
     ctx.waitUntil(shopIpTick(env).catch(() => {}));
     ctx.waitUntil(shopPhotoTick(env).catch(() => {}));
     ctx.waitUntil(siteBuildTick(env).catch(() => {}));
+    ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
+    ctx.waitUntil(ordersFlush(env).catch(() => {}));
+    ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
     ctx.waitUntil(ipReleaseTick(env).catch(() => {}));
     ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
@@ -2448,6 +2451,7 @@ async function gagClear(request, env) {
   a.text = ""; a.stem = ""; g.editable = g.editable.filter((x) => x.id !== id);
   await env.PENDING.put("gags", JSON.stringify(g));
   for (const k of [STARS_KEY, "season-locks"]) { const M = (await env.PENDING.get(k, "json")) || {}; if (M[id]) { delete M[id]; await env.PENDING.put(k, JSON.stringify(M)); } }
+  await gagFlagSet(env, id, { STARS: "", SEASON_LOCK: "" }).catch(() => {});
   await logSetting(env, "Deleted gag " + id + " (" + (e.stem || "") + ")", null);
   return json({ ok: true });
 }
@@ -2508,6 +2512,7 @@ async function gagTarget(request, env) {
   }
   if (n) t[pre] = n; else delete t[pre];
   await env.PENDING.put("gag-targets", JSON.stringify(t));
+  await coreSettingSet(env, "TARGET_" + pre, n || "").catch(() => {});   // Core's APP_SETTINGS is the record
   return json({ ok: true, targets: t, plan });
 }
 
@@ -2929,7 +2934,7 @@ async function gagSave(request, env) {
   }
   const res = await fetch(env.MAKE_GAG_HOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return json({ error: "Make didn't accept the save (" + res.status + "). Nothing was written." }, 502);
-  if (str(d.season) && body.gagId) { const L = (await env.PENDING.get("season-locks", "json")) || {}; L[body.gagId] = str(d.season).slice(0, 40); await env.PENDING.put("season-locks", JSON.stringify(L)); }
+  if (str(d.season) && body.gagId) { const L = (await env.PENDING.get("season-locks", "json")) || {}; L[body.gagId] = str(d.season).slice(0, 40); await gagFlagSet(env, body.gagId, { SEASON_LOCK: L[body.gagId] }).catch(() => {}); await env.PENDING.put("season-locks", JSON.stringify(L)); }
   const saves = await loadSaves(env);
   saves.unshift({ ref: body.ref, action, gagId: body.gagId, stem: body.stem, text: body.text, status: "pending", at: Date.now() });
   await env.PENDING.put(SAVES_KEY, JSON.stringify(saves.slice(0, 50)));
@@ -5015,6 +5020,7 @@ async function starsApi(request, env) {
   if (!/^[A-Z]{2}-\d{5}$/.test(id)) return json({ error: "Bad gag ID" }, 400);
   if (n >= 1 && n <= 5) M[id] = n; else delete M[id];
   await env.PENDING.put(STARS_KEY, JSON.stringify(M));
+  await gagFlagSet(env, id, { STARS: n >= 1 && n <= 5 ? n : "" }).catch(() => {});
   return json({ ok: true });
 }
 
@@ -5203,7 +5209,7 @@ const ipSplit = (t) => String(t || "").split("|").map((x) => x.trim()).filter(Bo
 function ipColLetter(n) { let s = ""; n += 1; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
 // The name adds exactly £3 to the price the buyer sees (Core prices are before VAT; Etsy adds 20%). Adding whole
 // pounds after VAT keeps the .99 ending on every garment and size, which a fixed amount before VAT can't.
-function ipPrice(net) { const gross = Math.round(Math.round(net * 100) * 1.2) + IP.surchargeGross * 100; return Math.round(gross / 1.2) / 100; }
+function ipPrice(net, charge) { const c = charge === undefined || charge === "" || isNaN(Number(charge)) ? IP.surchargeGross : Number(charge); const gross = Math.round(Math.round(net * 100) * 1.2) + Math.round(c * 100); return Math.round(gross / 1.2) / 100; }
 async function ipBuildDraft(env, gagId, type, reuseId) {
   const [G, R, T, X, C, P] = await Promise.all(["GAGS_TABLE", "PRODUCT_RULES", "GAG_TAGS", "ETSY_TAXONOMY_PROPERTY_IDS", "COLOUR_PROFILES_TABLE", "TAG_POOL"].map((n) => coreTable(env, n)));
   const gi = G.rows.findIndex((r) => r[0] === gagId); if (gi < 0) throw new Error(gagId + " isn't in Core.");
@@ -5251,13 +5257,14 @@ async function ipBuildDraft(env, gagId, type, reuseId) {
   // Colours (this garment's profile) x sizes; 3XL on sweatshirts/hoodies only in Black or Navy (Global Fulfillment).
   const prof = C.rows.find((r) => r[0] === rv("COLOUR_PROFILE")); const colours = ipSplit(String(prof ? prof[1] : "").replace(/,\s*/g, "|"));
   const sizes = rv("SIZES").split(/,\s*/).filter((z) => z && z !== "4XL" && z !== "5XL");
-  const base = ipPrice(Number(rv("PRICE_GBP"))), ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
+  const charge = rv("NAME_CHARGE_GBP");   // the name charge is in Core (PRODUCT_RULES, In Person rows)
+  const base = ipPrice(Number(rv("PRICE_GBP")), charge), ext = { "2XL": Number(rv("PRICE_EXTRA_2XL_GBP")) || 0, "3XL": Number(rv("PRICE_EXTRA_3XL_GBP")) || 0 };
   const products = [];
   // Etsy wants every colour x size in the grid, so a 3XL we can't make is listed but switched off. SKUs max 32 characters.
   const short = { "T-SHIRT": "T", "LONG-SLEEVE": "LS", SWEATSHIRT: "SW", HOODIE: "HD" }[type] || type;
   colours.forEach((c) => sizes.forEach((z) => { const off = (type === "SWEATSHIRT" || type === "HOODIE") && z === "3XL" && !["Black", "Navy"].includes(c);
     products.push({ sku: (gagId + "-" + short + "-" + c.toUpperCase().replace(/\s+/g, "") + "-" + z).slice(0, 32), property_values: [{ property_id: 513, property_name: "Clothing sizes", values: [z] }, { property_id: 514, property_name: "Gildan Colors", values: [c] }],
-      offerings: [{ price: ipPrice(Number(rv("PRICE_GBP")) + (ext[z] || 0)), quantity: 999, is_enabled: !off, readiness_state_id: IP.readiness }] }); }));
+      offerings: [{ price: ipPrice(Number(rv("PRICE_GBP")) + (ext[z] || 0), charge), quantity: 999, is_enabled: !off, readiness_state_id: IP.readiness }] }); }));
   if (!products.length) throw new Error("No colours or sizes for In Person " + type + ".");
   // 1. the draft listing
   const form = { quantity: 1, title, description, price: base.toFixed(2), who_made: "someone_else", when_made: "made_to_order", taxonomy_id: rv("ETSY_TAXONOMY_ID"), shipping_profile_id: rv("SHIPPING_PROFILE_ID") || rv("ASSIGN_SHIPPING_PROFILE"),
@@ -5271,7 +5278,7 @@ async function ipBuildDraft(env, gagId, type, reuseId) {
   for (const [name, p] of Object.entries(props)) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid + "/properties/" + p.id, "PUT", null, null, p.ids.map((v) => "value_ids[]=" + v).join("&") + "&" + p.vals.map((v) => "values[]=" + encodeURIComponent(v)).join("&"));
   if (props["Material multi"]) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid, "PATCH", null, null, props["Material multi"].vals.map((v) => "materials[]=" + encodeURIComponent(v)).join("&"));
   const num = Number(gagId.split("-")[1]) || 1;
-  return { listingId: lid, title, gagId, type, sample: IP.names[((num - 1) * 4 + Math.max(0, ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"].indexOf(type))) % IP.names.length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
+  return { listingId: lid, title, gagId, type, sample: (await ipNames(env))[((num - 1) * 4 + Math.max(0, ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"].indexOf(type))) % (await ipNames(env)).length], hero: IP.hero[(num - 1) % IP.hero.length], colours, mockupTpl: rv("CANVA_PROJECT_CODE"), gagText: text, slots: [rv("VIDEO_SLOT1_POSITION"), rv("VIDEO_SLOT2_POSITION")] };
 }
 // Photo order for an In Person listing: the builder's rules (one colour of each picture, lead colour first), but with
 // no Printify mockup in slot 2, so the ranks run 1, 2, 3... The lead colour takes turns by gag number; a garment that
@@ -5297,7 +5304,7 @@ function ipPlan(pages, heroWanted) {
 async function ipImagesStart(env, d) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("The app has no Make key.");
   const M = await coreTable(env, "MOCKUP_PAGES");
-  const pages = M.rows.filter((r) => r[0] === "IN PERSON" && r[1] === d.type).map((r) => ({ position: Number(r[2]), page_name: String(r[3]) }));
+  const pages = M.rows.filter((r) => r[0] === "IN PERSON" && r[1] === d.type && !/_BLANK$/i.test(String(r[3]))).map((r) => ({ position: Number(r[2]), page_name: String(r[3]) }));   // _BLANK pages are for the site's name preview, never Etsy
   if (!pages.length) throw new Error("No In Person " + d.type + " mockup pages in Core.");
   const plan = ipPlan(pages, d.hero), ref = crypto.randomUUID(), code = d.gagId + "-" + d.type;
   const text = d.gagText.replace(/\[NAME\]/gi, d.sample);
@@ -5460,6 +5467,7 @@ async function pfyTool(env, path, method = "GET", body) {
 async function ipoGet(env, ref) { return env.PENDING.get("ipo:" + ref, "json"); }
 async function ipoPut(env, o) {
   o.upd = Date.now(); await env.PENDING.put("ipo:" + o.ref, JSON.stringify(o));
+  const orow = ipoOrderRow(o); if (orow) await orderLog(env, [orow]).catch(() => {});
   // Real orders still needing Barry (check / problem / print being made) show on the dashboard's Orders count.
   const open = (await env.PENDING.get("ipo-open", "json")) || {}, was = JSON.stringify(open);
   if (!o.test && ["check", "problem", "printing"].includes(o.status)) open[o.ref] = o.status; else delete open[o.ref];
@@ -5595,6 +5603,8 @@ async function salesNote(env, receipts) {
     // Each item's share of what the buyer actually paid, after any shop discount.
     const tp = rc.total_price && rc.total_price.amount, sub = rc.subtotal && rc.subtotal.amount, f = tp && sub != null ? sub / tp : 1;
     const items = (rc.transactions || []).map((t) => ({ code: codeOf[String(t.listing_id)] || "", title: String(t.title || "").split(" | ")[0], qty: t.quantity || 1, price: t.price ? Math.round(t.price.amount / (t.price.divisor || 100) * f * 100) / 100 : 0 }));
+    await orderLog(env, (rc.transactions || []).map((t, k) => ({ ORDER_DATE: new Date((rc.created_timestamp || rc.create_timestamp || 0) * 1000).toISOString().slice(0, 10), SOURCE: "ETSY",
+      ORDER_REF: id + "-" + t.transaction_id, PRODUCT_CODE: items[k].code, ITEM: items[k].title, QTY: items[k].qty, AMOUNT_GBP: items[k].price, STATUS: rc.is_shipped ? "Posted" : "Paid" }))).catch(() => {});
     log.unshift({ id, at: (rc.created_timestamp || rc.create_timestamp || 0) * 1000, total: rc.grandtotal ? rc.grandtotal.amount / (rc.grandtotal.divisor || 100) : 0, country: rc.country_iso || "", items });
     if (first) continue;   // the first check only learns the orders that already exist
     const what = items.map((i) => (i.qty > 1 ? i.qty + " × " : "") + i.title).join(", ");
@@ -7618,8 +7628,8 @@ const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX:
 const SC_PRICE = { "T-SHIRT": 2599, "LONG-SLEEVE": 2999, "SWEATSHIRT": 3799, "HOODIE": 4799 }, SC_NAME_CHARGE = 300;
 // net = this size's price before VAT, baseNet = the garment's cheapest size, both in pence (for In Person, Etsy's price
 // already holds the name charge, which cancels out of the surcharge).
-function scSitePrice(type, net, baseNet) {
-  const etsy = Math.round(net * SC.vat), etsyBase = Math.round(baseNet * SC.vat), base = SC_PRICE[type];
+function scSitePrice(type, net, baseNet, coreBase) {
+  const etsy = Math.round(net * SC.vat), etsyBase = Math.round(baseNet * SC.vat), base = coreBase || SC_PRICE[type];
   if (!base) return Math.round((etsy * 0.81) / 100) * 100 - 1;
   const extra = Math.round((etsy - etsyBase) / 100);
   return base + (extra >= 4 ? extra - 1 : extra) * 100;
@@ -7735,11 +7745,17 @@ async function shopCatalogRun(env, opt) {
         want.push({ code, c: collection, stem: String(r[rc("TITLE_STEM")] || "").trim(), text: String(r[rc("GAG_TEXT")] || "").trim(), pid, eid: stat === "SITE_ONLY" ? "" : eid, site: stat === "SITE_ONLY" });
       }
       const feat = {}; P.rows.forEach((r) => { feat[r[P.col("COLLECTION")] + "|" + r[P.col("PRODUCT_TYPE")]] = String(r[P.col("PRODUCT_FEATURES")] || "").trim(); });
+      // Site prices and the In Person name charge come from Core (PRODUCT_RULES SITE_PRICE_GBP / NAME_CHARGE_GBP), in pence.
+      const price = {}, pc = (k, r) => { const c = P.col(k), v = c >= 0 ? Number(r[c]) : NaN; return v > 0 ? Math.round(v * 100) : 0; };
+      P.rows.forEach((r) => { price[r[P.col("COLLECTION")] + "|" + r[P.col("PRODUCT_TYPE")]] = { site: pc("SITE_PRICE_GBP", r), name: pc("NAME_CHARGE_GBP", r) }; });
+      // Where the name goes on In Person photos (Core's IP_NAME_BOX, in Canva's 4500px units).
+      const ipBox = {}; try { const B = await coreTable(env, "IP_NAME_BOX"); B.rows.forEach((r) => { const t = String(r[B.col("PRODUCT_TYPE")] || "").trim(), k = String(r[B.col("PHOTO_KIND")] || "").trim().toUpperCase(); if (!t || !k) return;
+        (ipBox[t] = ipBox[t] || {})["_" + k + "_"] = ["X", "Y", "W", "H", "FONT_SIZE", "ROTATION"].map((c) => Number(r[B.col(c)]) || 0); }); } catch (e) {}
       const pages = {}; M.rows.forEach((r) => { const k = r[M.col("COLLECTION")] + "|" + r[M.col("PRODUCT_TYPE")]; (pages[k] = pages[k] || []).push([Number(r[M.col("POSITION")]), String(r[M.col("PAGE_NAME")] || "")]); });
       Object.values(pages).forEach((l) => l.sort((a, b) => a[0] - b[0]));
       photos = {}; want.forEach((w) => { photos[w.eid] = active[w.eid]; });
       await env.PENDING.put(SC.photos, JSON.stringify(photos));
-      Object.assign(S, { want, feat, pages, notes, ip, coreAt: now, kick: false, error: "" });
+      Object.assign(S, { want, feat, pages, price, ipBox, notes, ip, coreAt: now, kick: false, error: "" });
     } catch (e) {
       // Keep the catalogue as it is and try again in half an hour (not every five minutes: each try uses Make credits).
       Object.assign(S, { error: String(e.message || e).slice(0, 200), errorAt: now, kick: false, coreAt: now - SC.coreEvery + 30 * 60e3 });
@@ -7774,8 +7790,10 @@ async function shopCatalogRun(env, opt) {
     if (!g.variants.length) { problems.push(w.code + ": no sizes switched on in Printify"); continue; }
     // Photos: the garment's own stored pages if it has them (named by Core's MOCKUP_PAGES), otherwise Etsy's.
     const baseNet = Math.min(...g.variants.map((v) => v.net || v.price));
-    g.variants = g.variants.map((v) => Object.assign({}, v, { price: scSitePrice(type, v.net || v.price, baseNet) + (w.ip ? SC_NAME_CHARGE : 0) }));
-    const o = own[w.code], names = (S.pages || {})[w.c + "|" + type] || [];
+    const pr = (S.price || {})[w.c + "|" + type] || {};
+    g.variants = g.variants.map((v) => Object.assign({}, v, { price: scSitePrice(type, v.net || v.price, baseNet, pr.site) + (w.ip ? (pr.name || SC_NAME_CHARGE) : 0) }));
+    const allNames = (S.pages || {})[w.c + "|" + type] || [], names = allNames.filter(([, n]) => !/_BLANK$/i.test(n));   // _BLANK pages: name-preview backdrops, not gallery photos
+    const o = own[w.code];
     const two = (n) => String(n).padStart(2, "0"), base = "/p/" + w.code + "/";
     let pics = o && names.length ? names.filter(([pos]) => pos <= o.n).map(([pos, name]) => ({ u: base + two(pos) + ".jpg?v=" + o.at, t: base + two(pos) + "t.jpg?v=" + o.at, a: name })) : [];
     if (o && names.length && o.n !== names[names.length - 1][0]) problems.push(w.code + ": Canva has " + o.n + " mockup pages but Core's MOCKUP_PAGES lists up to " + names[names.length - 1][0]);
@@ -7793,12 +7811,13 @@ async function shopCatalogRun(env, opt) {
     gal.mainColour = lead; if (leadPic) gal.tile = leadPic.thumb;
     let personal = null;
     if (w.ip) {   // the live name preview: text-free backdrop and where the name goes
-      const bases = new Set((o && o.bases) || []), L = SC_IP_LIVE[type] || {}, r3 = (x) => Math.round(x / 45 * 1000) / 1000;
+      const bases = new Set((o && o.bases) || []), L = ((S.ipBox || {})[type]) || SC_IP_LIVE[type] || {}, r3 = (x) => Math.round(x / 45 * 1000) / 1000;
       gal.images.forEach((im) => { const pos = Number((/\/(\d\d)\.jpg/.exec(im.url) || [])[1]); if (!bases.has(pos) || !im.colour) return;
         const k = Object.keys(L).find((key) => (String(im.alt) + "_").indexOf(key) >= 0); if (!k) return;
         const [x, y, wd, ht, sz, rot] = L[k]; im.live = { x: r3(x), y: r3(y), w: r3(wd), h: r3(ht), s: r3(sz), r: rot }; im.base = "/p/" + w.code + "/b" + two(pos) + ".jpg?v=" + o.at; });
       const ti = Object.keys(SC_GARMENTS).indexOf(type);
-      personal = { max: IP.nameMax, text: w.text, sample: IP.names[((num - 1) * 4 + ti) % IP.names.length] };
+      const nm = await ipNames(env), cs = await coreSettings(env);
+      personal = { max: cs.nameMax || IP.nameMax, text: w.text, sample: nm[((num - 1) * 4 + ti) % nm.length] };
       if (!gal.images.some((i) => i.live)) problems.push(w.code + ": no text-free photos stored yet, so the site can't preview the name");
     }
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
@@ -7878,8 +7897,12 @@ async function shopPhotoTick(env) {
   }
   if (!Q.cur) { Q.cur = Q.queue.shift(); if (!Q.cur) return env.PENDING.put(SP.q, JSON.stringify(Q)); Q.cur.stage = "big"; Q.cur.at = now;
     if (/^IP-/.test(Q.cur.code)) {   // In Person: photo pages first, then the _BLANK pages (see SC_IP_BLANK)
-      const st = (await env.PENDING.get(SC.state, "json")) || {}, type = Q.cur.code.slice(9);
-      Q.cur.baseN = (((st.pages || {})["IN PERSON|" + type]) || []).length || 0; Q.cur.blank = SC_IP_BLANK[type] || []; } }
+      const st = (await env.PENDING.get(SC.state, "json")) || {}, type = Q.cur.code.slice(9), rows = ((st.pages || {})["IN PERSON|" + type]) || [];
+      const photos = rows.filter(([, n]) => !/_BLANK$/i.test(n)), byName = Object.fromEntries(photos.map(([pos, n]) => [n, pos]));
+      Q.cur.baseN = photos.length;
+      // Partner of each _BLANK page, from Core's MOCKUP_PAGES (its name minus _BLANK); SC_IP_BLANK until those rows exist.
+      const fromCore = rows.filter(([, n]) => /_BLANK$/i.test(n)).sort((a, b) => a[0] - b[0]).map(([, n]) => byName[n.replace(/_BLANK$/i, "")]).filter(Boolean);
+      Q.cur.blank = fromCore.length ? fromCore : (SC_IP_BLANK[type] || []); } }
   const c = Q.cur;
   try {
     if (now - c.at > 3 * 3600e3) throw new Error("took over 3 hours");
@@ -8019,4 +8042,90 @@ async function siteReplaceOld(env, R) {
     const r = R.rows[i]; if (String(r[rc("STATUS")]) !== "SITE_ONLY" || !live.has(String(r[rc("PRODUCT_CODE")]))) continue;
     await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/columns/STATUS/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [["SITE_REPLACED"]] }).catch(() => {});
   }
+}
+
+// ---------- Core is the record for settings (Barry, 22 Nov: "Move to core") ----------
+// Range targets and In Person settings live in Core's APP_SETTINGS (SETTING | VALUE | NOTES); stars and season locks in
+// GAG_FLAGS (GAG_ID | STARS | SEASON_LOCK); site prices and the name charge in PRODUCT_RULES (SITE_PRICE_GBP,
+// NAME_CHARGE_GBP); where the name goes on In Person photos in IP_NAME_BOX; In Person _BLANK pages in MOCKUP_PAGES.
+// The app writes changes to Core and re-reads it every hour into KV (gag-targets, gag-stars, season-locks, core-settings),
+// so an edit made in Core reaches the app within the hour.
+const CORE_WB = () => CORE_ITEM + "/workbook";
+async function coreSettingSet(env, key, value) {
+  const T = await coreTable(env, "APP_SETTINGS"), i = T.rows.findIndex((r) => String(r[0]) === key);
+  if (i >= 0) return coreTool(env, CORE_WB() + "/tables/APP_SETTINGS/columns/VALUE/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [[value]] });
+  return coreTool(env, CORE_WB() + "/tables/APP_SETTINGS/rows/add", "POST", { index: null, values: [[key, value, ""]] });
+}
+async function gagFlagSet(env, id, fields) {
+  const T = await coreTable(env, "GAG_FLAGS"), i = T.rows.findIndex((r) => String(r[0]) === id);
+  const row = i >= 0 ? T.rows[i].slice() : [id, "", ""];
+  Object.entries(fields).forEach(([k, v]) => { const c = T.col(k); if (c >= 0) row[c] = v; });
+  if (i >= 0) return coreTool(env, CORE_WB() + "/tables/GAG_FLAGS/rows/itemAt(index=" + i + ")", "PATCH", { values: [row] });
+  if (row.slice(1).every((v) => v === "" || v == null)) return null;
+  return coreTool(env, CORE_WB() + "/tables/GAG_FLAGS/rows/add", "POST", { index: null, values: [row] });
+}
+async function coreSettings(env) { return (await env.PENDING.get("core-settings", "json")) || {}; }
+async function ipNames(env) { const S = await coreSettings(env); return Array.isArray(S.ipNames) && S.ipNames.length ? S.ipNames : IP.names; }
+async function coreSettingsTick(env, force) {
+  const last = Number((await env.PENDING.get("core-settings-at")) || 0), now = Date.now();
+  if (!force && now - last < 3600e3) return;
+  await env.PENDING.put("core-settings-at", String(now));
+  const [A, F] = await Promise.all([coreTable(env, "APP_SETTINGS"), coreTable(env, "GAG_FLAGS")]);
+  if (!A.h.length || !F.h.length) return;
+  const val = {}; A.rows.forEach((r) => { if (r[0]) val[String(r[0]).trim()] = r[1]; });
+  const targets = {}; Object.entries(val).forEach(([k, v]) => { const m = /^TARGET_([A-Z]{2})$/.exec(k); if (m && Number(v) > 0) targets[m[1]] = Math.round(Number(v)); });
+  const stars = {}, locks = {}, sc = F.col("STARS"), lc = F.col("SEASON_LOCK");
+  F.rows.forEach((r) => { const id = String(r[0] || "").trim(); if (!id) return; const n = Number(r[sc]); if (n >= 1 && n <= 5) stars[id] = n; if (String(r[lc] || "").trim()) locks[id] = String(r[lc]).trim(); });
+  const names = String(val.IP_SAMPLE_NAMES || "").split(/[,\n]/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+  await env.PENDING.put("gag-targets", JSON.stringify(targets));
+  await env.PENDING.put(STARS_KEY, JSON.stringify(stars));
+  await env.PENDING.put("season-locks", JSON.stringify(locks));
+  await env.PENDING.put("core-settings", JSON.stringify({ at: now, ipNames: names, nameMax: Number(val.IP_NAME_MAX) || IP.nameMax }));
+}
+
+// ---------- Orders log in Core (ORDERS table) ----------
+// One row per item sold: Etsy sales (ref "<receipt>-<transaction>"), In Person orders (same ref, so the Etsy row gains
+// the printed name and its progress) and site orders (ref "site-<session>-<n>"). Changes are queued in KV and written
+// in one go every 10 minutes.
+const ORD_COLS = ["ORDER_DATE", "SOURCE", "ORDER_REF", "PRODUCT_CODE", "ITEM", "NAME_PRINTED", "COLOUR", "SIZE", "QTY", "AMOUNT_GBP", "STATUS", "PRINTIFY_ORDER", "TRACKING", "UPDATED_AT"];
+async function orderLog(env, recs) {
+  const Q = (await env.PENDING.get("orders-q", "json")) || {};
+  for (const r of recs) { if (!r || !r.ORDER_REF) continue; Q[r.ORDER_REF] = Object.assign(Q[r.ORDER_REF] || {}, Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== null && v !== ""))); }
+  await env.PENDING.put("orders-q", JSON.stringify(Q));
+}
+async function ordersFlush(env) {
+  const Q = await env.PENDING.get("orders-q", "json"); if (!Q || !Object.keys(Q).length) return;
+  const last = Number((await env.PENDING.get("orders-flush-at")) || 0); if (Date.now() - last < 9 * 60e3) return;
+  await env.PENDING.put("orders-flush-at", String(Date.now()));
+  const T = await coreTable(env, "ORDERS"); if (!T.h.length) return;
+  const idx = {}; T.rows.forEach((r, i) => { if (r[T.col("ORDER_REF")]) idx[String(r[T.col("ORDER_REF")])] = i; });
+  const blank = T.rows.length === 1 && T.rows[0].every((v) => v === "" || v == null) ? 0 : -1;   // the empty row a new table starts with
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " "), adds = [];
+  for (const [ref, rec] of Object.entries(Q)) {
+    const i = idx[ref], row = i !== undefined ? T.rows[i].slice() : T.h.map(() => "");
+    Object.entries(rec).forEach(([k, v]) => { const c = T.col(k); if (c >= 0) row[c] = v; }); row[T.col("UPDATED_AT")] = stamp;
+    if (i !== undefined) { if (JSON.stringify(row) !== JSON.stringify(T.rows[i])) await coreTool(env, CORE_WB() + "/tables/ORDERS/rows/itemAt(index=" + i + ")", "PATCH", { values: [row] }); }
+    else adds.push(row);
+  }
+  if (adds.length && blank === 0) { await coreTool(env, CORE_WB() + "/tables/ORDERS/rows/itemAt(index=0)", "PATCH", { values: [adds.shift()] }); }
+  if (adds.length) await coreTool(env, CORE_WB() + "/tables/ORDERS/rows/add", "POST", { index: null, values: adds });
+  await env.PENDING.put("orders-q", JSON.stringify({}));
+}
+const ipoOrderRow = (o) => o && !o.test ? { ORDER_DATE: new Date(o.at || Date.now()).toISOString().slice(0, 10), ORDER_REF: o.source === "site" ? o.ref : String(o.ref), SOURCE: o.source === "site" ? "SITE" : "ETSY", PRODUCT_CODE: o.code, NAME_PRINTED: o.name, COLOUR: o.colour, SIZE: o.size, QTY: o.qty || 1,
+  STATUS: { check: "In Person: name check", printing: "In Person: print being made", problem: "In Person: needs Barry", ordered: "Sent to Printify", shipped: "Posted", draft: "Test draft" }[o.status] || o.status, PRINTIFY_ORDER: o.printifyOrder || "", TRACKING: o.tracking ? o.tracking.number : "" } : null;
+
+// Site orders into the orders log (live payments only; In Person lines get their own rows from the In Person queue).
+async function shopOrdersLog(env) {
+  const list = (await env.PENDING.get("shop:orders", "json")) || [], done = new Set((await env.PENDING.get("orders-site-seen", "json")) || []);
+  const fresh = list.filter((r) => r && r.session && r.livemode && !done.has(r.session + ":" + r.status));
+  if (!fresh.length) return;
+  const rows = [];
+  for (const r of fresh) {
+    (r.items || []).forEach((it, k) => { if ((r.personal || []).some((l) => l.code === it.code)) return;
+      rows.push({ ORDER_DATE: new Date(r.at || Date.now()).toISOString().slice(0, 10), SOURCE: "SITE", ORDER_REF: "site-" + r.session.slice(-14) + "-i" + (k + 1), PRODUCT_CODE: it.code, ITEM: it.name, QTY: it.quantity, AMOUNT_GBP: it.amount != null ? it.amount / 100 : "",
+        STATUS: { "on-hold": "Waiting to send to Printify", "sent-to-production": "Sent to Printify", failed: "Not placed" }[r.status] || r.status, PRINTIFY_ORDER: r.printifyOrder || "" }); });
+    done.add(r.session + ":" + r.status);
+  }
+  if (rows.length) await orderLog(env, rows);
+  await env.PENDING.put("orders-site-seen", JSON.stringify([...done].slice(-1000)));
 }
