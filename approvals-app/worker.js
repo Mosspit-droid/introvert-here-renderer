@@ -7866,9 +7866,10 @@ async function siteBuildNext(env) {
   if (Q.cur && (Q.cur.pid || now - Q.cur.at < 45 * 60e3)) return "";   // one at a time: this one is still being built or finished off
   if (Q.cur) { Q.log = [{ code: Q.cur.code, ok: false, at: now, msg: "The builder didn't report back within 45 minutes." }].concat(Q.log || []).slice(0, 40); delete Q.cur; }
   const code = (Q.queue || []).shift();
-  if (code) Q.cur = { code, at: now };
+  if (!code) { if (Q.log && Q.log[0] && Q.log[0].at === now) await env.PENDING.put(SB, JSON.stringify(Q)); return ""; }   // nothing to hand out: don't write back a copy that may be out of date
+  Q.cur = { code, at: now };
   await env.PENDING.put(SB, JSON.stringify(Q));
-  return code || "";
+  return code;
 }
 // The builder reports straight after making the Printify product (every build; only a site-only one is acted on). It
 // stops there for a site-only build, so the app finishes it: frees the builder, makes the Canva mockup design, adds the
