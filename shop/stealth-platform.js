@@ -70,7 +70,7 @@ const ZONES = [
   { x0: 192, x1: 250, name: "Reception", wall: "#e2efe6", dado: "#c8dfd0", rail: "#9fc2ac", tones: ["#d3e5d9", "#c0d8c8", "#acc9b6"], kinds: [12, 11, 13, 10, 12], win: true },
 ];
 const UPSTAIRS = { x0: 86, x1: 152, name: "Management", wall: "#e4eaf2", dado: "#cdd8e6", rail: "#a3b4cb", tones: ["#d5deea", "#c3cfe0", "#b0bfd4"], kinds: [0, 2, 4, 11, 1], win: true };
-const LEVEL = { name: "The Office", out: "the office", theme: "office", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", map: office(), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
+const LEVEL = { name: "The Office", out: "the office", theme: "office", lost: "His spirit has been crushed. By middle management.", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", map: office(), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
   lines: { P: ["Have you got a sec?", "You’ll like this one.", "Are you coming to the thing?"], W: ["Ooh, just the person!", "Walk with me.", "Quick question."], T: ["How ARE you?", "Any plans for the weekend?", "Did you get my email?"], C: ["Come here, you!", "There you are!", "Don’t you run off!"], pit: ["You fell into a team-building exercise."] } };
 // Level 2, the high street: outdoors, one storey plus rooftops. Same letters as the office, plus:
 // G a dog on a lead (low: hop it)  u umbrella (hold jump in the air to float)   In the street, F is a crate, ^ a shop
@@ -107,7 +107,7 @@ const STREET_ZONES = [
   { x0: 139, x1: 193, name: "The Rooftops", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
   { x0: 193, x1: 232, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
 ];
-const STREET = { name: "The High Street", out: "the high street", theme: "street", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, map: highStreet(), zones: STREET_ZONES, upstairs: null,
+const STREET = { name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, map: highStreet(), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
   signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
@@ -162,7 +162,7 @@ const PARTY_ZONES = [
   { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [2, 9, 2], dark: true },
   { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden" },
 ];
-const PARTY = { name: "The House Party", out: "the house party", theme: "party", talkEvery: 1.6, chaseSpeed: 3.9, walkSpeed: 2.6, fallMax: 12, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
+const PARTY = { name: "The House Party", out: "the house party", theme: "party", lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.9, walkSpeed: 2.6, fallMax: 12, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
   signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], pit: ["You fell into a conversation about house prices."] } };
@@ -219,7 +219,7 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
-function flat(){S.mode='lost';card(NAME+' didn’t make it.','His spirit has been crushed. By middle management.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
+function flat(){S.mode='lost';card(NAME+' didn’t make it.',S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function info(a,b){S.info={a:a,b:b,t:4}}
 function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
