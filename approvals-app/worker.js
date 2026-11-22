@@ -7772,7 +7772,7 @@ ${probs.length ? `<div class="status wait">${probs.map(esc).join("<br>")}</div>`
 // a time: export every page at 1600px, copy them into R2 (p/<code>/<NN>.jpg), export again at 600px for the small
 // pictures (<NN>t.jpg; a Worker can't resize), then record it in KV "shop:photos" and refresh the site's catalogue.
 // In Person is left to the shop thread for now: its site photos also need a copy with the gag text left off.
-const SP = { q: "shop:photo-q", scanEvery: 2 * 3600e3, settle: 20 * 60e3, perTick: 8 };
+const SP = { q: "shop:photo-q", scanEvery: 2 * 3600e3, settle: 20 * 60e3, perTick: 20 };
 async function canvaTool(env, path, method = "GET", body) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token")); if (!token) throw new Error("No Make token saved.");
   const data = { path, method }; if (body !== undefined) { data.body = JSON.stringify(body); data.header = [{ key: "Content-Type", value: "application/json" }]; }
@@ -7812,7 +7812,8 @@ async function shopPhotoTick(env) {
       const st = j && j.job && j.job.status;
       if (st === "success") c.urls = j.job.urls || [];
       else if (st !== "in_progress") throw new Error("Canva export " + (st || "failed") + " " + JSON.stringify((j && j.job && j.job.error) || "").slice(0, 120));
-    } else {   // copy a few pages per run (Canva's links last a day)
+    }
+    if (c.urls) {   // copy the pages (up to 20 a run; Canva's links last a day), straight after the export is ready
       const end = Math.min(c.urls.length, c.done + SP.perTick);
       for (let i = c.done; i < end; i++) {
         const res = await fetch(c.urls[i]); if (!res.ok) throw new Error("download of page " + (i + 1) + " failed (" + res.status + ")");
@@ -7820,7 +7821,12 @@ async function shopPhotoTick(env) {
       }
       c.done = end;
       if (c.done >= c.urls.length) {
-        if (c.stage === "big") { c.n = c.urls.length; c.stage = "small"; delete c.job; c.urls = null; }
+        if (c.stage === "big") {   // start the small pictures' export now rather than next run
+          c.n = c.urls.length; c.stage = "small"; c.urls = null;
+          const j = await canvaTool(env, "/v1/exports", "POST", { design_id: c.design, format: { type: "jpg", quality: 82, width: 600 } });
+          if (!j || !j.job || !j.job.id) throw new Error("Canva didn't start the small export: " + JSON.stringify(j).slice(0, 160));
+          c.job = j.job.id; c.done = 0;
+        }
         else {
           const own = (await env.PENDING.get(SC.own, "json")) || {};
           own[c.code] = Object.assign({}, own[c.code] || {}, { n: c.n, at: Math.floor(Date.now() / 1000), design: c.design });
