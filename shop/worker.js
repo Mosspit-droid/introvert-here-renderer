@@ -1144,7 +1144,7 @@ function dzPrintDoc(steps) {
 .step,.pt{font-size:9pt;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#a7322d;margin:0}
 .chap{text-align:center;padding-top:70mm}.chap h2{font-family:Creepster,Montserrat;font-weight:400;color:#c3161c;font-size:44pt;text-transform:none;letter-spacing:.03em}
 .chap[data-intro]{padding-top:20mm}.tlogo{margin:0 auto 10mm;max-width:150mm}.tlogo img{width:100%}.coo{font-style:italic;color:#6b4a1f}
-.clues{padding-left:18px}.clues li{margin:5px 0}.coats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.coats svg{width:100%;background:#2b2a26;border-radius:8px}
+.clues{padding-left:18px}.clues li{margin:5px 0}.coats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.coats svg{width:100%;background:#f3efe7;border:1px solid #d8d1c4;border-radius:8px}
 .txt{background:#efe9df;border-radius:10px;padding:9px 12px;margin:8px 0;max-width:150mm}.txt[style]{background:#f6dcdc!important}.txt small{display:block;color:#7a6f63;font-size:8.5pt}
 .abc{margin:4px 0 12px 22px}.abc li{margin:3px 0}.magnets{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;background:#e9e6df;border-radius:10px;padding:14px;margin:10px 0}.magnets span{display:flex;gap:3px}.magnets i{font:800 20pt/1 Montserrat;font-style:normal;padding:3px 6px;border-radius:4px}
 .note-y{background:#f6e27a;padding:9px 12px;max-width:95mm;margin:8px auto;transform:rotate(-1.5deg);font-weight:600}
