@@ -5,7 +5,7 @@
 // them. Hood Up (B): sit down, hood tight, and for a couple of seconds nobody notices you, but you cannot move.
 // Steering is a thumb pad (gradual), with extra grip in the air. Low ceilings make Hood Up the only way through.
 // Quiet rooms are checkpoints. Chasers run at you for a few seconds when you come near, then need a rest.
-// Level 4 is the park: bouncy castles (press A as you land to go higher), balloons to fetch for three children, a slide,
+// Level 4 is the park: bouncy castles (hold A to go higher), balloons to fetch for three children, a slide,
 // swings, a roundabout and a seesaw. No runners.
 // Level 3 also has the crying corner: two friends who block the stairs until you bring them tissues from the kitchen.
 // Level 3 adds dark rooms (a light switch toggles a room; in the dark nobody sees you) and a plate of food.
@@ -173,7 +173,7 @@ const PARTY = { name: "The House Party", out: "the house party", theme: "party",
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], pit: ["You fell into a conversation about house prices."] } };
 
 // Level 4, the family picnic in the park (Barry, 22 Nov). No runners. The heart of it: a child has lost their
-// balloons above a bouncy castle. Bounce (press A as you land to go higher), grab them, float down and hand them back.
+// balloons above a bouncy castle. Bounce (hold A and each bounce goes higher), grab them, float down and hand them back.
 // Three times, each harder. Between them, playground equipment: a slide, swings, a roundabout and a seesaw.
 // B bouncy castle  a balloons  Q a child who has lost them (nobody gets past until they are returned)
 // Balloons make you fall slowly, and holding A lets them lift you for a couple of seconds. High places are the quiet ones.
@@ -190,12 +190,12 @@ function park() {
   row(41, 42, 25, "="); row(41, 42, 23, "="); row(41, 44, 21, "="); row(42, 43, 20, "o"); put(48, G, "P"); put(51, G, "P");
   pit(58, 70); row(62, 66, 22, "o"); row(74, 76, G, "="); row(79, 84, G, "P");
   // 3. The bouncy castle: balloons straight above it. Then a seesaw up to the treehouse.
-  put(91, G, "K"); row(97, 101, G, "B"); put(99, 18, "a"); row(103, 105, 21, "o"); put(106, G, "T"); put(111, G, "Q");
+  put(91, G, "K"); row(97, 101, G, "B"); put(99, 18, "a"); row(103, 105, 21, "o"); put(111, G, "Q");
   row(119, 123, 19, "="); put(121, 18, "N"); row(119, 120, 18, "o");
   // 4. The pond: balloons that drift, and water to float across, with an island halfway
   put(126, G, "K"); row(128, 132, G, "B"); put(130, 17, "a"); pit(136, 144); row(145, 147, 23, "o"); put(146, 19, "N"); pit(148, 156); put(160, G, "Q");
   // 5. The bandstand: balloons high above the band, who are far too tall to climb past
-  put(164, G, "K"); row(166, 170, G, "B"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "T"); put(183, 23, "T"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
+  put(164, G, "K"); row(166, 170, G, "B"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "P"); put(183, 23, "P"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
   // 6. The park gate: one last swing over the flower bed, the uncle again, the gate
   put(200, G, "K"); pit(204, 211); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
   return g.map((r) => r.join(""));
@@ -206,7 +206,7 @@ const FAMILY_ZONES = [
 ];
 const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, map: park(), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
-  signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 18.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "PRESS A AS YOU LAND" }, { x: 99.5, y: 24.9, t: "TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 21.6, t: "THE BANDSTAND" }],
+  signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 18.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 21.6, t: "THE BANDSTAND" }],
   sway: [0, 2.5, 2], slides: [{ x0: 44.6, y0: 21, x1: 55, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
   movers: [{ sw: true, x: 61, y: 26.3, amp: 2.4, per: 3.6, ph: 0 }, { sw: true, x: 67, y: 26.3, amp: 2.4, per: 3.6, ph: 1.8 }, { sw: true, x: 207.5, y: 26.3, amp: 2.7, per: 3.6, ph: 0 }],
   toll: { item: "FLASK OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
@@ -315,7 +315,8 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  P.y=ny;if(P.float||P.peak==null)P.peak=P.y;if(!P.ground)P.peak=Math.min(P.peak,P.y);else{var drop=P.y-P.peak;P.peak=P.y;if(L.fallMax&&drop>L.fallMax&&S.mode==='play'){S.why='drop';S.hits++;S.batt=0;say('That was a long way down.',P.x,P.y-2.6);flat();return}}
  if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
- if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=P.jT<.32;P.bn=good?Math.min(2,P.bn+1):0;P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
+ if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=!!jumpKey();P.bn=good?Math.min(2,P.bn+1):0;   // no timing: hold A and each bounce goes higher; let go to settle
+  P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
  if(!P.slide&&P.ground&&sv>0)(L.slides||[]).forEach(function(sl){if(Math.abs(P.x-sl.x0)<.45&&Math.abs(P.y-sl.y0)<.2)P.slide={s:sl,u:0}});
  if(P.slide){var sl2=P.slide.s;P.slide.u+=dt*11/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.vx=RUN*1.6}}
  var onSpin=false;(L.spins||[]).forEach(function(sp){if(P.ground&&Math.abs(P.x-sp.x)<1.3&&Math.abs(P.y-sp.y)<.2)onSpin=true});if(onSpin){P.spinT+=dt;if(P.spinT>.75){P.spinT=0;P.fling=.95;P.vy=-19;P.sprung=true;P.ground=false;P.y-=.05;say('WHEEE!',P.x,P.y-2.4)}}else P.spinT=0;
