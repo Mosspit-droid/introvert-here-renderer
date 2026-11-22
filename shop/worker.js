@@ -38,6 +38,7 @@ async function catalog(env) {
   if (!catalogCache || Date.now() - catalogAt > (isPreview(env) ? 15000 : 300000)) {
     catalogCache = (await env.PENDING.get(isPreview(env) ? "shop:catalog-preview" : "shop:catalog", "json")) || { designs: [] };
     for (const d of catalogCache.designs || []) d.title = withApostrophes(d.title, d.text);
+    try { const r = await env.PENDING.get("shop:reviews", "json"); if (r && typeof r === "object") Object.assign(REVIEWS, r); } catch (_) {}   // kept up to date by the app, once it does
     catalogAt = Date.now();
   }
   return catalogCache;
