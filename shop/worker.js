@@ -97,6 +97,7 @@ async function route(request, env, ctx) {
         if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
         return html(frontPage(await catalog(env)));
       }
+      if (path === "/uk/gifts") return html(giftsPage(await catalog(env)));
       if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t"), url.searchParams.get("n")));
       if (path === HUB.path) return html(hubPage());
       if (path === HUB.path + "/gate") return html(gatePage());
@@ -377,7 +378,9 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door .go i,.sh a i{font-style:normal;transition:transform .3s}
 .door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
 .door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
-.strip{margin:clamp(40px,6vw,80px) 0 0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
+.strip{margin:clamp(40px,6vw,80px) 0 0}
+.xn{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:#5b1316;border:1px solid #a7322d;color:#f6efe0;font-size:14px;line-height:1.4;text-align:center}.xn b{color:#fff}.xn a{color:#f6d06b;white-space:nowrap}
+.xgift{display:flex;flex-direction:column;gap:4px;margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#5b1316,#2a3d24);border:1px solid #a7322d;color:#f6efe0;text-decoration:none}.xgift b{font-size:clamp(20px,3vw,26px);text-transform:uppercase;letter-spacing:.02em}.xgift span{color:#e9d9a0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
 .sh h2{margin:0;font-size:clamp(18px,2.2vw,24px);font-weight:800;letter-spacing:.14em;text-transform:uppercase}
 .sh a{text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap;opacity:.85}.sh a:hover{opacity:1}.sh a:hover i{transform:translateX(4px);display:inline-block}
@@ -654,7 +657,7 @@ function page(title, body, opts = {}) {
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800${opts.font ? "&family=" + opts.font : ""}&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.body ? ` class="${opts.body}"` : opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
 <header><div class="wrap"><a href="/uk">${opts.nav === "hub" ? `<img class="wl er" src="/logo-ER-wide.png?v=5" alt="${SHOP_NAME}: ${esc(HUB.name)}">` : `<img class="wl" src="${LOGO}" alt="${SHOP_NAME}">`}</a>${opts.noBasket ? "" : `<nav class="top"><a href="/uk/shop"${opts.nav === "shop" ? ' class="on"' : ""}>Shop</a><a href="${HUB.path}" data-gate${opts.nav === "hub" ? ' class="on"' : ""}>${esc(HUB.short)}</a><a class="basket-link" href="/uk/basket">Basket <span id="bc">0</span></a></nav>`}</div></header>
-<main class="wrap">${body}</main>
+<main class="wrap">${opts.nav === "shop" || opts.nav === "home" || opts.coll ? (opts.noXmas ? "" : xmasNotice(false)) : ""}${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
 <script>${BASKET_JS}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
@@ -745,6 +748,43 @@ function tileHtml({ d, t }) {
   return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
 }
 
+// ---------------- Christmas (Barry, 22 Nov) ----------------
+// The gift guide (/uk/gifts) and the order-by notice. The dates are provisional: Printify publishes no UK Christmas
+// cut-offs, so they allow a week's printing and Royal Mail's last posting days for UK-printed garments, and longer for
+// long sleeves, which are printed abroad. Change them here. The notice shows across the site from XMAS.from (on the
+// preview always), and after the last date says it's too late. It disappears after Christmas Day.
+const XMAS = { from: "2026-12-01", uk: "2026-12-12", abroad: "2026-12-05", end: "2026-12-25" };
+const XMAS_FOR = [   // picked by Barry's gag codes; anything not in the catalogue is skipped. A draft for Barry.
+  ["For the colleague who’d rather be on mute", ["PC-00001", "PC-00004", "PC-00003", "PC-00002", "PC-00005"]],
+  ["For the friend who always cancels", ["IH-00010", "IH-00012", "IH-00014", "IH-00011", "IH-00003"]],
+  ["For the one who’d rather be reading", ["OS-00008", "OS-00067"]],
+  ["For the quiet one who’s had quite enough", ["IH-00015", "IH-00006", "SH-00001", "SH-00003", "IH-00001"]],
+  ["For someone you love. Quietly.", ["IH-00008", "SH-00002", "IH-00004"]],
+];
+function xmasDay(d) { const m = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]; const [y, mo, da] = d.split("-").map(Number); return da + " " + m[mo - 1]; }
+function xmasNotice(full) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today > XMAS.end || (!STAMP && today < XMAS.from)) return "";
+  if (today > XMAS.uk) return `<div class="xn"><b>Too late for Christmas.</b> Perfect for avoiding New Year.</div>`;
+  const ls = today > XMAS.abroad ? " Long sleeves are now too late." : full ? ` Long sleeves by <b>${xmasDay(XMAS.abroad)}</b> (they’re printed abroad).` : "";
+  return `<div class="xn">Order by <b>${xmasDay(XMAS.uk)}</b> for Christmas delivery.${ls}${full ? "" : ` <a href="/uk/gifts">Gift guide →</a>`}</div>`;
+}
+function giftsPage(cat) {
+  const by = Object.fromEntries(cat.designs.map((d) => [d.id, d]));
+  const types = cat.garmentOrder;
+  const pick = (list, ts, n) => mixedItems(cat, list, ts.filter((t) => list.some((d) => d.garments[t]))).slice(0, n);
+  const row = (title, line, items, more) => items.length ? `<section class="strip"><div class="sh"><h2>${title}</h2>${more || ""}</div>${line ? `<p class="muted" style="margin:-8px 0 16px">${line}</p>` : ""}<div class="grid four">${items.map(tileHtml).join("")}</div></section>` : "";
+  const notIP = cat.designs.filter((d) => d.coll !== "IP"), ip = cat.designs.filter((d) => d.coll === "IP");
+  const fors = XMAS_FOR.map(([t, ids]) => row(t, "", pick(ids.map((i) => by[i]).filter(Boolean), types, 4))).join("");
+  return page("Christmas gifts for introverts", `${xmasNotice(true)}<h1 style="margin-top:22px">Gifts for the introvert who’d rather not open them in front of you</h1>
+<p class="muted lead">Clothing that says it, so they don’t have to. Free UK delivery on everything. Wrap it, hand it over, leave the room.</p>
+${row("Stocking fillers", "T-shirts, from £25.99.", pick(notIP, ["T-SHIRT"], 4), `<a href="/uk/shop?t=T-SHIRT">All T-shirts <i>→</i></a>`)}
+${row("Something to hide in", "Sweatshirts and hoodies. Hood up, world off.", pick(notIP, ["HOODIE", "SWEATSHIRT"], 4), `<a href="/uk/shop?t=HOODIE">All hoodies <i>→</i></a>`)}
+${row("With their name on", "In Person: their name, printed, so they never have to say it again.", pick(ip, types, 4), `<a href="/uk/shop?c=IP">In Person <i>→</i></a>`)}
+${fors}
+<section class="strip"><div class="sh"><h2>Not sure?</h2></div><p class="muted">Every design comes in four garments and most come in several colours. Unworn items can be returned within 30 days (except personalised ones). Or let them choose: <a href="/uk/shop">send them the shop</a> and pretend it was your idea.</p></section>`, { nav: "shop", noXmas: true, desc: "Christmas gifts for introverts, quiet people and the reluctantly sociable. Free UK delivery." });
+}
+
 // ---------------- front page and the hub ----------------
 // One site, two halves of equal weight (Barry, 20 Nov): the shop, and a hub for introverts (phone toys for the bus
 // queue, paper escape rooms, a vote on the next gag...). The hub's name and wording are placeholders for Barry.
@@ -787,6 +827,7 @@ function frontPage(cat) {
 ${door("/uk/shop", DOOR.shop, "Wear it", "The Shop", "Clothing that says it, so you don’t have to.", "Go shopping")}
 ${door(HUB.path, DOOR.hub, "Hide in it", esc(HUB.name), esc(HUB.line), HUB.cta, HUB.logo, true)}
 </section>
+${STAMP || new Date().toISOString().slice(0, 10) >= XMAS.from && new Date().toISOString().slice(0, 10) <= XMAS.end ? `<a class="xgift" href="/uk/gifts"><b>The Christmas gift guide</b><span>For the introvert who’d rather not open presents in front of you →</span></a>` : ""}
 <section class="strip"><div class="sh"><h2>New in the shop</h2><a href="/uk/shop">See everything <i>→</i></a></div><div class="grid four">${newest}</div></section>
 <section class="strip"><div class="sh"><h2>Interaction distractions</h2><a href="${HUB.path}" data-gate>Into ${esc(HUB.name)} <i>→</i></a></div><div class="things">${hubCards()}</div></section>
 <section class="strip"><div class="sh"><h2>Find your range</h2><a href="/uk/shop">All ranges <i>→</i></a></div><div class="ranges">${ranges}</div></section>`, { nav: "home", script: DOOR_JS });
