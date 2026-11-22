@@ -17,7 +17,7 @@
 // The floor, walls, windows and shelves are drawn in code. Wording is draft for Barry.
 import { ART } from "./stealth-art/art.js";
 
-const TITLE = "Just Passing Through";   // working title
+const TITLE = "Hoodini: The OK Escape";   // working title
 const HERO_NAME = "Hoodini";            // Barry's name for the introvert (21 Nov)
 
 // The office: 250 squares long and 20 high (two storeys; the screen shows 11). Built from a list of placements so the
@@ -233,6 +233,7 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .pg .card p{margin:0 0 10px;font-size:15px;line-height:1.45}.pg .card ul{margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.45}.pg .card li{margin-bottom:4px}
 .pg .card .go{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:12px 0 0}.pg .card .btn{background:#fad00c;color:#1c1611}.pg .card a{color:#f6efe0;font-size:14px}
 .pg .card .sm{font-size:13px;color:#b9ae9c;margin:0}
+.pg .card .ttl{text-align:center}.pg .card .ttl img{display:block;width:min(100%,340px);height:auto;margin:0 auto 10px}.pg .card .ttl h1{color:#fad00c;font-size:24px;margin:0 0 6px}.pg .card .ttl .go{justify-content:center}.pg .card .tpic{display:flex;align-items:flex-end;justify-content:center;gap:26px;margin:4px 0 2px}.pg .card .tpic i{display:block}
 .pg .card .how{margin:0 0 4px}.pg .card .how summary{cursor:pointer;font-size:14px;font-weight:700;color:#fad00c;padding:6px 0;list-style-position:inside}.pg .card .how[open] summary{margin-bottom:6px}
 .pg .card .lv{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pg .card .lv button{font:700 13px/1 Montserrat,sans-serif;padding:9px 12px;border-radius:999px;border:2px solid #f6efe0;background:transparent;color:#f6efe0;cursor:pointer}.pg .card .lv button.on{background:#fad00c;border-color:#fad00c;color:#1c1611}.pg .card .lv button:disabled{opacity:.35;cursor:default}
 @media (max-height:440px){.pg .card h1,.pg .card h2{font-size:20px}.pg .card ul{font-size:13px}.pg .card>div{width:min(100%,640px);padding:12px 16px}.pg .card p{font-size:13px;margin-bottom:6px}}
@@ -616,6 +617,8 @@ function up(e){if(look&&e.pointerId===look.id)look=null;if(stick&&e.pointerId===
 addEventListener('keydown',function(e){if(S.mode!=='play'&&S.mode!=='ready')return;var k=e.key.length===1?e.key.toLowerCase():e.key;if(/^(Arrow(Left|Right|Up|Down)|Shift| |[adwszx])$/.test(k)){if(!e.repeat&&(k==='z'||k===' '||k==='ArrowUp'||k==='w'))jumpQ=.12;keys[k]=1;e.preventDefault()}});
 addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null;look=null});
 $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()});
+$('pgplay').addEventListener('click',function(){$('pgtitle').hidden=true;$('pgintro').hidden=false;$('pggo').focus()});
+(function(){var a=ART.hero,g=ART.nemesis,el=$('pgtpic'),sc=.62;el.innerHTML='<i style="width:'+a.w*sc+'px;height:'+a.h*sc+'px;background:url('+SRC+'hero) '+(-5*a.w*sc)+'px 0/'+(a.W*sc)+'px '+(a.h*sc)+'px no-repeat"></i><i style="width:'+g.w*.5+'px;height:'+g.h*.5+'px;transform:scaleX(-1);background:url('+SRC+'nemesis) '+(-1*g.w*.5)+'px 0/'+(g.W*.5)+'px '+(g.h*.5)+'px no-repeat"></i>'})();
 $('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
 addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}load(askLv>0?askLv-1:Math.min(lastLv,unlocked()));lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
@@ -629,7 +632,8 @@ export function platformPage(page, hub, v) {
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
-<div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
+<div id="pgtitle" class="ttl"><img src="/logo-wide.png?v=5" alt="Introvert Here…"><h1>${TITLE}</h1><div id="pgtpic" class="tpic"></div><p class="go"><button class="btn" id="pgplay" type="button">Play</button><a href="${hub.path}">Back to the room</a></p></div>
+<div id="pgintro" hidden><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
 <details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
