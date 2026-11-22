@@ -37,9 +37,17 @@ let catalogCache = null, catalogAt = 0;
 async function catalog(env) {
   if (!catalogCache || Date.now() - catalogAt > (isPreview(env) ? 15000 : 300000)) {
     catalogCache = (await env.PENDING.get(isPreview(env) ? "shop:catalog-preview" : "shop:catalog", "json")) || { designs: [] };
+    for (const d of catalogCache.designs || []) d.title = withApostrophes(d.title, d.text);
     catalogAt = Date.now();
   }
   return catalogCache;
+}
+// Etsy won't take punctuation in titles, so Core's titles have none ("Ill Be Busy"). On the site (Barry, 22 Nov) a
+// title word gets its apostrophe back only if the gag itself has that word with one ("I'LL" -> "I'll"), so it never
+// guesses. Web addresses don't change: they come from the slug, not the title.
+function withApostrophes(title, text) {
+  const words = {}; for (const w of String(text || "").match(/[A-Za-z]+['’][A-Za-z]+/g) || []) words[w.replace(/['’]/g, "").toLowerCase()] = w.replace(/’/g, "'");
+  return String(title || "").replace(/[A-Za-z]+/g, (w) => { const m = words[w.toLowerCase()]; if (!m) return w; const at = m.indexOf("'"); return w.slice(0, at) + "’" + w.slice(at); });
 }
 const money = (p) => "£" + (p / 100).toFixed(2);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
