@@ -101,6 +101,27 @@ save("street-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=
 sh = figures(key("street-shops.png"), 2, gap=8); assert len(sh) == 10, len(sh); cells = [scaled(f, 5.0 * PPT * .6 / f.shape[0]) for f in sh]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
 save("street-shops", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(10)], ppt=PPT * .6)
 
+# Level 3, the house party.
+# The host: running 0-2, out of breath 3, then lost in the dark 4-7 (feeling about, tiptoe, peering, stubbed toe)
+ph = figures(key2("party-host.png"), 2, gap=40); assert len(ph) == 8, len(ph); s = 2.5 * PPT / ph[1].shape[0]
+save("party-host", strip([cell(f, s, cw=400, ch=310, ax=190, base=306, top=.5) for f in ph]), w=400, h=310, ax=190, base=306, n=8)
+pd = figures(key2("party-dancer.png")); assert len(pd) == 4, len(pd); s = 2.75 * PPT / pd[1].shape[0]
+save("party-dancer", strip([cellf(f, s, 340, 340, 170, 336) for f in pd]), w=340, h=340, ax=170, base=336, n=4)
+# Guests who stand: arguing man 0-1, arguing woman 2-3, the oversharer 4-5, the man with the buffet plate 6-7
+pp_ = figures(key2("party-people.png"), 2); assert len(pp_) == 8, len(pp_); s = 2.1 * PPT / pp_[0].shape[0]
+save("party-people", strip([cellf(f, s, 380, 262, 150, 258) for f in pp_]), w=380, h=262, ax=150, base=258, n=8)
+pt = figures(key2("party-things.png"), 2); assert len(pt) == 9, len(pt); names = ["plate", "punch", "switch", "sofa", "bed", "trampoline", "cupboard", "engaged", "gate"]; tall_ = [.75, .85, .6, 1.5, 1.6, 1.0, 2.7, 2.35, 2.4]
+cells = [scaled(f, tall_[i] * PPT / f.shape[0]) for i, f in enumerate(pt)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("party-things", strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)}, ppt=PPT)
+# Background: 0 coat rack 1 hall table 2 bunting 3 speaker 4 punch table | 5 counter 6 fridge 7 bin 8 buffet | 9 boxes 10 rocking horse 11 dummy 12 barbecue 13 fairy lights 14 bench
+dk = key2("party-decor.png")      # things like the speaker's music notes float free of their object, so this sheet is cut by hand-measured boxes
+def trimmed(f): m = f[..., 3] > 128; ys = np.where(m.any(axis=1))[0]; xs_ = np.where(m.any(axis=0))[0]; return f[ys[0]:ys[-1] + 1, xs_[0]:xs_[-1] + 1]
+BOX = [(50, 320, 0, 305), (365, 650, 0, 305), (680, 1105, 0, 305), (1150, 1410, 0, 305), (1420, 1774, 0, 305), (30, 515, 310, 610), (555, 805, 310, 610), (865, 1085, 310, 610), (1110, 1774, 310, 610),
+       (20, 240, 615, 887), (255, 535, 615, 887), (580, 735, 615, 887), (770, 1000, 615, 887), (1035, 1345, 615, 887), (1360, 1774, 615, 887)]
+pdc = [trimmed(dk[y0:y1, x0:x1]) for x0, x1, y0, y1 in BOX]; dh = [2.6, 2.0, 1.6, 2.4, 2.0, 2.2, 2.8, 1.9, 2.1, 2.0, 1.9, 2.4, 2.2, .8, 1.7]
+cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(pdc)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("party-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -160,7 +181,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("street-people",):
+for n in ("party-host", "party-dancer", "party-people", "party-things", "party-decor"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
