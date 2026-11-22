@@ -217,6 +217,8 @@ const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "fa
     Q: ["My balloons!", "They went UP!", "Get them! GET THEM!"], Qok: ["Isn’t he good with children?", "Are you thinking of having any yourself?", "You’re a natural!"],
     Y: ["Not so fast, young man.", "I’m parched, you know.", "Nobody has brought me a tea ALL DAY."], Yok: ["Oh, you ARE a good boy."], pit: ["You fell in. Everyone saw."] } };
 
+// The arch nemesis: a colleague who turns up wherever Hoodini slips up, points and laughs. Stand-in art; the name is a draft.
+const NEMESIS_NAME = "Gary from Sales";
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
 
 const CSS = `
@@ -239,7 +241,7 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 // The game, run in the visitor's browser. Written without backticks or dollar-braces so it can sit in String.raw.
 const CLIENT = String.raw`
 (function(){
-var LV=__LEVELS__,LI=0,L=LV[0],TH=null,NAME=__NAME__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,SRC=__SRC__;
+var LV=__LEVELS__,LI=0,L=LV[0],TH=null,NAME=__NAME__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,NEM=__NEM__,SRC=__SRC__;
 var $=function(i){return document.getElementById(i)},box=$('pg'),cv=$('pgc'),cx=cv.getContext('2d'),calm=false;
 try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
 var hd=document.querySelector('header');box.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
@@ -275,11 +277,11 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1;p.follow=false})}
-function flat(){S.mode='lost';card(NAME+' didn’t make it.',S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'),S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
+function flat(){S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;card(NAME+' didn’t make it.',(S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'))+' '+NEM+' saw everything.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function info(a,b){S.info={a:a,b:b,t:4}}
 function say(t,x,y){if(!t)return;for(var i=0;i<says.length;i++)if(says[i].t===t){says[i].life=2.2;says[i].x=x;says[i].y=y;return}says.push({t:t,x:x,y:y,life:2.2});if(says.length>4)says.shift()}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
-function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
+function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);
@@ -415,6 +417,9 @@ function crier(p){if(!party){var c0=cx;c0.fillStyle='rgba(27,27,42,.18)';c0.begi
  sprite('party-criers',S.given?2:Math.floor(T/1.7)%2,mx,p.y+.03,false,k);
  if(S.given){var hx2=mx,by2=p.y-2.75-(calm?0:Math.abs(Math.sin(T*3))*.15);c.fillStyle='#e0303a';c.beginPath();c.moveTo(hx2,by2+.16);c.bezierCurveTo(hx2-.26,by2-.02,hx2-.12,by2-.22,hx2,by2-.08);c.bezierCurveTo(hx2+.12,by2-.22,hx2+.26,by2-.02,hx2,by2+.16);c.fill();ink(.05)}}
 function tissueBox(x,y,sc){sprite('party-criers',3,x,y,false,sc/PPT)}
+function nemesis(){if(S.nemAt==null)return;var a=T-S.nemAt,D=2.1;if(a<0||a>D)return;var c=cx,sd=S.nemSide||1,inn=Math.min(1,a/.18,(D-a)/.18),ex=sd>0?cam+vw:cam,nx=ex+sd*(1.6-2.6*inn),ny=Math.min(camY+VIEW-.6,Math.max(camY+3,P.safe?P.safe[1]:P.y)),k=1/PPT,bob=calm?0:Math.abs(Math.sin(T*16))*.1;
+ sprite('flat-people',1,nx,ny+.03-bob,sd>0,k);var ax=nx-sd*.25,ay=ny-1.25-bob,dx=P.x-ax,dy=(P.y-1)-ay,dl=Math.sqrt(dx*dx+dy*dy)||1,hx=ax+dx/dl*.85,hy=ay+dy/dl*.85;c.lineCap='round';c.strokeStyle=INK;c.lineWidth=.26;c.beginPath();c.moveTo(ax,ay);c.lineTo(hx,hy);c.stroke();c.strokeStyle='#ffd0a6';c.lineWidth=.15;c.stroke();
+ c.save();c.translate(nx-sd*.9,ny-2.75);c.rotate(calm?0:Math.sin(T*14)*.07);c.font='900 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineWidth=.14;c.strokeStyle=INK;c.strokeText('HA HA HA!',0,0);c.fillStyle=YEL;c.fillText('HA HA HA!',0,0);c.restore()}
 function thing(name,x,y,w,flip,sheet){sheet=sheet||'flat-things';var it=ART[sheet].items[name],im=IMG[sheet],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART[sheet].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
 // Background dressing, deliberately pale and outline-free so nobody mistakes it for something to jump on.
 var WASH=null;
@@ -568,6 +573,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.float)thing('brolly',P.x+P.f*.22,P.y-.75,1.9,false,'street-things');
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
  if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(P.slide)c.rotate(.35);c.globalAlpha=P.inv>0?.55:(P.hood&&!P.slide)?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
+ nemesis();
  if(P.plate)thing('plate',P.x+P.f*.45,P.y-.72,.7,false,'party-things');
  if(P.tissues&&family)thing('flask',P.x+P.f*.45,P.y-.55,.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
  if(P.baby>0)babyPic(P.x+P.f*.35,P.y-.85,.8);
@@ -618,7 +624,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"] })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
