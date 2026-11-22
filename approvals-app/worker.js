@@ -7698,14 +7698,15 @@ async function shopCatalogRun(env, opt) {
   const order = S.want.slice().sort((a, b) => (G[a.code].variants ? 1 : 0) - (G[b.code].variants ? 1 : 0) || G[a.code].pAt - G[b.code].pAt);
   const gone = {};
   // Through Make each read costs an operation, so with a refused key only garments not read yet are fetched (no rechecks).
-  const keyBad = S.keyBad && now - (S.keyBadAt || 0) < 12 * 3600e3, todo = keyBad ? order.filter((w) => !G[w.code].variants) : order;
+  const own0 = (await env.PENDING.get(SC.own, "json")) || {}, ready = order.filter((w) => !w.site || own0[w.code]);   // a site-only garment is read once its photos are stored
+  const keyBad = S.keyBad && now - (S.keyBadAt || 0) < 12 * 3600e3, todo = keyBad ? ready.filter((w) => !G[w.code].variants) : ready;
   scKeyBad = false;
   for (const w of todo.slice(0, keyBad ? 24 : (opt.batch || SC.batch))) {
     try {
       const p = await scPrintifyProduct(env, w.pid);
       if (!p || !p.variants) { gone[w.code] = "Printify product " + w.pid + " not found"; delete G[w.code].variants; continue; }
       Object.assign(G[w.code], scFromPrintify(p), { pAt: now });
-    } catch (e) { if (!G[w.code].variants) gone[w.code] = String(e.message || e).slice(0, 120); }
+    } catch (e) { S.pErr = w.code + ": " + String(e.message || e).slice(0, 160); S.pErrAt = now; if (!G[w.code].variants) gone[w.code] = String(e.message || e).slice(0, 120); }
   }
   if (scKeyBad) { S.keyBad = true; S.keyBadAt = now; } else if (!keyBad) delete S.keyBad;
   const own = (await env.PENDING.get(SC.own, "json")) || {};   // garments whose full Canva photo sets are stored
