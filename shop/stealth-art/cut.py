@@ -86,7 +86,10 @@ def cellf(fig, s, cw, ch, ax, base):
     im = scaled(fig, s); a = np.asarray(im)[..., 3] > 128; xs = np.where(a[int(a.shape[0] * .9):].any(axis=0))[0]; cxf = (xs[0] + xs[-1]) / 2
     c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - cxf), base - im.height)); return c
 # Standers: neighbour 0-1, busker 2-3, hen in a sash 4-5, hen in a boa 6-7 (idle, then talking)
-sp = figures(key2("street-people.png"), 2); assert len(sp) == 8, len(sp); s = 2.1 * PPT / sp[0].shape[0]
+sp = figures(key2("street-people.png"), 2); assert len(sp) == 8, len(sp)
+for f in sp[:2]:      # the neighbour: trim the lead that trails off to the right, leaving the loop in his hands (the dog brings its own lead)
+    h = f.shape[0]; xs = np.where((f[int(h * .9):, :, 3] > 128).any(axis=0))[0]; cut = xs[-1] + int(h * .13); f[int(h * .35):, cut:, 3] = 0
+s = 2.1 * PPT / sp[0].shape[0]
 save("street-people", strip([cellf(f, s, 380, 262, 150, 258) for f in sp]), w=380, h=262, ax=150, base=258, n=8)
 # Movers: charity collector walking 0-3, old school friend running 4-6 and out of breath 7. The cyclist has his own strip.
 sm = figures(key("street-movers.png"), 3); assert len(sm) == 10, len(sm); s1 = 2.05 * PPT / max(f.shape[0] for f in sm[:4]); s2 = 2.05 * PPT / sm[5].shape[0]
@@ -157,7 +160,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("street-people", "street-movers", "street-bike", "street-things", "street-shops"):
+for n in ("street-people",):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10

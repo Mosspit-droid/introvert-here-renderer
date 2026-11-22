@@ -82,7 +82,7 @@ function highStreet() {
   put(2, G, "S");
   // 1. The bus stop: a charity collector pacing, a crate, a neighbour with a dog, a phone box, then the road (ride the bus)
   row(5, 7, G, "o"); put(9, G, "w"); put(12, G, "W"); put(16, G, "w"); put(19, G, "F"); put(19, 16, "o");
-  put(23, G, "P"); put(25, G, "G"); put(30, G, "K"); pit(34, 45); row(38, 41, 13, "o");
+  put(23, G, "P"); put(24, G, "G"); put(30, G, "K"); pit(34, 45); row(38, 41, 13, "o");
   // 2. The market: stall roofs, a busker, an awning up to a note, an old school friend, a cycle lane, then headphones
   //    and a hen party too tightly packed to hop
   put(48, G, "K"); row(52, 55, 15, "="); row(53, 54, 14, "o"); put(58, G, "T"); put(62, G, "^"); row(64, 68, 12, "="); put(66, 11, "N"); row(64, 65, 11, "o");
@@ -158,7 +158,7 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='P'||c==='W'||c==='T'||c==='C'||c==='G')people.push({k:c,x:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
   else if('oNHcmu'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
- var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3]});
+ var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3];if(street&&dogNear){p.fixed=true;p.f=1}});
  P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
@@ -220,7 +220,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   if(p.k==='C'){if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=2.2}else if(near&&!unseen&&S.mode==='play'){p.run=3.1;p.wind=.55;say(pick(L.lines.C),p.x,p.y-2.5)}
    if(p.wind>0)p.wind-=dt;else if(p.run>0){if(!unseen)p.f=P.x<p.x?-1:1;var cx2=p.x+p.f*.5;if(!(solid(Math.floor(cx2),Math.floor(p.y-.5))||tile(Math.floor(cx2),Math.floor(p.y-.5))==='w'||!solid(Math.floor(cx2),Math.floor(p.y+.1))))p.x+=p.f*3.7*dt}}
   else if(p.k==='W'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*2.1*dt}
-  else if(p.k!=='G'&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
+  else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='T'&&p.t>2&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
   if(!unseen&&Math.abs(P.x-p.x)<(p.k==='G'?.5:.62)&&P.y>p.y-(p.k==='G'?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0)say(pick(L.lines[p.k]),p.x,p.y-2.5);hurt(p.k,p.x)}});
  bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=b.x1+7;b.t=0}}else{b.x-=11*dt;if(b.x<b.x0-7)b.x=null;
@@ -272,7 +272,7 @@ function poster(x,y,n){var c=cx,k=((n%4)+4)%4,bg=['#f6d9c9','#d5e6dc','#dcdcf0',
  else{c.lineWidth=.09;c.strokeStyle=fg;c.beginPath();c.moveTo(x-.55,y+1.35);c.lineTo(x-.2,y+1);c.lineTo(x+.1,y+1.15);c.lineTo(x+.55,y+.45);c.stroke();c.beginPath();c.moveTo(x+.55,y+.45);c.lineTo(x+.25,y+.5);c.lineTo(x+.5,y+.75);c.closePath();c.fill()}
  c.fillStyle='#cdb98c';c.fillRect(x-.5,y+1.75,1,.07);c.fillRect(x-.35,y+1.9,.7,.05)}
 // The high street, in Barry's drawings (stealth-art/src/street-*.png).
-function dog(p){var c=cx;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.42,.07,0,0,6.2832);c.fill();thing('dog',p.x-.25,p.y+.03,null,true,'street-things')}
+function dog(p){var c=cx;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.42,.07,0,0,6.2832);c.fill();thing('dog',p.x-.12,p.y+.03,null,true,'street-things')}
 function streetZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,base=MH-2,i;if(z.x1<x0||z.x0>x1)return;c.fillStyle=z.wall;c.fillRect(z.x0,0,zw,MH);
  for(i=Math.floor(Math.max(z.x0,x0)/11)*11;i<Math.min(z.x1,x1);i+=11){if(i<z.x0)continue;c.fillStyle='rgba(255,255,255,.85)';c.beginPath();c.ellipse(i+3,3+(i%3)*.9,1.5,.42,0,0,6.2832);c.ellipse(i+4.1,3.3+(i%3)*.9,1.1,.36,0,0,6.2832);c.fill()}
  var sh=ART['street-shops'],im=IMG['street-shops'];if(!im||!im.naturalWidth)return;var k=1/sh.ppt;c.globalAlpha=.62;
@@ -335,7 +335,10 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  movers.forEach(function(m){thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things')});
  bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;if(due||b.x!==null){c.fillStyle=YEL;c.beginPath();c.arc(b.x1+.4,MH-2-2.6,.34,0,6.2832);c.fill();ink(.07);c.fillStyle=INK;c.font='800 .42px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('!',b.x1+.4,MH-2-2.58)}
   if(b.x!==null)sprite('street-bike',Math.floor(T/.12)%2,b.x,MH-2+.03,true,1/PPT)});
- bubbles.forEach(function(b){thing('bubble',b.x,b.y+.42,null,b.f>0)});
+ bubbles.forEach(function(b){if(!street){thing('bubble',b.x,b.y+.42,null,b.f>0);return}
+  var wob=calm?0:Math.sin(T*9+b.x)*.07,nx=b.x,ny=b.y+wob;c.fillStyle='#7a2fd6';c.strokeStyle=INK;c.lineWidth=.06;
+  c.beginPath();c.ellipse(nx-.2,ny+.2,.15,.11,-.4,0,6.2832);c.fill();c.stroke();c.beginPath();c.ellipse(nx+.22,ny+.12,.15,.11,-.4,0,6.2832);c.fill();c.stroke();
+  c.lineWidth=.07;c.beginPath();c.moveTo(nx-.07,ny+.18);c.lineTo(nx-.07,ny-.3);c.moveTo(nx+.35,ny+.1);c.lineTo(nx+.35,ny-.38);c.stroke();c.lineWidth=.13;c.beginPath();c.moveTo(nx-.07,ny-.28);c.lineTo(nx+.35,ny-.36);c.stroke()});
  // you
  var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
