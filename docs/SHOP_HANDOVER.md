@@ -117,6 +117,12 @@ R2 `site/` (copies in `shop/assets/site/`).
   a free Google Merchant Center account, verifies introverthere.com, sets UK delivery free, and adds the feed URL
   `https://introverthere.com/google-products.xml` as a scheduled daily fetch.
 
+### Catalogue switch (22 Nov)
+- The preview now reads the app's catalogue, KV `shop:catalog-next` (site prices, In Person with name preview, site-only
+  early builds marked `siteOnly`, no Etsy link). The real shop still reads `shop:catalog` (old) until launch day, when
+  `catalog()` in `shop/worker.js` should read `shop:catalog-next` for both. `shop:catalog-preview` is the old hand-made copy.
+- The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support

@@ -36,7 +36,7 @@ const ETSY_SHOP = "https://www.etsy.com/shop/IntrovertHereShop";
 let catalogCache = null, catalogAt = 0;
 async function catalog(env) {
   if (!catalogCache || Date.now() - catalogAt > (isPreview(env) ? 15000 : 300000)) {
-    catalogCache = (await env.PENDING.get(isPreview(env) ? "shop:catalog-preview" : "shop:catalog", "json")) || { designs: [] };
+    catalogCache = (await env.PENDING.get(isPreview(env) ? "shop:catalog-next" : "shop:catalog", "json")) || { designs: [] };   // the preview reads the app's new catalogue (22 Nov); the real shop switches on launch day
     for (const d of catalogCache.designs || []) d.title = withApostrophes(d.title, d.text);
     try { const r = await env.PENDING.get("shop:reviews", "json"); if (r && typeof r === "object") Object.assign(REVIEWS, r); } catch (_) {}   // kept up to date by the app, once it does
     catalogAt = Date.now();
@@ -1643,7 +1643,7 @@ function render(){var g=G();
  $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('count').textContent=ps.length>1?(st.img+1)+' / '+ps.length:'';$('prev').style.display=$('next').style.display=ps.length>1?'':'none';
  var on=$('thumbs').querySelector('.on');if(on&&$('thumbs').scrollWidth>$('thumbs').clientWidth)$('thumbs').scrollLeft=on.offsetLeft-$('thumbs').offsetLeft-($('thumbs').clientWidth-on.offsetWidth)/2;
- $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';$('etsy').href=g.etsyUrl;}
+ $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';if($('etsy'))$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
  if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
 // Left/right arrows, a swipe, or the keyboard's arrow keys step through the photos.
@@ -1674,7 +1674,7 @@ ${g0.personal ? `<div class="label">Your name</div><input id="pname" class="pnam
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
 <div class="box"><p class="note" style="margin:0 0 8px">${esc(coll.line)}</p><p id="features" class="note" style="white-space:pre-line;margin:0"></p></div>
 ${others.length ? `<p class="note">Also on: ${others.map((t) => `<a href="/uk/p/${productSlug(d, t)}">${esc(d.garments[t].label)}</a>`).join(" · ")}</p>` : ""}
-<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This ${esc(g0.label.toLowerCase())} on Etsy</a></p></div></div>`, { script, coll: d.coll, desc: `${name}: ${d.text.replace(/\s+/g, " ")}` });
+${g0.etsyUrl ? `<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener">This ${esc(g0.label.toLowerCase())} on Etsy</a></p>` : `<p class="note">New here first: this one isn’t on Etsy yet.</p>`}</div></div>`, { script, coll: d.coll, desc: `${name}: ${d.text.replace(/\s+/g, " ")}` });
 }
 
 // The mascot (Barry's hoodie character, brand-logos/mascot/): a short message with him in a pose, for empty or lost
