@@ -5848,7 +5848,7 @@ async function healthIssues(env) {
     env.PENDING.get("credits", "json"), env.PENDING.get("amend-watch", "json"), loadAlerts(env), env.PENDING.get("daily", "json")]);
   const out = [], today = new Date().toISOString().slice(0, 10), in14 = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
   const TY = ["T-SHIRT", "LONG-SLEEVE", "SWEATSHIRT", "HOODIE"];
-  const COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF" };
+  const COLL = { IH: "INTROVERT HERE…", SH: "SHHH.", PC: "PER CONTRACT", OS: "OFF THE SHELF", EX: "EXCLUSIVE", IP: "IN PERSON" };
   const pages = (amend && amend.pages) || [], items = (tags && tags.items) || [];
   const due = [];
   ((g && g.sched) || []).forEach((e) => (e.d || []).forEach((d, i) => { if (d && d >= today && d <= in14 && !(e.b && e.b[i])) due.push({ id: e.id, type: TY[i], date: d }); }));
@@ -5866,7 +5866,7 @@ async function healthIssues(env) {
   }
   if (watch && watch.warned) out.push({ level: "bad", t: "A listing update is stuck", s: "Open Update listings and tap Restart.", href: "/amend" });
   if (alerts.length) out.push({ level: "warn", t: alerts.length + " alert" + (alerts.length === 1 ? "" : "s") + " not dismissed", s: esc(alerts[0].title).slice(0, 80), href: "/alerts" });
-  ((daily && daily.runway) || []).forEach((r) => { const left = r.lastDate ? (Date.parse(r.lastDate) - Date.now()) / 864e5 : 0; if (left < 28) out.push({ level: "warn", t: "Running low: " + r.collection, s: "Written gags run out " + (r.lastDate ? "on " + r.lastDate : "now") + ".", href: "/gags" }); });
+  ((daily && daily.runway) || []).filter((r) => !/EXCLUSIVE/i.test(r.collection || "")).forEach((r) => { const left = r.lastDate ? (Date.parse(r.lastDate) - Date.now()) / 864e5 : 0; if (left < 28) out.push({ level: "warn", t: "Running low: " + r.collection, s: "Written gags run out " + (r.lastDate ? "on " + r.lastDate : "now") + ".", href: "/gags" }); });
   const unbuiltPast = ((g && g.sched) || []).flatMap((e) => (e.d || []).map((d, i) => (d && d < today && d >= new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10) && !(e.b && e.b[i]) ? e.id + " " + garmentName(TY[i]) + " (" + d + ")" : null))).filter(Boolean);
   if (unbuiltPast.length) out.push({ level: "bad", t: "Releases from the last week not built", s: unbuiltPast.slice(0, 6).join(", ") + (unbuiltPast.length > 6 ? "…" : "") + ". Tap Sync to Core to refresh first; if they stay, ask Claude.", href: "/calendar" });
   return { issues: out, due: due.length };
