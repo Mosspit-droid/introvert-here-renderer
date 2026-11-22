@@ -827,7 +827,7 @@ const STYLE = `
 :root{--wall:#0b0b0a;--card:rgba(13,13,12,.80);--card2:rgba(26,26,24,.86);--field:rgba(0,0,0,.38);--line:rgba(255,255,255,.13);--frame:#f2f0eb;
   --text:#f2f0eb;--muted:#a7a399;--dim:#6f6c65;--accent:#f2f0eb;
   --go:#7cc39a;--go-text:#08160e;--warn:#e8907f;--warn-bg:rgba(150,50,40,.26);--ok:#8fd0ab;--ok-bg:rgba(60,140,95,.2);--info:#a8c3e6;
-  --ih:#f2f0eb;--sh:#a8cea8;--pc:#d6473e;--os:#c9a434;
+  --ih:#f2f0eb;--ip:#8fb3d9;--ex:#e0b36a;--sh:#a8cea8;--pc:#d6473e;--os:#c9a434;
   --display:"Montserrat",system-ui,sans-serif;--body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   --r:18px;--bgimg:url(/assets/bg-ih.jpg);color-scheme:dark}
 body[data-coll=SH]{--accent:var(--sh);--bgimg:url(/assets/bg-sh.jpg)}
@@ -1833,6 +1833,8 @@ ${brandHeader("To-do")}
 
 // ---------- dashboard ----------
 const DASH_RANGES = [["IH", "INTROVERT HERE…", "Introvert Here", "--ih"], ["SH", "SHHH.", "SHHH.", "--sh"], ["PC", "PER CONTRACT", "Per Contract", "--pc"], ["OS", "OFF THE SHELF", "Off The Shelf", "--os"]];
+// All six range tiles show the same rows (Barry, 22 Nov), In Person before Exclusive. Exclusive has no schedule.
+const DASH_ALL = DASH_RANGES.concat([["IP", "IN PERSON", "In Person", "--ip"], ["EX", "EXCLUSIVE", "Exclusive", "--ex"]]);
 // Exclusive and In Person have no release schedule (they're listed when Barry chooses), so their dashboard cards show
 // counts instead of a runway bar (Barry, 18 Nov).
 async function adHocCards(env, gags, amend) {
@@ -1891,22 +1893,22 @@ async function dashboardPage(env) {
     return (daily && daily.runway || []).find((x) => x.collection === coll);
   };
   const targets = (await env.PENDING.get("gag-targets", "json")) || {};
-  const ranges = DASH_RANGES.map(([code, coll, name, colour]) => {
+  const ranges = DASH_ALL.map(([code, coll, name, colour]) => {
     const inCore = ((gags && gags.all) || []).filter((x) => x.id.startsWith(code + "-")).length, tgt = Number(targets[code]) || 0;
     const live = (amend && amend.gags || []).filter((g) => g.id.startsWith(code + "-")).length;
-    const r = runwayFor(code, coll);
+    const adhoc = code === "EX", r = adhoc ? null : runwayFor(code, coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const pct = left === null ? 0 : Math.max(3, Math.min(100, Math.round(left / 28 * 100)));
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
-    const firstSlot = left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0] ? slot.dates[0] : "";
+    const firstSlot = !adhoc && left === null && slot && slot.mode === "fill" && slot.dates && slot.dates[0] ? slot.dates[0] : "";
     const low = (left !== null && left < 7) || !!firstSlot;
     return `<a class="rng" href="/gags"><button class="rlbtn" type="button" data-rlist="${code}" data-name="${esc(name)}" aria-label="List ${esc(name)} gags">List</button><img src="/assets/brand-${code.toLowerCase()}-stacked.png" alt="${esc(name)}" loading="lazy">
 <div class="rbar" title="Releases planned ahead (full = 4 weeks or more)"><i style="width:${pct}%;background:${low ? "var(--warn)" : `var(${colour})`}"></i></div>
 <div class="row"><span>Live gags</span><b>${live}</b></div>
 <div class="row"><span>Gags in Core</span><b>${inCore}</b></div>
 ${tgt ? `<div class="row"><span>Target</span><b>${tgt} · ${inCore >= tgt ? "reached ✓" : (tgt - inCore) + " to go"}</b></div><div class="rbar tbar" title="Gags written towards your target"><i style="width:${Math.max(3, Math.min(100, Math.round(inCore / tgt * 100)))}%;background:var(--ok)"></i></div>` : `<div class="row"><span>Target</span><b style="color:var(--muted);font-weight:500">None set · set it in the gag tool</b></div><div class="rbar tbar"><i style="width:0"></i></div>`}
-${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
-  }).join("") + await adHocCards(env, gags, amend);
+${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">First slot ${esc(dayName(firstSlot))}</b></div>` : `<div class="row"><span>Releases planned until</span><b class="${low ? "low" : ""}">${adhoc ? "When news breaks" : r && r.lastDate ? esc(dayName(r.lastDate)) : "Nothing planned"}</b></div>`}</a>`;
+  }).join("");
   const tee = pricing && pricing.prices && pricing.prices["T-SHIRT"];
   // tags: gags releasing within a week whose tags aren't approved yet
   const in7 = new Date(todayMs + 7 * 864e5).toISOString().slice(0, 10);
@@ -1929,7 +1931,7 @@ ${firstSlot ? `<div class="row"><span>No gags written yet</span><b class="low">F
   <div class="tcell"><span class="tl">Items sold (Etsy)</span><b class="tbig">${stats && Array.isArray(stats.orders) ? stats.orders.filter((o) => !/cancel/i.test(String(o.status || ""))).reduce((n, o) => n + (Number(o.qty) || 0), 0) : "—"}</b></div>
   <a class="tcell tdcell" href="/todo"><span class="tl">To-do</span><b class="tbig">${todos.length}</b><span class="small">${todos.length ? esc(todos[0].text).slice(0, 50) : "Nothing on the list"}</span></a>
 </div>`;
-  const lowRanges = DASH_RANGES.filter(([code, coll]) => {
+  const lowRanges = DASH_ALL.filter(([code]) => code !== "EX").filter(([code, coll]) => {
     const r = runwayFor(code, coll);
     const left = r && r.lastDate ? Math.round((Date.parse(r.lastDate + "T00:00:00Z") - todayMs) / 864e5) : null;
     const slot = gags && gags.perCollection && gags.perCollection[coll] && gags.perCollection[coll].next;
