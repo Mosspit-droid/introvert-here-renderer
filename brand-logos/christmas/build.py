@@ -29,16 +29,21 @@ FL, FR, FT, FB = 117 + ox, 4383 + ox, 433 + oy, 1067 + oy      # the logo frame'
 # --- tinsel: a gold garland drooping along the bottom edge, in two swags ---
 tin, d = layer()
 def swag(x0, x1, y, sag):
-    pts = [(x0 + (x1 - x0) * t / 60, y + sag * math.sin(math.pi * t / 60)) for t in range(61)]
+    pts = [(x0 + (x1 - x0) * t / 90, y + sag * math.sin(math.pi * t / 90)) for t in range(91)]
     rng = np.random.default_rng(int(x0))
-    for (x, yy) in pts:
-        for _ in range(16):
-            ang = rng.uniform(0, 2 * math.pi); L = rng.uniform(18, 46)
-            col = (int(rng.uniform(215, 255)), int(rng.uniform(165, 205)), int(rng.uniform(30, 70)), 255)
-            d.line(S(x, yy, x + L * math.cos(ang), yy + L * math.sin(ang)), fill=col, width=4 * K)
-    d.line([(px * K, py * K) for px, py in pts], fill=(180, 120, 20, 255), width=10 * K)
+    d.line([(px * K, py * K) for px, py in pts], fill=(150, 95, 10, 255), width=16 * K)
+    for layer_n, (n, lo, hi, w) in enumerate(((22, 26, 58, 5), (18, 14, 36, 3))):
+        for (x, yy) in pts:
+            for _ in range(n):
+                ang = rng.uniform(0, 2 * math.pi); L = rng.uniform(lo, hi)
+                g = rng.uniform(0, 1)
+                col = (int(200 + 55 * g), int(140 + 75 * g), int(20 + 60 * g), 255) if layer_n == 0 else (255, int(225 + 30 * g), int(120 + 80 * g), 255)
+                d.line(S(x, yy, x + L * math.cos(ang), yy + L * math.sin(ang)), fill=col, width=w * K)
+    for _ in range(40):   # sparkles
+        k = rng.integers(0, len(pts)); x, yy = pts[k]; x += rng.uniform(-30, 30); yy += rng.uniform(-30, 30); r = rng.uniform(6, 11)
+        d.line(S(x - r, yy, x + r, yy), fill=(255, 255, 240, 255), width=3 * K); d.line(S(x, yy - r, x, yy + r), fill=(255, 255, 240, 255), width=3 * K)
 for i in range(3):
-    x0 = FL + 40 + i * (FR - FL - 80) / 3; swag(x0, x0 + (FR - FL - 80) / 3, FB - 10, 95)
+    x0 = FL + 30 + i * (FR - FL - 60) / 3; swag(x0, x0 + (FR - FL - 60) / 3, FB - 14, 120)
 base.alpha_composite(tin.resize((W, H), Image.LANCZOS))
 
 # --- holly on the top-right corner: three leaves and three berries ---
@@ -72,20 +77,47 @@ for (x0, x1), col in zip(((3882, 3959), (3979, 4056), (4076, 4152)), ((214, 28, 
 # the original dots are covered by the baubles
 base.alpha_composite(shade(bau, strength=0.5).resize((W, H), Image.LANCZOS))
 
-# --- the Santa hat on the top-left corner, tipped to the left, its bobble hanging off the corner ---
+# --- the Santa hat on the top-left corner: a soft, floppy cone that folds over to the left, a furry brim over the
+# frame's corner, and a bobble hanging off the edge. Shaded red, with a darker fold.
 hat, d = layer()
-cx, cy = FL + 160, FT + 46    # where the brim sits: over the corner of the frame
-tilt = math.radians(-18)
+cx, cy = FL + 170, FT + 50
+tilt = math.radians(-16)
 def R(x, y): c, s = math.cos(tilt), math.sin(tilt); return (cx + x * c - y * s, cy + x * s + y * c)
-cone = [R(-200, 0), R(-150, -150), R(-40, -250), R(70, -280), R(150, -230), R(200, 0)]
-tip = R(-260, -170)
-d.polygon(S(*sum([R(-200, 0), R(-170, -120), R(-120, -200), tip, R(-40, -240), R(60, -260), R(150, -190), R(200, 0)], ())), fill=(206, 24, 32, 255), outline=EDGE, width=8 * K)
-d.ellipse(S(tip[0] - 52, tip[1] - 52, tip[0] + 52, tip[1] + 52), fill=(248, 248, 244, 255), outline=EDGE, width=7 * K)
-brim = [R(-230, -20), R(230, -20), R(230, 50), R(-230, 50)]
-d.polygon(S(*sum(brim, ())), fill=(248, 248, 244, 255), outline=EDGE, width=8 * K)
+def bez(p0, p1, p2, p3, n=40):
+    return [((1 - t) ** 3 * p0[0] + 3 * (1 - t) ** 2 * t * p1[0] + 3 * (1 - t) * t ** 2 * p2[0] + t ** 3 * p3[0],
+             (1 - t) ** 3 * p0[1] + 3 * (1 - t) ** 2 * t * p1[1] + 3 * (1 - t) * t ** 2 * p2[1] + t ** 3 * p3[1]) for t in [k / n for k in range(n + 1)]]
+tip = (-290, -150)
+# body: right side rises in a curve to a rounded crown, then flops down and left to the tip
+right = bez((205, 0), (215, -150), (150, -280), (20, -300))
+crown = bez((20, -300), (-110, -315), (-230, -260), tip)
+under = bez(tip, (-210, -170), (-190, -110), (-205, 0))
+body = [R(x, y) for x, y in right + crown + under]
+d.polygon(S(*sum(body, ())), fill=(200, 22, 30, 255), outline=EDGE, width=8 * K)
+# the fold: a darker crease where the top flops over
+fold = [R(x, y) for x, y in bez((10, -290), (-60, -235), (-150, -205), (-240, -180)) + bez((-240, -180), (-150, -220), (-70, -260), (10, -290))]
+d.polygon(S(*sum(fold, ())), fill=(140, 12, 20, 255))
+d.line(S(*sum([R(x, y) for x, y in bez((20, -290), (-60, -232), (-150, -200), (-250, -175))], ())), fill=EDGE, width=5 * K)
+# a highlight down the right side
+d.line(S(*sum([R(x, y) for x, y in bez((150, -20), (165, -130), (120, -230), (40, -275))], ())), fill=(240, 90, 90, 255), width=12 * K)
+# brim: a fat, furry band with a scalloped edge
 rng = np.random.default_rng(3)
-for _ in range(90):   # a little fur texture on the brim and bobble
-    x, y = R(rng.uniform(-220, 220), rng.uniform(-12, 42)); d.ellipse(S(x - 5, y - 5, x + 5, y + 5), fill=(222, 222, 216, 255))
-base.alpha_composite(shade(hat).resize((W, H), Image.LANCZOS))
+brim = []
+for k in range(41):
+    t = k / 40; x = -245 + 490 * t
+    brim.append((x, -32 + 7 * math.sin(t * math.pi * 9)))
+for k in range(41):
+    t = 1 - k / 40; x = -245 + 490 * t
+    brim.append((x, 52 + 7 * math.sin(t * math.pi * 11 + 1)))
+d.polygon(S(*sum([R(x, y) for x, y in brim], ())), fill=(246, 245, 240, 255), outline=EDGE, width=8 * K)
+for _ in range(220):
+    x, y = rng.uniform(-232, 232), rng.uniform(-22, 44); px, py = R(x, y); r = rng.uniform(4, 9)
+    d.ellipse(S(px - r, py - r, px + r, py + r), fill=(214, 214, 206, 255) if rng.random() < .6 else (255, 255, 255, 255))
+# bobble
+bx, by = R(*tip)
+d.ellipse(S(bx - 60, by - 60, bx + 60, by + 60), fill=(246, 245, 240, 255), outline=EDGE, width=7 * K)
+for _ in range(90):
+    a_, r_ = rng.uniform(0, 2 * math.pi), rng.uniform(0, 48); px, py = bx + r_ * math.cos(a_), by + r_ * math.sin(a_); r = rng.uniform(4, 8)
+    d.ellipse(S(px - r, py - r, px + r, py + r), fill=(214, 214, 206, 255) if rng.random() < .6 else (255, 255, 255, 255))
+base.alpha_composite(shade(hat, strength=0.45).resize((W, H), Image.LANCZOS))
 
 base = base.crop(base.getbbox()); base.save(f"{OUT}/christmas-wide.png", optimize=True); print("christmas-wide", base.size)
