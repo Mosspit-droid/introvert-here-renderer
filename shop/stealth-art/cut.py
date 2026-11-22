@@ -128,6 +128,31 @@ ims = [scaled(f, s) for f in pcs[:3]] + [scaled(pcs[3], .62 * PPT / pcs[3].shape
 for im in ims: c = Image.new("RGBA", (cw_, ch_), (0, 0, 0, 0)); c.alpha_composite(im, ((cw_ - im.width) // 2, ch_ - 2 - im.height)); cells.append(c)
 save("party-criers", strip(cells), w=cw_, h=ch_, ax=cw_ // 2, base=ch_ - 2, n=4)
 
+# Level 4, the park. These sheets are cut by boxes measured on a 1774 x 887 picture (and scaled to the real size).
+def boxes(path, bs):
+    k_ = key2(path); fx, fy = k_.shape[1] / 1774, k_.shape[0] / 887
+    return k_, [trimmed(k_[round(y0 * fy):round(y1 * fy), round(x0 * fx):round(x1 * fx)]) for x0, x1, y0, y1 in bs], fx, fy
+def sheet_(name, figs, px, names):
+    cells = [scaled(f, px[i] / f.shape[0]) for i, f in enumerate(figs)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+    save(name, strip(cells), items={n: dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i, n in enumerate(names)})
+kp, pf, fx, fy = boxes("park-play.png", [(20, 580, 20, 390), (1215, 1774, 90, 390), (20, 560, 520, 840), (580, 1180, 505, 860), (1240, 1730, 410, 870)])
+sw = kp[round(20 * fy):round(390 * fy), round(620 * fx):round(1170 * fx)].copy(); sx0, sx1, sy0 = round(170 * fx), round(380 * fx), round(78 * fy)      # the swing: frame and seat separately, so the seat can swing
+seat = trimmed(sw[sy0:, sx0:sx1].copy()); sw[sy0:, sx0:sx1, 3] = 0
+sheet_("park-play", pf + [trimmed(sw), seat], [520, 260, 240, 380, 420, 460, 330], ["slide", "roundabout", "seesaw", "castle", "treehouse", "swingframe", "swingseat"])
+_, pt_, _, _ = boxes("park-things.png", [(95, 380, 20, 405), (460, 820, 120, 335), (925, 1295, 20, 385), (1380, 1685, 15, 405), (70, 795, 395, 875), (860, 1700, 440, 870)])
+sheet_("park-things", pt_, [230, 110, 150, 290, 420, 330], ["balloons", "baby", "flask", "loo", "bandstand", "gate"])
+# Background: 0 picnic rug 1 bench 2 ice-cream van 3 bin 4 duck 5 tree 6 tulips 7 lamp post 8 pram 9 kite
+_, pdk, _, _ = boxes("park-decor.png", [(15, 395, 100, 405), (400, 735, 130, 405), (745, 1130, 25, 405), (1170, 1380, 45, 405), (1410, 1760, 135, 385), (20, 360, 465, 865), (375, 745, 620, 830), (785, 965, 455, 865), (1030, 1395, 485, 865), (1450, 1700, 460, 860)])
+dh = [1.6, 1.7, 2.9, 2.3, 1.2, 4.4, 1.4, 3.8, 2.3, 3.0]; cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(pdk)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("park-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
+# Relatives: Gran 0-1, the uncle with the joke 2-3, the aunt 4-5, the cousin 6-7 (idle, then talking)
+_, ppl, _, _ = boxes("park-people.png", [(80, 425, 0, 440), (520, 835, 0, 440), (950, 1185, 0, 440), (1370, 1665, 0, 440), (85, 345, 450, 887), (495, 805, 450, 887), (935, 1170, 450, 887), (1345, 1645, 450, 887)])
+s = 2.05 * PPT / ppl[4].shape[0]; save("park-people", strip([cellf(f, s, 380, 290, 160, 286) for f in ppl]), w=380, h=290, ax=160, base=286, n=8)
+# The girl: crying 0, pointing 1, jumping with her balloons 2, happy with them 3. Her parents: worried 0, delighted 1.
+_, pk_, _, _ = boxes("park-kid.png", [(150, 390, 0, 400), (540, 790, 0, 400), (930, 1215, 0, 400), (1330, 1610, 0, 400), (240, 720, 420, 887), (1010, 1480, 420, 887)])
+s = 1.25 * PPT / pk_[0].shape[0]; save("park-kid", strip([cellf(f, s, 260, 300, 130, 296) for f in pk_[:4]]), w=260, h=300, ax=130, base=296, n=4)
+s = 2.25 * PPT / pk_[4].shape[0]; save("park-parents", strip([cellf(f, s, 360, 290, 180, 286) for f in pk_[4:]]), w=360, h=290, ax=180, base=286, n=2)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -187,7 +212,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("party-criers",):
+for n in ("park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
