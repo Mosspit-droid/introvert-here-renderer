@@ -1103,8 +1103,8 @@ const DZ_PHOTOS = [["Elf costume, howling", "Christmas, aged 2"], ["Paddling poo
   ["In a little suit at a wedding, in floods of tears", "Summer, aged 3"], ["Pirate at a party, grinning", "Summer, aged 4"], ["Sailor suit at the seaside, wailing", "Summer, aged 4"], ["Pumpkin costume, wailing", "Autumn, aged 4"]];
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
 // Sharing a result (Barry, 22 Nov): the phone's own share sheet where there is one, otherwise copy to the clipboard.
-const SHARE_JS = `function ihShare(text,url,btn){var full=text+' '+url;function done(m){var o=btn.textContent;btn.textContent=m;setTimeout(function(){btn.textContent=o},2200)}
- if(navigator.share){navigator.share({text:text,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(full).then(function(){done('Copied. Paste it anywhere.')},function(){done('Couldn’t copy')})}else done('Couldn’t share')}`;
+const SHARE_JS = `function ihShare(text,url,btn,short){var full=text+' '+url;function done(m){var o=btn.textContent;btn.textContent=m;setTimeout(function(){btn.textContent=o},2200)}
+ if(navigator.share){navigator.share({text:text,url:url}).catch(function(){})}else if(navigator.clipboard){navigator.clipboard.writeText(full).then(function(){done(short?'Copied':'Copied. Paste it anywhere.')},function(){done('Couldn’t copy')})}else done('Couldn’t share')}`;
 // The tee shown at the end of a game: a gag that fits it, in the first garment it comes in.
 function gameTee(cat, ids, line) {
   for (const id of ids) { const d = (cat.designs || []).find((x) => x.id === id); if (!d) continue; const t = cat.garmentOrder.find((g) => d.garments[g]); if (t) return `<div class="gtee"><p class="pt step">${line}</p><div class="grid four" style="grid-template-columns:minmax(0,260px);justify-content:center">${tileHtml({ d, t })}</div></div>`; }
@@ -1460,7 +1460,7 @@ $('sq').addEventListener('click',function(){var c=S[i].clueAt;T[i].clue=true;T[i
 $('sp0').addEventListener('click',function(){if(i>0)show(i-1)});$('sn').addEventListener('click',function(){if(i<S.length-1)show(i+1)});
 document.addEventListener('keydown',function(e){if(e.key==='ArrowLeft'&&i>0)show(i-1);if(e.key==='ArrowRight'&&i<S.length-1)show(i+1)});
 $('sa').addEventListener('click',function(){stop();deal();show(0)});
-$('ssh').addEventListener('click',function(){ihShare('I found all five hidden introverts in '+fmt(lastTot)+'. They’d rather I hadn’t. Can you find them?',location.origin+location.pathname,this)});
+$('ssh').addEventListener('click',function(){ihShare('I found all five hidden introverts in '+fmt(lastTot)+'. They’d rather I hadn’t. Can you find them?',location.origin+location.pathname,this,1)});
 setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})();` });
 }
 
