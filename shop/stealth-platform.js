@@ -187,7 +187,7 @@ function park() {
   box(0, W - 1, 28, 29, "#"); box(0, 0, 0, 29, "#"); box(W - 1, W - 1, 0, 29, "#");
   put(2, G, "S");
   // 1. The picnic: the uncle with the joke, Gran wanting her tea (trampoline up to the flask), a baby for the picnic rug
-  row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P"); put(38, G, "V");
+  row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P"); put(39, G, "V");
   // 2. The playground: up the ladder and down the slide, swings over the sandpit, a roundabout that flings you over a crowd
   row(41, 42, 26, "="); row(41, 44, 24, "="); row(42, 43, 23, "o"); put(47, G, "P"); put(49, G, "P");
   pit(58, 70); row(62, 66, 22, "o"); row(74, 76, G, "="); row(79, 84, G, "P");
@@ -199,7 +199,7 @@ function park() {
   // 5. The bandstand: balloons high above the band, who are far too tall to climb past
   put(164, G, "K"); row(166, 170, G, "B"); put(172, G, "M"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "P"); put(183, 23, "P"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
   // 6. The park gate: one last swing over the flower bed, the uncle again, the gate
-  put(200, G, "K"); pit(204, 211); put(217, G, "Z"); put(222, G, "V"); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
+  put(200, G, "K"); pit(204, 211); put(217, G, "Z"); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
   return g.map((r) => r.join(""));
 }
 const FAMILY_ZONES = [
@@ -209,7 +209,7 @@ const FAMILY_ZONES = [
 const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, map: park(), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
   signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 21.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 14.2, t: "THE BANDSTAND" }],
-  roll: 11, sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 24, 26, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 24, x1: 51, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
+  roll: 11, pram: { x: 37.6 }, sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 24, 26, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 24, x1: 51, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
   movers: [{ sw: true, x: 61, y: 26.3, amp: 2.4, per: 3.6, ph: 0 }, { sw: true, x: 67, y: 26.3, amp: 2.4, per: 3.6, ph: 1.8 }, { sw: true, x: 207.5, y: 26.3, amp: 2.7, per: 3.6, ph: 0 }],
   toll: { item: "FLASK OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
   lines: { P: ["Still single, are you?", "When are you getting a proper job?", "You’ve lost weight. Or put it on.", "Are you still doing the computers?"], T: ["I’ve got a joke for you!", "Why did the chicken…", "Wait, you’ll like this one."],
@@ -354,6 +354,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // the door
  var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){win();return}   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
+ if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
  var unseen=P.hood||P.phones>0||P.baby>0||!!P.slide||isDark(zoneAt(P.x,P.y-.5));
  people.forEach(function(p){p.t+=dt;
@@ -544,6 +545,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(it.k==='o')thing('tea',it.x,by+.46,ART['flat-things'].items.tea.w/PPT*1.4);else thing(it.k==='N'?'note':'phones',it.x,by+.42,ART['flat-things'].items[it.k==='N'?'note':'phones'].w/PPT*1.15)});
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
+ if(L.pram&&L.pram.x>x0-3&&L.pram.x<x1+3){var pd=ART['park-decor'],pi=pd.items[8],pim=IMG['park-decor'];if(pim.naturalWidth){var ph2=1.75,pw2=ph2*pi.w/pi.h;c.drawImage(pim,pi.x+1,pd.H-pi.h,pi.w-2,pi.h,L.pram.x-pw2/2,MH-2+.04-ph2,pw2,ph2);if(S.pramBaby)babyPic(L.pram.x-.12,MH-2-.95,.62)}}
  people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
  if(L.roll&&S.rollW&&S.mode==='play'){var rl=Math.max(0,(L.roll-S.rollT)/1.8),bx2=cam+vw/2,by3=camY+1.9;c.fillStyle='#e0303a';rr(bx2-3.1,by3-.38,6.2,.76,.16);c.fill();ink(.08);c.fillStyle='#fff';c.font='800 .36px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ROLL CALL: HOOD UP!',bx2,by3-.02);c.fillStyle=YEL;c.fillRect(bx2-2.9,by3+.24,5.8*rl,.08)}
  movers.forEach(function(m){if(!m.sw)thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things')});
