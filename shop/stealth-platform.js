@@ -5,6 +5,7 @@
 // them. Hood Up (B): sit down, hood tight, and for a couple of seconds nobody notices you, but you cannot move.
 // Steering is a thumb pad (gradual), with extra grip in the air. Low ceilings make Hood Up the only way through.
 // Quiet rooms are checkpoints. Chasers run at you for a few seconds when you come near, then need a rest.
+// Level 3 adds dark rooms (a light switch toggles a room; in the dark nobody sees you) and a plate of food.
 // Coffee: fast legs for six seconds. Phone: a fake call that lets one person or bubble go by for free.
 // Tea tops the battery up; three "plans cancelled" notes are hidden for the thorough; headphones make you un-talk-to-able
 // for a few seconds; office chairs bounce you. Fall down a gap and you lose a quarter and go back to the last safe spot.
@@ -113,6 +114,54 @@ const STREET = { name: "The High Street", out: "the high street", theme: "street
   lanes: [{ x0: 76, x1: 85, every: 4.2 }, { x0: 195, x1: 203, every: 3.6 }],
   lines: { P: ["Is it? It IS you!", "Fancy seeing you here.", "You haven’t changed a bit."], W: ["Have you got two minutes for the donkeys?", "Just a quick survey.", "Can I stop you there?"], T: ["Any requests?", "This next one’s my own.", "Sing along!"], C: ["It’s ME! From SCHOOL!", "We MUST catch up!", "Come here, stranger!"], G: ["He’s just being friendly!", "He likes you!"], bike: ["On your LEFT!", "Ding ding!"], pit: ["You stepped into the road. The driver wanted a word."] } };
 
+// Level 3, the house party: a three-storey house you zigzag up through. Along the hallway, up the stairs, back along
+// the living room, up to the loft, along it and out of the loft window into the garden. 29 squares high.
+// New here: L a light switch (dark rooms hide you, but you cannot see the floor),  f a plate of food (one free pass).
+// The art is all stand-in for now: office people, office chairs for the sofa, bed and trampoline.
+function houseParty() {
+  const W = 120, H = 29, G = 26, F1 = 17, F2 = 8, g = Array.from({ length: H }, () => Array(W).fill("."));
+  const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
+  box(0, W - 1, 27, 28, "#"); box(0, 0, 0, 28, "#"); box(W - 1, W - 1, 0, 28, "#");
+  // The house: roof, outer walls (front door at the bottom left, loft window at the top right), and two upper floors
+  row(15, 93, 0, "#"); box(15, 15, 0, 24, "#"); box(93, 93, 0, 26, "#"); row(93, 93, 7, "."); row(93, 93, 8, ".");
+  box(16, 92, 18, 19, "#"); box(45, 61, 18, 19, "."); box(16, 92, 9, 10, "#"); box(18, 27, 9, 10, ".");
+  put(2, G, "S");
+  // Outside the front door: tea, and someone having a breather on the path
+  row(5, 7, G, "o"); put(10, G, "P");
+  // The hallway: an arguing couple who both shout at you, the cupboard under the stairs, then the stairs
+  put(24, G, "T"); row(29, 31, G, "o"); put(37, G, "T"); put(43, G, "K");
+  row(46, 48, 25, "="); row(50, 56, 23, "="); put(54, 22, "P"); row(58, 60, 21, "=");
+  // The kitchen, on past the foot of the stairs (optional): a plate, the huddle that never leaves, a note, a plate to get back
+  put(61, G, "f"); row(67, 72, G, "P"); put(78, G, "N"); row(80, 82, G, "o"); put(86, G, "f");
+  // First floor, right-hand side (optional): the coat bedroom, dark, with a bed to bounce on
+  put(64, F1, "L"); put(68, F1, "K"); put(80, F1, "^"); put(82, 12, "N"); row(84, 86, F1, "o");
+  // Stepping stones back across the stairwell, heading left
+  row(56, 57, 18, "="); row(51, 52, 18, "="); row(46, 47, 18, "="); put(51, 16, "o");
+  // The living room: the dancing circle, then the sofa and two shelves up into the loft
+  put(41, F1, "w"); put(37, F1, "W"); put(32, F1, "W"); put(27, F1, "W"); put(23, F1, "w"); put(19, F1, "^"); row(21, 22, 13, "="); row(24, 25, 11, "=");
+  // The loft, dark: a light switch, a low beam with the guitar man beyond it, two holes in the floor, a walker, the host
+  put(30, F2, "L"); row(32, 34, F2, "o"); box(40, 48, 5, 6, "#"); put(52, F2, "T"); box(58, 60, 9, 10, "."); put(63, F2, "w"); put(66, F2, "W"); put(69, F2, "w");
+  box(71, 73, 9, 10, "."); put(76, F2, "K"); put(79, F2, "w"); put(80, F2, "c"); put(85, F2, "C"); put(66, 6, "N");
+  // The garden: down from the loft window, a trampoline, the smokers, the back gate
+  row(96, 97, 14, "o"); row(96, 97, 20, "o"); put(100, G, "^"); put(105, G, "P"); put(107, G, "P"); row(109, 111, G, "o"); put(114, G, "D");
+  return g.map((r) => r.join(""));
+}
+const NIGHT = { wall: "#2b3555", dado: "#232b47", rail: "#1b2238", kinds: [], out: true };
+const PARTY_ZONES = [
+  { ...NIGHT, x0: 0, x1: 15, y0: 0, y1: 27, name: "The Front Door" },
+  { x0: 15, x1: 58, y0: 20, y1: 27, name: "The Hallway", wall: "#f1dcc3", dado: "#dcb48c", rail: "#b98a5a", kinds: [11, 2, 12, 11] },
+  { x0: 58, x1: 94, y0: 20, y1: 27, name: "The Kitchen", wall: "#e3eedf", dado: "#bcd5b4", rail: "#8fb184", kinds: [7, 8, 5, 7] },
+  { x0: 45, x1: 62, y0: 11, y1: 20, name: "The Stairs", wall: "#f1dcc3", dado: "#dcb48c", rail: "#b98a5a", kinds: [] },
+  { x0: 62, x1: 94, y0: 11, y1: 18, name: "The Coat Bedroom", wall: "#e6dcef", dado: "#c9b6dc", rail: "#9f84b8", kinds: [12, 11, 2], dark: true },
+  { x0: 15, x1: 45, y0: 11, y1: 18, name: "The Living Room", wall: "#fbe1cf", dado: "#f0b99a", rail: "#cf8a66", kinds: [12, 11, 2, 12] },
+  { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [2, 9, 2], dark: true },
+  { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden" },
+];
+const PARTY = { name: "The House Party", out: "the house party", theme: "party", map: houseParty(), zones: PARTY_ZONES, upstairs: null,
+  intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
+  signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 90, y: 5.2, t: "OUT OF THE WINDOW" }],
+  lines: { P: ["You MADE it!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], pit: ["You fell into a conversation about house prices."] } };
+
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
 
 const CSS = `
@@ -139,7 +188,7 @@ var $=function(i){return document.getElementById(i)},box=$('pg'),cv=$('pgc'),cx=
 try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
 var hd=document.querySelector('header');box.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
 var IMG={},waiting=0,ready=false;Object.keys(ART).forEach(function(n){waiting++;var im=new Image();im.onload=im.onerror=function(){if(--waiting<=0)ready=true};im.src=SRC+n;IMG[n]=im});var img=IMG.hero,PPT=ART['flat-things'].ppt;
-var MAP=L.map,MW=MAP[0].length,MH=MAP.length,street=false,VIEW=11,INK='#1b1b2a',YEL='#fad00c',CREAM='#f6efe0';
+var MAP=L.map,MW=MAP[0].length,MH=MAP.length,street=false,party=false,office=true,lit={},VIEW=11,INK='#1b1b2a',YEL='#fad00c',CREAM='#f6efe0';
 // Feel: squares per second. A full jump clears about 3.6 squares; letting go early cuts it short.
 var RUN=5.6,ACC=46,AIR=78,JUMP=17,GRAV=42,FALLMAX=22,HOODMAX=2.4,HW=.3,HH=1.5;
 function tile(x,y){return y<0?'.':y>=MH?'.':x<0||x>=MW?'#':MAP[y].charAt(x)}
@@ -150,7 +199,7 @@ var S,P,people,items,bubbles,says,movers=[],bikes=[],pops=[],T=0,keys={},btn={},
 function unlocked(){var n=0;try{n=parseInt(localStorage.getItem('ih_hoodini_level')||'0',10)||0}catch(e){}return Math.min(LV.length-1,Math.max(0,n))}
 function unlock(i){try{if(i>unlocked())localStorage.setItem('ih_hoodini_level',String(i))}catch(e){}}
 function load(i){LI=Math.max(0,Math.min(LV.length-1,i));try{localStorage.setItem('ih_hoodini_last',String(LI))}catch(e){}L=LV[LI];MAP=L.map;MW=MAP[0].length;MH=MAP.length;street=L.theme==='street';
- TH=street?{a:'#9aa4af',b:'#737d88',c:'#c5ccd4'}:{a:'#3fa796',b:'#2e7f72',c:'#63c7b5'};reset();menu()}
+ party=L.theme==='party';office=!street&&!party;TH=street?{a:'#9aa4af',b:'#737d88',c:'#c5ccd4'}:party?{a:'#b98a5a',b:'#8f6741',c:'#d6ad7c'}:{a:'#3fa796',b:'#2e7f72',c:'#63c7b5'};lit={};reset();menu()}
 // The level picker, on the opening card and on the card at the end of a level. Levels you have reached can be picked.
 function menu(){var un=unlocked();$('pgintrop').textContent=L.intro;[['pglv',false],['pglv2',true]].forEach(function(q){var el=$(q[0]);el.textContent='';if(LV.length<2||(q[1]&&un<1))return;
   LV.forEach(function(lv,i){var b=document.createElement('button');b.type='button';b.textContent=(i+1)+'. '+lv.name;b.className=i===LI?'on':'';b.disabled=i>un;b.addEventListener('click',function(){load(i);if(q[1]){$('pgcard').hidden=true;cv.focus()}});el.appendChild(b)})});
@@ -159,7 +208,7 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  movers=(L.movers||[]).map(function(m){return {x:m.x0,x0:m.x0,x1:m.x1,y:m.y,w:m.w,v:m.speed,wait:1}});bikes=(L.lanes||[]).map(function(l,i){return {x0:l.x0,x1:l.x1,every:l.every,t:i*1.3,x:null}});
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='P'||c==='W'||c==='T'||c==='C'||c==='G')people.push({k:c,x:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
-  else if('oNHcmu'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
+  else if('oNHcmuf'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
  var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3];if(street&&dogNear){p.fixed=true;p.f=1}});
  P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
@@ -168,7 +217,7 @@ function again(){if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.
 function flat(){S.mode='lost';card(NAME+' didn’t make it.','His spirit has been crushed. By middle management.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
-function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say('Sorry, on a call.',P.x,P.y-2.7);return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
+function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);
@@ -210,13 +259,14 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  if(P.y>MH+2){P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(S.batt<=.001){flat();return}}
  // collecting
  items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>.7||Math.abs(it.y-(P.y-HH/2))>1)return;it.got=true;pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
-  if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}else if(it.k==='N'){S.notes++;say('Plans cancelled!',it.x,it.y-1)}else if(it.k==='c'){P.fast=6;say('Coffee! Fast legs.',it.x,it.y-1)}else if(it.k==='m'){P.shield=true;say('Fake phone call ready.',it.x,it.y-1)}else if(it.k==='u'){P.brolly=true;say('Umbrella! Hold A in the air to float.',it.x,it.y-1)}else{P.phones=7;say('Headphones on.',it.x,it.y-1)}});
+  if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}else if(it.k==='N'){S.notes++;say('Plans cancelled!',it.x,it.y-1)}else if(it.k==='c'){P.fast=6;say('Coffee! Fast legs.',it.x,it.y-1)}else if(it.k==='m'){P.shield=true;say('Fake phone call ready.',it.x,it.y-1)}else if(it.k==='f'){P.shield=true;say('A plate of food. Nobody stops a person with a plate.',it.x,it.y-1)}else if(it.k==='u'){P.brolly=true;say('Umbrella! Hold A in the air to float.',it.x,it.y-1)}else{P.phones=7;say('Headphones on.',it.x,it.y-1)}});
  // a quiet room: a checkpoint, and a breather
- var kx=Math.floor(P.x),ky=Math.floor(P.y-.5);if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
+ var kx=Math.floor(P.x),ky=Math.floor(P.y-.5);if(S.swT>0)S.swT-=dt;if(tile(kx,ky)==='L'){if(!(S.swT>0)&&!S.onSw){var zz=zoneAt(kx,ky);lit[zz.name]=!lit[zz.name];say(lit[zz.name]?'Lights on. Everyone can see you.':'Lights off. Nobody can see you.',kx+.5,ky-1.4)}S.onSw=true;S.swT=.3}else S.onSw=false;
+ if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
  // the door
  var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){win();return}   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
- var unseen=P.hood||P.phones>0;
+ var unseen=P.hood||P.phones>0||isDark(zoneAt(P.x,P.y-.5));
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7;
   if(p.k==='C'){if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=2.2}else if(near&&!unseen&&S.mode==='play'){p.run=3.1;p.wind=.55;say(pick(L.lines.C),p.x,p.y-2.5)}
@@ -231,7 +281,8 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   if(!unseen&&b.life>0&&Math.abs(b.x-P.x)<.62&&b.y>P.y-HH&&b.y<P.y){if(P.inv<=0)say(b.line,P.x,P.y-2.6);hurt('bubble',b.x);b.life=0}return b.life>0});
  says=says.filter(function(s){s.life-=dt;return s.life>0});pops=pops.filter(function(q){q.life-=dt;return q.life>0});if(S.zoneT>0)S.zoneT-=dt;if(S.glow>0)S.glow-=dt}
 
-function zoneAt(x,y){var u2=L.upstairs;if(u2&&y<10.5&&x>=u2.x0&&x<u2.x1)return u2;for(var i=0;i<L.zones.length;i++)if(x<L.zones[i].x1)return L.zones[i];return L.zones[L.zones.length-1]}
+function isDark(z){return !!z.dark&&!lit[z.name]}
+function zoneAt(x,y){var u2=L.upstairs,zi;if(party){for(zi=0;zi<L.zones.length;zi++){var q=L.zones[zi];if(x>=q.x0&&x<q.x1&&y>=q.y0&&y<q.y1+2)return q}return L.zones[0]}if(u2&&y<10.5&&x>=u2.x0&&x<u2.x1)return u2;for(var i=0;i<L.zones.length;i++)if(x<L.zones[i].x1)return L.zones[i];return L.zones[L.zones.length-1]}
 // ---- painting: flat colours and chunky outlines ----
 var W=0,H=0,u=30,vw=13,sceneH=0,sceneY=0,dpr=1,cam=0,camY=0,tall=false,PAD={};
 function lay(){W=box.clientWidth;H=box.clientHeight;dpr=Math.min(3,window.devicePixelRatio||1);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);tall=H>W;
@@ -275,6 +326,12 @@ function poster(x,y,n){var c=cx,k=((n%4)+4)%4,bg=['#f6d9c9','#d5e6dc','#dcdcf0',
  c.fillStyle='#cdb98c';c.fillRect(x-.5,y+1.75,1,.07);c.fillRect(x-.35,y+1.9,.7,.05)}
 // The high street, in Barry's drawings (stealth-art/src/street-*.png).
 function dog(p){var c=cx;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.42,.07,0,0,6.2832);c.fill();thing('dog',p.x-.12,p.y+.03,null,true,'street-things')}
+function partyZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,i;if(z.x1<x0||z.x0>x1)return;c.fillStyle=z.wall;c.fillRect(z.x0,z.y0,zw,z.y1-z.y0+(z.out?2:0));
+ if(z.out){for(i=0;i<zw*1.2;i++){var sx=z.x0+((i*37)%(zw*10))/10,sy=1+((i*53)%140)/10;c.fillStyle='rgba(255,255,255,'+(.35+((i*7)%5)*.1)+')';c.fillRect(sx,sy,.08,.08)}c.fillStyle='#f6efe0';c.beginPath();c.arc(z.x0+zw*.6,4,1.1,0,6.2832);c.fill();c.fillStyle=z.wall;c.beginPath();c.arc(z.x0+zw*.6+.45,3.75,1,0,6.2832);c.fill();
+  c.fillStyle=z.dado;for(i=Math.floor(z.x0);i<z.x1;i++){c.fillRect(i+.08,z.y1-2.2,.84,2.2);c.beginPath();c.moveTo(i+.08,z.y1-2.2);c.lineTo(i+.5,z.y1-2.6);c.lineTo(i+.92,z.y1-2.2);c.fill()}return}
+ c.fillStyle=z.dado;c.fillRect(z.x0,z.y1-2.8,zw,2.8);c.fillStyle=z.rail;c.fillRect(z.x0,z.y1-2.88,zw,.12);
+ for(i=Math.floor(Math.max(z.x0,x0)/7)*7+2;i<Math.min(z.x1,x1);i+=7){if(i<z.x0+1||i>z.x1-2||solid(i,Math.floor(z.y0+1.4)))continue;c.fillStyle='#fff8dc';c.beginPath();c.moveTo(i-.5,z.y0+.9);c.lineTo(i+.5,z.y0+.9);c.lineTo(i+.3,z.y0+.45);c.lineTo(i-.3,z.y0+.45);c.closePath();c.fill();c.fillStyle='rgba(27,27,42,.5)';c.fillRect(i-.03,z.y0,.06,.45)}
+ if(z.kinds.length)for(i=Math.floor(Math.max(z.x0,x0-5)/5);i*5<Math.min(z.x1,x1);i++){var bx=i*5+1,fy=Math.floor(z.y1);if(bx<z.x0+.3||bx+3.6>z.x1||!solid(Math.floor(bx+1),fy)||!solid(Math.floor(bx+2.5),fy)||solid(Math.floor(bx+1.7),fy-1))continue;backdrop(bx,z.y1,z.kinds[((i*7)%z.kinds.length+z.kinds.length)%z.kinds.length],null)}}
 function streetZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,base=MH-2,i;if(z.x1<x0||z.x0>x1)return;c.fillStyle=z.wall;c.fillRect(z.x0,0,zw,MH);
  for(i=Math.floor(Math.max(z.x0,x0)/11)*11;i<Math.min(z.x1,x1);i+=11){if(i<z.x0)continue;c.fillStyle='rgba(255,255,255,.85)';c.beginPath();c.ellipse(i+3,3+(i%3)*.9,1.5,.42,0,0,6.2832);c.ellipse(i+4.1,3.3+(i%3)*.9,1.1,.36,0,0,6.2832);c.fill()}
  var sh=ART['street-shops'],im=IMG['street-shops'];if(!im||!im.naturalWidth)return;var k=1/sh.ppt;c.globalAlpha=.62;
@@ -292,12 +349,12 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  c.save();c.beginPath();c.rect(0,sceneY,W,sceneH);c.clip();c.translate(0,sceneY);c.scale(u,u);c.translate(-cam,-camY);
  var x0=Math.floor(cam)-1,x1=Math.ceil(cam+vw)+1,x,y,t;
  // the wall, with windows on the sky
- L.zones.concat(L.upstairs?[L.upstairs]:[]).forEach(function(z,zi){if(street){streetZone(z,x0,x1);return}if(z.x1<x0||z.x0>x1)return;var up=z===L.upstairs,zy0=0,zy1=up?9:MH,zw=z.x1-z.x0;c.fillStyle=z.wall;c.fillRect(z.x0,zy0,zw,zy1-zy0);c.fillStyle=z.dado;c.fillRect(z.x0,zy1-(up?2.8:4.8),zw,2.8);c.fillStyle=z.rail;c.fillRect(z.x0,zy1-(up?2.88:4.88),zw,.12);
+ L.zones.concat(L.upstairs?[L.upstairs]:[]).forEach(function(z,zi){if(street){streetZone(z,x0,x1);return}if(party){partyZone(z,x0,x1);return}if(z.x1<x0||z.x0>x1)return;var up=z===L.upstairs,zy0=0,zy1=up?9:MH,zw=z.x1-z.x0;c.fillStyle=z.wall;c.fillRect(z.x0,zy0,zw,zy1-zy0);c.fillStyle=z.dado;c.fillRect(z.x0,zy1-(up?2.8:4.8),zw,2.8);c.fillStyle=z.rail;c.fillRect(z.x0,zy1-(up?2.88:4.88),zw,.12);
   if(!up&&z.x0>0){c.fillStyle=z.rail;c.fillRect(z.x0-.3,0,.6,MH);c.fillStyle='rgba(255,255,255,.25)';c.fillRect(z.x0-.3,0,.12,MH)}});
  // the office beyond: faded furniture standing against the wall. It stays put (par=0): Barry found it sliding behind the floor distracting.
- var par=0;c.save();c.translate(par,0);if(!street)for(var bi=Math.floor((x0-par)/5)-1;bi<(x1-par)/5+1;bi++)[MH-2,9].forEach(function(base,st){var bx=bi*5+1.2+((bi*13+st*7)%3)*.5,wx=bx+par;if(wx<1||wx>MW-3)return;if(st===1&&!(solid(Math.floor(wx),9)&&solid(Math.floor(wx+2),9)))return;if(st===0&&!(solid(Math.floor(wx),MH-2)&&solid(Math.floor(wx+2),MH-2)))return;var z=zoneAt(wx+1,base-1);if(wx<z.x0+.4||wx+3.6>z.x1)return;backdrop(bx,base,z.kinds[(bi*7+st*3+700)%z.kinds.length],z.tones)});c.restore();
+ var par=0;c.save();c.translate(par,0);if(office)for(var bi=Math.floor((x0-par)/5)-1;bi<(x1-par)/5+1;bi++)[MH-2,9].forEach(function(base,st){var bx=bi*5+1.2+((bi*13+st*7)%3)*.5,wx=bx+par;if(wx<1||wx>MW-3)return;if(st===1&&!(solid(Math.floor(wx),9)&&solid(Math.floor(wx+2),9)))return;if(st===0&&!(solid(Math.floor(wx),MH-2)&&solid(Math.floor(wx+2),MH-2)))return;var z=zoneAt(wx+1,base-1);if(wx<z.x0+.4||wx+3.6>z.x1)return;backdrop(bx,base,z.kinds[(bi*7+st*3+700)%z.kinds.length],z.tones)});c.restore();
  // strip lights along each ceiling
- if(!street)for(x=Math.floor(x0/6)*6+2;x<x1;x+=6){c.fillStyle='#fff8dc';c.strokeStyle='#d9c594';c.lineWidth=.05;rr(x,.25,2.2,.2,.08);c.fill();c.stroke();if(solid(x+1,10)&&!solid(x+1,11)){rr(x,11.12,2.2,.2,.08);c.fill();c.stroke()}}
+ if(office)for(x=Math.floor(x0/6)*6+2;x<x1;x+=6){c.fillStyle='#fff8dc';c.strokeStyle='#d9c594';c.lineWidth=.05;rr(x,.25,2.2,.2,.08);c.fill();c.stroke();if(solid(x+1,10)&&!solid(x+1,11)){rr(x,11.12,2.2,.2,.08);c.fill();c.stroke()}}
  for(x=Math.floor(x0/9)*9+3;x<x1;x+=9)[1.4,MH-9.4].forEach(function(wy0,k){if(!zoneAt(x+1.5,wy0+1).win)return;if(solid(x+1,Math.floor(wy0+1))||solid(x+1,Math.floor(wy0+3.4))||solid(x+1,Math.floor(wy0-.6)))return;
   c.fillStyle='#8fd3f4';rr(x,wy0,3,3.2,.12);c.fill();ink();c.fillStyle='#fff';c.beginPath();c.ellipse(x+.9+((x*7+k*3)%5)*.2,wy0+.9,.5,.2,0,0,6.2832);c.ellipse(x+1.9,wy0+1.7,.6,.22,0,0,6.2832);c.fill();c.fillStyle=INK;c.fillRect(x+1.46,wy0,.08,3.2);c.fillRect(x,wy0+1.56,3,.08);
   if(!solid(x+6,Math.floor(wy0+1))&&!solid(x+6,Math.floor(wy0+2.4))&&(Math.floor(x/9)+k)%5!==2){poster(x+6,wy0+.3,Math.floor(x/9)*2+k)}
@@ -311,6 +368,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  // tiles
  for(y=Math.max(0,Math.floor(camY)-1);y<Math.min(MH,Math.ceil(camY+VIEW)+2);y++)for(x=Math.max(0,x0);x<Math.min(MW,x1);x++){t=MAP[y].charAt(x);
   if(street&&'F^KD'.indexOf(t)>=0){streetTile(t,x,y)}
+  else if(t==='L'){var on=!isDark(zoneAt(x,y));c.fillStyle='#fff';rr(x+.3,y+.05,.4,.55,.06);c.fill();ink(.06);c.fillStyle=on?YEL:'#8a8f9c';rr(x+.42,y+(on?.12:.32),.16,.2,.04);c.fill();ink(.04)}
   else if(t==='F'){thing('cabinet',x+.5,y+1.02,1.04)}
   else if(t==='^'){thing('chair',x+.5,y+1.02,1.45)}
   else if(t==='D'){thing('exit',x+.5,y+1.02)}
@@ -328,7 +386,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
-  if(it.k==='u')thing('brolly',it.x,by+.6,1.1,false,'street-things');
+  if(it.k==='f'){c.fillStyle='#fff';c.beginPath();c.ellipse(it.x,by+.2,.42,.14,0,0,6.2832);c.fill();ink(.06);c.fillStyle='#e9a23b';c.beginPath();c.arc(it.x-.12,by+.08,.14,3.14,6.2832);c.fill();ink(.05);c.fillStyle='#d23b3b';c.beginPath();c.arc(it.x+.14,by+.1,.1,0,6.2832);c.fill();ink(.05);c.fillStyle='#6fa55a';c.beginPath();c.arc(it.x+.02,by+.02,.08,0,6.2832);c.fill();ink(.04)}
+  else if(it.k==='u')thing('brolly',it.x,by+.6,1.1,false,'street-things');
   else if(it.k==='c')thing('coffee',it.x,by+.48);else if(it.k==='m')thing('phone',it.x,by+.48);
   else if(it.k==='o')thing('tea',it.x,by+.46,ART['flat-things'].items.tea.w/PPT*1.4);else thing(it.k==='N'?'note':'phones',it.x,by+.42,ART['flat-things'].items[it.k==='N'?'note':'phones'].w/PPT*1.15)});
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
@@ -341,6 +400,9 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   var wob=calm?0:Math.sin(T*9+b.x)*.07,nx=b.x,ny=b.y+wob;c.fillStyle='#7a2fd6';c.strokeStyle=INK;c.lineWidth=.06;
   c.beginPath();c.ellipse(nx-.2,ny+.2,.15,.11,-.4,0,6.2832);c.fill();c.stroke();c.beginPath();c.ellipse(nx+.22,ny+.12,.15,.11,-.4,0,6.2832);c.fill();c.stroke();
   c.lineWidth=.07;c.beginPath();c.moveTo(nx-.07,ny+.18);c.lineTo(nx-.07,ny-.3);c.moveTo(nx+.35,ny+.1);c.lineTo(nx+.35,ny-.38);c.stroke();c.lineWidth=.13;c.beginPath();c.moveTo(nx-.07,ny-.28);c.lineTo(nx+.35,ny-.36);c.stroke()});
+ // dark rooms: you cannot see the floor, and nobody can see you. The light switches and Hoodini stay visible.
+ if(party)L.zones.forEach(function(z){if(!isDark(z)||z.x1<x0||z.x0>x1)return;c.fillStyle='rgba(10,10,22,.9)';c.fillRect(z.x0,z.y0,z.x1-z.x0,z.y1-z.y0);c.fillStyle='rgba(10,10,22,.96)';c.fillRect(z.x0,z.y1,z.x1-z.x0,2);
+  for(var ly=z.y0;ly<z.y1;ly++)for(var lx=Math.max(z.x0,x0);lx<Math.min(z.x1,x1);lx++)if(tile(lx,ly)==='L'){var gl=c.createRadialGradient(lx+.5,ly+.3,0,lx+.5,ly+.3,1.1);gl.addColorStop(0,'rgba(250,208,12,.8)');gl.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=gl;c.fillRect(lx-.7,ly-.9,2.4,2.4);c.fillStyle='#fff';rr(lx+.3,ly+.05,.4,.55,.06);c.fill()}});
  // you
  var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
@@ -358,7 +420,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  c.strokeStyle=CREAM;c.lineWidth=2;rr(hx-188,hy+6,64,16,4);c.stroke();c.fillStyle=CREAM;c.fillRect(hx-122,hy+10,3,8);c.fillStyle=S.glow>0?'#fff':S.batt>.3?YEL:'#ff6a4f';c.fillRect(hx-185,hy+9,58*Math.max(0,S.batt),10);
  c.fillStyle=CREAM;c.font='700 12px Montserrat,system-ui,sans-serif';c.textAlign='left';c.textBaseline='middle';c.fillText('TEA '+S.tea,hx-110,hy+15);c.fillText('NOTES '+S.notes+'/3',hx-62,hy+15);
  var zn=zoneAt(P.x,P.y-.5);if(S.zone!==zn.name){S.zone=zn.name;S.zoneT=S.mode==='ready'?0:2.6}if(S.zoneT>0){var za=Math.min(1,S.zoneT*2,(2.6-S.zoneT)*4);c.globalAlpha=Math.max(0,za);c.font='800 '+(tall?15:18)+'px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var zt=zn.name.toUpperCase(),zw2=c.measureText(zt).width+36;c.fillStyle='rgba(27,27,42,.82)';rr(W/2-zw2/2,sceneY+sceneH*.16,zw2,36,10);c.fill();c.fillStyle=YEL;c.fillText(zt,W/2,sceneY+sceneH*.16+19);c.globalAlpha=1}
- var ups=[];if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push('PHONE CALL');if(P.brolly)ups.push('UMBRELLA');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+44,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+55.5)}
+ var ups=[];if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push(party?'PLATE OF FOOD':'PHONE CALL');if(P.brolly)ups.push('UMBRELLA');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+44,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+55.5)}
  if(look){c.font='800 12px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var lw=c.measureText('LOOKING AROUND · GAME PAUSED').width+24;c.fillStyle=YEL;rr(W/2-lw/2,sceneY+sceneH-34,lw,24,12);c.fill();c.fillStyle='#1c1611';c.fillText('LOOKING AROUND · GAME PAUSED',W/2,sceneY+sceneH-21)}
  if(!ready){c.fillStyle=CREAM;c.textAlign='center';c.font='600 14px Montserrat,system-ui,sans-serif';c.fillText('Unrolling the carpet…',W/2,sceneY+sceneH/2)}
  // the buttons, laid out like an old handheld
@@ -393,7 +455,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
