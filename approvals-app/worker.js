@@ -40,6 +40,7 @@ export default {
     ctx.waitUntil(ipOrderWatch(env).catch(() => {}));
     ctx.waitUntil(shopIpTick(env).catch(() => {}));
     ctx.waitUntil(shopPhotoTick(env).catch(() => {}));
+    ctx.waitUntil(siteBuildTick(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
     ctx.waitUntil(ipReleaseTick(env).catch(() => {}));
     ctx.waitUntil(coreRefreshTick(env).catch(() => {}));
@@ -61,6 +62,7 @@ export default {
       if (pathname === "/api/pending" && method === "POST") return await ingest(request, env, ctx, url);
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
+      if (pathname === "/api/site-built" && method === "POST") return await siteBuilt(request, env);
       if (pathname === "/api/template-result" && method === "POST") return await templateResult(request, env);
       if (pathname === "/api/ip-print-result" && method === "POST") return await ipPrintResult(request, env);
       if (pathname === "/api/photo-job" && method === "GET") return checkSecret(request, env) ? json((await env.PENDING.get("photo-job", "json")) || {}) : json({ error: "bad secret" }, 403);
@@ -238,6 +240,7 @@ export default {
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
+      if (pathname === "/api/site-build" && method === "POST") { try { return json(await siteBuildQueue(env, (await request.json().catch(() => ({}))).codes)); } catch (e) { return json({ error: String(e.message || e).slice(0, 200) }, 400); } }
       if (pathname === "/api/shop-catalog-check" && method === "POST") { try { await spKick(env); return json(await shopCatalogRun(env, { force: true })); } catch (e) { return json({ ok: false, error: String(e.message || e).slice(0, 200) }, 500); } }
       if (pathname === "/api/shop-order-send" && method === "POST") return await shopOrderSend(request, env);
       if (pathname === "/api/tool-run" && method === "POST") return await toolRun(request, env);
@@ -312,7 +315,8 @@ async function lockOp(request, env) {
     await env.PENDING.put(key, JSON.stringify({ id, at: now }));
     // Gags finished in the last 10 minutes ("ID:MODE"), so a stale read of Core can't make the next run redo one.
     const done = ((await env.PENDING.get(key + ":done", "json")) || []).filter((x) => now - x.at < 10 * 60e3);
-    return json({ ok: true, recent: done.map((x) => x.job).join(",") });
+    const site = name === "builder" ? await siteBuildNext(env) : "";
+    return json({ ok: true, recent: done.map((x) => x.job).join(","), site });
   }
   if (action === "pass" || action === "free") {
     if (cur && (cur.id === id || !id)) await env.PENDING.put(key, JSON.stringify({ ...cur, passed: true, at: now }));
@@ -7653,6 +7657,7 @@ async function shopCatalogRun(env, opt) {
     try {
       const [R, P, M] = [await coreTable(env, "LISTING_REGISTRY_TABLE"), await coreTable(env, "PRODUCT_RULES"), await coreTable(env, "MOCKUP_PAGES")];
       if (R.col("STATUS") < 0 || !R.rows.length) throw new Error("Core's registry came back empty");
+      await siteReplaceOld(env, R).catch(() => {});
       const active = {};
       for (let off = 0; off < 1000; off += 100) {
         const b = await etsyTool(env, "/shops/" + IP.shop + "/listings", "GET", null, { state: "active", limit: 100, offset: off, includes: "Images" });
@@ -7662,14 +7667,16 @@ async function shopCatalogRun(env, opt) {
       }
       const rc = (k) => R.col(k), want = [], notes = []; let ip = 0;
       for (const r of R.rows) {
-        if (String(r[rc("STATUS")]) !== "LIVE") continue;
+        const stat = String(r[rc("STATUS")]);
+        if (stat !== "LIVE" && stat !== "SITE_ONLY") continue;
+        if (stat === "SITE_ONLY" && R.rows.some((x) => String(x[rc("STATUS")]) === "LIVE" && String(x[rc("PRODUCT_CODE")]) === String(r[rc("PRODUCT_CODE")]))) continue;   // its Etsy listing is out: that one wins
         const code = String(r[rc("PRODUCT_CODE")]), collection = String(r[rc("COLLECTION")]), eid = String(r[rc("ETSY_LISTING_ID")] || ""), pid = String(r[rc("PRINTIFY_PRODUCT_ID")] || "");
         if (collection === "IN PERSON") { ip++; continue; }
         if (!SC_COLL[collection]) { notes.push(code + ": range " + collection + " isn't set up in the shop"); continue; }
         if (!SC_GARMENTS[code.slice(9)]) { notes.push(code + ": not a garment the shop knows"); continue; }
-        if (!active[eid]) { notes.push(code + ": LIVE in Core but not active on Etsy"); continue; }
+        if (stat === "LIVE" && !active[eid]) { notes.push(code + ": LIVE in Core but not active on Etsy"); continue; }
         if (!pid) { notes.push(code + ": no Printify product in Core"); continue; }
-        want.push({ code, c: collection, stem: String(r[rc("TITLE_STEM")] || "").trim(), text: String(r[rc("GAG_TEXT")] || "").trim(), pid, eid });
+        want.push({ code, c: collection, stem: String(r[rc("TITLE_STEM")] || "").trim(), text: String(r[rc("GAG_TEXT")] || "").trim(), pid, eid: stat === "SITE_ONLY" ? "" : eid, site: stat === "SITE_ONLY" });
       }
       const feat = {}; P.rows.forEach((r) => { feat[r[P.col("COLLECTION")] + "|" + r[P.col("PRODUCT_TYPE")]] = String(r[P.col("PRODUCT_FEATURES")] || "").trim(); });
       const pages = {}; M.rows.forEach((r) => { const k = r[M.col("COLLECTION")] + "|" + r[M.col("PRODUCT_TYPE")]; (pages[k] = pages[k] || []).push([Number(r[M.col("POSITION")]), String(r[M.col("PAGE_NAME")] || "")]); });
@@ -7712,12 +7719,13 @@ async function shopCatalogRun(env, opt) {
     const two = (n) => String(n).padStart(2, "0"), base = "/p/" + w.code + "/";
     let pics = o && names.length ? names.filter(([pos]) => pos <= o.n).map(([pos, name]) => ({ u: base + two(pos) + ".jpg?v=" + o.at, t: base + two(pos) + "t.jpg?v=" + o.at, a: name })) : [];
     if (o && names.length && o.n !== names[names.length - 1][0]) problems.push(w.code + ": Canva has " + o.n + " mockup pages but Core's MOCKUP_PAGES lists up to " + names[names.length - 1][0]);
+    if (!pics.length && w.site) { unbuilt++; continue; }   // built for the site only: shown once its Canva photos are stored
     if (!pics.length) { pics = photos[w.eid] || []; etsyOnly++; }
     if (!pics.length) problems.push(w.code + ": no photos");
     const gal = scGallery(pics, g.variants, coll);
     if (!gal.mainColour) problems.push(w.code + ": main colour " + SC_MAIN[coll] + " not offered, so its lifestyle photos are hidden");
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
-    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.pid, etsyId: w.eid, etsyUrl: "https://www.etsy.com/listing/" + w.eid,
+    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site,
       priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
       features: (S.feat || {})[w.c + "|" + type] || "", pAt: g.pAt };
   }
@@ -7746,6 +7754,10 @@ async function shopCatalogCard(env) {
 ${S.waiting ? `<div class="small">${S.waiting} new garment${S.waiting === 1 ? "" : "s"} still being added.</div>` : ""}
 ${S.etsyOnly ? `<div class="small">${S.etsyOnly} garment${S.etsyOnly === 1 ? " is" : "s are"} showing Etsy's photos only: the full Canva set hasn't been stored yet.</div>` : ""}
 ${S.error ? `<div class="status bad">Last check failed: ${esc(S.error)}</div>` : ""}
+${await (async () => { const B = await env.PENDING.get(SB, "json"); if (!B) return "";
+  const ok = (B.log || []).filter((x) => x.ok).length, bad = (B.log || []).filter((x) => !x.ok).slice(0, 3);
+  return `<div class="small" style="margin-top:6px">Built for the site ahead of Etsy: ${ok} garment${ok === 1 ? "" : "s"}${B.cur ? " · building " + esc(B.cur.code) + " now" : ""}${(B.queue || []).length ? " · " + B.queue.length + " waiting" : ""}.</div>` +
+    bad.map((x) => `<div class="status bad">${esc(x.code)} wasn't built for the site: ${esc(x.msg || "")}</div>`).join(""); })()}
 ${S.keyBad ? `<div class="status bad">Printify refused the saved Printify key. The shop uses it to place orders, so save a new one under Shop keys below (Printify: My account › Connections › API tokens).</div>` : ""}
 ${await (async () => { const Q = (await env.PENDING.get(SP.q, "json")) || {}, L = Q.log || [], last = L[0];
   return `<div class="small" style="margin-top:6px">Photos: ${Q.cur ? "saving " + esc(Q.cur.code) + " now" + ((Q.queue || []).length ? ", " + Q.queue.length + " more waiting" : "") : (Q.queue || []).length ? Q.queue.length + " garment(s) waiting" : "all saved"}${last ? " · last: " + esc(last.code) + (last.err ? " failed (" + esc(last.err) + ")" : " ✓ " + esc(when(last.at))) : ""}. New and regenerated mockups are copied to the site by themselves.</div>`; })()}
@@ -7781,7 +7793,7 @@ async function shopPhotoTick(env) {
     for (const d of (r && r.items) || []) { const m = /^MOCKUPS ((IH|SH|PC|OS|EX)-\d{5}-[A-Z-]+)$/.exec(d.title || ""); if (m && !newest[m[1]]) newest[m[1]] = d; }
     for (const [code, d] of Object.entries(newest)) {
       const have = own[code], upd = Number(d.updated_at || 0) * 1000;
-      if (now - upd < SP.settle) continue;   // still being made: wait until it has stood for 20 minutes
+      if (now - upd < SP.settle) { Q.scanAt = now - SP.scanEvery + 25 * 60e3; continue; }   // still being made: look again in 25 minutes
       if (have && (have.design === d.id || (!have.design && upd <= (have.at || 0) * 1000))) continue;
       if (!Q.queue.some((x) => x.code === code)) Q.queue.push({ code, design: d.id });
     }
@@ -7823,4 +7835,96 @@ async function shopPhotoTick(env) {
     delete Q.cur;
   }
   await env.PENDING.put(SP.q, JSON.stringify(Q));
+}
+
+// ---------- Site-only builds (Barry, 20-22 Nov: the site launches ahead of Etsy) ----------
+// A garment queued here is built by the listing builder for the site only: print file, Printify product (not published to
+// Etsy) and the Canva "MOCKUPS <code>" design, with a LISTING_REGISTRY row whose STATUS is SITE_ONLY and no Etsy listing.
+// The builder asks for one when it takes its lock (the lock reply carries "site"). On the garment's own Etsy date the
+// builder makes the Etsy listing as normal (a SITE_ONLY row doesn't count as built), and the app then marks the old row
+// SITE_REPLACED so the site moves to the Etsy listing's product.
+const SB = "site-builds";
+async function siteBuildQueue(env, codes) {
+  const list = (Array.isArray(codes) ? codes : [codes]).map((c) => String(c || "").trim().toUpperCase()).filter((c) => /^(IH|SH|PC|OS|EX)-\d{5}-(T-SHIRT|LONG-SLEEVE|SWEATSHIRT|HOODIE)$/.test(c));
+  if (!list.length) throw new Error("No garment codes given.");
+  const Q = (await env.PENDING.get(SB, "json")) || { queue: [], log: [] };
+  const add = list.filter((c) => !Q.queue.includes(c) && !(Q.cur && Q.cur.code === c));
+  Q.queue = Q.queue.concat(add); await env.PENDING.put(SB, JSON.stringify(Q));
+  await siteKick(env);
+  return { ok: true, queued: add.length, waiting: Q.queue.length };
+}
+// Start the builder when site garments are waiting (it otherwise starts by itself only at 8am and after a finished run).
+async function siteKick(env) {
+  const Q = await env.PENDING.get(SB, "json"); if (!Q || Q.cur || !(Q.queue || []).length) return;
+  const lk = await env.PENDING.get("lock:builder", "json");
+  if (lk && !lk.passed && Date.now() - lk.at < 20 * 60e3) return;   // it's busy: the next site garment goes when it next takes the lock
+  await amendHook(env, { action: "kick" }).catch(() => {});
+}
+async function siteBuildNext(env) {
+  const Q = await env.PENDING.get(SB, "json"); if (!Q) return "";
+  const now = Date.now();
+  if (Q.cur && (Q.cur.pid || now - Q.cur.at < 45 * 60e3)) return "";   // one at a time: this one is still being built or finished off
+  if (Q.cur) { Q.log = [{ code: Q.cur.code, ok: false, at: now, msg: "The builder didn't report back within 45 minutes." }].concat(Q.log || []).slice(0, 40); delete Q.cur; }
+  const code = (Q.queue || []).shift();
+  if (code) Q.cur = { code, at: now };
+  await env.PENDING.put(SB, JSON.stringify(Q));
+  return code || "";
+}
+// The builder reports straight after making the Printify product (every build; only a site-only one is acted on). It
+// stops there for a site-only build, so the app finishes it: frees the builder, makes the Canva mockup design, adds the
+// SITE_ONLY row to the registry, then starts the builder again for the next one.
+async function siteBuilt(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await readBody(request);
+  if (str(d.mode) !== "SITE") return json({ ok: true, ignored: true });
+  const Q = (await env.PENDING.get(SB, "json")) || { queue: [], log: [] }, code = str(d.code);
+  const keep = ["pid", "printDesign", "collection", "type", "display", "stem", "text", "release", "tpl", "gagId", "header", "body", "footer"];
+  Q.cur = Object.assign({ code, at: Date.now(), stage: "mockups" }, Object.fromEntries(keep.map((k) => [k, k === "text" ? String(d[k] || "") : str(d[k])])));
+  await env.PENDING.put(SB, JSON.stringify(Q));
+  const L = await env.PENDING.get("lock:builder", "json"); if (L) await env.PENDING.put("lock:builder", JSON.stringify({ ...L, passed: true, at: Date.now() }));
+  return json({ ok: true });
+}
+async function siteBuildTick(env) {
+  const Q = await env.PENDING.get(SB, "json"); if (!Q || !Q.cur || !Q.cur.pid) return;
+  const c = Q.cur, fail = async (msg) => { Q.log = [{ code: c.code, ok: false, pid: c.pid, at: Date.now(), msg }].concat(Q.log || []).slice(0, 40); delete Q.cur; await env.PENDING.put(SB, JSON.stringify(Q)); await siteKick(env); };
+  try {
+    if (Date.now() - c.at > 2 * 3600e3) return await fail("Finishing it off took over 2 hours (Printify product " + c.pid + " was made).");
+    if (c.stage === "mockups" && !c.job) {
+      const data = { GAG_ID: { type: "text", text: c.gagId }, GAG_TEXT: { type: "text", text: c.text } };
+      ["header", "body", "footer"].forEach((k) => { if (c[k]) data["GAG_" + k.toUpperCase()] = { type: "text", text: c[k] }; });
+      const j = await canvaTool(env, "/v1/autofills", "POST", { brand_template_id: c.tpl, title: "MOCKUPS " + c.code, data });
+      if (!j || !j.job || !j.job.id) return await fail("Canva didn't start the mockups: " + JSON.stringify(j).slice(0, 160));
+      c.job = j.job.id;
+    } else if (c.stage === "mockups") {
+      const j = await canvaTool(env, "/v1/autofills/" + c.job), st = j && j.job && j.job.status;
+      if (st === "success") { c.design = j.job.result && j.job.result.design && j.job.result.design.id; c.stage = "core"; }
+      else if (st !== "in_progress") return await fail("Canva mockups " + (st || "failed") + " " + JSON.stringify((j && j.job && j.job.error) || "").slice(0, 120));
+    }
+    if (c.stage === "core") {
+      const R = await coreTable(env, "LISTING_REGISTRY_TABLE");
+      if (!R.rows.some((r) => String(r[R.col("PRODUCT_CODE")]) === c.code)) {
+        const row = new Array(R.h.length).fill(""), set = (k, v) => { const i = R.col(k); if (i >= 0) row[i] = v; };
+        set("PRODUCT_CODE", c.code); set("COLLECTION", c.collection); set("PRODUCT_TYPE", c.type); set("PRODUCT_DISPLAY_NAME", c.display); set("TITLE_STEM", c.stem); set("GAG_TEXT", c.text);
+        set("PRINTIFY_PRODUCT_ID", c.pid); set("PIPELINE_STATUS", "SITE_BUILT"); set("LAST_SYNCED_AT", new Date().toISOString().slice(0, 19) + "Z"); set("CANVA_MASTER_ID", c.printDesign);
+        set("ASSET_FILENAME", c.code + ".png"); set("CANVA_MOCKUP_DESIGN_ID", c.design || ""); set("RELEASE_DATE", c.release); set("STATUS", "SITE_ONLY");
+        await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/rows/add", "POST", { index: null, values: [row] });
+      }
+      Q.log = [{ code: c.code, ok: true, pid: c.pid, design: c.design, at: Date.now() }].concat(Q.log || []).slice(0, 40); delete Q.cur;
+      await env.PENDING.put(SB, JSON.stringify(Q));
+      await scKick(env); await spKick(env);
+      if (!(Q.queue || []).length) await notify(env, "", "Built for the site: " + c.code, "Printify product and mockups made (not on Etsy). Its photos reach the site within a couple of hours.", "white_check_mark");
+      await siteKick(env);
+      return;
+    }
+    await env.PENDING.put(SB, JSON.stringify(Q));
+  } catch (e) { await fail(String(e.message || e).slice(0, 200)); }
+}
+// When a garment built for the site early gets its Etsy listing (LIVE), retire the site-only row so the site follows the
+// Etsy product. Runs with the catalogue's Core read.
+async function siteReplaceOld(env, R) {
+  const rc = (k) => R.col(k), live = new Set(R.rows.filter((r) => String(r[rc("STATUS")]) === "LIVE").map((r) => String(r[rc("PRODUCT_CODE")])));
+  for (let i = 0; i < R.rows.length; i++) {
+    const r = R.rows[i]; if (String(r[rc("STATUS")]) !== "SITE_ONLY" || !live.has(String(r[rc("PRODUCT_CODE")]))) continue;
+    await coreTool(env, CORE_ITEM + "/workbook/tables/LISTING_REGISTRY_TABLE/columns/STATUS/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [["SITE_REPLACED"]] }).catch(() => {});
+  }
 }
