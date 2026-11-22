@@ -200,3 +200,33 @@ The site shows genuine Etsy reviews on the page of the garment they were left on
 keyed by Etsy listing id; one so far, on IH-00001's hoodie). When convenient, the app could keep KV `shop:reviews`
 current from Etsy's shop reviews (`/shops/65435151/reviews`) as `{ "<listing_id>": [{ "rating": 5, "text": "..." }] }`,
 word for word, and the site will read it instead of its hand copy. No site-wide average until there are about ten.
+
+## Added 22 Nov: fixes for `shop:catalog-next` before the site switches to it
+
+1. **Prices.** `shop:catalog-next` has Etsy's VAT-inclusive prices (tee £31.99, hoodie £59.99). The site uses its
+   own (option B): T-shirt £25.99, long sleeve £29.99, sweatshirt £37.99, hoodie £47.99; each size's surcharge is
+   Etsy's surcharge in whole pounds, less £1 where it's £4 or more; In Person £3 more. `SC_PRICE` and
+   `scSitePrice()` in `approvals-app/worker.js` do exactly this. Prices are in pence.
+2. **In Person in the catalogue.** IP designs are missing. Each IP garment needs, as well as the usual fields:
+   - `personal: { max: 12, text: <GAG_TEXT with [NAME] where the name goes>, sample: <a sample name> }`
+     (samples used so far: T-shirt SAM, long sleeve ALEX, sweatshirt CHARLIE, hoodie JORDAN).
+   - On each photo that has a name preview: `live: { x, y, w, h, s, r }` and `base: <url of the text-free copy>`.
+3. **Text-free copies, now from Barry's Canva designs.** Barry has added `_BLANK` pages to the In Person designs: a
+   copy of each front-on page with the text box deleted, titled like its partner plus `_BLANK` (e.g.
+   `IP_01_TS_THUMBNAIL_PURPLE_BLANK`). Copy each to R2 as `p/<code>/b<NN>.jpg` (NN = its partner's page number), set
+   the partner photo's `base` to it, and leave `_BLANK` pages out of the photo gallery. The pages:
+   T-shirt and sweatshirt 01-03 (THUMBNAIL) and 07-09 (HANGING); long sleeve 01-02 and 05-06; hoodie 01-03 and
+   10-12 (HANGING_BACK).
+4. **Where the name goes (`live`).** Fixed per garment and photo type: the gag text box's position in Canva's 4500px
+   page, divided by 45 to make percentages (x, y = top-left, w, h = box size, s = font size, r = rotation in degrees):
+
+   | Garment | _THUMBNAIL_ | _HANGING_ (hoodie: _HANGING_BACK_) |
+   |---|---|---|
+   | T-shirt | 1242.755, 2086.406, 2048.485, 1249.811, 152.975, 0 | 1636.196, 1824.657, 1248.323, 761.620, 93.221, 0 |
+   | Long sleeve | 1032.321, 2082.562, 1941.998, 1184.841, 145.023, 12 | 1636.196, 1824.657, 1248.323, 761.620, 93.221, 0 |
+   | Sweatshirt | 1341.228, 1719.341, 1865.535, 1138.190, 139.313, -12 | 1550.755, 1932.882, 1420.934, 866.933, 106.111, 1 |
+   | Hoodie | 1468.761, 1712.214, 1588.846, 969.378, 118.651, 0 | 1576.781, 2001.379, 1369.159, 835.344, 102.245, 0 |
+
+   (From `shop/photos/inperson_preview.py`. If the text box moves in a template, these change too.) Example of the
+   result: `{"x": 27.617, "y": 46.365, "w": 45.522, "h": 27.774, "s": 3.399, "r": 0}`.
+5. Tell the shop thread when `shop:catalog-next` has site prices and In Person; it will then switch the preview over.
