@@ -645,6 +645,21 @@ body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!impor
 .sp .bt{width:100%;max-width:560px;margin:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
 .sp .bt .btn{margin:0;padding:9px 14px;font-size:14px;white-space:nowrap}.sp .bt .btn:disabled{opacity:.3;cursor:default}
 .sp .bt #sp0{justify-self:start}.sp .bt #sn{justify-self:end}.sp .bt .mid{display:flex;gap:8px;justify-content:center}
+/* The Hoodini hunt */
+.hoodb{position:absolute;z-index:6;display:block;overflow:hidden;aspect-ratio:268/238;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hoodb img{position:absolute;left:0;top:0;width:100%;height:auto;transition:transform .5s cubic-bezier(.3,1.4,.5,1);pointer-events:none}
+.hb-r img{transform:translateX(-102%)}.hb-r.out img{transform:translateX(-38%)}
+.hb-l img{transform:translateX(102%) scaleX(-1)}.hb-l.out img{transform:translateX(38%) scaleX(-1)}
+.hb-u img{transform:translateY(102%)}.hb-u.out img{transform:translateY(30%)}
+.hoodb.gone{pointer-events:none}.hoodb.gone img{transition-duration:.18s}
+.hoodt{position:fixed;left:50%;bottom:22px;z-index:60;transform:translate(-50%,20px);opacity:0;padding:12px 18px;border-radius:12px;background:#1d2747;border:2px solid #f2a27a;color:#f6efe0;font:700 15px/1.3 Montserrat,sans-serif;transition:opacity .3s,transform .3s;box-shadow:0 10px 30px rgba(0,0,0,.5);white-space:nowrap}.hoodt.on{opacity:1;transform:translate(-50%,0)}
+.hoodm{position:fixed;inset:0;z-index:61;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,12,22,.9)}.hoodm>div{max-width:380px;text-align:center;background:#1d2747;border:3px solid #f2a27a;border-radius:18px;padding:24px 20px;color:#f6efe0}
+.hoodm img{width:120px;height:auto}.hoodm h2{margin:8px 0 4px}.hoodc b{font-size:22px;letter-spacing:.12em;margin-right:8px}.hoodm .btn{margin:4px}
+.hoodz{display:inline-flex;align-items:flex-end;gap:2px;margin-left:10px;vertical-align:middle;cursor:pointer}.hoodz img{width:44px;height:auto}
+.hoodz i{font:800 14px Montserrat,sans-serif;font-style:normal;color:#c9d2f2;animation:hoodzz 2.4s ease-in-out infinite}.hoodz i:nth-child(3){animation-delay:.8s;font-size:12px}.hoodz i:nth-child(4){animation-delay:1.6s;font-size:10px}
+@keyframes hoodzz{0%,100%{opacity:.2;transform:translateY(0)}50%{opacity:1;transform:translateY(-6px)}}
+.hoodwig{animation:hoodwig .5s}@keyframes hoodwig{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}
+@media (prefers-reduced-motion:reduce){.hoodb img{transition:none}.hoodz i{animation:none;opacity:.7}}
 /* The Escape Room itself: one picture of the room filling the screen, with things in it to tap. */
 body.room main{max-width:none;padding:0;margin:0}
 .rm{position:relative;height:calc(100dvh - var(--hh,63px));min-height:320px;overflow:hidden;background:#17120d;-webkit-tap-highlight-color:transparent}
@@ -668,6 +683,34 @@ body.room main{max-width:none;padding:0;margin:0}
 .rm .rmsg.on{opacity:1;transform:translate(-50%,0)}
 @media (prefers-reduced-motion:reduce){.hs .dot::after{animation:none}.hs,.hs .lb,.rm .rmsg{transition:none}}
 `;
+// ---------------- The Hoodini hunt (Barry, 22 Nov) ----------------
+// Hoodini (the mascot) hides in seven places. Most only turn up about one page in six, peek out for four seconds and
+// duck away; tap him to find him. All seven earns a 5% code (HOODINI5: create it in Stripe before launch). No hint
+// anywhere that the hunt exists. Progress is kept on the visitor's device.
+//   1 tile: a product tile in the shop        2 footer: over the footer, on long pages
+//   3 room: behind the curtain in the Escape Room   4 basket: the empty basket's Hoodini, tapped
+//   5 lost: the page-not-found Hoodini, tapped     6 night: asleep on the front page, 10pm to 6am
+//   7 excuse: after the 10th excuse in the Excuse Generator
+const HUNT_JS = `(function(){var K='ih_hood',N=7,CODE='HOODINI5',S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
+function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(_){}}
+function toast(t){var d=document.createElement('div');d.className='hoodt';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.classList.add('on')},20);setTimeout(function(){d.classList.remove('on');setTimeout(function(){d.remove()},400)},3200)}
+function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+CODE+'</b> <button class="btn ghost" type="button">Copy</button></p><p><button class="btn" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
+ var bs=m.querySelectorAll('button');bs[0].onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(CODE).then(function(){bs[0].textContent='Copied'})};bs[1].onclick=function(){m.remove()}}
+function found(id,el){if(el){el.classList.remove('out');el.classList.add('gone')}if(S.f.indexOf(id)<0){S.f.push(id);save()}var n=S.f.length;
+ if(n>=N){if(!S.shown){S.shown=1;save();reward()}else toast('He’s had enough. Your code: '+CODE)}else toast('You found Hoodini. '+n+' of '+N+'.')}
+function peek(id,parent,css,dir,now){if(!parent)return;var b=document.createElement('span');b.className='hoodb hb-'+dir;b.style.cssText=css;b.innerHTML='<img src="/s/mascot-head-sticker.png?v=1" alt="">';parent.appendChild(b);
+ b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();found(id,b)});
+ var go=function(){setTimeout(function(){if(b.classList.contains('gone'))return;b.classList.add('out');setTimeout(function(){b.classList.remove('out')},4000)},now?200:1200)};
+ if(now||!('IntersectionObserver' in window))go();else{var io=new IntersectionObserver(function(es){if(es[0].isIntersecting){io.disconnect();go()}},{threshold:.9});io.observe(b)}return b}
+window.ihHood={found:found,peek:peek};
+var R=function(){return Math.random()<1/6},P=location.pathname;
+document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-hood]');if(t){found(t.dataset.hood);t.classList.add('hoodwig');setTimeout(function(){t.classList.remove('hoodwig')},600)}});
+if(/^\\/uk\\/shop/.test(P)&&R()){var ts=document.querySelectorAll('.grid .tile:not([hidden])');if(ts.length)peek('tile',ts[Math.floor(Math.random()*Math.min(ts.length,12))],'right:14px;top:-34px;width:40px','u')}
+if(R()){var f=document.querySelector('footer');if(f&&document.documentElement.scrollHeight>innerHeight*2){f.style.position='relative';peek('footer',f,'left:10%;top:-48px;width:56px','u')}}
+[].forEach.call(document.querySelectorAll('[data-hood-room]'),function(v){if(R())peek('room',v,v.dataset.hoodRoom,v.dataset.hoodDir)});
+var h=new Date().getHours();if((P==='/uk'||P==='/uk/')&&(h>=22||h<6)){var st=document.querySelector('.strap');if(st){var z=document.createElement('span');z.className='hoodz';z.innerHTML='<img src="/s/mascot-sit-sticker.png?v=1" alt=""><i>z</i><i>z</i><i>z</i>';z.dataset.hood='night';st.appendChild(z)}}
+})();`;
+
 function page(title, body, opts = {}) {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
@@ -676,7 +719,7 @@ ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" 
 <main class="wrap">${opts.nav === "shop" || opts.nav === "home" || opts.coll ? (opts.noXmas ? "" : xmasNotice(false)) : ""}${body}</main>
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
-<script>${BASKET_JS}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
+<script>${BASKET_JS}</script><script>${HUNT_JS}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
 }
 const BASKET_JS = `
 // The Escape Room's warning gate: links marked data-gate go to the room itself, and a first-time visitor is sent
@@ -1032,7 +1075,7 @@ function excusesPage() {
 var X=${JSON.stringify(EXCUSES).replace(/</g, "\\u003c")},last=-1,cur='';
 function $(i){return document.getElementById(i)}
 function next(){var i;do{i=Math.floor(Math.random()*X.length)}while(i===last&&X.length>1);last=i;cur=X[i];$('xt').textContent=cur;$('xm').textContent=''}
-$('xn').addEventListener('click',next);
+var asked=0;$('xn').addEventListener('click',function(){next();if(++asked===10&&window.ihHood)ihHood.peek('excuse',document.querySelector('.thing.xq'),'right:16%;top:-52px;width:58px','u',true)});
 $('xc').addEventListener('click',function(){var done=function(){$('xm').textContent='Copied. Paste it and put your phone down.'};
  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(cur).then(done,function(){$('xm').textContent='Could not copy. Press and hold the excuse to copy it.'});
  else $('xm').textContent='Press and hold the excuse to copy it.'});
@@ -1578,7 +1621,7 @@ function roomView(v) {
     const more = k ? ' tabindex="-1" aria-hidden="true"' : "";
     return t.soon ? `<button type="button" class="hs" ${at} data-soon="${esc(t.soon)}"${k ? more : ` aria-label="${esc(t.name)} (coming soon)"`}>${inner}</button>` : `<a class="hs" ${at} href="${t.href}"${k ? more : ` aria-label="${esc(t.name)}"`}>${inner}</a>`;
   }).join("")).join("");
-  return `<div class="rv ${v}" data-src="/s/room-${v}.jpg?v=1"><img alt="A small, warm room at dusk with rain on the window: an armchair with a blanket, a lamp, a bookshelf, a television and games console, a tablet, a phone, a noticeboard, a hoodie on a hook, a jar on a shelf, and a door with a Do Not Enter hanger." draggable="false">${spots}</div>`;
+  return `<div class="rv ${v}" data-src="/s/room-${v}.jpg?v=1" data-hood-room="${v === "wide" ? "right:62.6%;top:53%;width:3.6%" : "left:14.6%;top:36.5%;width:6.5%"}" data-hood-dir="${v === "wide" ? "l" : "r"}"><img alt="A small, warm room at dusk with rain on the window: an armchair with a blanket, a lamp, a bookshelf, a television and games console, a tablet, a phone, a noticeboard, a hoodie on a hook, a jar on a shelf, and a door with a Do Not Enter hanger." draggable="false">${spots}</div>`;
 }
 function hubPage() {
   return page(HUB.name, `<h1 style="position:absolute;left:-9999px">${esc(HUB.name)}</h1><div class="rm" id="rm"><div class="bk"></div>${roomView("wide")}${roomView("tall")}
@@ -1680,7 +1723,7 @@ ${g0.etsyUrl ? `<p class="note">Prefer Etsy? <a id="etsy" href="#" rel="noopener
 // The mascot (Barry's hoodie character, brand-logos/mascot/): a short message with him in a pose, for empty or lost
 // pages. The "sticker" versions (white outline) are used because most of the site is dark.
 function mascotMsg(pose, title, line, href, cta) {
-  return `<div class="mascot-msg"><img src="/s/mascot-${pose}-sticker.png?v=1" alt="" width="200"><h1>${title}</h1><p class="muted">${line}</p><a class="btn" href="${href}">${cta}</a></div>`;
+  return `<div class="mascot-msg"><img src="/s/mascot-${pose}-sticker.png?v=1" alt="" width="200" data-hood="${pose === "sit" ? "basket" : "lost"}"><h1>${title}</h1><p class="muted">${line}</p><a class="btn" href="${href}">${cta}</a></div>`;
 }
 function basketPage() {
   const script = `

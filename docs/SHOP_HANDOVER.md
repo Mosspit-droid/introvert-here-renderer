@@ -123,6 +123,10 @@ R2 `site/` (copies in `shop/assets/site/`).
   `catalog()` in `shop/worker.js` should read `shop:catalog-next` for both. `shop:catalog-preview` is the old hand-made copy.
 - The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
 
+### The Hoodini hunt (22 Nov)
+- Hoodini hides in 7 places (see `HUNT_JS` in `shop/worker.js`); all 7 shows the code **HOODINI5** (5% off). Like
+  VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support
