@@ -149,10 +149,12 @@ var S,P,people,items,bubbles,says,movers=[],bikes=[],pops=[],T=0,keys={},btn={},
 // Which levels have been reached is remembered on this device.
 function unlocked(){var n=0;try{n=parseInt(localStorage.getItem('ih_hoodini_level')||'0',10)||0}catch(e){}return Math.min(LV.length-1,Math.max(0,n))}
 function unlock(i){try{if(i>unlocked())localStorage.setItem('ih_hoodini_level',String(i))}catch(e){}}
-function load(i){LI=Math.max(0,Math.min(LV.length-1,i));L=LV[LI];MAP=L.map;MW=MAP[0].length;MH=MAP.length;street=L.theme==='street';
+function load(i){LI=Math.max(0,Math.min(LV.length-1,i));try{localStorage.setItem('ih_hoodini_last',String(LI))}catch(e){}L=LV[LI];MAP=L.map;MW=MAP[0].length;MH=MAP.length;street=L.theme==='street';
  TH=street?{a:'#9aa4af',b:'#737d88',c:'#c5ccd4'}:{a:'#3fa796',b:'#2e7f72',c:'#63c7b5'};reset();menu()}
-function menu(){var el=$('pglv'),un=unlocked();$('pgintrop').textContent=L.intro;el.textContent='';if(LV.length<2)return;
- LV.forEach(function(lv,i){var b=document.createElement('button');b.type='button';b.textContent=(i+1)+'. '+lv.name;b.className=i===LI?'on':'';b.disabled=i>un;b.addEventListener('click',function(){load(i)});el.appendChild(b)})}
+// The level picker, on the opening card and on the card at the end of a level. Levels you have reached can be picked.
+function menu(){var un=unlocked();$('pgintrop').textContent=L.intro;[['pglv',false],['pglv2',true]].forEach(function(q){var el=$(q[0]);el.textContent='';if(LV.length<2||(q[1]&&un<1))return;
+  LV.forEach(function(lv,i){var b=document.createElement('button');b.type='button';b.textContent=(i+1)+'. '+lv.name;b.className=i===LI?'on':'';b.disabled=i>un;b.addEventListener('click',function(){load(i);if(q[1]){$('pgcard').hidden=true;cv.focus()}});el.appendChild(b)})});
+ $('pglvh').hidden=un<1}
 function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  movers=(L.movers||[]).map(function(m){return {x:m.x0,x0:m.x0,x1:m.x1,y:m.y,w:m.w,v:m.speed,wait:1}});bikes=(L.lanes||[]).map(function(l,i){return {x0:l.x0,x1:l.x1,every:l.every,t:i*1.3,x:null}});
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
@@ -168,10 +170,10 @@ function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say('Sorry, on a call.',P.x,P.y-2.7);return}S.why=why;S.batt-=.25;S.hits++;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
-function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;$('pgcb').focus()}
+function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);
  card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':S.hits+' conversations endured. You are owed a quiet weekend.',
-  'Tea '+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Go again')}
+  'Tea '+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again')}
 
 // ---- one tick ----
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
@@ -382,8 +384,8 @@ function up(e){if(look&&e.pointerId===look.id)look=null;if(stick&&e.pointerId===
 addEventListener('keydown',function(e){if(S.mode!=='play'&&S.mode!=='ready')return;var k=e.key.length===1?e.key.toLowerCase():e.key;if(/^(Arrow(Left|Right|Up|Down)|Shift| |[adwszx])$/.test(k)){if(!e.repeat&&(k==='z'||k===' '||k==='ArrowUp'||k==='w'))jumpQ=.12;keys[k]=1;e.preventDefault()}});
 addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null;look=null});
 $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()});
-$('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:0);else reset()});
-addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);load(askLv>0?askLv-1:0);lay();requestAnimationFrame(loop);
+$('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
+addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}load(askLv>0?askLv-1:Math.min(lastLv,unlocked()));lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
 window.__pg={S:function(){return S},P:function(){return P},people:function(){return people},items:function(){return items},bubbles:function(){return bubbles},map:MAP,level:function(){return LI},load:load,movers:function(){return movers},bikes:function(){return bikes},tiles:function(){return MAP},ready:function(){return ready},
  look:function(){return [look,lookX,lookY,cam,camY]},press:function(n,on){if(n==='l'||n==='r'){stick=on?{id:-1,x0:0,y0:0,v:n==='r'?1:-1}:(stick&&stick.v===(n==='r'?1:-1)?null:stick);return}if(on){btn[n]=1;if(n==='a')jumpQ=.12}else delete btn[n]},restart:function(){reset()},step:function(n){for(var i=0;i<n;i++)update(1/60)}};
@@ -401,6 +403,6 @@ export function platformPage(page, hub, v) {
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
-<p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p></div>
+<p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p><p class="sm" id="pglvh" hidden style="margin:14px 0 6px">Or pick a level:</p><p class="lv" id="pglv2" style="margin:0"></p></div>
 </div></div></div>`, { nav: "hub", body: "stealth", desc: "A platform game for introverts: get out of the office without being drawn into a conversation.", script });
 }
