@@ -390,6 +390,7 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
 .door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
 .strip{margin:clamp(40px,6vw,80px) 0 0}
+.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
 .xn{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:#5b1316;border:1px solid #a7322d;color:#f6efe0;font-size:14px;line-height:1.4;text-align:center}.xn b{color:#fff}.xn a{color:#f6d06b;white-space:nowrap}
 .xgift{display:flex;flex-direction:column;gap:4px;margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#5b1316,#2a3d24);border:1px solid #a7322d;color:#f6efe0;text-decoration:none}.xgift b{font-size:clamp(20px,3vw,26px);text-transform:uppercase;letter-spacing:.02em}.xgift span{color:#e9d9a0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
@@ -1529,6 +1530,15 @@ addEventListener('resize',lay);lay();setInterval(turn,2600);setTimeout(turn,1800
 setTimeout(function(){say(calm?'You’re in. Nobody knows you’re here. Press “Show me round” to see what’s what.':'You’re in. Nobody knows you’re here. Have a poke about.',5200)},700)})();` });
 }
 
+// Genuine Etsy reviews, shown on the page of the garment they were left on (Barry, 22 Nov), by Etsy listing id. Copied
+// word for word. No star average across the site until there are enough reviews for it to mean something.
+const REVIEWS = {
+  "4579908668": [{ rating: 5, text: "Excellent quality comfortable and matches the description" }],   // Excuse The Sigh hoodie, Nov 2026
+};
+function reviewHtml(g) {
+  const r = REVIEWS[String(g.etsyId || "")]; if (!r || !r.length) return "";
+  return r.map((x) => `<p class="rev"><span aria-label="${x.rating} out of 5 stars">${"★".repeat(x.rating)}${"☆".repeat(5 - x.rating)}</span> “${esc(x.text)}” <small>Etsy buyer</small></p>`).join("");
+}
 function productPage(d, type, cat) {
   const g0 = d.garments[type], name = d.title + " " + g0.label;
   const others = cat.garmentOrder.filter((t) => d.garments[t] && t !== type);
@@ -1586,7 +1596,7 @@ render();`;
 <div class="label">Size <a id="sg" href="#" target="_blank" rel="noopener" class="note" style="text-transform:none;letter-spacing:0">(size guide)</a></div><div id="sizes" class="chips"></div>
 ${g0.personal ? `<div class="label">Your name</div><input id="pname" class="pname" maxlength="${g0.personal.max}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. ${esc(g0.personal.sample || "SAM")}">
 <p class="note" style="margin-top:6px">Up to ${g0.personal.max} letters, printed in capitals. The picture is a preview: we check every name before printing, and may decline an order and refund it.</p>` : ""}
-<div id="price" class="price"></div><p class="note">Free UK delivery · Printed to order, usually with you in 4–10 working days</p>
+<div id="price" class="price"></div>${reviewHtml(g0)}<p class="note">Free UK delivery · Printed to order, usually with you in 4–10 working days</p>
 <button id="add" class="btn" style="width:100%;margin-top:10px">Choose a size</button>
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
 <div class="box"><p class="note" style="margin:0 0 8px">${esc(coll.line)}</p><p id="features" class="note" style="white-space:pre-line;margin:0"></p></div>

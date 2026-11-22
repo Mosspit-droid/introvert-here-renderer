@@ -193,3 +193,10 @@ They're never shown on the site. The app could show them to Barry if he wants.
 **Discount for voters:** after voting, people are shown a 5% code (placeholder `VOTED5`; Barry to name it). It
 needs creating in Stripe as a promotion code (5% off, one use per customer, 30 days) before launch, with Barry's OK,
 and checkout needs to accept promotion codes.
+
+## Added 22 Nov: Etsy reviews on the site (later, not urgent)
+
+The site shows genuine Etsy reviews on the page of the garment they were left on (`REVIEWS` in `shop/worker.js`,
+keyed by Etsy listing id; one so far, on IH-00001's hoodie). When convenient, the app could keep KV `shop:reviews`
+current from Etsy's shop reviews (`/shops/65435151/reviews`) as `{ "<listing_id>": [{ "rating": 5, "text": "..." }] }`,
+word for word, and the site will read it instead of its hand copy. No site-wide average until there are about ten.
