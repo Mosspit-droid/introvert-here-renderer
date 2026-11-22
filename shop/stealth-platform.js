@@ -5,6 +5,8 @@
 // them. Hood Up (B): sit down, hood tight, and for a couple of seconds nobody notices you, but you cannot move.
 // Steering is a thumb pad (gradual), with extra grip in the air. Low ceilings make Hood Up the only way through.
 // Quiet rooms are checkpoints. Chasers run at you for a few seconds when you come near, then need a rest.
+// Level 4 is the park: bouncy castles (press A as you land to go higher), balloons to fetch for three children, a slide,
+// swings, a roundabout and a seesaw. No runners.
 // Level 3 also has the crying corner: two friends who block the stairs until you bring them tissues from the kitchen.
 // Level 3 adds dark rooms (a light switch toggles a room; in the dark nobody sees you) and a plate of food.
 // Coffee: fast legs for six seconds. Phone: a fake call that lets one person or bubble go by for free.
@@ -170,40 +172,47 @@ const PARTY = { name: "The House Party", out: "the house party", theme: "party",
   signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 86.5, y: 23.6, t: "TISSUES" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], pit: ["You fell into a conversation about house prices."] } };
 
-// Level 4, the family do: a garden party. New here: relatives who catch you follow you for the rest of the level
-// (follow: true);  J children, small and fast (hop them);  X the photographer, whose flash catches anyone in front of him
-// (pass between flashes, behind him, or with your hood up);  b a baby (everyone coos at it and ignores you for 8 seconds);
-// and Gran (Y), who will not let you by without a cup of tea (t). The art is stand-in, borrowed from earlier levels.
-function familyDo() {
-  const W = 236, H = 20, G = 17, g = Array.from({ length: H }, () => Array(W).fill("."));
+// Level 4, the family picnic in the park (Barry, 22 Nov). No runners. The heart of it: a child has lost their
+// balloons above a bouncy castle. Bounce (press A as you land to go higher), grab them, float down and hand them back.
+// Three times, each harder. Between them, playground equipment: a slide, swings, a roundabout and a seesaw.
+// B bouncy castle  a balloons  Q a child who has lost them (nobody gets past until they are returned)
+// Balloons make you fall slowly, and holding A lets them lift you for a couple of seconds. High places are the quiet ones.
+// The art is stand-in, borrowed from earlier levels or drawn in code.
+function park() {
+  const W = 232, H = 30, G = 27, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
-  const pit = (x0, x1) => box(x0, x1, 18, 19, ".");
-  box(0, W - 1, 18, 19, "#"); box(0, 0, 0, 19, "#"); box(W - 1, W - 1, 0, 19, "#");
+  const pit = (x0, x1) => box(x0, x1, 28, 29, ".");
+  box(0, W - 1, 28, 29, "#"); box(0, 0, 0, 29, "#"); box(W - 1, W - 1, 0, 29, "#");
   put(2, G, "S");
-  // 1. The patio: tea, a relative, the uncle with the joke, a portaloo, a pack of children
-  row(5, 7, G, "o"); put(11, G, "P"); put(18, G, "T"); put(24, G, "K"); put(27, G, "w"); put(32, G, "J"); put(38, G, "w");
-  // 2. The marquee: a low roof with the uncle's brother shouting down it, the aunt with the cheek-pinch, the photographer
-  box(44, 54, 13, 15, "#"); row(47, 50, G, "o"); put(57, G, "T"); put(62, G, "w"); put(63, G, "c"); put(67, G, "C"); put(69, G, "F"); row(84, 86, G, "o"); row(71, 74, 14, "="); put(73, 13, "N"); put(80, G, "X");
-  // 3. The buffet: Gran, who wants a cup of tea from the top shelf (bouncy castle up to it), then the buffet huddle and a baby
-  put(92, G, "K"); put(95, G, "^"); row(96, 99, 12, "="); put(98, 11, "t"); put(103, G, "Y"); put(107, G, "b"); row(110, 114, G, "P"); put(118, G, "N"); row(120, 122, G, "o");
-  // 4. The bouncy castle: up and over the hedge, children on the far side, another aunt
-  put(132, G, "K"); put(137, G, "^"); box(140, 146, 13, G, "#"); row(141, 145, 12, "o"); put(143, 9, "N"); put(149, G, "w"); put(152, G, "J"); put(157, G, "J"); put(161, G, "w"); row(163, 165, G, "o");
-  // 5. The kids' table: a portaloo, the uncle again, the photographer again, two relatives, a paddling pool
-  put(172, G, "K"); put(178, G, "T"); put(186, G, "X"); row(189, 191, G, "o"); put(194, G, "P"); pit(199, 201);
-  // 6. The car park: one last aunt, children on scooters, the gate
-  put(204, G, "K"); put(206, G, "w"); put(210, G, "C"); put(213, G, "w"); put(218, G, "J"); put(224, G, "w"); row(226, 228, G, "o"); put(231, G, "D");
+  // 1. The picnic: the uncle with the joke, Gran wanting her tea (trampoline up to the flask), a baby for the picnic rug
+  row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P");
+  // 2. The playground: up the ladder and down the slide, swings over the sandpit, a roundabout that flings you over a crowd
+  row(41, 42, 25, "="); row(41, 42, 23, "="); row(41, 44, 21, "="); row(42, 43, 20, "o"); put(48, G, "P"); put(51, G, "P");
+  pit(58, 70); row(62, 66, 22, "o"); row(74, 76, G, "="); row(79, 84, G, "P");
+  // 3. The bouncy castle: balloons straight above it. Then a seesaw up to the treehouse.
+  put(91, G, "K"); row(97, 101, G, "B"); put(99, 18, "a"); row(103, 105, 21, "o"); put(106, G, "T"); put(111, G, "Q");
+  row(119, 123, 19, "="); put(121, 18, "N"); row(119, 120, 18, "o");
+  // 4. The pond: balloons that drift, and water to float across, with an island halfway
+  put(126, G, "K"); row(128, 132, G, "B"); put(130, 17, "a"); pit(136, 144); row(145, 147, 23, "o"); put(146, 19, "N"); pit(148, 156); put(160, G, "Q");
+  // 5. The bandstand: balloons high above the band, who are far too tall to climb past
+  put(164, G, "K"); row(166, 170, G, "B"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "T"); put(183, 23, "T"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
+  // 6. The park gate: one last swing over the flower bed, the uncle again, the gate
+  put(200, G, "K"); pit(204, 211); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
   return g.map((r) => r.join(""));
 }
 const FAMILY_ZONES = [
-  { x0: 0, x1: 40, name: "The Patio", kinds: [12, 14, 13] }, { x0: 40, x1: 90, name: "The Marquee", kinds: [4, 2, 3, 2], tent: true }, { x0: 90, x1: 135, name: "The Buffet", kinds: [8, 4, 8, 13] },
-  { x0: 135, x1: 170, name: "The Bouncy Castle", kinds: [13, 14] }, { x0: 170, x1: 200, name: "The Kids’ Table", kinds: [2, 8, 13] }, { x0: 200, x1: 236, name: "The Car Park", kinds: [14, 13] },
+  { x0: 0, x1: 38, name: "The Picnic", kinds: [8, 4, 12, 14] }, { x0: 38, x1: 90, name: "The Playground", kinds: [14, 13, 14] }, { x0: 90, x1: 125, name: "The Bouncy Castle", kinds: [13, 2, 14] },
+  { x0: 125, x1: 163, name: "The Pond", kinds: [14, 13] }, { x0: 163, x1: 199, name: "The Bandstand", kinds: [3, 2, 14] }, { x0: 199, x1: 232, name: "The Park Gate", kinds: [14, 13] },
 ];
-const FAMILY = { name: "The Family Do", out: "the family do", theme: "family", lost: "The family has absorbed him.", talkEvery: 2.1, chaseSpeed: 3.5, walkSpeed: 2.2, kidSpeed: 2.2, flashEvery: 4.6, follow: true, map: familyDo(), zones: FAMILY_ZONES, upstairs: null,
-  intro: "Hoodini slipped out of the back gate and straight into a family do he had forgotten about. Everyone has a question.",
-  signs: [{ x: 41.8, y: 14.2, t: "HOOD UP" }, { x: 78, y: 13.4, t: "MIND THE FLASH" }, { x: 97.5, y: 9.6, t: "TEA" }, { x: 137.5, y: 13.6, t: "BOUNCY CASTLE" }],
-  toll: { item: "CUP OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
-  lines: { P: ["Still single, are you?", "When are you getting a proper job?", "You’ve lost weight. Or put it on.", "Do you remember me? You were THIS big.", "Are you still doing the computers?"], T: ["I’ve got a joke for you!", "Why did the chicken…", "Wait, you’ll like this one."], C: ["Come HERE, let me look at you!", "Give your auntie a kiss!", "Haven’t you GROWN!"], J: ["Chase me! Chase me!", "Watch this! WATCH!"], X: ["Everybody say CHEESE!", "Squeeze in! You at the back!"],
-    Y: ["Not so fast, young man.", "I’m parched, you know.", "Nobody has brought me a tea ALL DAY."], Yok: ["Oh, you ARE a good boy."], pit: ["You fell in the paddling pool."] } };
+const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, map: park(), zones: FAMILY_ZONES, upstairs: null,
+  intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
+  signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 18.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "PRESS A AS YOU LAND" }, { x: 99.5, y: 24.9, t: "TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 21.6, t: "THE BANDSTAND" }],
+  sway: [0, 2.5, 2], slides: [{ x0: 44.6, y0: 21, x1: 55, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
+  movers: [{ sw: true, x: 61, y: 26.3, amp: 2.4, per: 3.6, ph: 0 }, { sw: true, x: 67, y: 26.3, amp: 2.4, per: 3.6, ph: 1.8 }, { sw: true, x: 207.5, y: 26.3, amp: 2.7, per: 3.6, ph: 0 }],
+  toll: { item: "FLASK OF TEA", got: "Gran has been asking for one of these.", name: "GRAN", block: "She has hooked you with her stick. She wants a cup of tea first.", done: "TEA DELIVERED", doneB: "Gran is settled. On you go." },
+  lines: { P: ["Still single, are you?", "When are you getting a proper job?", "You’ve lost weight. Or put it on.", "Are you still doing the computers?"], T: ["I’ve got a joke for you!", "Why did the chicken…", "Wait, you’ll like this one."],
+    Q: ["My balloons!", "They went UP!", "Get them! GET THEM!"], Qok: ["Isn’t he good with children?", "Are you thinking of having any yourself?", "You’re a natural!"],
+    Y: ["Not so fast, young man.", "I’m parched, you know.", "Nobody has brought me a tea ALL DAY."], Yok: ["Oh, you ARE a good boy."], pit: ["You fell in. Everyone saw."] } };
 
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
 
@@ -249,15 +258,17 @@ function menu(){var un=unlocked();$('pgintrop').textContent=L.intro;[['pglv',fal
   LV.forEach(function(lv,i){var b=document.createElement('button');b.type='button';b.textContent=(i+1)+'. '+lv.name;b.className=i===LI?'on':'';b.disabled=i>un;b.addEventListener('click',function(){load(i);if(q[1]){$('pgcard').hidden=true;cv.focus()}});el.appendChild(b)})});
  $('pglvh').hidden=un<1}
 function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
- movers=(L.movers||[]).map(function(m){return {x:m.x0,x0:m.x0,x1:m.x1,y:m.y,w:m.w,v:m.speed,wait:1}});bikes=(L.lanes||[]).map(function(l,i){return {x0:l.x0,x1:l.x1,every:l.every,t:i*1.3,x:null}});
+ movers=(L.movers||[]).map(function(m){return m.sw?{sw:true,cx:m.x,cy:m.y,amp:m.amp,per:m.per,ph:m.ph||0,w:2,x:m.x,y:m.y}:{x:m.x0,x0:m.x0,x1:m.x1,y:m.y,w:m.w,v:m.speed,wait:1}});bikes=(L.lanes||[]).map(function(l,i){return {x0:l.x0,x1:l.x1,every:l.every,t:i*1.3,x:null}});
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
-  if(c==='S'){sx=x;sy=y}else if('PWTCGYJX'.indexOf(c)>=0)people.push({k:c,x:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
+  if(c==='S'){sx=x;sy=y}else if(c==='a')items.push({k:'a',x:x+.5,x0:x+.5,y:y+.5,got:false,sway:(L.sway||[])[items.filter(function(q){return q.k==='a'}).length]||0})
+  else if('PWTCGYJXQ'.indexOf(c)>=0)people.push({k:c,x:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
   else if('oNHcmuftb'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
  var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3];if(street&&dogNear){p.fixed=true;p.f=1}});
  people.forEach(function(p){if(p.k==='Y')p.fixed=true});
- if(family)people.forEach(function(p){if(p.k==='P')p.skin=[0,2,4,6][p.i%4];if(p.k==='X')p.f=-1});
+ items.filter(function(q){return q.k==='a'}).sort(function(m,n){return m.x-n.x}).forEach(function(q,i){q.sway=(L.sway||[])[i]||0});   // balloons are numbered left to right
+ if(family)people.forEach(function(p){if(p.k==='P')p.skin=[0,2,4,6][p.i%4];if(p.k==='X')p.f=-1;if(p.k==='Q')p.fixed=true});
  if(party){var st=0,tk=0;people.forEach(function(p){if(p.k==='P')p.skin=p.y<MH-2.5?4:[6,4][st++%2];if(p.k==='T'){var k2=tk++;p.sheet=k2<2?'party-people':'street-people';p.base=k2===0?0:2}})}
- P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,plate:false,tissues:false,baby:0,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
+ P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,plate:false,tissues:false,baby:0,balloons:false,lift:2.5,bn:0,jT:9,jk:false,slide:null,fling:0,spinT:0,seeT:0,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1;p.follow=false})}
@@ -276,7 +287,7 @@ function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
 function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
- movers.forEach(function(m){if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
+ movers.forEach(function(m){if(m.sw){var ox=m.x,sa=Math.sin((S.t+m.ph)*6.2832/m.per);m.x=m.cx+m.amp*sa;m.y=m.cy-Math.abs(sa)*.5;if(P.on===m){P.x+=m.x-ox;P.y=m.y}return}if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
  var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.fast>0)P.fast-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
  // Hood Up: on the ground, while B is held and there is hood left
@@ -284,12 +295,14 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  if(want){P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
  if(P.hood){d=0;sv=0}
  // running
- var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(d)P.f=d;   // quicker to turn in the air than on the carpet
+ if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
+ var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
  // jumping, with a little forgiveness either side of an edge
  if(P.ground)P.coy=.1;else P.coy-=dt;
  if(jumpQ>0&&P.coy>0&&!P.hood){P.vy=-JUMP;P.ground=false;P.coy=0;jumpQ=0}
  if(P.vy>=0)P.sprung=false;if(!jumpKey()&&!P.sprung&&P.vy<-6)P.vy=-6;   // letting go of A cuts a jump short (but not a bounce)
  P.vy=Math.min(FALLMAX,P.vy+GRAV*dt);P.float=P.brolly&&!P.ground&&jumpKey()&&P.vy>0;if(P.float)P.vy=Math.min(P.vy,3.4);
+ if(P.ground)P.lift=2.5;if(P.balloons&&!P.ground){if(jumpKey()&&P.lift>0&&P.vy>-2.6){P.vy=Math.max(-2.4,P.vy-70*dt);P.lift-=dt}else if(P.vy>2.6)P.vy=2.6}
  // move sideways, then up or down, stopping at anything solid
  var nx=P.x+P.vx*dt,top=P.y-HH,ys=[Math.floor(top+.05),Math.floor(P.y-HH/2),Math.floor(P.y-.05)],i;
  if(P.vx>0){for(i=0;i<3;i++)if(solid(Math.floor(nx+HW),ys[i])){nx=Math.floor(nx+HW)-HW-.001;P.vx=0;break}}
@@ -302,6 +315,11 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  P.y=ny;if(P.float||P.peak==null)P.peak=P.y;if(!P.ground)P.peak=Math.min(P.peak,P.y);else{var drop=P.y-P.peak;P.peak=P.y;if(L.fallMax&&drop>L.fallMax&&S.mode==='play'){S.why='drop';S.hits++;S.batt=0;say('That was a long way down.',P.x,P.y-2.6);flat();return}}
  if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
+ if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=P.jT<.32;P.bn=good?Math.min(2,P.bn+1):0;P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
+ if(!P.slide&&P.ground&&sv>0)(L.slides||[]).forEach(function(sl){if(Math.abs(P.x-sl.x0)<.45&&Math.abs(P.y-sl.y0)<.2)P.slide={s:sl,u:0}});
+ if(P.slide){var sl2=P.slide.s;P.slide.u+=dt*11/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.vx=RUN*1.6}}
+ var onSpin=false;(L.spins||[]).forEach(function(sp){if(P.ground&&Math.abs(P.x-sp.x)<1.3&&Math.abs(P.y-sp.y)<.2)onSpin=true});if(onSpin){P.spinT+=dt;if(P.spinT>.75){P.spinT=0;P.fling=.95;P.vy=-19;P.sprung=true;P.ground=false;P.y-=.05;say('WHEEE!',P.x,P.y-2.4)}}else P.spinT=0;
+ var onSee=false;(L.seesaws||[]).forEach(function(se){if(P.ground&&Math.abs(P.x-se.x)<.6&&P.y>MH-2.2)onSee=true});if(onSee){P.seeT+=dt;if(P.seeT>.65){P.seeT=0;P.vy=-30;P.sprung=true;P.ground=false;P.y-=.05;pops.push({x:P.x,y:P.y,life:.5,big:true})}}else P.seeT=0;
  var cyy=Math.floor(P.y-.01),onChair=tile(Math.floor(P.x),cyy)==='^'||tile(Math.floor(P.x+.55),cyy)==='^'||tile(Math.floor(P.x-.55),cyy)==='^';if(P.vy>=0&&onChair&&P.y>=cyy+.15){   // generous: brush against it and up you go
   P.vy=-23;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
  if(P.ground&&solid(Math.floor(P.x),Math.floor(P.y+.1))&&solid(Math.floor(P.x-1),Math.floor(P.y+.1))&&solid(Math.floor(P.x+1),Math.floor(P.y+.1)))P.safe=[P.x,P.y];
@@ -311,13 +329,18 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
    if(P.y<=cfy+.1&&P.y>cfy-4.8&&Math.abs(P.x-ccx)<reach){if(P.tissues){S.given=true;P.tissues=false;pops.push({x:ccx,y:cfy-1,life:.6,big:true});say(L.lines.Yok[0],ccx,cfy-2.9);info(L.toll.done,L.toll.doneB)}
     else{P.x=ccx+(P.x<ccx?-reach:reach);P.vx=0;if(!(S.cryT>0)){S.cryT=1.8;say(pick(L.lines.Y),ccx,cfy-2.9);info(L.toll.name,L.toll.block)}}}}}
  // collecting
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>.7||Math.abs(it.y-(P.y-HH/2))>1)return;it.got=true;pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
+ items.forEach(function(it){if(it.k==='a'&&!it.got&&it.sway)it.x=it.x0+Math.sin(S.t*1.1+it.x0)*it.sway});
+ people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
+  if(P.balloons){q.happy=true;P.balloons=false;pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
+  else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
+ items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;say('Plans cancelled!',it.x,it.y-1)}
   else if(it.k==='c'){P.fast=6;info('COFFEE','You run faster for 6 seconds.')}
   else if(it.k==='m'){P.shield=true;info('FAKE PHONE CALL','The next person who catches you lets you go.')}
   else if(it.k==='f'){P.plate=true;info('PLATE OF FOOD','People standing about let you through while you carry it. Anyone moving knocks it out of your hands.')}
   else if(it.k==='t'){P.tissues=true;info(L.toll.item,L.toll.got)}
+  else if(it.k==='a'){P.balloons=true;info('GOT THEM','You fall slowly now. Hold A and they lift you for a moment.')}
   else if(it.k==='b'){P.baby=8;info('SOMEBODY’S BABY','Everyone coos at the baby and ignores you. For 8 seconds.')}
   else if(it.k==='u'){P.brolly=true;info('UMBRELLA','Hold A while falling to float down gently.')}
   else{P.phones=7;info('HEADPHONES','Nobody can touch you for 7 seconds.')}});
@@ -328,7 +351,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){win();return}   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
- var unseen=P.hood||P.phones>0||P.baby>0||isDark(zoneAt(P.x,P.y-.5));
+ var unseen=P.hood||P.phones>0||P.baby>0||!!P.slide||isDark(zoneAt(P.x,P.y-.5));
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7;
   var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
@@ -340,7 +363,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
+  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&p.k!=='Q'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=b.x1+7;b.t=0}}else{b.x-=11*dt;if(b.x<b.x0-7)b.x=null;
    else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
@@ -359,7 +382,7 @@ function ink(w){cx.strokeStyle=INK;cx.lineWidth=w||.08;cx.lineJoin='round';cx.st
 function rr(x,y,w,h,r){cx.beginPath();cx.roundRect(x,y,w,h,r)}
 // People, from Barry's flat sheets. Standers come in three kinds; each has an idle pose and a talking one.
 function sprite(name,frame,x,y,flip,k){var a=ART[name],im=IMG[name];if(!im.naturalWidth)return;cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,frame*a.w,0,a.w,a.h,-a.ax*k,-a.base*k,a.w*k,a.h*k);cx.restore()}
-function person(p){if(p.k==='G'){dog(p);return}if(p.k==='Y'){crier(p);return}var PEO=street?'street-people':(party||family)?'party-people':'flat-people',MOV=(street||family)?'street-movers':'flat-movers',c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y)<2.5;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.5,.08,0,0,6.2832);c.fill();
+function person(p){if(p.k==='G'){dog(p);return}if(p.k==='Q'){kid(p);return}if(p.k==='Y'){crier(p);return}var PEO=street?'street-people':(party||family)?'party-people':'flat-people',MOV=(street||family)?'street-movers':'flat-movers',c=cx,k=1/PPT,near=Math.abs(P.x-p.x)<3.2&&Math.abs(P.y-p.y)<2.5;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.5,.08,0,0,6.2832);c.fill();
  if(p.k==='J'){sprite(MOV,Math.floor(p.t/.09)%4,p.x,p.y+.03,p.f<0,k*.5);return}
  if(p.k==='X'){sprite(PEO,6,p.x,p.y+.03,p.f<0,k);var cxx=p.x+p.f*.5,cyy2=p.y-1.25;c.fillStyle=INK;rr(cxx-.2,cyy2-.14,.4,.28,.05);c.fill();c.fillStyle='#9fd3ff';c.beginPath();c.arc(cxx+p.f*.12,cyy2,.09,0,6.2832);c.fill();
   var ch=Math.max(0,(p.t-((p.fe||3.4)-1.3))/1.3);if(ch>0&&!(p.flash>0)){c.strokeStyle=YEL;c.lineWidth=.09;c.beginPath();c.arc(cxx,cyy2-.55,.26,-1.57,-1.57+6.283*Math.min(1,ch));c.stroke()}
@@ -409,6 +432,18 @@ function partyZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,i;if(z.x1<x0||z.x0>x1)return;c
  for(i=Math.floor(Math.max(z.x0,x0)/7)*7+2;i<Math.min(z.x1,x1);i+=7){if(i<z.x0+1||i>z.x1-2||solid(i,Math.floor(z.y0+1.4)))continue;c.fillStyle='#fff8dc';c.beginPath();c.moveTo(i-.5,z.y0+.9);c.lineTo(i+.5,z.y0+.9);c.lineTo(i+.3,z.y0+.45);c.lineTo(i-.3,z.y0+.45);c.closePath();c.fill();c.fillStyle='rgba(27,27,42,.5)';c.fillRect(i-.03,z.y0,.06,.45)}
  partyDecor(z,x0,x1)}
 function partyDecor(z,x0,x1){var i;if(z.kinds.length)for(i=Math.floor(Math.max(z.x0,x0-5)/5);i*5<Math.min(z.x1,x1);i++){var bx=i*5+1,fy=Math.floor(z.y1);if(bx<z.x0+.3||bx+3.6>z.x1||!solid(Math.floor(bx+1),fy)||!solid(Math.floor(bx+2.5),fy)||solid(Math.floor(bx+1.7),fy-1))continue;backdrop(bx,z.y1,z.kinds[((i*7)%z.kinds.length+z.kinds.length)%z.kinds.length],null,'party-decor')}}
+function balloons(x,y,sc){var c=cx,cols=['#e0303a','#fad00c','#3aa0ff'];c.save();c.translate(x,y);c.scale(sc,sc);c.strokeStyle=INK;c.lineWidth=.04;[[-.3,-.5],[0,-.75],[.3,-.5]].forEach(function(q,i){c.beginPath();c.moveTo(0,.5);c.lineTo(q[0],q[1]+.3);c.stroke();c.fillStyle=cols[i];c.beginPath();c.ellipse(q[0],q[1],.27,.33,0,0,6.2832);c.fill();ink(.06);c.fillStyle='rgba(255,255,255,.6)';c.beginPath();c.ellipse(q[0]-.09,q[1]-.12,.06,.1,-.5,0,6.2832);c.fill()});c.restore()}
+function kid(p){var c=cx,k=1/PPT;sprite('party-people',6,p.x+1.5,p.y+.03,true,k);sprite('party-people',p.happy?4:2,p.x+2.5,p.y+.03,true,k);
+ c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.3,.06,0,0,6.2832);c.fill();sprite('street-people',p.happy?5:4,p.x,p.y+.03,true,k*.55);
+ if(p.happy)balloons(p.x-.35,p.y-1.75,.75);else for(var d=0;d<2;d++){var ph=calm?d/2:((T*1.5+d/2)%1),tx=p.x+(d?.3:-.3)*(.4+ph),ty=p.y-1.05+ph*.7;c.globalAlpha=1-ph*.8;c.fillStyle='#4aa8ff';c.beginPath();c.moveTo(tx,ty-.1);c.quadraticCurveTo(tx+.08,ty+.03,tx,ty+.07);c.quadraticCurveTo(tx-.08,ty+.03,tx,ty-.1);c.fill();ink(.03);c.globalAlpha=1}}
+function playground(x0,x1){var c=cx,base=MH-2;
+ (L.slides||[]).forEach(function(sl){if(sl.x1<x0||sl.x0>x1)return;c.strokeStyle=INK;c.lineWidth=.42;c.lineCap='round';c.beginPath();c.moveTo(sl.x0-.3,sl.y0+.12);c.lineTo(sl.x1,sl.y1-.05);c.stroke();c.strokeStyle='#e0303a';c.lineWidth=.3;c.stroke();c.strokeStyle='#ff8a8a';c.lineWidth=.08;c.beginPath();c.moveTo(sl.x0-.2,sl.y0+.04);c.lineTo(sl.x1-.2,sl.y1-.13);c.stroke();
+  c.strokeStyle=INK;c.lineWidth=.1;c.beginPath();c.moveTo(sl.x0-3.9,sl.y0);c.lineTo(sl.x0-3.9,base);c.moveTo(sl.x0-1.4,sl.y0);c.lineTo(sl.x0-1.4,base);c.stroke()});
+ (L.spins||[]).forEach(function(sp){if(sp.x<x0-3||sp.x>x1+3)return;var a=T*(P.spinT>0?9:1.2);c.fillStyle=INK;c.fillRect(sp.x-.08,sp.y,.16,1);c.fillStyle='#3aa0ff';c.beginPath();c.ellipse(sp.x,sp.y+.12,1.55,.3,0,0,6.2832);c.fill();ink(.07);c.strokeStyle=YEL;c.lineWidth=.09;for(var i=0;i<4;i++){var q=a+i*1.571;c.beginPath();c.moveTo(sp.x,sp.y+.1);c.lineTo(sp.x+Math.cos(q)*1.45,sp.y+.1+Math.sin(q)*.26);c.lineTo(sp.x+Math.cos(q)*1.45,sp.y-.75+Math.sin(q)*.26);c.stroke()}});
+ (L.seesaws||[]).forEach(function(se){if(se.x<x0-4||se.x>x1+4)return;var tl=P.seeT>0?-.12:.12;c.fillStyle=INK;c.beginPath();c.moveTo(se.x+1.5-.3,base);c.lineTo(se.x+1.5+.3,base);c.lineTo(se.x+1.5,base-.55);c.closePath();c.fill();c.save();c.translate(se.x+1.5,base-.55);c.rotate(tl);c.fillStyle='#fad00c';rr(-2,-.09,4,.18,.06);c.fill();ink(.06);c.restore()});
+ movers.forEach(function(m){if(!m.sw||m.cx<x0-5||m.cx>x1+5)return;var topY=m.cy-4.6;c.strokeStyle=INK;c.lineWidth=.14;c.beginPath();c.moveTo(m.cx-3,base);c.lineTo(m.cx-2.2,topY);c.lineTo(m.cx+2.2,topY);c.lineTo(m.cx+3,base);c.stroke();c.lineWidth=.05;c.beginPath();c.moveTo(m.cx-.5,topY);c.lineTo(m.x-.7,m.y);c.moveTo(m.cx+.5,topY);c.lineTo(m.x+.7,m.y);c.stroke();c.fillStyle='#e0303a';rr(m.x-1,m.y,2,.2,.08);c.fill();ink(.06)})}
+function castle(x,y){var c=cx,first=tile(x-1,y)!=='B',last=tile(x+1,y)!=='B',sq=(P.bn>0&&Math.abs(P.x-x-.5)<3)?.06:0;c.fillStyle='#e0303a';rr(x-(first?.25:0),y+.35+sq,1.01+(first?.25:0)+(last?.25:0),.7-sq,first||last?.2:0);c.fill();c.fillStyle=YEL;c.fillRect(x,y+.35+sq,1.01,.16);c.fillStyle=INK;c.fillRect(x-(first?.25:0),y+.31+sq,1.01+(first?.25:0)+(last?.25:0),.07);
+ if(first||last){var tx=first?x-.2:x+.75;c.fillStyle='#3aa0ff';rr(tx,y-1.4,.45,1.8,.15);c.fill();ink(.07);c.fillStyle=YEL;c.beginPath();c.moveTo(tx-.08,y-1.4);c.lineTo(tx+.225,y-2);c.lineTo(tx+.53,y-1.4);c.closePath();c.fill();ink(.06)}}
 function babyPic(x,y,sc){var c=cx;c.save();c.translate(x,y);c.scale(sc,sc);c.fillStyle='#fff3c4';c.beginPath();c.ellipse(0,.05,.34,.24,-.3,0,6.2832);c.fill();ink(.06);c.fillStyle='#ffd0a6';c.beginPath();c.arc(.2,-.14,.17,0,6.2832);c.fill();ink(.05);c.fillStyle=INK;c.beginPath();c.arc(.25,-.16,.025,0,6.2832);c.fill();c.restore()}
 function familyZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,base=MH-2,i;if(z.x1<x0||z.x0>x1)return;c.fillStyle='#bfe6f7';c.fillRect(z.x0,0,zw,MH);
  for(i=Math.floor(Math.max(z.x0,x0)/11)*11;i<Math.min(z.x1,x1);i+=11){if(i<z.x0)continue;c.fillStyle='rgba(255,255,255,.85)';c.beginPath();c.ellipse(i+3,3+(i%3)*.9,1.5,.42,0,0,6.2832);c.ellipse(i+4.1,3.3+(i%3)*.9,1.1,.36,0,0,6.2832);c.fill()}
@@ -451,7 +486,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle=YEL;c.fillRect(x,MH-2.62,1.01,.16);c.fillStyle=INK;for(var sx=0;sx<4;sx++){c.beginPath();c.moveTo(x+sx*.25,MH-2.62);c.lineTo(x+sx*.25+.1,MH-2.62);c.lineTo(x+sx*.25+.2,MH-2.46);c.lineTo(x+sx*.25+.1,MH-2.46);c.closePath();c.fill()}c.fillRect(x,MH-2.64,1.01,.03);c.fillRect(x,MH-2.47,1.01,.03)}
  // tiles
  for(y=Math.max(0,Math.floor(camY)-1);y<Math.min(MH,Math.ceil(camY+VIEW)+2);y++)for(x=Math.max(0,x0);x<Math.min(MW,x1);x++){t=MAP[y].charAt(x);
-  if(family&&'F^KD'.indexOf(t)>=0){if(t==='F')thing('crate',x+.5,y+1.02,1.04,false,'street-things');else if(t==='^')thing('trampoline',x+.5,y+1.02,null,false,'party-things');else if(t==='D')thing('gate',x+.5,y+1.02,null,false,'party-things');else{thing('engaged',x+.5,y+1.02,null,false,'party-things');if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-1.6,.16,0,6.2832);c.fill();ink(.06)}}}
+  if(t==='B'){castle(x,y)}
+  else if(family&&'F^KD'.indexOf(t)>=0){if(t==='F')thing('crate',x+.5,y+1.02,1.04,false,'street-things');else if(t==='^')thing('trampoline',x+.5,y+1.02,null,false,'party-things');else if(t==='D')thing('gate',x+.5,y+1.02,null,false,'party-things');else{thing('engaged',x+.5,y+1.02,null,false,'party-things');if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-1.6,.16,0,6.2832);c.fill();ink(.06)}}}
   else if(street&&'F^KD'.indexOf(t)>=0){streetTile(t,x,y)}
   else if(t==='L'){var on=!isDark(zoneAt(x,y));if(on){var lg=c.createRadialGradient(x+.5,y+.35,0,x+.5,y+.35,.9);lg.addColorStop(0,'rgba(250,208,12,.55)');lg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=lg;c.fillRect(x-.5,y-.6,2,2)}thing('switch',x+.5,y+.72,null,false,'party-things')}
   else if(t==='F'){thing('cabinet',x+.5,y+1.02,1.04)}
@@ -472,7 +508,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
-  if(it.k==='b')babyPic(it.x,by+.2,1);
+  if(it.k==='a')balloons(it.x,by+.3,1.15);
+  else if(it.k==='b')babyPic(it.x,by+.2,1);
   else if(it.k==='t'&&!party)thing('tea',it.x,by+.5,.8);
   else if(it.k==='t')tissueBox(it.x,by+.45,1.5);
   else if(it.k==='f')thing('plate',it.x,by+.42,1.15,false,'party-things');
@@ -483,7 +520,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
  people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
- movers.forEach(function(m){thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things')});
+ movers.forEach(function(m){if(!m.sw)thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things')});if(family)playground(x0,x1);
  bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;if(due||b.x!==null){c.fillStyle=YEL;c.beginPath();c.arc(b.x1+.4,MH-2-2.6,.34,0,6.2832);c.fill();ink(.07);c.fillStyle=INK;c.font='800 .42px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('!',b.x1+.4,MH-2-2.58)}
   if(b.x!==null)sprite('street-bike',Math.floor(T/.12)%2,b.x,MH-2+.03,true,1/PPT)});
  bubbles.forEach(function(b){if(!street){thing('bubble',b.x,b.y+.42,null,b.f>0);return}
@@ -499,6 +536,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
  if(P.phones>0){c.strokeStyle='#7a5cff';c.lineWidth=.07;c.globalAlpha=.5+.3*Math.sin(T*4);c.beginPath();c.arc(P.x,P.y-.85,1.05,0,6.2832);c.stroke();c.globalAlpha=1}
+ if(P.balloons)balloons(P.x-P.f*.15,P.y-2.25,1.05);
  if(P.float)thing('brolly',P.x+P.f*.22,P.y-.75,1.9,false,'street-things');
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
  if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.globalAlpha=P.inv>0?.55:P.hood?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
@@ -517,7 +555,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var zn=zoneAt(P.x,P.y-.5);if(S.zone!==zn.name){S.zone=zn.name;S.zoneT=S.mode==='ready'?0:2.6}if(S.zoneT>0){var za=Math.min(1,S.zoneT*2,(2.6-S.zoneT)*4);c.globalAlpha=Math.max(0,za);c.font='800 '+(tall?15:18)+'px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var zt=zn.name.toUpperCase(),zw2=c.measureText(zt).width+36;c.fillStyle='rgba(27,27,42,.82)';rr(W/2-zw2/2,sceneY+sceneH*.16,zw2,36,10);c.fill();c.fillStyle=YEL;c.fillText(zt,W/2,sceneY+sceneH*.16+19);c.globalAlpha=1}
  if(S.info){var ia=Math.min(1,S.info.t*2,(4-S.info.t)*5),iy=sceneY+sceneH*.3;c.globalAlpha=Math.max(0,ia);c.textAlign='center';c.textBaseline='middle';c.font='600 '+(tall?12:14)+'px Montserrat,system-ui,sans-serif';var iw=Math.min(W-24,Math.max(c.measureText(S.info.b).width+36,180));
   c.fillStyle=YEL;rr(W/2-iw/2,iy,iw,tall?54:58,12);c.fill();c.strokeStyle='#1c1611';c.lineWidth=2;c.stroke();c.fillStyle='#1c1611';c.font='800 '+(tall?14:16)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.a,W/2,iy+18);c.font='600 '+(tall?11:13)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.b,W/2,iy+(tall?38:40),iw-20);c.globalAlpha=1}
- var ups=[];if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push('PHONE: 1 FREE PASS');if(P.plate)ups.push('PLATE: STANDERS LET YOU PAST');if(P.tissues)ups.push(L.toll.item);if(P.baby>0)ups.push('BABY '+Math.ceil(P.baby));if(P.brolly)ups.push('UMBRELLA: HOLD A TO FLOAT');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+44,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+55.5)}
+ var ups=[];if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push('PHONE: 1 FREE PASS');if(P.plate)ups.push('PLATE: STANDERS LET YOU PAST');if(P.tissues)ups.push(L.toll.item);if(P.baby>0)ups.push('BABY '+Math.ceil(P.baby));if(P.balloons)ups.push('BALLOONS: HOLD A TO RISE');if(P.brolly)ups.push('UMBRELLA: HOLD A TO FLOAT');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+44,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+55.5)}
  if(look){c.font='800 12px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var lw=c.measureText('LOOKING AROUND · GAME PAUSED').width+24;c.fillStyle=YEL;rr(W/2-lw/2,sceneY+sceneH-34,lw,24,12);c.fill();c.fillStyle='#1c1611';c.fillText('LOOKING AROUND · GAME PAUSED',W/2,sceneY+sceneH-21)}
  if(!ready){c.fillStyle=CREAM;c.textAlign='center';c.font='600 14px Montserrat,system-ui,sans-serif';c.fillText('Unrolling the carpet…',W/2,sceneY+sceneH/2)}
  // the buttons, laid out like an old handheld
