@@ -107,7 +107,7 @@ const STREET_ZONES = [
   { x0: 139, x1: 193, name: "The Rooftops", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
   { x0: 193, x1: 232, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
 ];
-const STREET = { name: "The High Street", out: "the high street", theme: "street", map: highStreet(), zones: STREET_ZONES, upstairs: null,
+const STREET = { name: "The High Street", out: "the high street", theme: "street", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, map: highStreet(), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
   signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
@@ -117,6 +117,8 @@ const STREET = { name: "The High Street", out: "the high street", theme: "street
 // Level 3, the house party: a three-storey house you zigzag up through. Along the hallway, up the stairs, back along
 // the living room, up to the loft, along it and out of the loft window into the garden. 29 squares high.
 // New here: L a light switch (dark rooms hide you, but you cannot see the floor),  f a plate of food (one free pass).
+// The host (the chaser) carries a torch and sees you even in the dark. A fall of more than 12 squares is the end
+// of you unless you float down on the umbrella or land on the trampoline.
 // The art is all stand-in for now: office people, office chairs for the sofa, bed and trampoline.
 function houseParty() {
   const W = 120, H = 29, G = 26, F1 = 17, F2 = 8, g = Array.from({ length: H }, () => Array(W).fill("."));
@@ -129,7 +131,7 @@ function houseParty() {
   // Outside the front door: tea, and someone having a breather on the path
   row(5, 7, G, "o"); put(10, G, "P");
   // The hallway: an arguing couple who both shout at you, the cupboard under the stairs, then the stairs
-  put(24, G, "T"); row(29, 31, G, "o"); put(37, G, "T"); put(43, G, "K");
+  put(22, G, "T"); put(26, G, "w"); put(27, G, "c"); put(31, G, "C"); put(35, G, "w"); put(38, G, "T"); put(43, G, "K");
   row(46, 48, 25, "="); row(50, 56, 23, "="); put(54, 22, "P"); row(58, 60, 21, "=");
   // The kitchen, on past the foot of the stairs (optional): a plate, the huddle that never leaves, a note, a plate to get back
   put(61, G, "f"); row(67, 72, G, "P"); put(78, G, "N"); row(80, 82, G, "o"); put(86, G, "f");
@@ -138,12 +140,13 @@ function houseParty() {
   // Stepping stones back across the stairwell, heading left
   row(56, 57, 18, "="); row(51, 52, 18, "="); row(46, 47, 18, "="); put(51, 16, "o");
   // The living room: the dancing circle, then the sofa and two shelves up into the loft
-  put(41, F1, "w"); put(37, F1, "W"); put(32, F1, "W"); put(27, F1, "W"); put(23, F1, "w"); put(19, F1, "^"); row(21, 22, 13, "="); row(24, 25, 11, "=");
+  put(42, F1, "w"); put(39, F1, "W"); put(35, F1, "W"); put(31, F1, "W"); put(27, F1, "W"); put(24, F1, "w"); put(22, F1, "P"); put(19, F1, "^"); row(21, 22, 13, "="); row(24, 25, 11, "=");
   // The loft, dark: a light switch, a low beam with the guitar man beyond it, two holes in the floor, a walker, the host
-  put(30, F2, "L"); row(32, 34, F2, "o"); box(40, 48, 5, 6, "#"); put(52, F2, "T"); box(58, 60, 9, 10, "."); put(63, F2, "w"); put(66, F2, "W"); put(69, F2, "w");
-  box(71, 73, 9, 10, "."); put(76, F2, "K"); put(79, F2, "w"); put(80, F2, "c"); put(85, F2, "C"); put(66, 6, "N");
+  put(30, F2, "L"); row(32, 34, F2, "o"); box(40, 48, 5, 6, "#"); put(52, F2, "T"); box(58, 60, 9, 10, "."); put(50, F2, "w"); put(55, F2, "C"); put(63, F2, "w"); put(66, F2, "W"); put(69, F2, "w");
+  box(71, 73, 9, 10, "."); put(76, F2, "K"); put(79, F2, "w"); put(80, F2, "c"); put(85, F2, "C"); put(66, 6, "N"); put(90, F2, "u");
   // The garden: down from the loft window, a trampoline, the smokers, the back gate
-  row(96, 97, 14, "o"); row(96, 97, 20, "o"); put(100, G, "^"); put(105, G, "P"); put(107, G, "P"); row(109, 111, G, "o"); put(114, G, "D");
+  put(96, 11, "o"); put(99, 13, "o"); put(102, 15, "o"); put(99, 17, "o"); put(96, 19, "o"); put(99, 21, "o"); put(102, 23, "o");
+  put(98, G, "^"); put(103, G, "w"); put(105, G, "P"); put(106, G, "P"); put(109, G, "C"); put(114, G, "D");
   return g.map((r) => r.join(""));
 }
 const NIGHT = { wall: "#2b3555", dado: "#232b47", rail: "#1b2238", kinds: [], out: true };
@@ -157,10 +160,10 @@ const PARTY_ZONES = [
   { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [2, 9, 2], dark: true },
   { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden" },
 ];
-const PARTY = { name: "The House Party", out: "the house party", theme: "party", map: houseParty(), zones: PARTY_ZONES, upstairs: null,
+const PARTY = { name: "The House Party", out: "the house party", theme: "party", talkEvery: 1.5, chaseSpeed: 4.3, walkSpeed: 2.9, torch: true, fallMax: 12, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
-  signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 90, y: 5.2, t: "OUT OF THE WINDOW" }],
-  lines: { P: ["You MADE it!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], pit: ["You fell into a conversation about house prices."] } };
+  signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
+  lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], pit: ["You fell into a conversation about house prices."] } };
 
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
 
@@ -213,7 +216,7 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
-function again(){if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
+function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1})}
 function flat(){S.mode='lost';card(NAME+' didn’t make it.','His spirit has been crushed. By middle management.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function say(t,x,y){says.push({t:t,x:x,y:y,life:1.8})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
@@ -251,10 +254,11 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
    if((solid(i,ty)||(c==='='&&P.y<=ty+.02))&&P.y<=ty+.02+Math.max(0,P.vy*dt)){ny=ty;P.vy=0;P.ground=true;break}}}
  else{for(i=xa;i<=xb;i++)if(solid(i,Math.floor(ny-HH))){ny=Math.floor(ny-HH)+1+HH+.001;P.vy=0;break}}
  movers.forEach(function(m){if(P.vy>=0&&P.y<=m.y+.08&&ny>=m.y&&Math.abs(P.x-m.x)<m.w/2+.1){ny=m.y;P.vy=0;P.ground=true;P.on=m}});
- P.y=ny;if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
+ P.y=ny;if(P.float||P.peak==null)P.peak=P.y;if(!P.ground)P.peak=Math.min(P.peak,P.y);else{var drop=P.y-P.peak;P.peak=P.y;if(L.fallMax&&drop>L.fallMax&&S.mode==='play'){S.why='drop';S.hits++;S.batt=0;say('That was a long way down.',P.x,P.y-2.6);flat();return}}
+ if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
  var cyy=Math.floor(P.y-.01),onChair=tile(Math.floor(P.x),cyy)==='^'||tile(Math.floor(P.x+.55),cyy)==='^'||tile(Math.floor(P.x-.55),cyy)==='^';if(P.vy>=0&&onChair&&P.y>=cyy+.15){   // generous: brush against it and up you go
-  P.vy=-23;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
+  P.vy=-23;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
  if(P.ground&&solid(Math.floor(P.x),Math.floor(P.y+.1))&&solid(Math.floor(P.x-1),Math.floor(P.y+.1))&&solid(Math.floor(P.x+1),Math.floor(P.y+.1)))P.safe=[P.x,P.y];
  if(P.y>MH+2){P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(S.batt<=.001){flat();return}}
  // collecting
@@ -269,12 +273,13 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  var unseen=P.hood||P.phones>0||isDark(zoneAt(P.x,P.y-.5));
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7;
-  if(p.k==='C'){if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=2.2}else if(near&&!unseen&&S.mode==='play'){p.run=3.1;p.wind=.55;say(pick(L.lines.C),p.x,p.y-2.5)}
-   if(p.wind>0)p.wind-=dt;else if(p.run>0){if(!unseen)p.f=P.x<p.x?-1:1;var cx2=p.x+p.f*.5;if(!(solid(Math.floor(cx2),Math.floor(p.y-.5))||tile(Math.floor(cx2),Math.floor(p.y-.5))==='w'||!solid(Math.floor(cx2),Math.floor(p.y+.1))))p.x+=p.f*3.7*dt}}
-  else if(p.k==='W'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*2.1*dt}
+  var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
+  if(p.k==='C'){if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=2.2}else if(near&&!un&&S.mode==='play'){p.run=3.1;p.wind=.55;say(pick(L.lines.C),p.x,p.y-2.5)}
+   if(p.wind>0)p.wind-=dt;else if(p.run>0){if(!un)p.f=P.x<p.x?-1:1;var cx2=p.x+p.f*.5;if(!(solid(Math.floor(cx2),Math.floor(p.y-.5))||tile(Math.floor(cx2),Math.floor(p.y-.5))==='w'||!solid(Math.floor(cx2),Math.floor(p.y+.1))))p.x+=p.f*(L.chaseSpeed||3.7)*dt}}
+  else if(p.k==='W'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*(L.walkSpeed||2.1)*dt}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
-  if(p.k==='T'&&p.t>2&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  if(!unseen&&Math.abs(P.x-p.x)<(p.k==='G'?.5:.62)&&P.y>p.y-(p.k==='G'?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0)say(pick(L.lines[p.k]),p.x,p.y-2.5);hurt(p.k,p.x)}});
+  if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
+  if(!un&&Math.abs(P.x-p.x)<(p.k==='G'?.5:.62)&&P.y>p.y-(p.k==='G'?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0)say(pick(L.lines[p.k]),p.x,p.y-2.5);hurt(p.k,p.x)}});
  bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=b.x1+7;b.t=0}}else{b.x-=11*dt;if(b.x<b.x0-7)b.x=null;
    else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
@@ -403,6 +408,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  // dark rooms: you cannot see the floor, and nobody can see you. The light switches and Hoodini stay visible.
  if(party)L.zones.forEach(function(z){if(!isDark(z)||z.x1<x0||z.x0>x1)return;c.fillStyle='rgba(10,10,22,.9)';c.fillRect(z.x0,z.y0,z.x1-z.x0,z.y1-z.y0);c.fillStyle='rgba(10,10,22,.96)';c.fillRect(z.x0,z.y1,z.x1-z.x0,2);
   for(var ly=z.y0;ly<z.y1;ly++)for(var lx=Math.max(z.x0,x0);lx<Math.min(z.x1,x1);lx++)if(tile(lx,ly)==='L'){var gl=c.createRadialGradient(lx+.5,ly+.3,0,lx+.5,ly+.3,1.1);gl.addColorStop(0,'rgba(250,208,12,.8)');gl.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=gl;c.fillRect(lx-.7,ly-.9,2.4,2.4);c.fillStyle='#fff';rr(lx+.3,ly+.05,.4,.55,.06);c.fill()}});
+ if(L.torch)people.forEach(function(q){if(q.k!=='C'||!isDark(zoneAt(q.x,q.y-.5)))return;var tg=c.createLinearGradient(q.x,0,q.x+q.f*5,0);tg.addColorStop(0,'rgba(255,240,170,.55)');tg.addColorStop(1,'rgba(255,240,170,0)');c.fillStyle=tg;c.beginPath();c.moveTo(q.x+q.f*.3,q.y-1.1);c.lineTo(q.x+q.f*5,q.y-2.4);c.lineTo(q.x+q.f*5,q.y+.05);c.closePath();c.fill();person(q)});
  // you
  var k=1.7/HERO.pph,f=P.hood?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
