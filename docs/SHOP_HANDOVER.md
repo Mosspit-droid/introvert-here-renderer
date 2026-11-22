@@ -107,6 +107,16 @@ R2 `site/` (copies in `shop/assets/site/`).
   to the shop worker: do that on launch day (Workers > introvert-here-shop > Domains: introverthere.com and www),
   then point the Stripe webhook at introverthere.com if wanted. Site email stays admin@mosspit.org (Barry's choice).
 
+### Visitor numbers
+- Cloudflare Web Analytics is set up for introverthere.com (22 Nov) with automatic setup: Cloudflare adds the beacon
+  itself once the domain is attached to the shop worker, so no code. The workers.dev preview isn't counted.
+
+### Google Shopping (free listings)
+- `/google-products.xml` is a product feed built from the catalogue (one item per colour and size, In Person left
+  out). Links open the product page with that colour and size chosen (`?colour=&size=`). Launch day: Barry creates
+  a free Google Merchant Center account, verifies introverthere.com, sets UK delivery free, and adds the feed URL
+  `https://introverthere.com/google-products.xml` as a scheduled daily fetch.
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support

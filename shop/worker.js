@@ -120,6 +120,7 @@ async function route(request, env, ctx) {
       if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
+      if (path === "/google-products.xml") return new Response(googleFeed(await catalog(env), url.origin), { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
       if (["/logo.png", "/icon.png", "/hero.jpg", "/logo-stacked.jpg", "/concrete.jpg", "/hero-SH.jpg", "/hero-PC.jpg", "/hero-OS.jpg", "/bg-SH.jpg", "/bg-PC.jpg", "/bg-OS.jpg", "/hero-EX.jpg", "/bg-EX.jpg", "/hero-IP.jpg", "/bg-IP.jpg", "/logo-wide.png", "/logo-xmas.png", "/logo-ER-wide.png", "/bg-IP2.jpg", "/bg-SH2.jpg"].includes(path) || /^\/logo-[A-Z]{2}\.png$/.test(path)) {
         const buf = (isPreview(env) && (await env.PENDING.get("shop:preview:" + path.slice(1), "arrayBuffer"))) || (await env.PENDING.get("shop:" + path.slice(1), "arrayBuffer"));
         return buf ? new Response(buf, { headers: { "Content-Type": path.endsWith(".png") ? "image/png" : "image/jpeg", "Cache-Control": "public, max-age=86400" } }) : new Response("", { status: 404 });
@@ -748,6 +749,40 @@ function tileHtml({ d, t }) {
   const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
   const varies = g.variants.some((v) => v.price !== g.priceFrom);
   return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
+}
+
+// ---------------- Google Shopping product feed (/google-products.xml) ----------------
+// Free product listings on Google (Barry, 22 Nov). Google Merchant Center reads this list; it's built from the
+// catalogue, so every new garment appears by itself. One item per colour and size, grouped by garment; each links to
+// the product page with that colour and size already chosen, so the price Google shows is the price on the page.
+// In Person is left out (each one needs the buyer's name). Delivery is free in the UK.
+function googleFeed(cat, origin) {
+  const x = (v) => String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const abs = (u) => (u && u.startsWith("/") ? origin + u : u);
+  const items = [];
+  for (const d of cat.designs) {
+    if (d.coll === "IP") continue;
+    const coll = (COLLECTIONS[d.coll] || COLLECTIONS.IH).name.replace(/[.…]+$/, "");
+    const gag = String(d.text || "").replace(/^[.…\s]+/, "").replace(/\s*\n+\s*/g, " ").trim();
+    for (const t of cat.garmentOrder) {
+      const g = d.garments[t]; if (!g) continue;
+      const desc = `“${gag}” ${g.label} from the ${coll} range by Introvert Here. ` + String(g.features || "").replace(/•\s*/g, "").replace(/\n+/g, ". ").replace(/\.\./g, ".").replace(/([^.])\s*$/, "$1.") + " Printed to order. Free UK delivery.";
+      for (const v of g.variants) {
+        const pics = g.images.filter((i) => i.colour === v.colour).map((i) => abs(i.url));
+        const img = pics[0] || abs((g.images[0] || {}).url || g.tile);
+        if (!img) continue;
+        items.push(`<item><g:id>${x(g.code + "-" + v.id)}</g:id><g:item_group_id>${x(g.code)}</g:item_group_id>
+<title>${x(`${d.title} ${g.label}, ${v.colour}, ${v.size}`.slice(0, 150))}</title><description>${x(desc.slice(0, 4900))}</description>
+<link>${x(origin + "/uk/p/" + productSlug(d, t) + "?colour=" + encodeURIComponent(v.colour) + "&size=" + encodeURIComponent(v.size))}</link>
+<g:image_link>${x(img)}</g:image_link>${pics.slice(1, 6).map((u) => `<g:additional_image_link>${x(u)}</g:additional_image_link>`).join("")}
+<g:availability>in_stock</g:availability><g:price>${(v.price / 100).toFixed(2)} GBP</g:price><g:brand>Introvert Here</g:brand><g:condition>new</g:condition><g:identifier_exists>no</g:identifier_exists>
+<g:google_product_category>${t === "HOODIE" || t === "SWEATSHIRT" ? "1604" : "212"}</g:google_product_category><g:product_type>${x(coll + " > " + g.label)}</g:product_type>
+<g:gender>unisex</g:gender><g:age_group>adult</g:age_group><g:color>${x(v.colour)}</g:color><g:size>${x(v.size)}</g:size><g:size_system>UK</g:size_system>
+<g:shipping><g:country>GB</g:country><g:price>0.00 GBP</g:price></g:shipping></item>`);
+      }
+    }
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0"><channel><title>Introvert Here</title><link>${x(origin)}/uk</link><description>Clothing for introverts, quiet people and the reluctantly sociable.</description>\n${items.join("\n")}\n</channel></rss>`;
 }
 
 // ---------------- Christmas (Barry, 22 Nov) ----------------
@@ -1517,6 +1552,7 @@ $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;
  var nm=P?st.name.trim():'';var ex=b.find(function(i){return i.code===g.code&&i.variant===v.id&&(i.name||'')===nm});if(ex)ex.qty=Math.min(10,ex.qty+1);
  else b.push({code:g.code,variant:v.id,qty:1,title:D.title,garment:g.label,colour:v.colour,size:v.size,price:v.price,name:nm,img:(pics()[0]||{}).thumb||''});
  B.set(b);$('added').style.display='block';});
+(function(){try{var q=new URLSearchParams(location.search),c=q.get('colour'),z=q.get('size');if(c&&G().variants.some(function(v){return v.colour===c})){st.colour=c;if(z&&G().variants.some(function(v){return v.colour===c&&v.size===z}))st.size=z}}catch(_){}})();
 render();`;
   return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
