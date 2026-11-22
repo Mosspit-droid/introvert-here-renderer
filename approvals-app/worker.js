@@ -7604,9 +7604,11 @@ async function scPrintifyProduct(env, id) {
   if (!token) return await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/products/" + id + ".json");   // the Make Printify tool needs the /v1 prefix
   const r = await fetch("https://api.printify.com/v1/shops/" + IPO_PRINTIFY_SHOP + "/products/" + id + ".json", { headers: { Authorization: "Bearer " + token, "User-Agent": "IntrovertHereShop/1.0" } });
   if (r.status === 404) return null;
+  if (r.status === 401 || r.status === 403) { scKeyBad = true; return await pfyTool(env, "/v1/shops/" + IPO_PRINTIFY_SHOP + "/products/" + id + ".json"); }   // key rejected: go through Make
   if (!r.ok) throw new Error("Printify said " + r.status);
   return await r.json();
 }
+let scKeyBad = false;   // the saved Printify key was refused this run (Make is used instead, so only new garments are read)
 // Sizes, colours and prices on sale.
 function scFromPrintify(p) {
   const opts = {}; (p.options || []).forEach((o) => { opts[o.type] = Object.fromEntries((o.values || []).map((v) => [v.id, v])); });
@@ -7688,13 +7690,17 @@ async function shopCatalogRun(env, opt) {
   for (const w of S.want) { const o = oldG[w.code]; G[w.code] = o && o.printifyId === w.pid && o.variants ? { variants: o.variants, pAt: o.pAt || 0 } : { pAt: 0 }; }
   const order = S.want.slice().sort((a, b) => (G[a.code].variants ? 1 : 0) - (G[b.code].variants ? 1 : 0) || G[a.code].pAt - G[b.code].pAt);
   const gone = {};
-  for (const w of order.slice(0, opt.batch || SC.batch)) {
+  // Through Make each read costs an operation, so with a refused key only garments not read yet are fetched (no rechecks).
+  const keyBad = S.keyBad && now - (S.keyBadAt || 0) < 12 * 3600e3, todo = keyBad ? order.filter((w) => !G[w.code].variants) : order;
+  scKeyBad = false;
+  for (const w of todo.slice(0, keyBad ? 24 : (opt.batch || SC.batch))) {
     try {
       const p = await scPrintifyProduct(env, w.pid);
       if (!p || !p.variants) { gone[w.code] = "Printify product " + w.pid + " not found"; delete G[w.code].variants; continue; }
       Object.assign(G[w.code], scFromPrintify(p), { pAt: now });
     } catch (e) { if (!G[w.code].variants) gone[w.code] = String(e.message || e).slice(0, 120); }
   }
+  if (scKeyBad) { S.keyBad = true; S.keyBadAt = now; } else if (!keyBad) delete S.keyBad;
   const own = (await env.PENDING.get(SC.own, "json")) || {};   // garments whose full Canva photo sets are stored
   const designs = {}, problems = (S.notes || []).slice(); let etsyOnly = 0, unbuilt = 0;
   for (const w of S.want) {
@@ -7740,6 +7746,7 @@ async function shopCatalogCard(env) {
 ${S.waiting ? `<div class="small">${S.waiting} new garment${S.waiting === 1 ? "" : "s"} still being added.</div>` : ""}
 ${S.etsyOnly ? `<div class="small">${S.etsyOnly} garment${S.etsyOnly === 1 ? " is" : "s are"} showing Etsy's photos only: the full Canva set hasn't been stored yet.</div>` : ""}
 ${S.error ? `<div class="status bad">Last check failed: ${esc(S.error)}</div>` : ""}
+${S.keyBad ? `<div class="status bad">Printify refused the saved Printify key. The shop uses it to place orders, so save a new one under Shop keys below (Printify: My account › Connections › API tokens).</div>` : ""}
 ${await (async () => { const Q = (await env.PENDING.get(SP.q, "json")) || {}, L = Q.log || [], last = L[0];
   return `<div class="small" style="margin-top:6px">Photos: ${Q.cur ? "saving " + esc(Q.cur.code) + " now" + ((Q.queue || []).length ? ", " + Q.queue.length + " more waiting" : "") : (Q.queue || []).length ? Q.queue.length + " garment(s) waiting" : "all saved"}${last ? " · last: " + esc(last.code) + (last.err ? " failed (" + esc(last.err) + ")" : " ✓ " + esc(when(last.at))) : ""}. New and regenerated mockups are copied to the site by themselves.</div>`; })()}
 ${probs.length ? `<div class="status wait">${probs.map(esc).join("<br>")}</div>` : ""}
