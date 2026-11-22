@@ -401,7 +401,9 @@ function crier(p){if(!party){var c0=cx;c0.fillStyle='rgba(27,27,42,.18)';c0.begi
 function tissueBox(x,y,sc){sprite('party-criers',3,x,y,false,sc/PPT)}
 function thing(name,x,y,w,flip,sheet){sheet=sheet||'flat-things';var it=ART[sheet].items[name],im=IMG[sheet],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART[sheet].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
 // Background dressing, deliberately pale and outline-free so nobody mistakes it for something to jump on.
-function backdrop(x,base,kind,tn,sheet){var dc=ART[sheet||'flat-decor'],im=IMG[sheet||'flat-decor'],it=dc.items[kind];if(im&&im.naturalWidth&&it){var k3=1/dc.ppt;cx.globalAlpha=.42;cx.drawImage(im,it.x,dc.H-it.h,it.w,it.h,x+1.7-it.w*k3/2,base-it.h*k3,it.w*k3,it.h*k3);cx.globalAlpha=1}}
+var WASH=null;
+function washed(im){if(!WASH){WASH=document.createElement('canvas');WASH.width=im.naturalWidth;WASH.height=im.naturalHeight;var w=WASH.getContext('2d');w.drawImage(im,0,0);w.globalCompositeOperation='source-atop';w.fillStyle='rgba(150,205,160,.5)';w.fillRect(0,0,WASH.width,WASH.height)}return WASH}
+function backdrop(x,base,kind,tn,sheet){var dc=ART[sheet||'flat-decor'],im=IMG[sheet||'flat-decor'],it=dc.items[kind];if(im&&im.naturalWidth&&it){var k3=1/dc.ppt,solidPic=sheet==='park-decor';if(solidPic)im=washed(im);cx.globalAlpha=solidPic?1:.42;cx.drawImage(im,it.x,dc.H-it.h,it.w,it.h,x+1.7-it.w*k3/2,base-it.h*k3,it.w*k3,it.h*k3);cx.globalAlpha=1}}
 function backdropOld(x,base,kind,tn){var c=cx,A=tn[0],B=tn[1],D=tn[2],i,j;
  if(kind>5){backdrop2(x,base,kind,A,B,D);return}
  if(kind===0){c.fillStyle=B;c.fillRect(x,base-1.05,2.6,.16);c.fillRect(x+.15,base-.9,.14,.9);c.fillRect(x+2.3,base-.9,.14,.9);c.fillStyle=D;rr(x+.9,base-1.95,1,.7,.06);c.fill();c.fillRect(x+1.32,base-1.25,.16,.2);c.fillStyle=A;rr(x+.98,base-1.87,.84,.54,.04);c.fill();c.fillStyle=B;rr(x+3,base-1.3,.7,.7,.2);c.fill();c.fillRect(x+3.28,base-.6,.14,.6)}
