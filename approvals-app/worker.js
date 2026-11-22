@@ -1482,6 +1482,21 @@ async function creditsCheck(env, force) {
   }
   const scenarios = sc.j.scenarios.map((s) => ({ id: s.id, name: String(s.name || "").replace(/^(Introvert Here|Mosspit Studios):\s*/, ""), active: !!s.isActive, paused: !!s.isPaused,
     dlq: Number(s.dlqCount) || 0, credits: 0, d7: 0 }));
+  // A key scenario switched off (Make does this after an error, 22 Nov: a stray empty message stopped Video finish for
+  // 16 hours): alert once per time it goes off, straight away rather than in the daily check.
+  try {
+    const KEY = ["7896436", "7696096", "7687522", "7783647", "8448188", "8451335", "8438720", "8438719"];
+    const was = (await env.PENDING.get("off-alerted", "json")) || [], off = scenarios.filter((x) => KEY.includes(String(x.id)) && !x.active).map((x) => String(x.id));
+    const fresh = off.filter((id) => !was.includes(id));
+    if (fresh.length) {
+      const alerts = await loadAlerts(env);
+      for (const id of fresh) { const P = plainScenario({ id }); alerts.unshift({ id: crypto.randomUUID(), at: Date.now(), source: "app", link: MAKE_TEAM_URL + "/scenarios/" + id,
+        title: P[0] + " is switched off in Make", body: whatPart(P) + " While it's off, " + P[2] + ". Make usually switches a scenario off after an error. Ask Claude to look, or switch it back on in Make." }); }
+      await saveAlerts(env, alerts);
+      await notify(env, "", "Make: " + fresh.map((id) => plainScenario({ id })[0]).join(", ") + " switched off", "Something stopped it. Check Alerts.", "warning");
+    }
+    if (fresh.length || off.length !== was.length) await env.PENDING.put("off-alerted", JSON.stringify(off));
+  } catch (e) {}
   // Organisation: plan, extras, reset date (needs organizations:read). Raw numbers kept so the maths can be checked.
   let org = null;
   const o = await makeGet(token, `/organizations/${MAKE_ORG}`);
