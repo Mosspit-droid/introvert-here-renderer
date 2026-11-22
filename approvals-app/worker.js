@@ -7609,10 +7609,32 @@ document.addEventListener('click', async function(e){ var s=e.target.dataset&&e.
 // Writes "shop:catalog-next" for now (20 Nov): the live shop worker doesn't serve the /p/ photo addresses yet, so pointing
 // this at "shop:catalog" would break its pictures. Switch to "shop:catalog" once the shop worker serves /p/ from R2.
 const SC = { cat: "shop:catalog-next", state: "shop:catalog-state", photos: "shop:catalog-photos", own: "shop:photos", coreEvery: 6 * 3600e3, batchEvery: 30 * 60e3, batch: 12, vat: 1.2 };
-const SC_COLL = { "INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "EXCLUSIVE": "EX" };
+const SC_COLL = { "INTROVERT HERE…": "IH", "SHHH.": "SH", "PER CONTRACT": "PC", "OFF THE SHELF": "OS", "EXCLUSIVE": "EX", "IN PERSON": "IP" };
 const SC_GARMENTS = { "T-SHIRT": "T-shirt", "LONG-SLEEVE": "Long sleeve", "SWEATSHIRT": "Sweatshirt", "HOODIE": "Hoodie" };
 // Each range's main colour: lifestyle photos with no colour in their label show this colour.
-const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural" };
+const SC_MAIN = { IH: "Black", SH: "Dark Heather", PC: "Navy", OS: "Maroon", EX: "Natural", IP: "Purple" };
+// The shop's own prices in pence (Barry, 20 Nov: "option B"), about 20% below what a UK buyer pays on Etsy. Bigger sizes
+// keep Etsy's surcharge in whole pounds, less £1 where it's £4 or more; In Person adds £3 for the name.
+const SC_PRICE = { "T-SHIRT": 2599, "LONG-SLEEVE": 2999, "SWEATSHIRT": 3799, "HOODIE": 4799 }, SC_NAME_CHARGE = 300;
+// net = this size's price before VAT, baseNet = the garment's cheapest size, both in pence (for In Person, Etsy's price
+// already holds the name charge, which cancels out of the surcharge).
+function scSitePrice(type, net, baseNet) {
+  const etsy = Math.round(net * SC.vat), etsyBase = Math.round(baseNet * SC.vat), base = SC_PRICE[type];
+  if (!base) return Math.round((etsy * 0.81) / 100) * 100 - 1;
+  const extra = Math.round((etsy - etsyBase) / 100);
+  return base + (extra >= 4 ? extra - 1 : extra) * 100;
+}
+// In Person (Barry, 22 Nov): each mockup template has _BLANK pages after its last photo page, copies of the front-on photos
+// with the gag text deleted, in this order of partner pages. They're stored as p/<code>/b<NN>.jpg and are the backdrop for
+// the site's live name preview; "live" is where the gag text box sits on that kind of photo (Canva's 4500px page / 45 = %:
+// x, y top-left, w, h, font size s, rotation r). If a template's text box moves, update SC_IP_LIVE.
+const SC_IP_BLANK = { "T-SHIRT": [1, 2, 3, 7, 8, 9], "LONG-SLEEVE": [1, 2, 5, 6], "SWEATSHIRT": [1, 2, 3, 7, 8, 9], "HOODIE": [1, 2, 3, 10, 11, 12] };
+const SC_IP_LIVE = {
+  "T-SHIRT": { _THUMBNAIL_: [1242.755, 2086.406, 2048.485, 1249.811, 152.975, 0], _HANGING_: [1636.196, 1824.657, 1248.323, 761.620, 93.221, 0] },
+  "LONG-SLEEVE": { _THUMBNAIL_: [1032.321, 2082.562, 1941.998, 1184.841, 145.023, 12], _HANGING_: [1636.196, 1824.657, 1248.323, 761.620, 93.221, 0] },
+  "SWEATSHIRT": { _THUMBNAIL_: [1341.228, 1719.341, 1865.535, 1138.190, 139.313, -12], _HANGING_: [1550.755, 1932.882, 1420.934, 866.933, 106.111, 1] },
+  "HOODIE": { _THUMBNAIL_: [1468.761, 1712.214, 1588.846, 969.378, 118.651, 0], _HANGING_BACK_: [1576.781, 2001.379, 1369.159, 835.344, 102.245, 0] } };
+const SC_HEX = { Purple: "#4a2377", Navy: "#1c2741", "Dark Heather": "#4c4c50" };
 const SC_PHOTO = { DARK_HEATHER: "Dark Heather", GREY: "Dark Heather", CHARCOAL: "Charcoal", NAVY: "Navy", BLACK: "Black", MAROON: "Maroon", FOREST_GREEN: "Forest Green", DARK_CHOCOLATE: "Dark Chocolate", NATURAL: "Natural", PURPLE: "Purple" };
 const SC_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"];
 const scPhotoColour = (alt) => { const m = /_(DARK_HEATHER|FOREST_GREEN|DARK_CHOCOLATE|GREY|CHARCOAL|NAVY|BLACK|MAROON|NATURAL|PURPLE)$/.exec(String(alt || "").toUpperCase()); return m ? SC_PHOTO[m[1]] : null; };
@@ -7631,6 +7653,21 @@ async function scPrintifyProduct(env, id) {
 }
 let scKeyBad = false;   // the saved Printify key was refused this run (Make is used instead, so only new garments are read)
 // Sizes, colours and prices on sale.
+// In Person has no Printify product: its sizes, colours and prices come from the Etsy listing.
+async function scEtsyVariants(env, eid) {
+  const b = await etsyTool(env, "/listings/" + eid + "/inventory", "GET", null, {});
+  const prods = b && (b.products || (b.results && b.results.products)); if (!Array.isArray(prods)) throw new Error("Etsy didn't send the inventory");
+  const variants = [];
+  for (const p of prods) {
+    const o = (p.offerings || [])[0]; if (p.is_deleted || !o || !o.is_enabled) continue;
+    const pv = {}; (p.property_values || []).forEach((x) => { pv[x.property_id] = (x.values || [])[0]; });
+    const colour = pv[514], size = pv[513], net = Math.round((o.price.amount / (o.price.divisor || 100)) * 100);
+    variants.push({ id: colour + "/" + size, size, colour, hex: SC_HEX[colour] || null, price: net, net });
+  }
+  const so = (s) => { const i = SC_SIZES.indexOf(s); return i < 0 ? 99 : i; };
+  variants.sort((a, b2) => String(a.colour || "").localeCompare(String(b2.colour || "")) || so(a.size) - so(b2.size));
+  return { variants };
+}
 function scFromPrintify(p) {
   const opts = {}; (p.options || []).forEach((o) => { opts[o.type] = Object.fromEntries((o.values || []).map((v) => [v.id, v])); });
   const variants = [];
@@ -7641,7 +7678,7 @@ function scFromPrintify(p) {
       if (opts.size && opts.size[oid]) size = opts.size[oid].title;
       if (opts.color && opts.color[oid]) { colour = opts.color[oid].title; hex = (opts.color[oid].colors || [null])[0]; }
     }
-    variants.push({ id: v.id, size, colour, hex, price: Math.round(v.price * SC.vat), net: v.price });
+    variants.push({ id: v.id, size, colour, hex, price: v.price, net: v.price });   // the site's price is set when the catalogue is put together
   }
   const so = (s) => { const i = SC_SIZES.indexOf(s); return i < 0 ? 99 : i; };
   variants.sort((a, b) => String(a.colour || "").localeCompare(String(b.colour || "")) || so(a.size) - so(b.size));
@@ -7688,7 +7725,9 @@ async function shopCatalogRun(env, opt) {
         if (stat !== "LIVE" && stat !== "SITE_ONLY") continue;
         if (stat === "SITE_ONLY" && R.rows.some((x) => String(x[rc("STATUS")]) === "LIVE" && String(x[rc("PRODUCT_CODE")]) === String(r[rc("PRODUCT_CODE")]))) continue;   // its Etsy listing is out: that one wins
         const code = String(r[rc("PRODUCT_CODE")]), collection = String(r[rc("COLLECTION")]), eid = String(r[rc("ETSY_LISTING_ID")] || ""), pid = String(r[rc("PRINTIFY_PRODUCT_ID")] || "");
-        if (collection === "IN PERSON") { ip++; continue; }
+        if (collection === "IN PERSON") {   // no Printify product: read from its Etsy listing
+          ip++; if (stat !== "LIVE" || !active[eid]) continue;
+          want.push({ code, c: collection, stem: String(r[rc("TITLE_STEM")] || "").trim(), text: String(r[rc("GAG_TEXT")] || "").trim(), pid: "", eid, ip: true }); continue; }
         if (!SC_COLL[collection]) { notes.push(code + ": range " + collection + " isn't set up in the shop"); continue; }
         if (!SC_GARMENTS[code.slice(9)]) { notes.push(code + ": not a garment the shop knows"); continue; }
         if (stat === "LIVE" && !active[eid]) { notes.push(code + ": LIVE in Core but not active on Etsy"); continue; }
@@ -7711,7 +7750,7 @@ async function shopCatalogRun(env, opt) {
   if (!photos) photos = (await env.PENDING.get(SC.photos, "json")) || {};
   // Printify: carry over what we already know, then re-read new garments first and the longest-unchecked after them.
   const G = {};
-  for (const w of S.want) { const o = oldG[w.code]; G[w.code] = o && o.printifyId === w.pid && o.variants ? { variants: o.variants, pAt: o.pAt || 0 } : { pAt: 0 }; }
+  for (const w of S.want) { const o = oldG[w.code]; G[w.code] = o && (w.ip ? o.etsyId === w.eid : o.printifyId === w.pid) && o.variants ? { variants: o.variants, pAt: o.pAt || 0 } : { pAt: 0 }; }
   const order = S.want.slice().sort((a, b) => (G[a.code].variants ? 1 : 0) - (G[b.code].variants ? 1 : 0) || G[a.code].pAt - G[b.code].pAt);
   const gone = {};
   // Through Make each read costs an operation, so with a refused key only garments not read yet are fetched (no rechecks).
@@ -7720,6 +7759,7 @@ async function shopCatalogRun(env, opt) {
   scKeyBad = false;
   for (const w of todo.slice(0, keyBad ? 24 : (opt.batch || SC.batch))) {
     try {
+      if (w.ip) { Object.assign(G[w.code], await scEtsyVariants(env, w.eid), { pAt: now }); continue; }
       const p = await scPrintifyProduct(env, w.pid);
       if (!p || !p.variants) { gone[w.code] = "Printify product " + w.pid + " not found"; delete G[w.code].variants; continue; }
       Object.assign(G[w.code], scFromPrintify(p), { pAt: now });
@@ -7733,6 +7773,8 @@ async function shopCatalogRun(env, opt) {
     if (!g.variants) { if (gone[w.code]) problems.push(w.code + ": " + gone[w.code]); else unbuilt++; continue; }
     if (!g.variants.length) { problems.push(w.code + ": no sizes switched on in Printify"); continue; }
     // Photos: the garment's own stored pages if it has them (named by Core's MOCKUP_PAGES), otherwise Etsy's.
+    const baseNet = Math.min(...g.variants.map((v) => v.net || v.price));
+    g.variants = g.variants.map((v) => Object.assign({}, v, { price: scSitePrice(type, v.net || v.price, baseNet) + (w.ip ? SC_NAME_CHARGE : 0) }));
     const o = own[w.code], names = (S.pages || {})[w.c + "|" + type] || [];
     const two = (n) => String(n).padStart(2, "0"), base = "/p/" + w.code + "/";
     let pics = o && names.length ? names.filter(([pos]) => pos <= o.n).map(([pos, name]) => ({ u: base + two(pos) + ".jpg?v=" + o.at, t: base + two(pos) + "t.jpg?v=" + o.at, a: name })) : [];
@@ -7741,9 +7783,26 @@ async function shopCatalogRun(env, opt) {
     if (!pics.length) { pics = photos[w.eid] || []; etsyOnly++; }
     if (!pics.length) problems.push(w.code + ": no photos");
     const gal = scGallery(pics, g.variants, coll);
-    if (!gal.mainColour) problems.push(w.code + ": main colour " + SC_MAIN[coll] + " not offered, so its lifestyle photos are hidden");
+    // Lead colour (Barry, 20 Nov): no range has a main colour on the site; it's cycled per gag the way the listing builder
+    // picks an Etsy listing's lead colour: the range's THUMBNAIL pages in order, (gag number - 1) mod how many there are.
+    const cycle = names.filter(([, n]) => /THUMBNAIL/.test(n)).map(([, n]) => scPhotoColour(n)).filter(Boolean);
+    const offered = new Set(g.variants.map((v) => v.colour)), num = Number(gagId.slice(3)) || 1;
+    let lead = null; for (let i = 0; i < cycle.length && !lead; i++) { const c = cycle[(num - 1 + i) % cycle.length]; if (offered.has(c)) lead = c; }
+    if (!lead) lead = gal.mainColour || g.variants[0].colour;
+    const leadPic = gal.images.find((i) => i.colour === lead);
+    gal.mainColour = lead; if (leadPic) gal.tile = leadPic.thumb;
+    let personal = null;
+    if (w.ip) {   // the live name preview: text-free backdrop and where the name goes
+      const bases = new Set((o && o.bases) || []), L = SC_IP_LIVE[type] || {}, r3 = (x) => Math.round(x / 45 * 1000) / 1000;
+      gal.images.forEach((im) => { const pos = Number((/\/(\d\d)\.jpg/.exec(im.url) || [])[1]); if (!bases.has(pos) || !im.colour) return;
+        const k = Object.keys(L).find((key) => (String(im.alt) + "_").indexOf(key) >= 0); if (!k) return;
+        const [x, y, wd, ht, sz, rot] = L[k]; im.live = { x: r3(x), y: r3(y), w: r3(wd), h: r3(ht), s: r3(sz), r: rot }; im.base = "/p/" + w.code + "/b" + two(pos) + ".jpg?v=" + o.at; });
+      const ti = Object.keys(SC_GARMENTS).indexOf(type);
+      personal = { max: IP.nameMax, text: w.text, sample: IP.names[((num - 1) * 4 + ti) % IP.names.length] };
+      if (!gal.images.some((i) => i.live)) problems.push(w.code + ": no text-free photos stored yet, so the site can't preview the name");
+    }
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
-    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site,
+    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.ip ? null : w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site, personal,
       priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
       features: (S.feat || {})[w.c + "|" + type] || "", pAt: g.pAt };
   }
@@ -7808,7 +7867,7 @@ async function shopPhotoTick(env) {
     const own = (await env.PENDING.get(SC.own, "json")) || {}, newest = {};
     const r = await canvaTool(env, "/v1/designs?query=MOCKUPS&sort_by=modified_descending").catch((e) => ({ err: e.message }));
     if (r && r.err) { Q.lastErr = r.err; await env.PENDING.put(SP.q, JSON.stringify(Q)); return; }
-    for (const d of (r && r.items) || []) { const m = /^MOCKUPS ((IH|SH|PC|OS|EX)-\d{5}-[A-Z-]+)$/.exec(d.title || ""); if (m && !newest[m[1]]) newest[m[1]] = d; }
+    for (const d of (r && r.items) || []) { const m = /^MOCKUPS ((IH|SH|PC|OS|EX|IP)-\d{5}-[A-Z-]+)$/.exec(d.title || ""); if (m && !newest[m[1]]) newest[m[1]] = d; }
     for (const [code, d] of Object.entries(newest)) {
       const have = own[code], upd = Number(d.updated_at || 0) * 1000;
       if (now - upd < SP.settle) { Q.scanAt = now - SP.scanEvery + 25 * 60e3; continue; }   // still being made: look again in 25 minutes
@@ -7817,7 +7876,10 @@ async function shopPhotoTick(env) {
     }
     delete Q.lastErr;
   }
-  if (!Q.cur) { Q.cur = Q.queue.shift(); if (!Q.cur) return env.PENDING.put(SP.q, JSON.stringify(Q)); Q.cur.stage = "big"; Q.cur.at = now; }
+  if (!Q.cur) { Q.cur = Q.queue.shift(); if (!Q.cur) return env.PENDING.put(SP.q, JSON.stringify(Q)); Q.cur.stage = "big"; Q.cur.at = now;
+    if (/^IP-/.test(Q.cur.code)) {   // In Person: photo pages first, then the _BLANK pages (see SC_IP_BLANK)
+      const st = (await env.PENDING.get(SC.state, "json")) || {}, type = Q.cur.code.slice(9);
+      Q.cur.baseN = (((st.pages || {})["IN PERSON|" + type]) || []).length || 0; Q.cur.blank = SC_IP_BLANK[type] || []; } }
   const c = Q.cur;
   try {
     if (now - c.at > 3 * 3600e3) throw new Error("took over 3 hours");
@@ -7835,19 +7897,24 @@ async function shopPhotoTick(env) {
       const end = Math.min(c.urls.length, c.done + SP.perTick);
       for (let i = c.done; i < end; i++) {
         const res = await fetch(c.urls[i]); if (!res.ok) throw new Error("download of page " + (i + 1) + " failed (" + res.status + ")");
-        await env.PHOTOS.put("p/" + c.code + "/" + String(i + 1).padStart(2, "0") + (c.stage === "big" ? "" : "t") + ".jpg", res.body, { httpMetadata: { contentType: "image/jpeg" } });
+        const extra = c.baseN && i >= c.baseN ? c.blank[i - c.baseN] : 0;   // an In Person _BLANK page, stored under its partner's number
+        if (extra && c.stage !== "big") { await res.body.cancel(); continue; }
+        if (c.baseN && i >= c.baseN && !extra) { await res.body.cancel(); continue; }
+        const key = extra ? "b" + String(extra).padStart(2, "0") : String(i + 1).padStart(2, "0") + (c.stage === "big" ? "" : "t");
+        await env.PHOTOS.put("p/" + c.code + "/" + key + ".jpg", res.body, { httpMetadata: { contentType: "image/jpeg" } });
       }
       c.done = end;
       if (c.done >= c.urls.length) {
         if (c.stage === "big") {   // start the small pictures' export now rather than next run
-          c.n = c.urls.length; c.stage = "small"; c.urls = null;
+          c.n = c.baseN ? Math.min(c.baseN, c.urls.length) : c.urls.length; if (c.baseN) c.bases = c.blank.slice(0, Math.max(0, c.urls.length - c.baseN));
+          c.stage = "small"; c.urls = null;
           const j = await canvaTool(env, "/v1/exports", "POST", { design_id: c.design, format: { type: "jpg", quality: 82, width: 600 } });
           if (!j || !j.job || !j.job.id) throw new Error("Canva didn't start the small export: " + JSON.stringify(j).slice(0, 160));
           c.job = j.job.id; c.done = 0;
         }
         else {
           const own = (await env.PENDING.get(SC.own, "json")) || {};
-          own[c.code] = Object.assign({}, own[c.code] || {}, { n: c.n, at: Math.floor(Date.now() / 1000), design: c.design });
+          own[c.code] = Object.assign({}, own[c.code] || {}, { n: c.n, at: Math.floor(Date.now() / 1000), design: c.design }, c.bases && c.bases.length ? { bases: c.bases } : {});
           await env.PENDING.put(SC.own, JSON.stringify(own));
           Q.log = [{ code: c.code, n: c.n, at: Date.now() }].concat(Q.log || []).slice(0, 20);
           delete Q.cur; await scKick(env);
