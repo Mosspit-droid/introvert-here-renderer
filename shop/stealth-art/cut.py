@@ -122,6 +122,12 @@ pdc = [trimmed(dk[y0:y1, x0:x1]) for x0, x1, y0, y1 in BOX]; dh = [2.6, 2.0, 1.6
 cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(pdc)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
 save("party-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
 
+# The crying corner, as a pair: both sobbing 0, ranting and sniffling 1, hugging it out 2; and the box of tissues 3. Cut by measured boxes (tears float free).
+ck_ = key2("party-criers.png"); cwid = ck_.shape[1] / 2000; pcs = [trimmed(ck_[:, round(x0 * cwid):round(x1 * cwid)]) for x0, x1 in ((0, 600), (610, 1210), (1260, 1720), (1740, 2000))]; s = 2.3 * PPT / pcs[0].shape[0]
+ims = [scaled(f, s) for f in pcs[:3]] + [scaled(pcs[3], .62 * PPT / pcs[3].shape[0])]; cw_ = max(i.width for i in ims) + 4; ch_ = max(i.height for i in ims) + 4; cells = []
+for im in ims: c = Image.new("RGBA", (cw_, ch_), (0, 0, 0, 0)); c.alpha_composite(im, ((cw_ - im.width) // 2, ch_ - 2 - im.height)); cells.append(c)
+save("party-criers", strip(cells), w=cw_, h=ch_, ax=cw_ // 2, base=ch_ - 2, n=4)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -181,7 +187,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("party-host", "party-dancer", "party-people", "party-things", "party-decor"):
+for n in ("party-criers",):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10

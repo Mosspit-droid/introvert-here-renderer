@@ -326,11 +326,10 @@ function person(p){if(p.k==='G'){dog(p);return}if(p.k==='Y'){crier(p);return}var
   if(p.run>0||p.rest>0){c.fillStyle='#fff';c.beginPath();c.ellipse(p.x,p.y-2.45,.26,.2,0,0,6.2832);c.fill();ink(.06);c.fillStyle='#e0303a';c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(p.run>0?'!':'~',p.x,p.y-2.44)}}
  else if(p.k==='T'){if(p.sheet)sprite(p.sheet,p.base+(p.t<.55?1:0),p.x,p.y+.03,p.f<0,k);else sprite(PEO,p.t<.55?3:2,p.x,p.y+.03,p.f<0,k)}
  else sprite(PEO,p.skin+(near?1:0),p.x,p.y+.03,p.f<0,k)}
-function crier(p){var c=cx,k=1/PPT,left=!people.some(function(q){return q.k==='Y'&&q.x<p.x-.1});c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(p.x,p.y,.5,.08,0,0,6.2832);c.fill();
- sprite('party-people',S.given?4:5,p.x,p.y+.03,!left,k);var hx2=p.x+(left?.42:-.42),hy2=p.y-1.72;
- if(S.given){c.fillStyle='#e0303a';var by2=hy2-.5-(calm?0:Math.abs(Math.sin(T*3+p.x))*.15);c.beginPath();c.moveTo(hx2,by2+.16);c.bezierCurveTo(hx2-.26,by2-.02,hx2-.12,by2-.22,hx2,by2-.08);c.bezierCurveTo(hx2+.12,by2-.22,hx2+.26,by2-.02,hx2,by2+.16);c.fill();ink(.05)}
- else for(var d=0;d<3;d++){var ph=calm?d/3:((T*1.4+d/3+p.x)%1),tx=hx2+(left?1:-1)*(.1+ph*.35)*(d%2?1:.4),ty=hy2+ph*1.1;c.globalAlpha=1-ph*.8;c.fillStyle='#4aa8ff';c.beginPath();c.moveTo(tx,ty-.12);c.quadraticCurveTo(tx+.09,ty+.03,tx,ty+.08);c.quadraticCurveTo(tx-.09,ty+.03,tx,ty-.12);c.fill();ink(.035);c.globalAlpha=1}}
-function tissueBox(x,y,sc){var c=cx;c.save();c.translate(x,y);c.scale(sc,sc);c.fillStyle='#fff';c.beginPath();c.moveTo(-.1,-.3);c.quadraticCurveTo(0,-.62,.12,-.42);c.quadraticCurveTo(.22,-.5,.16,-.3);c.closePath();c.fill();ink(.05);c.fillStyle='#6fb7e6';rr(-.36,-.32,.72,.36,.06);c.fill();ink(.06);c.fillStyle='#fff';c.beginPath();c.ellipse(0,-.3,.16,.04,0,0,6.2832);c.fill();c.restore()}
+function crier(p){var c=cx,k=1/PPT,left=!people.some(function(q){return q.k==='Y'&&q.x<p.x-.1});if(!left)return;var mx=p.x+.5;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(mx,p.y,1,.09,0,0,6.2832);c.fill();
+ sprite('party-criers',S.given?2:Math.floor(T/1.7)%2,mx,p.y+.03,false,k);
+ if(S.given){var hx2=mx,by2=p.y-2.75-(calm?0:Math.abs(Math.sin(T*3))*.15);c.fillStyle='#e0303a';c.beginPath();c.moveTo(hx2,by2+.16);c.bezierCurveTo(hx2-.26,by2-.02,hx2-.12,by2-.22,hx2,by2-.08);c.bezierCurveTo(hx2+.12,by2-.22,hx2+.26,by2-.02,hx2,by2+.16);c.fill();ink(.05)}}
+function tissueBox(x,y,sc){sprite('party-criers',3,x,y,false,sc/PPT)}
 function thing(name,x,y,w,flip,sheet){sheet=sheet||'flat-things';var it=ART[sheet].items[name],im=IMG[sheet],k=1/PPT;if(!im.naturalWidth)return;var dw=(w||it.w*k),dh=it.h*k*(w?w/(it.w*k):1);cx.save();cx.translate(x,y);if(flip)cx.scale(-1,1);cx.drawImage(im,it.x,ART[sheet].H-it.h,it.w,it.h,-dw/2,-dh,dw,dh);cx.restore()}
 // Background dressing, deliberately pale and outline-free so nobody mistakes it for something to jump on.
 function backdrop(x,base,kind,tn,sheet){var dc=ART[sheet||'flat-decor'],im=IMG[sheet||'flat-decor'],it=dc.items[kind];if(im&&im.naturalWidth&&it){var k3=1/dc.ppt;cx.globalAlpha=.42;cx.drawImage(im,it.x,dc.H-it.h,it.w,it.h,x+1.7-it.w*k3/2,base-it.h*k3,it.w*k3,it.h*k3);cx.globalAlpha=1}}
@@ -420,7 +419,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
-  if(it.k==='t')tissueBox(it.x,by+.4,1.25);
+  if(it.k==='t')tissueBox(it.x,by+.45,1.5);
   else if(it.k==='f')thing('plate',it.x,by+.42,1.15,false,'party-things');
   else if(it.k==='u')thing('brolly',it.x,by+.6,1.1,false,'street-things');
   else if(it.k==='c')thing('coffee',it.x,by+.48);else if(it.k==='m')thing('phone',it.x,by+.48);
@@ -449,7 +448,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
  if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.globalAlpha=P.inv>0?.55:P.hood?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
  if(P.plate)thing('plate',P.x+P.f*.45,P.y-.72,.7,false,'party-things');
- if(P.tissues)tissueBox(P.x-P.f*.38,P.y-.62,.8);
+ if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
  if(P.shield){c.fillStyle=INK;rr(P.x+P.f*.22-.09,P.y-1.52,.18,.3,.04);c.fill();c.fillStyle='#3fd16a';rr(P.x+P.f*.22-.06,P.y-1.48,.12,.2,.02);c.fill()}
  if(P.fast>0&&!calm){c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.06;for(var q2=0;q2<3;q2++){c.beginPath();c.moveTo(P.x-P.f*(.5+q2*.12),P.y-.4-q2*.4);c.lineTo(P.x-P.f*(1+q2*.12),P.y-.4-q2*.4);c.stroke()}}
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
@@ -497,7 +496,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 
 export function platformPage(page, hub, v) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"] })).replace("__FAILS__", () => j(FAILS)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <div class="card" id="pgcard"><div>
