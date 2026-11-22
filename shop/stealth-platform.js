@@ -187,19 +187,19 @@ function park() {
   box(0, W - 1, 28, 29, "#"); box(0, 0, 0, 29, "#"); box(W - 1, W - 1, 0, 29, "#");
   put(2, G, "S");
   // 1. The picnic: the uncle with the joke, Gran wanting her tea (trampoline up to the flask), a baby for the picnic rug
-  row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P");
+  row(5, 7, G, "o"); put(13, G, "T"); put(19, G, "K"); put(22, G, "^"); row(23, 25, 22, "="); put(24, 21, "t"); put(28, G, "Y"); put(31, G, "b"); row(33, 36, G, "P"); put(38, G, "V");
   // 2. The playground: up the ladder and down the slide, swings over the sandpit, a roundabout that flings you over a crowd
   row(41, 42, 26, "="); row(41, 44, 24, "="); row(42, 43, 23, "o"); put(47, G, "P"); put(49, G, "P");
   pit(58, 70); row(62, 66, 22, "o"); row(74, 76, G, "="); row(79, 84, G, "P");
   // 3. The bouncy castle: balloons straight above it. Then a seesaw up to the treehouse.
-  put(72, G, "Z"); put(91, G, "K"); put(94, G, "M"); row(97, 101, G, "B"); put(108, G, "V"); put(99, 18, "a"); row(103, 105, 21, "o"); put(111, G, "Q");
+  put(72, G, "Z"); put(91, G, "K"); put(94, G, "M"); row(97, 101, G, "B"); put(99, 18, "a"); row(103, 105, 21, "o"); put(111, G, "Q");
   row(119, 123, 19, "="); put(121, 18, "N"); row(119, 120, 18, "o");
   // 4. The pond: balloons that drift, and water to float across, with an island halfway
   put(126, G, "K"); row(128, 132, G, "B"); put(130, 17, "a"); pit(136, 144); row(145, 147, 23, "o"); put(146, 19, "N"); pit(148, 156); put(160, G, "Q");
   // 5. The bandstand: balloons high above the band, who are far too tall to climb past
-  put(162, G, "M"); put(164, G, "K"); row(166, 170, G, "B"); put(190, G, "V"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "P"); put(183, 23, "P"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
+  put(164, G, "K"); row(166, 170, G, "B"); put(172, G, "M"); put(168, 16, "a"); box(174, 186, 24, G, "#"); put(177, 23, "P"); put(183, 23, "P"); put(181, 16, "N"); row(189, 191, 22, "o"); put(195, G, "Q");
   // 6. The park gate: one last swing over the flower bed, the uncle again, the gate
-  put(200, G, "K"); pit(204, 211); put(217, G, "Z"); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
+  put(200, G, "K"); pit(204, 211); put(217, G, "Z"); put(222, G, "V"); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
   return g.map((r) => r.join(""));
 }
 const FAMILY_ZONES = [
@@ -335,7 +335,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // collecting
  items.forEach(function(it){if(it.k==='a'&&!it.got&&it.sway)it.x=it.x0+Math.sin(S.t*1.1+it.x0)*it.sway});
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
-  if(P.balloons){q.happy=true;P.balloons=false;pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
+  if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
  items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
@@ -371,7 +371,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&p.k!=='Q'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
+  var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&p.k!=='Q'&&p.k!=='M'&&p.k!=='V'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
   if(!mm){S.rollT=0;S.rollW=false}else{S.rollT=(S.rollT||0)+dt;mm.f=P.x<mm.x?-1:1;if(S.rollT>L.roll-1.8&&!S.rollW){S.rollW=true;if(!S.seenM){S.seenM=true;info('ROLL CALL','When the megaphone goes off, have your hood up or be off the ground.')}}
    if(S.rollT>=L.roll){S.rollT=0;S.rollW=false;S.rollF=.7;say('HAS ANYONE SEEN '+NAME.toUpperCase()+'?',mm.x,mm.y-2.7);if(!unseen&&P.ground&&tile(kx,ky)!=='K'){say(pick(L.lines.M),P.x,P.y-2.7);hurt('M',mm.x)}}}}
