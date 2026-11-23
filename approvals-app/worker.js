@@ -44,6 +44,7 @@ export default {
     ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
     ctx.waitUntil(siteAheadTick(env).catch(() => {}));
     ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
+    ctx.waitUntil(titleTestTick(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -4534,6 +4535,7 @@ ${brandHeader("Stats", nav)}
 ${await etsySalesCard(env)}
 ${await socialCard(env)}
 ${await votesCard(env)}
+${await titleTestCard(env)}
 <div class="small">From Etsy and Printify, updated daily at 12:00. Last update ${esc(when(Date.parse(st.at)))}.${baseDays ? "" : " The “recent” column fills in once a few days of history have built up."}</div>
 <h2>Shop totals</h2>
 <div class="stiles">
@@ -8238,4 +8240,33 @@ async function pendingTagSaves(env) {
   const L = await env.PENDING.get("pending-tag-saves", "json"); if (!Array.isArray(L) || !L.length) return;
   await env.PENDING.put("pending-tag-saves", "[]");
   for (const d of L) await tagsHook(env, { action: "tags-save", gagId: str(d.gagId), stemTag: str(d.stemTag).slice(0, 60), approved: d.approved ? "true" : "false", override: str(d.override || ""), regenerate: "false" }).catch(() => {});
+}
+
+// ---------- Title test: views and favourites (Barry, 23 Nov) ----------
+// Etsy's API doesn't order search results the way the website does, so search position can't be measured from here.
+// Instead, every day the app reads views and favourites for the listings in Core's TITLE_TEST table (TEST = retitled
+// with search words first, CONTROL = left alone) and compares how much each group has gained since the test began.
+const TT = { key: "title-test" };
+async function titleTestTick(env, force) {
+  const S = (await env.PENDING.get(TT.key, "json")) || {}, now = Date.now();
+  if (!force && now - (S.at || 0) < 20 * 3600e3) return;
+  const T = await coreTable(env, "TITLE_TEST"); if (!T.h.length) return;
+  const rows = T.rows.filter((r) => r[T.col("ETSY_LISTING_ID")]), ids = rows.map((r) => String(r[T.col("ETSY_LISTING_ID")]));
+  const b = await etsyTool(env, "/listings/batch", "GET", null, { listing_ids: ids.join(",") }); const got = {};
+  ((b && b.results) || []).forEach((l) => { got[String(l.listing_id)] = { v: Number(l.views) || 0, f: Number(l.num_favorers) || 0 }; });
+  S.start = S.start || {}; S.now = {};
+  rows.forEach((r) => { const id = String(r[T.col("ETSY_LISTING_ID")]), g = got[id]; if (!g) return;
+    S.now[id] = Object.assign({ code: r[T.col("PRODUCT_CODE")], grp: r[T.col("GROUP")] }, g);
+    if (!S.start[id]) S.start[id] = { v: Number(r[T.col("VIEWS_AT_START")]) || 0, f: 0 }; });
+  const ch = rows[0][T.col("CHANGED_ON")], chd = Number(ch) > 30000 ? new Date(Date.UTC(1899, 11, 30) + Number(ch) * 864e5) : new Date(String(ch));
+  S.at = now; S.since = isNaN(chd) ? "the start" : chd.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  await env.PENDING.put(TT.key, JSON.stringify(S));
+}
+async function titleTestCard(env) {
+  const S = await env.PENDING.get(TT.key, "json"); if (!S || !S.now) return `<div class="card small" style="margin-bottom:12px">Title test: the first reading of views arrives within a day.</div>`;
+  const g = { TEST: { v: 0, f: 0, n: 0 }, CONTROL: { v: 0, f: 0, n: 0 } };
+  Object.entries(S.now).forEach(([id, x]) => { const a = g[x.grp]; if (!a) return; const st = S.start[id] || { v: 0, f: 0 }; a.v += x.v - st.v; a.f += x.f - st.f; a.n++; });
+  const row = (k, label) => `<div class="cr"><span class="cn">${label} <small>(${g[k].n} listings)</small></span><span class="cv"><b>${g[k].v}</b><small>views</small><b>${g[k].f}</b><small>favourites</small></span></div>`;
+  return `<div class="card" style="margin-bottom:12px"><b>Title test</b> <span class="small">· gained since ${esc(S.since || "the start")}: titles with search words first vs the same kind of listing left alone · read ${esc(when(S.at))}. Give it about 3 weeks. Details in Core (TITLE_TEST).</span>
+${row("TEST", "New titles")}${row("CONTROL", "Old titles")}</div>`;
 }
