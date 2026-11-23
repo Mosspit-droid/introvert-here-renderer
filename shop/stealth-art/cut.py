@@ -74,6 +74,8 @@ hh = figures(key("hero-hang.png")); assert len(hh) == 5, len(hh)
 save("hero-hang", strip([cellt(f, isc, 320, 280, 160, 6) for f in hh]), w=320, h=280, ax=160, top=6, n=5)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
+# The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
+_pl = Image.open(os.path.join(SRC, "..", "..", "assets", "site", "presents-black.png")).convert("RGBA"); save("presents", _pl.resize((1200, round(1200 * _pl.height / _pl.width)), Image.LANCZOS))
 # People who stand: teal mug woman 0-1, orange shouting man 2-3, cake woman 4-5, clipboard man 6-7 (idle, then talking)
 fp = figures(key("flat-people.png"), 2); assert len(fp) == 8, len(fp); s = 2.1 * PPT / fp[0].shape[0]
 save("flat-people", strip([cell(f, s, cw=250, ch=262, ax=105, base=258, top=.4) for f in fp]), w=250, h=262, ax=105, base=258, n=8)
