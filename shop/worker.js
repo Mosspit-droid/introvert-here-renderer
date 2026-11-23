@@ -115,7 +115,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
-      if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
+      if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url, { html: PRESENTS_HTML(), js: PRESENTS_JS }); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
       if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env)));
       if (path === HUB.path + "/aunt-doris/print" && isPreview(env)) return html(dorisPage(null, true));   // preview only: it's the paid booklet
