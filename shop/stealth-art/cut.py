@@ -192,6 +192,13 @@ save("nemesis-big", strip([cellf(f, 1, 460, 590, 170, 586) for f in nf[1:3]]), w
 save("nemesis-peek", Image.fromarray(nf[3], "RGBA"))           # the title page: just his head, shoulders and pointing arm, leaning in from the corner
 s = 2.1 * PPT / nf[0].shape[0]; save("nemesis", strip([cellf(f, s, 440, 270, 170, 266) for f in nf]), w=440, h=270, ax=170, base=266, n=6)
 
+# More park people (Barry, 23 Nov). Cast: uncle filming 0, camera lowered 1, the aunt standing 2, walking 3-4, the cannonball boy 5.
+pc = figures(key2("park-cast.png")); assert len(pc) == 6, len(pc); s = 2.1 * PPT / pc[1].shape[0]
+save("park-cast", strip([cellf(f, s, 420, 290, 170, 286) for f in pc]), w=420, h=290, ax=170, base=286, n=6)
+# The megaphone cousin: pointing down 0, level 1, up 2, straight up 3, shouting 4
+pm = figures(key2("park-mega.png")); assert len(pm) == 5, len(pm); s = 2.0 * PPT / pm[1].shape[0]
+save("park-mega", strip([cellf(f, s, 460, 310, 170, 306) for f in pm]), w=460, h=310, ax=170, base=306, n=5)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
@@ -251,7 +258,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("hero-idle", "hero-hang", "nemesis", "park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
+for n in ("park-cast", "park-mega", "hero-idle", "hero-hang", "nemesis", "park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
