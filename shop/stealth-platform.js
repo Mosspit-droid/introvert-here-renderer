@@ -136,7 +136,7 @@ function houseParty() {
   // Outside the front door: tea, and someone having a breather on the path
   row(5, 7, G, "o"); put(10, G, "P");
   // The hallway: an arguing couple who both shout at you, the cupboard under the stairs, then the stairs
-  put(18, G, "P"); put(22, G, "T"); put(26, G, "w"); put(27, G, "c"); put(29, G, "h"); put(31, G, "C"); put(35, G, "w"); put(38, G, "T"); put(40, G, "h"); put(43, G, "K");
+  put(22, G, "T"); put(26, G, "w"); put(27, G, "c"); put(29, G, "h"); put(31, G, "C"); put(35, G, "w"); put(38, G, "T"); put(40, G, "h"); put(43, G, "K");
   row(46, 48, 25, "="); row(50, 56, 23, "="); put(53, 22, "Y"); put(54, 22, "Y"); row(58, 60, 21, "=");
   // The crying corner (Y Y) sits on the long stair and will not let you by without the box of tissues (t) from the back
   // of the kitchen. So the kitchen is no longer optional.
@@ -398,7 +398,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else if(p.k==='X'){p.fixed=true;if(p.flash>0)p.flash-=dt;var fe=L.flashEvery||3.4;p.fe=fe;if(p.t>fe){p.t=0;p.flash=.3;var fd=(P.x-p.x)*p.f;if(!unseen&&S.mode==='play'&&fd>0&&fd<3.6&&Math.abs(P.y-p.y)<2.2){say(pick(L.lines.X),p.x,p.y-2.6);hurt('X',p.x)}}}
   else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
-  if(p.k==='P'&&L.reach&&!p.fed){var rp=p.t%3.4;p.reach=rp>2.6?2:rp>2?1:0;var rd=(P.x-p.x)*p.f;if(p.reach===2&&!unseen&&S.mode==='play'&&rd>.5&&rd<1.75&&P.y>p.y-1.2&&P.y<p.y+.3){if(P.plate)feed(p);else{if(P.inv<=0)say(pick(L.lines.reach),p.x,p.y-2.6);hurt('P',p.x)}}}else p.reach=0;
+  if(p.k==='P'&&L.reach&&!p.fed&&p.x>16){var rp=p.t%3.4;p.reach=rp>2.6?2:rp>2?1:0;var rd=(P.x-p.x)*p.f;if(p.reach===2&&!unseen&&S.mode==='play'&&rd>.5&&rd<1.75&&P.ground&&P.y>p.y-1.2&&P.y<p.y+.3){if(P.plate)feed(p);else{if(P.inv<=0)say(pick(L.lines.reach),p.x,p.y-2.6);hurt('P',p.x)}}}else p.reach=0;
   if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
   var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&p.k!=='Q'&&p.k!=='M'&&p.k!=='V'&&p.k!=='A'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(p.k==='P'&&(p.fed||P.plate)){if(!p.fed)feed(p);return}if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
