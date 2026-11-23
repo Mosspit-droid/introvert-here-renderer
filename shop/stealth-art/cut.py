@@ -168,6 +168,10 @@ s = 2.25 * PPT / pk_[4].shape[0]; save("park-parents", strip([cellf(f, s, 360, 2
 
 # The arch nemesis, the colleague who points and laughs: smug 0, laughing 1-2, peeking (head and arm only) 3, caught 4, defeated 5
 kn = key("nemesis.png"); nq = kn.shape[1] / 2000; nf = [trimmed(kn[round(90 * nq):round(610 * nq), round(x0 * nq):round(x1 * nq)]) for x0, x1 in [(40, 270), (340, 652), (655, 1005), (1040, 1320), (1350, 1650), (1700, 1970)]]
+# Gary in pieces, for the title page (jointed, so he can laugh properly): boxes measured on a 1536 x 1024 sheet, kept UNtrimmed so the joints stay where they were measured
+kg = key("gary-parts.png"); gq = kg.shape[1] / 1536; gb = dict(head=(270, 50, 670, 490), head2=(860, 50, 1265, 490), torso=(70, 580, 440, 950), point=(545, 600, 1035, 835), fist=(1110, 600, 1420, 935))
+gcells = [Image.fromarray(kg[round(y0 * gq):round(y1 * gq), round(x0 * gq):round(x1 * gq)], "RGBA") for x0, y0, x1, y1 in gb.values()]; gxs = np.cumsum([0] + [c.width for c in gcells]).tolist()
+save("gary-parts", strip(gcells), items={n: dict(x=gxs[i], w=gcells[i].width, h=gcells[i].height) for i, n in enumerate(gb)}, q=gq)
 save("nemesis-big", strip([cellf(f, 1, 460, 590, 170, 586) for f in nf[1:3]]), w=460, h=590, n=2)   # the title page: his two laughing poses at full size (his legs sit below the screen)
 save("nemesis-peek", Image.fromarray(nf[3], "RGBA"))           # the title page: just his head, shoulders and pointing arm, leaning in from the corner
 s = 2.1 * PPT / nf[0].shape[0]; save("nemesis", strip([cellf(f, s, 440, 270, 170, 266) for f in nf]), w=440, h=270, ax=170, base=266, n=6)
