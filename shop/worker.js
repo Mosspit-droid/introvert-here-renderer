@@ -146,6 +146,19 @@ async function route(request, env, ctx) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
         return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
+      const vp = /^\/v\/([A-Z]{2}-\d{5}-[A-Z-]+)\.(mp4|jpg)$/.exec(path);   // product videos and their posters, copied from Etsy by the app
+      if (vp && env.PHOTOS) {
+        const key = "v/" + vp[1] + "." + vp[2], type = vp[2] === "mp4" ? "video/mp4" : "image/jpeg";
+        const rg = /bytes=(\d+)-(\d*)/.exec(request.headers.get("Range") || "");
+        if (rg && vp[2] === "mp4") {
+          const head = await env.PHOTOS.head(key); if (!head) return new Response("", { status: 404 });
+          const start = +rg[1], end = rg[2] ? Math.min(+rg[2], head.size - 1) : head.size - 1;
+          const obj = await env.PHOTOS.get(key, { range: { offset: start, length: end - start + 1 } });
+          return new Response(obj.body, { status: 206, headers: { "Content-Type": type, "Content-Range": `bytes ${start}-${end}/${head.size}`, "Content-Length": String(end - start + 1), "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable" } });
+        }
+        const obj = await env.PHOTOS.get(key);
+        return obj ? new Response(obj.body, { headers: { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
+      }
       const sp = /^\/s\/([a-z0-9-]+)\.(jpg|png)$/.exec(path);   // site pictures (door scenes, the mascot...), from R2 site/
       if (sp) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("site/" + sp[1] + "." + sp[2]) : null;
@@ -453,7 +466,7 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .design{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;margin:20px 0 40px}.design>div{min-width:0}
 .main-img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7%;border:4px solid #f2f0ea;background:#000;box-shadow:0 10px 30px rgba(0,0,0,.5)}
-.thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding:2px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:14px;cursor:pointer;opacity:.75;border:2px solid rgba(242,240,234,.45)}
+.thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding:2px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:14px;cursor:pointer;opacity:.75;border:2px solid rgba(242,240,234,.45)}.vthumb{position:relative;display:inline-block;flex:none;line-height:0}.vthumb b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}#mainv[hidden],#main[hidden]{display:none}
 .thumbs img.on{opacity:1;border-color:#f2f0ea;border-width:3px}
 .gag{white-space:pre-line;font-weight:700;font-size:18px;letter-spacing:.03em;margin:10px 0 16px}
 .label{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:16px 0 6px}
@@ -1771,7 +1784,7 @@ function $(i){return document.getElementById(i)}function money(p){return '£'+(p
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
 function sizes(){return G().variants.filter(function(v){return v.colour===st.colour})}
-function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};return (c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen))}
+function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};var v=g.video?[{video:g.video.url,thumb:g.video.poster||((own[0]||{}).thumb)||g.tile,alt:'Video'}]:[];return v.concat((c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen)))}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
  var cs=colours();if(!cs.some(function(v){return v.colour===st.colour}))st.colour=g.mainColour||cs[0].colour;
@@ -1783,13 +1796,14 @@ function render(){var g=G();
  var ps=pics();if(st.img>=ps.length)st.img=0;var cur=ps[st.img]||{},nm=st.name.trim(),lv=P&&nm&&cur.live?cur.live:null;
  // A photo with a "live" spot shows the buyer's own name: the same photo without its gag text, with the text drawn on top.
  var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;'+(lv.h?'height:'+lv.h+'%;':'')+'font-size:'+lv.s+'cqw;'+(lv.r?'transform:rotate('+lv.r+'deg);':'')+'display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
+ var mv=$('mainv');if(cur.video){$('main').hidden=true;mv.hidden=false;if(mv.getAttribute('src')!==cur.video){mv.src=cur.video;mv.poster=cur.thumb||''}mv.play().catch(function(){})}else{mv.hidden=true;mv.pause();$('main').hidden=false}
  $('main').src=(lv?cur.base:cur.url)||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
- $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
+ $('thumbs').innerHTML=ps.map(function(im,i){return im.video?'<span class="vthumb'+(i===st.img?' on':'')+'"><img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="Video"><b aria-hidden="true">▶</b></span>':'<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('count').textContent=ps.length>1?(st.img+1)+' / '+ps.length:'';$('prev').style.display=$('next').style.display=ps.length>1?'':'none';
  var on=$('thumbs').querySelector('.on');if(on&&$('thumbs').scrollWidth>$('thumbs').clientWidth)$('thumbs').scrollLeft=on.offsetLeft-$('thumbs').offsetLeft-($('thumbs').clientWidth-on.offsetWidth)/2;
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';if($('etsy'))$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
- if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+ if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=G().video?1:0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
 // Left/right arrows, a swipe, or the keyboard's arrow keys step through the photos.
 function step(d){var n=pics().length;if(n<2)return;st.img=(st.img+d+n)%n;render()}
 $('prev').addEventListener('click',function(){step(-1)});$('next').addEventListener('click',function(){step(1)});
@@ -1806,7 +1820,7 @@ $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;
  B.set(b);$('added').style.display='block';});
 (function(){try{var q=new URLSearchParams(location.search),c=q.get('colour'),z=q.get('size');if(c&&G().variants.some(function(v){return v.colour===c})){st.colour=c;if(z&&G().variants.some(function(v){return v.colour===c&&v.size===z}))st.size=z}}catch(_){}})();
 render();`;
-  return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
+  return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><video id="mainv" class="main-img" muted loop playsinline preload="none" hidden></video><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>

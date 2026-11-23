@@ -230,3 +230,18 @@ word for word, and the site will read it instead of its hand copy. No site-wide 
    (From `shop/photos/inperson_preview.py`. If the text box moves in a template, these change too.) Example of the
    result: `{"x": 27.617, "y": 46.365, "w": 45.522, "h": 27.774, "s": 3.399, "r": 0}`.
 5. Tell the shop thread when `shop:catalog-next` has site prices and In Person; it will then switch the preview over.
+
+## Added 23 Nov: product videos on the site
+
+The site's product pages now show a garment's video as the first item in the picture viewer (muted, looping) when the
+catalogue has one. 99 of the 120 listings have an Etsy video; none reach the site yet.
+
+**What the site needs from the app:**
+1. Copy each garment's video into R2 bucket `introvert-here-shop-photos` as `v/<PRODUCT_CODE>.mp4` (e.g.
+   `v/IH-00001-HOODIE.mp4`), plus a poster frame as `v/<PRODUCT_CODE>.jpg` (Etsy gives one: `thumbnail_url`).
+   - Listed garments: Etsy's `GET /listings/<etsy id>/videos` returns `video_url` (an `.mp4` on v.etsystatic.com)
+     and `thumbnail_url`. (Checked on IH-00001's hoodie, listing 4579908668.)
+   - Site-only garments: copy straight from the app's video renderer output (VIDEO_FILENAME in the registry).
+2. In the catalogue, on each garment with a video: `video: { url: "/v/<CODE>.mp4?v=<at>", poster: "/v/<CODE>.jpg?v=<at>" }`.
+   The site serves `/v/...` from R2 with range requests (phones stream it). Re-copy when a video is regenerated.
+3. Tell the shop thread when the first few are in, so it can check them on the preview.
