@@ -45,6 +45,7 @@ export default {
     ctx.waitUntil(siteAheadTick(env).catch(() => {}));
     ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
     ctx.waitUntil(titleTestTick(env).catch(() => {}));
+    ctx.waitUntil(shopVideoTick(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -7783,7 +7784,10 @@ async function shopCatalogRun(env, opt) {
       Object.values(pages).forEach((l) => l.sort((a, b) => a[0] - b[0]));
       photos = {}; want.forEach((w) => { photos[w.eid] = active[w.eid]; });
       await env.PENDING.put(SC.photos, JSON.stringify(photos));
-      Object.assign(S, { want, feat, pages, price, ipBox, notes, ip, coreAt: now, kick: false, error: "" });
+      // Each live garment's Etsy video (Core VIDEO_ETSY_ID), for the site's product video (23 Nov).
+      const vids = {}; R.rows.forEach((r) => { const v = String(r[rc("VIDEO_ETSY_ID")] || "").trim(), e = String(r[rc("ETSY_LISTING_ID")] || "").trim();
+        if (String(r[rc("STATUS")]) === "LIVE" && v && e) vids[String(r[rc("PRODUCT_CODE")])] = { e, v }; });
+      Object.assign(S, { want, feat, pages, price, ipBox, vids, notes, ip, coreAt: now, kick: false, error: "" });
     } catch (e) {
       // Keep the catalogue as it is and try again in half an hour (not every five minutes: each try uses Make credits).
       Object.assign(S, { error: String(e.message || e).slice(0, 200), errorAt: now, kick: false, coreAt: now - SC.coreEvery + 30 * 60e3 });
@@ -7811,6 +7815,7 @@ async function shopCatalogRun(env, opt) {
   }
   if (scKeyBad) { S.keyBad = true; S.keyBadAt = now; } else if (!keyBad) delete S.keyBad;
   const own = (await env.PENDING.get(SC.own, "json")) || {};   // garments whose full Canva photo sets are stored
+  const vidsOwn = (await env.PENDING.get(SV.own, "json")) || {};   // garments whose video is copied to R2
   const designs = {}, problems = (S.notes || []).slice(); let etsyOnly = 0, unbuilt = 0;
   for (const w of S.want) {
     const g = G[w.code], coll = SC_COLL[w.c], gagId = w.code.slice(0, 8), type = w.code.slice(9);
@@ -7849,7 +7854,7 @@ async function shopCatalogRun(env, opt) {
       if (!gal.images.some((i) => i.live)) problems.push(w.code + ": no text-free photos stored yet, so the site can't preview the name");
     }
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
-    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, printifyId: w.ip ? null : w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site, personal,
+    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, video: (vidsOwn[w.code] && vidsOwn[w.code].at ? { url: "/v/" + w.code + ".mp4?v=" + vidsOwn[w.code].at, poster: "/v/" + w.code + ".jpg?v=" + vidsOwn[w.code].at } : null), printifyId: w.ip ? null : w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site, personal,
       priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
       features: (S.feat || {})[w.c + "|" + type] || "", pAt: g.pAt };
   }
@@ -8269,4 +8274,30 @@ async function titleTestCard(env) {
   const row = (k, label) => `<div class="cr"><span class="cn">${label} <small>(${g[k].n} listings)</small></span><span class="cv"><b>${g[k].v}</b><small>views</small><b>${g[k].f}</b><small>favourites</small></span></div>`;
   return `<div class="card" style="margin-bottom:12px"><b>Title test</b> <span class="small">· gained since ${esc(S.since || "the start")}: titles with search words first vs the same kind of listing left alone · read ${esc(when(S.at))}. Give it about 3 weeks. Details in Core (TITLE_TEST).</span>
 ${row("TEST", "New titles")}${row("CONTROL", "Old titles")}</div>`;
+}
+
+// ---------- Product videos on the site (Barry, 23 Nov) ----------
+// Each live garment's Etsy video (the one the app rendered and Barry approved) is copied into R2 as v/<code>.mp4 with its
+// poster frame v/<code>.jpg, and listed in KV "shop:videos" ({code: {id, at}}). The catalogue's Core read records each
+// garment's VIDEO_ETSY_ID; any garment whose stored copy is missing or older (a regenerated video) is copied, two a run.
+// Site-only garments have no video yet: videos are rendered from the Etsy listing's photos, so theirs arrives with it.
+const SV = { own: "shop:videos", perTick: 2 };
+async function shopVideoTick(env) {
+  if (!env.PHOTOS) return;
+  const st = (await env.PENDING.get(SC.state, "json")) || {}, vids = st.vids || {}, own = (await env.PENDING.get(SV.own, "json")) || {};
+  const todo = Object.entries(vids).filter(([code, x]) => (!own[code] || String(own[code].id) !== String(x.v)) && !(own[code] && own[code].errAt && Date.now() - own[code].errAt < 2 * 3600e3)).slice(0, SV.perTick);
+  if (!todo.length) return;
+  let done = 0;
+  for (const [code, x] of todo) {
+    try {
+      const b = await etsyTool(env, "/listings/" + x.e + "/videos", "GET", null, {});
+      const list = (b && b.results) || [], v = list.find((y) => String(y.video_id) === String(x.v)) || list[0];
+      if (!v || !v.video_url) { own[code] = { id: x.v, at: 0, none: true }; continue; }   // nothing on Etsy: don't keep asking
+      const mp4 = await fetch(v.video_url); if (!mp4.ok) throw new Error("video download " + mp4.status);
+      await env.PHOTOS.put("v/" + code + ".mp4", mp4.body, { httpMetadata: { contentType: "video/mp4" } });
+      if (v.thumbnail_url) { const jp = await fetch(v.thumbnail_url); if (jp.ok) await env.PHOTOS.put("v/" + code + ".jpg", jp.body, { httpMetadata: { contentType: "image/jpeg" } }); }
+      own[code] = { id: String(v.video_id), at: Math.floor(Date.now() / 1000) }; done++;
+    } catch (e) { own[code] = Object.assign({}, own[code] || {}, { err: String(e.message || e).slice(0, 120), errAt: Date.now() }); }
+  }
+  await env.PENDING.put(SV.own, JSON.stringify(own));   // the catalogue picks the videos up on its next half-hourly run
 }
