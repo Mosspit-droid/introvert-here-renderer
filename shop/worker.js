@@ -235,6 +235,7 @@ async function checkout(request, env, url) {
     "metadata[shop]": "IH-UK",
     "payment_intent_data[metadata][shop]": "IH-UK",
   });
+  if (Object.keys(form).some((k) => k.endsWith("[metadata][personal]"))) form["custom_text[submit][message]"] = "Personalised items can’t be returned for a change of mind. Faulty, damaged or misnamed items are always put right, and the rest of your order can be returned as normal.";
   if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "The shop isn't connected to Stripe yet (the Stripe key hasn't been saved in the approvals app)." }, 503);
   try {
     const session = await stripe(env, "POST", "/checkout/sessions", form);
@@ -393,7 +394,7 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
 .door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
 .strip{margin:clamp(40px,6vw,80px) 0 0}
-.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
+.pret{border-left:3px solid #4a8fe7;padding-left:10px}.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
 .xn{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:#5b1316;border:1px solid #a7322d;color:#f6efe0;font-size:14px;line-height:1.4;text-align:center}.xn b{color:#fff}.xn a{color:#f6d06b;white-space:nowrap}
 .xgift{display:flex;flex-direction:column;gap:4px;margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#5b1316,#2a3d24);border:1px solid #a7322d;color:#f6efe0;text-decoration:none}.xgift b{font-size:clamp(20px,3vw,26px);text-transform:uppercase;letter-spacing:.02em}.xgift span{color:#e9d9a0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
@@ -1713,7 +1714,7 @@ render();`;
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>
 <div class="label">Size <a id="sg" href="#" target="_blank" rel="noopener" class="note" style="text-transform:none;letter-spacing:0">(size guide)</a></div><div id="sizes" class="chips"></div>
 ${g0.personal ? `<div class="label">Your name</div><input id="pname" class="pname" maxlength="${g0.personal.max}" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. ${esc(g0.personal.sample || "SAM")}">
-<p class="note" style="margin-top:6px">Up to ${g0.personal.max} letters, printed in capitals. The picture is a preview: we check every name before printing, and may decline an order and refund it.</p>` : ""}
+<p class="note" style="margin-top:6px">Up to ${g0.personal.max} letters, printed in capitals. The picture is a preview: we check every name before printing, and may decline an order and refund it.</p><p class="note pret">Personalised items are made just for you, so they can’t be returned if you change your mind. If one arrives faulty, damaged or with a different name from the one you typed, we’ll put it right. Anything else in the same order can still be returned as normal. <a href="/returns">Returns</a></p>` : ""}
 <div id="price" class="price"></div>${reviewHtml(g0)}<p class="note">Free UK delivery · Printed to order, usually with you in 4–10 working days</p>
 <button id="add" class="btn" style="width:100%;margin-top:10px">Choose a size</button>
 <div id="added" class="box" style="display:none">Added. <a href="/uk/basket"><b>Go to basket →</b></a></div>
@@ -1733,6 +1734,7 @@ function money(p){return '£'+(p/100).toFixed(2)}
 function draw(){var b=B.get(),el=document.getElementById('list');
  if(!b.length){el.innerHTML=${JSON.stringify(mascotMsg("sit", "Your basket’s empty.", "Just him in here, and he likes it that way. You don’t have to.", "/uk/shop", "Go shopping"))};document.getElementById('pay').style.display='none';document.getElementById('total').textContent='';document.getElementById('bh').hidden=document.getElementById('bn').hidden=true;return}
  el.innerHTML=b.map(function(i,n){return '<div class="row"><img src="'+i.img+'" alt=""><div style="flex:1"><b>'+i.title+'</b><br><span class="note">'+i.garment+' · '+i.colour+' · '+i.size+(i.name?' · Name: '+i.name:'')+'</span></div><div class="qty"><button data-d="'+n+'">−</button>'+i.qty+'<button data-u="'+n+'">+</button></div><b>'+money(i.price*i.qty)+'</b></div>'}).join('');
+ var pn=document.getElementById('pnote');if(pn)pn.hidden=!b.some(function(i){return i.name});
  document.getElementById('total').textContent='Total '+money(b.reduce(function(a,i){return a+i.price*i.qty},0))+' · free UK delivery';document.getElementById('pay').style.display='';}
 document.addEventListener('click',function(e){var b=B.get(),t=e.target;
  if(t.dataset.u){b[+t.dataset.u].qty=Math.min(10,b[+t.dataset.u].qty+1)}else if(t.dataset.d){var i=+t.dataset.d;b[i].qty--;if(b[i].qty<1)b.splice(i,1)}else return;B.set(b);draw()});
@@ -1742,6 +1744,7 @@ document.getElementById('pay').addEventListener('click',async function(){var btn
  btn.disabled=false;btn.textContent='Checkout securely';});
 draw();`;
   return page("Basket", `<h1 id="bh">Your basket</h1><div id="list"></div><p id="total" class="price" style="font-size:20px"></p>
+<p class="note pret" id="pnote" hidden>Personalised items are made just for you, so they can’t be returned if you change your mind. If one arrives faulty, damaged or with a different name from the one you typed, we’ll put it right. Anything else in the same order can still be returned as normal. <a href="/returns">Returns</a></p>
 <button id="pay" class="btn" style="width:100%;max-width:420px">Checkout securely</button>
 <p class="note" id="bn">You'll pay on Stripe's secure checkout page. We never see your card details.</p>`, { script, noindex: true });
 }
@@ -1759,10 +1762,11 @@ function legalPage(which) {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
 <p>Prices are in pounds sterling and include delivery to UK addresses. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
 <p>A contract is formed when your payment is accepted and we email your receipt. If we can't fulfil an order we'll refund you in full.</p>
+<p>You can return items within 30 days if you change your mind, except personalised (In Person) items, which are made to your order. Faulty, damaged or wrongly printed items are always put right. See <a href="/returns">Returns</a> for details.</p>
 <p>Nothing in these terms affects your statutory rights.</p>`],
     returns: ["Returns and refunds", `<p><b>Faulty or wrong item:</b> if your item arrives damaged, misprinted or isn't what you ordered, email ${EMAIL} within 30 days with a photo and we'll replace it or refund you in full. You won't need to send it back.</p>
 <p><b>Changed your mind:</b> you have 30 days from receiving your order to change your mind (the law gives you 14; we give you 30). Tell us by email within that time, then return the item unworn within 14 days of telling us, and we'll refund the price within 14 days of receiving it. Return postage is paid by you.</p>
-<p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full.</p>
+<p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full. Other items in the same order keep the change-of-mind right above.</p>
 <p><b>Return address:</b> Introvert Here returns, ${ADDRESS}. Please email us first so we know to expect it.</p>`],
     privacy: ["Privacy", `<p>We collect only what we need to take payment and deliver your order: your name, email, phone number and delivery address. Payment is handled by Stripe; we never see your card details. Your delivery details are passed to our print partner (Printify) to make and post your order.</p>
 <p>We keep order records for as long as the law requires for accounts. We don't sell your data, send marketing without asking, or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
