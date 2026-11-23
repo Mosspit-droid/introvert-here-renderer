@@ -233,7 +233,19 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .pg .card p{margin:0 0 10px;font-size:15px;line-height:1.45}.pg .card ul{margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.45}.pg .card li{margin-bottom:4px}
 .pg .card .go{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:12px 0 0}.pg .card .btn{background:#fad00c;color:#1c1611}.pg .card a{color:#f6efe0;font-size:14px}
 .pg .card .sm{font-size:13px;color:#b9ae9c;margin:0}
-.pg .card .ttl{text-align:center}.pg .card .ttl img{display:block;width:min(100%,340px);height:auto;margin:0 auto 10px}.pg .card .ttl h1{color:#fad00c;font-size:24px;margin:0 0 6px}.pg .card .ttl .go{justify-content:center}.pg .card .tpic{display:flex;align-items:flex-end;justify-content:center;gap:26px;margin:4px 0 2px}.pg .card .tpic i{display:block}
+.pg .tp{position:absolute;inset:0;z-index:7;display:flex;align-items:center;overflow:hidden;background:linear-gradient(90deg,rgba(14,16,32,.9),rgba(14,16,32,.5) 52%,rgba(14,16,32,.82));color:#f6efe0}.pg .tp[hidden]{display:none}
+.pg .tp-h{flex:0 0 44%;height:100%;position:relative;animation:tpin .7s cubic-bezier(.2,1.3,.4,1) both}.pg .tp-h i{position:absolute;left:50%;bottom:5%;height:84%;transform:translateX(-50%);filter:drop-shadow(0 10px 0 rgba(0,0,0,.35))}
+.pg .tp-r{flex:1;position:relative;z-index:2;text-align:center;padding:0 5% 0 0;animation:tpdrop .6s .25s cubic-bezier(.2,1.4,.4,1) both}.pg .tp-logo{display:block;width:min(86%,420px);height:auto;margin:0 auto 4px}
+.pg .tp-t{margin:0 0 18px;transform:rotate(-3deg)}.pg .tp-t span{display:block;font:900 clamp(46px,9.5vw,112px)/.92 Montserrat,system-ui,sans-serif;letter-spacing:-.02em;text-transform:uppercase;color:#fad00c;text-shadow:3px 3px 0 #1b1b2a,-3px 3px 0 #1b1b2a,3px -3px 0 #1b1b2a,-3px -3px 0 #1b1b2a,0 9px 0 #1b1b2a,6px 9px 0 #1b1b2a}
+.pg .tp-t small{display:block;margin-top:14px;font:800 clamp(18px,3.4vw,38px)/1 Montserrat,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase}.pg .tp-t b{display:inline-block;padding:.05em .3em;margin:0 .1em;border:.12em solid #e0303a;border-radius:.2em;color:#e0303a;font-weight:700;letter-spacing:0;transform:rotate(-8deg);background:rgba(246,239,224,.08)}
+.pg .tp .btn{font-size:22px;padding:14px 44px;background:#fad00c;color:#1c1611;animation:tppulse 1.6s ease-in-out infinite}.pg .tp a{color:#f6efe0;font-size:14px}
+.pg #pgtb{position:absolute;inset:0;z-index:1;pointer-events:none}.pg .tp-g{pointer-events:none}.pg .tp-s{position:absolute;pointer-events:none;white-space:nowrap;padding:8px 14px;border-radius:999px;background:#fff;color:#1b1b2a;border:3px solid #1b1b2a;font:800 clamp(12px,1.7vw,17px)/1 Montserrat,system-ui,sans-serif;animation:tpfly 5.2s linear forwards}
+.pg .tp-g{position:absolute;right:1%;bottom:0;z-index:3;height:min(34%,250px);transform:translateY(105%);animation:tpgary 8s 2s infinite}
+@keyframes tpin{from{transform:translateX(-110%)}}@keyframes tpdrop{from{transform:translateY(-130%)}}@keyframes tppulse{50%{transform:scale(1.07)}}
+@keyframes tpfly{from{left:104%;opacity:1}82%{opacity:1;transform:scale(1)}92%{transform:scale(1.25);opacity:.9}to{left:40%;transform:scale(.2);opacity:0}}
+@keyframes tpgary{0%,8%{transform:translateY(105%)}12%,30%{transform:translateY(4%)}34%,100%{transform:translateY(105%)}}
+@media (max-aspect-ratio:1/1){.pg .tp{flex-direction:column}.pg .tp-h{flex:0 0 46%;width:100%;height:auto}.pg .tp-r{padding:0 4%}}
+@media (prefers-reduced-motion:reduce){.pg .tp-h,.pg .tp-r,.pg .tp .btn{animation:none}.pg .tp-g{animation:none;transform:none}}
 .pg .card .how{margin:0 0 4px}.pg .card .how summary{cursor:pointer;font-size:14px;font-weight:700;color:#fad00c;padding:6px 0;list-style-position:inside}.pg .card .how[open] summary{margin-bottom:6px}
 .pg .card .lv{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pg .card .lv button{font:700 13px/1 Montserrat,sans-serif;padding:9px 12px;border-radius:999px;border:2px solid #f6efe0;background:transparent;color:#f6efe0;cursor:pointer}.pg .card .lv button.on{background:#fad00c;border-color:#fad00c;color:#1c1611}.pg .card .lv button:disabled{opacity:.35;cursor:default}
 @media (max-height:440px){.pg .card h1,.pg .card h2{font-size:20px}.pg .card ul{font-size:13px}.pg .card>div{width:min(100%,640px);padding:12px 16px}.pg .card p{font-size:13px;margin-bottom:6px}}
@@ -257,7 +269,7 @@ var S,P,people,items,bubbles,says,movers=[],bikes=[],pops=[],T=0,keys={},btn={},
 // Which levels have been reached is remembered on this device.
 function unlocked(){var n=0;try{n=parseInt(localStorage.getItem('ih_hoodini_level')||'0',10)||0}catch(e){}return Math.min(LV.length-1,Math.max(0,n))}
 function unlock(i){try{if(i>unlocked())localStorage.setItem('ih_hoodini_level',String(i))}catch(e){}}
-function load(i){LI=Math.max(0,Math.min(LV.length-1,i));try{localStorage.setItem('ih_hoodini_last',String(LI))}catch(e){}L=LV[LI];MAP=L.map;MW=MAP[0].length;MH=MAP.length;street=L.theme==='street';
+function load(i,quiet){LI=Math.max(0,Math.min(LV.length-1,i));if(!quiet)try{localStorage.setItem('ih_hoodini_last',String(LI))}catch(e){}L=LV[LI];MAP=L.map;MW=MAP[0].length;MH=MAP.length;street=L.theme==='street';
  party=L.theme==='party';family=L.theme==='family';office=!street&&!party&&!family;TH=family?{a:'#6fbf5a',b:'#4f9a43',c:'#8fd67a'}:street?{a:'#9aa4af',b:'#737d88',c:'#c5ccd4'}:party?{a:'#b98a5a',b:'#8f6741',c:'#d6ad7c'}:{a:'#3fa796',b:'#2e7f72',c:'#63c7b5'};lit={};reset();menu()}
 // The level picker, on the opening card and on the card at the end of a level. Levels you have reached can be picked.
 function menu(){var un=unlocked();$('pgintrop').textContent=L.intro;[['pglv',false],['pglv2',true]].forEach(function(q){var el=$(q[0]);el.textContent='';if(LV.length<2||(q[1]&&un<1))return;
@@ -495,6 +507,7 @@ function bubbleSay(t,x,y,a,placed){var c=cx;c.font='800 .3px Montserrat,system-u
 function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c.fillRect(0,0,W,H);
  cam=bcx;camY=bcy;var snap=calm||S.mode==='ready',want=Math.max(0,Math.min(MW-vw,P.x-vw*(P.f>0?.36:.5))),wy=Math.max(0,Math.min(MH-VIEW,P.y-VIEW*.68));cam+=(want-cam)*(snap?1:.1);camY+=(wy-camY)*(snap?1:.07);
  bcx=cam;bcy=camY;if(!look){lookX*=.8;lookY*=.8;if(Math.abs(lookX)<.02)lookX=0;if(Math.abs(lookY)<.02)lookY=0}cam=Math.max(0,Math.min(MW-vw,cam+lookX));camY=Math.max(0,Math.min(MH-VIEW,camY+lookY));
+ if(titleOn){cam=Math.max(0,Math.min(MW-vw,8+(T-titleT)*2.2));camY=MH-VIEW}
  c.save();c.beginPath();c.rect(0,sceneY,W,sceneH);c.clip();c.translate(0,sceneY);c.scale(u,u);c.translate(-cam,-camY);
  var x0=Math.floor(cam)-1,x1=Math.ceil(cam+vw)+1,x,y,t;
  // the wall, with windows on the sky
@@ -583,7 +596,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.fast>0&&!calm){c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.06;for(var q2=0;q2<3;q2++){c.beginPath();c.moveTo(P.x-P.f*(.5+q2*.12),P.y-.4-q2*.4);c.lineTo(P.x-P.f*(1+q2*.12),P.y-.4-q2*.4);c.stroke()}}
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
  var placed=[];says.forEach(function(s){bubbleSay(s.t,s.x,s.y,Math.min(1,s.life*2),placed)});
- c.restore();
+ c.restore();if(titleOn)return;
  // the display: battery, tea and notes
  var hx=W-12,hy=sceneY+10;c.fillStyle='rgba(27,27,42,.78)';rr(hx-214,hy,214,28,9);c.fill();hx-=14;
  c.strokeStyle=CREAM;c.lineWidth=2;rr(hx-188,hy+6,64,16,4);c.stroke();c.fillStyle=CREAM;c.fillRect(hx-122,hy+10,3,8);c.fillStyle=S.glow>0?'#fff':S.batt>.3?YEL:'#ff6a4f';c.fillRect(hx-185,hy+9,58*Math.max(0,S.batt),10);
@@ -601,7 +614,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle=stick&&Math.abs(stick.v)>.18?YEL:CREAM;c.beginPath();c.arc(o.x0+o.v*sr*.6,o.y0,sr*.42,0,6.2832);c.fill();c.stroke();
   [['b','B'],['a','A']].forEach(function(q){var b=PAD[q[0]],on=!!btn[q[0]];c.fillStyle=on?YEL:'#c9364a';c.beginPath();c.arc(b.x,b.y,b.r,0,6.2832);c.fill();c.strokeStyle='#14151c';c.lineWidth=3;c.stroke();
    c.fillStyle=on?'#1c1611':CREAM;c.font='800 '+Math.round(b.r*.7)+'px Montserrat,system-ui,sans-serif';c.fillText(q[1],b.x,b.y+1);c.font='700 10px Montserrat,system-ui,sans-serif';c.fillStyle=CREAM;c.globalAlpha=.75;c.fillText(q[0]==='a'?'JUMP':'HOOD UP',b.x,b.y+b.r+12);c.globalAlpha=tall?1:.8});c.globalAlpha=1}}
-var last=0;function loop(now){var dt=Math.min(.033,(now-last)/1000||0);last=now;T+=dt;if(!document.hidden&&ready)update(dt);draw();requestAnimationFrame(loop)}
+var last=0,titleOn=true,titleT=0,titleLv=-1,startLv=0;function loop(now){var dt=Math.min(.033,(now-last)/1000||0);last=now;T+=dt;if(titleOn&&!calm&&ready&&(titleLv<0||T-titleT>9)){titleLv=titleLv<0?startLv:(titleLv+1)%LV.length;titleT=T;load(titleLv,true)}if(!document.hidden&&ready)update(dt);draw();requestAnimationFrame(loop)}
 
 // ---- thumbs and keys ----
 var ptr={};
@@ -617,10 +630,12 @@ function up(e){if(look&&e.pointerId===look.id)look=null;if(stick&&e.pointerId===
 addEventListener('keydown',function(e){if(S.mode!=='play'&&S.mode!=='ready')return;var k=e.key.length===1?e.key.toLowerCase():e.key;if(/^(Arrow(Left|Right|Up|Down)|Shift| |[adwszx])$/.test(k)){if(!e.repeat&&(k==='z'||k===' '||k==='ArrowUp'||k==='w'))jumpQ=.12;keys[k]=1;e.preventDefault()}});
 addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null;look=null});
 $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()});
-$('pgplay').addEventListener('click',function(){$('pgtitle').hidden=true;$('pgintro').hidden=false;$('pggo').focus()});
-(function(){var a=ART.hero,g=ART.nemesis,el=$('pgtpic'),sc=.62;el.innerHTML='<i style="width:'+a.w*sc+'px;height:'+a.h*sc+'px;background:url('+SRC+'hero) '+(-0*a.w*sc)+'px 0/'+(a.W*sc)+'px '+(a.h*sc)+'px no-repeat"></i><i style="width:'+g.w*.5+'px;height:'+g.h*.5+'px;transform:scaleX(-1);background:url('+SRC+'nemesis) '+(-1*g.w*.5)+'px 0/'+(g.W*.5)+'px '+(g.h*.5)+'px no-repeat"></i>'})();
+var tpBub=0,tpGary=0;(function(){var a=ART.hero,g=ART.nemesis,h=$('pgth'),gg=$('pgtg');h.style.aspectRatio=a.w+'/'+a.h;h.style.background='url('+SRC+'hero) 0 0/'+(a.W/a.w*100)+'% 100% no-repeat';gg.style.aspectRatio=g.w+'/'+g.h;gg.style.backgroundImage='url('+SRC+'nemesis)';gg.style.backgroundSize=(g.W/g.w*100)+'% 100%';gg.style.backgroundRepeat='no-repeat';
+ var gf=0;tpGary=setInterval(function(){gf=1-gf;gg.style.backgroundPosition=((1+gf)/(g.W/g.w-1)*100)+'% 0'},230);gg.style.backgroundPosition=(1/(g.W/g.w-1)*100)+'% 0';if(calm)return;
+ var lines=[];LV.forEach(function(l){lines=lines.concat(l.lines.P||[],l.lines.T||[])});tpBub=setInterval(function(){var el=document.createElement('span');el.className='tp-s';el.textContent=pick(lines);el.style.top=(Math.random()<.6?3+Math.random()*20:76+Math.random()*14)+'%';el.addEventListener('animationend',function(){el.remove()});$('pgtb').appendChild(el)},1300)})();
+$('pgplay').addEventListener('click',function(){titleOn=false;clearInterval(tpBub);clearInterval(tpGary);$('pgtitle').hidden=true;load(startLv);$('pgcard').hidden=false;$('pggo').focus()});
 $('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
-addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}load(askLv>0?askLv-1:Math.min(lastLv,unlocked()));lay();requestAnimationFrame(loop);
+addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}startLv=askLv>0?askLv-1:Math.min(lastLv,unlocked());load(startLv,true);lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
 window.__pg={S:function(){return S},P:function(){return P},people:function(){return people},items:function(){return items},bubbles:function(){return bubbles},map:MAP,level:function(){return LI},load:load,movers:function(){return movers},bikes:function(){return bikes},tiles:function(){return MAP},ready:function(){return ready},
  look:function(){return [look,lookX,lookY,cam,camY]},sayTest:function(t,x,y){say(t,x,y)},press:function(n,on){if(n==='l'||n==='r'){stick=on?{id:-1,x0:0,y0:0,v:n==='r'?1:-1}:(stick&&stick.v===(n==='r'?1:-1)?null:stick);return}if(on){btn[n]=1;if(n==='a')jumpQ=.12}else delete btn[n]},restart:function(){reset()},step:function(n){for(var i=0;i<n;i++)update(1/60)}};
@@ -631,9 +646,9 @@ export function platformPage(page, hub, v) {
   const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   return page(TITLE, `<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
-<div class="card" id="pgcard"><div>
-<div id="pgtitle" class="ttl"><img src="/logo-wide.png?v=5" alt="Introvert Here…"><h1>${TITLE}</h1><div id="pgtpic" class="tpic"></div><p class="go"><button class="btn" id="pgplay" type="button">Play</button><a href="${hub.path}">Back to the room</a></p></div>
-<div id="pgintro" hidden><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
+<div class="tp" id="pgtitle"><div class="tp-h"><i id="pgth"></i></div><div class="tp-r"><img class="tp-logo" src="/logo-wide.png?v=5" alt="Introvert Here…"><h1 class="tp-t"><span>Hoodini</span><small>The <b>OK</b> Escape</small></h1><p><button class="btn" id="pgplay" type="button">Play</button></p><a href="${hub.path}">Back to the room</a></div><div id="pgtb"></div><i class="tp-g" id="pgtg"></i></div>
+<div class="card" id="pgcard" hidden><div>
+<div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
 <details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
