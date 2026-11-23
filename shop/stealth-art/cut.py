@@ -63,6 +63,17 @@ hf = figures(key("hero-flat.png"), 3); assert len(hf) == 9, len(hf); hs = 200 / 
 hm = figures(key("hero-moves.png"), 2); assert len(hm) == 8, len(hm); ms = 196 / hm[1].shape[0]
 save("hero", strip([cell(hf[i], hs, **HC) for i in (6, 0, 2, 4)] + [cell(f, ms, **HC) for f in hm]), w=220, h=230, ax=110, base=226, n=12, pph=200)
 save("hero-head", scaled(hf[3], 96 / hf[3].shape[0]))
+# Left standing too long: foot tap 0-1, phone 2, drawstring 3, sitting 4, asleep 5. Always a hand in a pocket (Barry, 22 Nov).
+hi = figures(key("hero-idle.png")); assert len(hi) == 6, len(hi); isc = 200 / hi[1].shape[0]
+save("hero-idle", strip([cell(f, isc, **HC) for f in hi]), w=220, h=230, ax=110, base=226, n=6)
+# Hanging from the balloons or the umbrella by one fist (the other hand in a pocket): still 0, legs forward 1, legs back 2, tucked 3, letting go 4
+def cellt(fig, s, cw, ch, ax, top):
+    im = scaled(fig, s); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[: max(1, int(a_.shape[0] * .08))].any(axis=0))[0]; cxf = (xs[0] + xs[-1]) / 2
+    c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - cxf), top)); return c
+hh = figures(key("hero-hang.png")); assert len(hh) == 5, len(hh)
+save("hero-hang", strip([cellt(f, isc, 320, 280, 160, 6) for f in hh]), w=320, h=280, ax=160, top=6, n=5)
+# The title page (Barry's own picture, 23 Nov)
+save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # People who stand: teal mug woman 0-1, orange shouting man 2-3, cake woman 4-5, clipboard man 6-7 (idle, then talking)
 fp = figures(key("flat-people.png"), 2); assert len(fp) == 8, len(fp); s = 2.1 * PPT / fp[0].shape[0]
 save("flat-people", strip([cell(f, s, cw=250, ch=262, ax=105, base=258, top=.4) for f in fp]), w=250, h=262, ax=105, base=258, n=8)
@@ -216,7 +227,7 @@ with open(os.path.join(HERE, "art.js"), "w") as f:
     for n in ART: f.write('  "%s": "%s",\n' % (n, base64.b64encode(open(os.path.join(OUT, n + ".webp"), "rb").read()).decode()))
     f.write("};\n")
 chk = Image.new("RGB", (2000, 2200), "#fbf1e7"); y = 10
-for n in ("nemesis", "park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
+for n in ("hero-idle", "hero-hang", "nemesis", "park-play", "park-things", "park-people", "park-kid", "park-parents", "park-decor"):
     im = Image.open(os.path.join(OUT, n + ".webp")).convert("RGBA")
     if im.width > 1980: im = im.resize((1980, round(im.height * 1980 / im.width)))
     chk.paste(im, (10, y), im); y += im.height + 10
