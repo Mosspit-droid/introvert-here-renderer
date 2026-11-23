@@ -317,7 +317,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // Hood Up: on the ground, while B is held and there is hood left
  var want=hoodKey()&&P.ground&&P.cool<=0&&P.hoodT>0&&S.mode==='play';
  if(want){P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
- if(P.hood)sv*=.27;if(P.callT>0)P.callT-=dt;if(P.cringeT>0)P.cringeT-=dt;if(P.wetT>0)P.wetT-=dt;P.hoodW=P.hood?(P.hoodW||0)+Math.abs(P.vx)*dt:0;
+ if(P.hood)sv*=.27;if(P.ground&&sv===0&&Math.abs(P.vx)>4.5&&!(P.skidT>0))P.skidT=.3;if(P.skidT>0)P.skidT-=dt;if(P.callT>0)P.callT-=dt;if(P.cringeT>0)P.cringeT-=dt;if(P.wetT>0)P.wetT-=dt;P.hoodW=P.hood?(P.hoodW||0)+Math.abs(P.vx)*dt:0;
  // running
  if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
  var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
@@ -594,17 +594,22 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.balloons)balloons(hang?P.x:P.x-P.f*.15,hang?fy-.45:P.y-2.25,1.05);
  if(P.float)thing('brolly',hang?P.x:P.x+P.f*.22,hang?fy+.12:P.y-.75,1.9,false,'street-things');
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
- var HG=ART['hero-hang'],it2=P.idleT||0,sn='hero',fr=f,rot=0,al=P.inv>0?.55:1,cp=false;
+ var HG=ART['hero-hang'],it2=P.idleT||0,sn='hero',fr=f,rot=0,al=P.inv>0?.55:1,cp=false,fl=P.f,bob=0,carry=P.plate||P.baby>0||(P.tissues&&family),fy2=Math.floor(P.y+.1);
+ var sup=function(x){var t=tile(Math.floor(x),fy2);return solid(Math.floor(x),fy2)||t==='='||t==='B'},tee=(P.ground&&!P.on&&S.mode==='play'&&sup(P.x))?(!sup(P.x+.42)?1:!sup(P.x-.42)?-1:0):0;
  if(P.slide){sn='hero-extra';fr=1;rot=.3}
  else if(P.callT>0&&P.ground){sn='hero-extra';fr=0}
  else if(P.hood&&P.ground){sn='hero-hood';fr=Math.abs(P.vx)>.2?Math.floor((P.hoodW||0)/.2)%4:1;al=.88}
  else if(S.mode==='won'){sn='hero-extra';fr=5}
  else if(P.cringeT>0){sn='hero-extra';fr=2}
+ else if(P.skidT>0&&P.ground&&!carry){sn='hero-more';fr=4}
+ else if(P.ground&&carry&&f>=4&&f<=7){sn='hero-more';fr=2+Math.floor(P.walkT/.17)%2;cp=true;bob=calm?0:Math.abs(Math.sin(P.walkT*18))*.07}
+ else if(f===0&&tee&&!carry){sn='hero-more';fr=calm?0:Math.floor(T/.36)%2;fl=tee}
  else if(f===0&&P.wetT>0){sn='hero-extra';fr=3}
  else if(f===0&&(P.plate||P.baby>0||(P.tissues&&family))){sn='hero-extra';fr=4;cp=true}
+ else if(f===0&&look&&!carry){sn='hero-more';fr=5}
  else if(f===0&&it2>4&&P.inv<=0){sn='hero-idle';fr=it2<7?Math.floor(it2/.28)%2:it2<10?2:it2<12.5?3:it2<16?4:5}
  if(hang&&IMG['hero-hang'].naturalWidth){var hfr=(P.balloons&&jumpKey()&&P.lift>0)?3:Math.abs(P.vx)>2.5?2:(calm?0:Math.floor(T/.45)%2);c.save();c.translate(P.x,fy);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-hang'],hfr*HG.w,0,HG.w,HG.h,-HG.ax*k,-HG.top*k,HG.w*k,HG.h*k);c.restore()}
- else if(ready){var SA=ART[sn],sim=IMG[sn];if(!sim||!sim.naturalWidth){SA=HERO;sim=img;fr=f}if(sim.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(rot)c.rotate(rot);c.globalAlpha=al;c.imageSmoothingQuality='high';c.drawImage(sim,fr*SA.w,0,SA.w,SA.h,-SA.ax*k,-SA.base*k,SA.w*k,SA.h*k);c.restore();c.globalAlpha=1}}
+ else if(ready){var SA=ART[sn],sim=IMG[sn];if(!sim||!sim.naturalWidth){SA=HERO;sim=img;fr=f}if(sim.naturalWidth){c.save();c.translate(P.x,P.y+.04-bob);c.scale(fl,1);if(rot)c.rotate(rot);c.globalAlpha=al;c.imageSmoothingQuality='high';c.drawImage(sim,fr*SA.w,0,SA.w,SA.h,-SA.ax*k,-SA.base*k,SA.w*k,SA.h*k);c.restore();c.globalAlpha=1}}
  nemesis();
  if(P.plate)thing('plate',P.x+P.f*(cp?.68:.45),P.y-(cp?.93:.72),.7,false,'party-things');
  if(P.tissues&&family)thing('flask',P.x+P.f*(cp?.66:.45),P.y-(cp?.96:.55),.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
@@ -661,7 +666,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 // presents = the site's shared "Introvert Here... presents" title card ({ html, js } from worker.js), shown before the title page.
 export function platformPage(page, hub, v, presents) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents, "hero-hood": ART["hero-hood"], "hero-extra": ART["hero-extra"] })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents, "hero-hood": ART["hero-hood"], "hero-extra": ART["hero-extra"], "hero-more": ART["hero-more"] })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   const opening = presents ? presents.js + "\nihPresents('hoodini',false);(function(){var t=document.getElementById('pgtitle'),o=document.getElementById('dzi');if(!o||!o.isConnected)return;t.classList.add('wait');new MutationObserver(function(){if(o.classList.contains('bye')||!o.isConnected)t.classList.remove('wait')}).observe(o,{attributes:true})})();" : "";
   return page(TITLE, `${presents ? presents.html : ""}<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>

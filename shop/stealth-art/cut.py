@@ -78,6 +78,13 @@ save("hero-hood", strip([cell(f, isc, **HC) for f in hd]), w=220, h=230, ax=110,
 # Extra poses: on a call 0, sliding 1, cringing 2, soaked 3, carrying 4, the small win 5
 hx = figures(key("hero-extra.png")); assert len(hx) == 6, len(hx)
 save("hero-extra", strip([cell(f, isc, cw=300, ch=230, ax=120, base=226, top=.4) for f in hx]), w=300, h=230, ax=120, base=226, n=6)
+# More poses: teetering forward 0 and back 1, walking while carrying 2-3, skidding 4, looking up 5. Cut by boxes (the skid's dust puff is loose);
+# each is placed by where his feet (or hips, when walking) are, as a fraction of the pose's width.
+km = key("hero-more.png"); mq = km.shape[1] / 2000
+def cellx(fig, s, cw, ch, ax, base, fr): im = scaled(fig, s); c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - im.width * fr), base - im.height)); return c
+def trim_(f): m = f[..., 3] > 128; ys = np.where(m.any(axis=1))[0]; xs_ = np.where(m.any(axis=0))[0]; return f[ys[0]:ys[-1] + 1, xs_[0]:xs_[-1] + 1]
+mf = [(trim_(km[round(140 * mq):round(580 * mq), round(x0 * mq):round(x1 * mq)]), fr) for x0, x1, fr in [(20, 345, .23), (375, 670, .6), (700, 1000, .42), (1030, 1325, .44), (1360, 1716, .45), (1718, 1930, .66)]]
+save("hero-more", strip([cellx(f, isc, 340, 230, 170, 226, fr) for f, fr in mf]), w=340, h=230, ax=170, base=226, n=6)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
