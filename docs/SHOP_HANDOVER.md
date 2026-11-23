@@ -98,8 +98,44 @@ R2 `site/` (copies in `shop/assets/site/`).
   (print y 0.482). Idea: UK shop orders printed in the UK. Not rolled out.
 - Note: all In Person garments use **Printify Choice (provider 99)**, which routes to the nearest printer itself.
 
+### Orders (decided 21 Nov)
+- Normal orders go to Printify for printing automatically (`AUTO_SEND = "yes"` in `shop/wrangler.toml`; takes effect
+  when the real shop is next deployed, i.e. launch day). In Person items wait in the In Person queue for Barry's check,
+  as on Etsy. If Printify refuses the automatic send, the order stays on hold in the app with a note.
+- introverthere.com is on Cloudflare (active since 21 Nov; nameservers ezra/meadow.ns.cloudflare.com at Namecheap).
+  Namecheap's parking A/CNAME records were deleted; its email-forwarding MX/TXT records were kept. Not yet attached
+  to the shop worker: do that on launch day (Workers > introvert-here-shop > Domains: introverthere.com and www),
+  then point the Stripe webhook at introverthere.com if wanted. Site email stays admin@mosspit.org (Barry's choice).
+
+### Visitor numbers
+- Cloudflare Web Analytics is set up for introverthere.com (22 Nov) with automatic setup: Cloudflare adds the beacon
+  itself once the domain is attached to the shop worker, so no code. The workers.dev preview isn't counted.
+
+### Google Shopping (free listings)
+- `/google-products.xml` is a product feed built from the catalogue (one item per colour and size, In Person left
+  out). Links open the product page with that colour and size chosen (`?colour=&size=`). Launch day: Barry creates
+  a free Google Merchant Center account, verifies introverthere.com, sets UK delivery free, and adds the feed URL
+  `https://introverthere.com/google-products.xml` as a scheduled daily fetch.
+
+### Catalogue switch (22 Nov)
+- The preview now reads the app's catalogue, KV `shop:catalog-next` (site prices, In Person with name preview, site-only
+  early builds marked `siteOnly`, no Etsy link). The real shop still reads `shop:catalog` (old) until launch day, when
+  `catalog()` in `shop/worker.js` should read `shop:catalog-next` for both. `shop:catalog-preview` is the old hand-made copy.
+- The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
+
+### The Hoodini hunt (22 Nov)
+- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one); all 7 shows the code **HOODINI5** (5% off). Like
+  VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
+- 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support
+  email admin@mosspit.org, support/privacy/terms URLs on introverthere.com, private profile). A live webhook
+  destination exists ("charming-triumph", description "Introvert Here shop orders") pointing at
+  `https://introvert-here-shop.mosspit.workers.dev/api/stripe-webhook`, listening to `checkout.session.completed` and
+  `checkout.session.async_payment_succeeded`. **Launch day:** Barry puts its signing secret (whsec_...) into the
+  shop worker's `STRIPE_WEBHOOK_SECRET` (Cloudflare), and his live secret key into the app's Orders page. Never in
+  chat. The webhook URL may need changing to introverthere.com once the domain points at the shop.
 
 ## Make scenarios involved (team 2110125, org 8311421)
 - **7896436 Build Next Listing (Core)**: creates the Printify product (module 39) in shop 27154106 and publishes to
