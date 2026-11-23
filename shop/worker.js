@@ -589,7 +589,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dzpic{display:block;width:100%;height:auto;border-radius:10px;margin:6px 0 16px}
 .dzi{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:#0e0d0c;transition:opacity .7s}.dzi.bye{opacity:0;pointer-events:none}
 .dzil{position:relative;width:min(78vw,560px);opacity:0;transition:opacity .9s}.dzi.on .dzil{opacity:1}.dzil img{display:block;width:100%;height:auto}
-.dzil i{position:absolute;top:58%;height:16%;width:2.6%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:90.8%}.dzil i:nth-of-type(2){left:93.1%}.dzil i:nth-of-type(3){left:95.3%}.dzil i.off{opacity:0}
+.dzil i{position:absolute;top:58%;height:18%;width:2.2%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:88.07%}.dzil i:nth-of-type(2){left:90.35%}.dzil i:nth-of-type(3){left:92.62%}.dzil i.off{opacity:0}
 .dzi p{margin:0;min-height:1.3em;font:600 clamp(18px,4.2vmin,34px) Montserrat,sans-serif;letter-spacing:.32em;color:#f2f0ea;text-transform:lowercase;opacity:0;transition:opacity 1s}.dzi p.on{opacity:1}
 .dzi button{position:absolute;right:16px;bottom:16px;background:none;border:1px solid #3b3a35;color:#9a958a;border-radius:999px;padding:7px 14px;font:600 13px Montserrat,sans-serif;cursor:pointer}
 .gtee{margin:22px auto 6px;text-align:center}.gtee .tile{text-align:left}
