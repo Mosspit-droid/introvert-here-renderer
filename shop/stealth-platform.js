@@ -236,7 +236,7 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .pg .card .go{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:12px 0 0}.pg .card .btn{background:#fad00c;color:#1c1611}.pg .card a{color:#f6efe0;font-size:14px}
 .pg .card .sm{font-size:13px;color:#b9ae9c;margin:0}
 .pg .card .btn.alt{background:transparent;color:#fad00c;border:2px solid #fad00c;font-size:14px;padding:9px 14px}
-.pg .pm{position:absolute;left:10px;top:10px;z-index:5;width:46px;height:46px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;border:2px solid #fad00c;background:rgba(27,27,42,.85);cursor:pointer;padding:0}.pg .pm i{display:block;width:6px;height:18px;border-radius:2px;background:#fad00c}
+.pg .pm{position:absolute;left:10px;top:10px;z-index:5;width:46px;height:46px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;border:2px solid #fad00c;background:rgba(27,27,42,.85);cursor:pointer;padding:0}.pg .pm i{display:block;width:6px;height:18px;border-radius:2px;background:#fad00c}.pg .pm.snd{left:64px;color:#fad00c;font:800 24px/1 Montserrat,sans-serif}.pg .pm.snd.off{color:#6b6b78;text-decoration:line-through}
 .pg .tp{position:absolute;inset:0;z-index:7;overflow:hidden;background:#fde8b3}.pg .tp[hidden]{display:none}
 .pg .tp-art{position:absolute;inset:0;background:center bottom/100% auto no-repeat;animation:tpin .8s cubic-bezier(.2,1.4,.4,1) both,tpbreathe 7s .8s ease-in-out infinite alternate}
 .pg .tp-logo{position:absolute;left:50%;top:1.2%;z-index:2;height:9.5%;transform:translateX(-50%);background:center/contain no-repeat}
@@ -297,35 +297,56 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1;p.follow=false})}
-function flat(){nemPic(2);S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;card(NAME+' didn’t make it.',(S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'))+' '+NEM+' saw everything.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
+function flat(){sfx('lose');nemPic(2);S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;card(NAME+' didn’t make it.',(S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'))+' '+NEM+' saw everything.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
 function info(a,b){S.info={a:a,b:b,t:4}}
 function say(t,x,y){if(!t)return;for(var i=0;i<says.length;i++)if(says[i].t===t){says[i].life=2.2;says[i].x=x;says[i].y=y;return}says.push({t:t,x:x,y:y,life:2.2});if(says.length>4)says.shift()}
+var AC=null,muted=false,fx=[];try{muted=localStorage.getItem('ih_hoodini_mute')==='1'}catch(e){}
+function wake(){try{if(!AC){var A=window.AudioContext||window.webkitAudioContext;if(A)AC=new A()}if(AC&&AC.state==='suspended')AC.resume()}catch(e){}}
+addEventListener('pointerdown',wake,true);addEventListener('keydown',wake,true);
+function tone(f0,f1,d,type,vol,at){if(!AC||muted)return;try{var t=AC.currentTime+(at||0),o=AC.createOscillator(),g=AC.createGain();o.type=type||'square';o.frequency.setValueAtTime(f0,t);if(f1&&f1!==f0)o.frequency.exponentialRampToValueAtTime(f1,t+d);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol||.12,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.03)}catch(e){}}
+function hiss(d,vol,freq,at){if(!AC||muted)return;try{var t=AC.currentTime+(at||0),n=Math.floor(AC.sampleRate*d),b=AC.createBuffer(1,n,AC.sampleRate),a=b.getChannelData(0),i;for(i=0;i<n;i++)a[i]=(Math.random()*2-1)*(1-i/n);var src=AC.createBufferSource(),g=AC.createGain(),fl=AC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=freq||900;src.buffer=b;g.gain.value=vol||.2;src.connect(fl);fl.connect(g);g.connect(AC.destination);src.start(t)}catch(e){}}
+function sfx(n){if(!AC||muted)return;
+ if(n==='jump')tone(330,660,.13,'square',.09);
+ else if(n==='land')hiss(.09,.22,500);
+ else if(n==='step')hiss(.03,.05,1400);
+ else if(n==='tea'){tone(880,880,.07,'square',.08);tone(1320,1320,.12,'square',.08,.07)}
+ else if(n==='power'){[523,659,784,1047].forEach(function(f,i){tone(f,f,.1,'square',.09,i*.07)})}
+ else if(n==='hurt'){tone(300,90,.28,'sawtooth',.14);hiss(.12,.2,700)}
+ else if(n==='laugh'){[620,520,620,520,440].forEach(function(f,i){tone(f,f*.82,.1,'square',.08,.3+i*.13)})}
+ else if(n==='boing')tone(180,720,.22,'sine',.2);
+ else if(n==='hood')hiss(.22,.12,420);
+ else if(n==='quiet'){tone(660,660,.18,'sine',.14);tone(990,990,.3,'sine',.12,.14)}
+ else if(n==='blip')tone(520,440,.06,'square',.04);
+ else if(n==='win'){[523,659,784,659,784,1047].forEach(function(f,i){tone(f,f,i===5?.4:.12,'square',.1,i*.12)})}
+ else if(n==='lose'){[440,370,311,233].forEach(function(f,i){tone(f,f*.97,i===3?.5:.2,'triangle',.16,i*.2)})}
+ else if(n==='fall')tone(500,80,.4,'sine',.16)}
+function puff(x,y,n,sp){if(calm)return;for(var i=0;i<n;i++)fx.push({x:x+(Math.random()-.5)*.4,y:y-.05,vx:(Math.random()-.5)*(sp||2.4),vy:-Math.random()*1.1,life:.38,r:.1+Math.random()*.1})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
 function feed(p){people.forEach(function(o){if(o.k==='P'&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-p.x)<6.2)o.fed=true});P.plateN=(P.plateN||1)-1;pops.push({x:p.x,y:p.y-1.2,life:.6,big:true});say(pick((L.lines.bite)||['Ooh, lovely.']),p.x,p.y-2.6);if(P.plateN<=0){P.plate=false;info('THE PLATE IS EMPTY','They have eaten the lot. Anyone you fed will still let you past.')}}
-function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
+function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.freeze=calm?0:.09;S.shake=.35;sfx('hurt');sfx('laugh');puff(P.x,P.y-.8,6,5);S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
-function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
+function win(){sfx('win');S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
  card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',(S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':(S.hits+' conversations endured. You are owed a quiet weekend.'))+(more?'':' '+NEM+' was last seen being kissed by your aunt.'),
   (party?'Punch ':'Tea ')+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again')}
 
 // ---- one tick ----
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
-function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
+function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;if(S.freeze>0){S.freeze-=dt;return}
  movers.forEach(function(m){if(m.sw){var ox=m.x,sa=Math.sin((S.t+m.ph)*6.2832/m.per);m.x=m.cx+m.amp*sa;m.y=m.cy-Math.abs(sa)*.5;if(P.on===m){P.x+=m.x-ox;P.y=m.y}return}if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
  var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.fast>0)P.fast-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
  // Hood Up: on the ground, while B is held and there is hood left
  var want=hoodKey()&&P.ground&&P.cool<=0&&P.hoodT>0&&S.mode==='play';
- if(want){P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
+ if(want){if(!P.hood)sfx('hood');P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
  if(P.hood)sv*=.27;if(P.ground&&sv===0&&Math.abs(P.vx)>4.5&&!(P.skidT>0))P.skidT=.3;if(P.skidT>0)P.skidT-=dt;if(P.callT>0)P.callT-=dt;if(P.cringeT>0)P.cringeT-=dt;if(P.wetT>0)P.wetT-=dt;P.hoodW=P.hood?(P.hoodW||0)+Math.abs(P.vx)*dt:0;
  // running
  if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
  var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
  // jumping, with a little forgiveness either side of an edge
  if(P.ground)P.coy=.1;else P.coy-=dt;
- if(jumpQ>0&&P.coy>0&&!P.hood){P.vy=-JUMP;P.ground=false;P.coy=0;jumpQ=0}
+ if(jumpQ>0&&P.coy>0&&!P.hood){P.vy=-JUMP;P.ground=false;P.coy=0;jumpQ=0;P.sq=1;sfx('jump');puff(P.x,P.y,3)}
  if(P.vy>=0)P.sprung=false;if(!jumpKey()&&!P.sprung&&P.vy<-6)P.vy=-6;   // letting go of A cuts a jump short (but not a bounce)
  P.vy=Math.min(FALLMAX,P.vy+GRAV*dt);P.float=P.brolly&&!P.ground&&jumpKey()&&P.vy>0;if(P.float)P.vy=Math.min(P.vy,3.4);
  if(P.ground)P.lift=2.5;if(P.balloons&&!P.ground){if(jumpKey()&&P.lift>0&&P.vy>-2.6){P.vy=Math.max(-2.4,P.vy-70*dt);P.lift-=dt}else if(P.vy>2.6)P.vy=2.6}
@@ -340,18 +361,18 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  movers.forEach(function(m){if(P.vy>=0&&P.y<=m.y+.08&&ny>=m.y&&Math.abs(P.x-m.x)<m.w/2+.1){ny=m.y;P.vy=0;P.ground=true;P.on=m}});
  P.y=ny;if(P.float||P.peak==null)P.peak=P.y;if(!P.ground)P.peak=Math.min(P.peak,P.y);else{var drop=P.y-P.peak;P.peak=P.y;if(L.fallMax&&drop>L.fallMax&&S.mode==='play'){S.why='drop';S.hits++;S.batt=0;say('That was a long way down.',P.x,P.y-2.6);flat();return}}
  P.idleT=(S.mode==='play'&&P.ground&&Math.abs(P.vx)<.2&&!P.hood&&!jumpKey()&&!P.slide)?(P.idleT||0)+dt:0;
- if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
+ if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;if(P.ground&&!wasGround&&P.fell>3){P.sq=-Math.min(1,P.fell/14);sfx('land');puff(P.x,P.y,P.fell>10?7:4,P.fell>10?4:2.4)}P.sq=(P.sq||0)*(1-Math.min(1,dt*9));if(P.ground&&Math.abs(P.vx)>2){P.stepT=(P.stepT||0)+dt*Math.abs(P.vx)/5.6;if(P.stepT>.24){P.stepT=0;sfx('step');if(Math.abs(P.vx)>7)puff(P.x-P.f*.2,P.y,1,1)}}P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
  if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=!!jumpKey();P.bn=good?Math.min(2,P.bn+1):0;   // no timing: hold A and each bounce goes higher; let go to settle
-  P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
+  P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;P.sq=1;sfx('boing');pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
  if(!P.slide&&P.ground&&sv>0)(L.slides||[]).forEach(function(sl){if(Math.abs(P.x-sl.x0)<.45&&Math.abs(P.y-sl.y0)<.2)P.slide={s:sl,u:0}});
  if(P.slide){var sl2=P.slide.s;P.slide.v=Math.min(17,(P.slide.v||5)+26*dt);P.slide.u+=dt*P.slide.v/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.fling=.24;P.vx=13;say('WHEEE!',P.x,P.y-2.4)}}
  var onSpin=false;(L.spins||[]).forEach(function(sp){if(P.ground&&Math.abs(P.x-sp.x)<1.3&&Math.abs(P.y-sp.y)<.2)onSpin=true});if(onSpin){P.spinT+=dt;if(P.spinT>.75){P.spinT=0;P.fling=.95;P.vy=-19;P.sprung=true;P.ground=false;P.y-=.05;say('WHEEE!',P.x,P.y-2.4)}}else P.spinT=0;
  var onSee=false;(L.seesaws||[]).forEach(function(se){if(P.ground&&Math.abs(P.x-se.x)<.6&&P.y>MH-2.2)onSee=true});if(onSee){P.seeT+=dt;if(P.seeT>.65){P.seeT=0;S.seeAt=T;say('CANNONBALL!',P.x+3.1,MH-4.2);P.vy=-30;P.sprung=true;P.ground=false;P.y-=.05;pops.push({x:P.x,y:P.y,life:.5,big:true})}}else P.seeT=0;
  var cyy=Math.floor(P.y-.01),onChair=tile(Math.floor(P.x),cyy)==='^'||tile(Math.floor(P.x+.55),cyy)==='^'||tile(Math.floor(P.x-.55),cyy)==='^';if(P.vy>=0&&onChair&&P.y>=cyy+.15){   // generous: brush against it and up you go
-  P.vy=-23;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
+  P.vy=-23;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;P.sq=1;sfx('boing');puff(P.x,P.y,5,3)}
  if(P.ground&&solid(Math.floor(P.x),Math.floor(P.y+.1))&&solid(Math.floor(P.x-1),Math.floor(P.y+.1))&&solid(Math.floor(P.x+1),Math.floor(P.y+.1)))P.safe=[P.x,P.y];
- if(P.y>MH+2){P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(family)P.wetT=3.5;if(S.batt<=.001){flat();return}}
+ if(P.y>MH+2){sfx('fall');S.shake=.3;P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(family)P.wetT=3.5;if(S.batt<=.001){flat();return}}
  // the crying corner: no way past, over or through until they have their tissues
  if(!S.given){var cr=people.filter(function(q){return q.k==='Y'});if(cr.length){var ccx=(cr[0].x+cr[cr.length-1].x)/2,cfy=cr[0].y,reach=cr.length/2+.65;if(S.cryT>0)S.cryT-=dt;
    if(P.y<=cfy+.1&&P.y>cfy-4.8&&Math.abs(P.x-ccx)<reach){if(P.tissues){S.given=true;P.tissues=false;pops.push({x:ccx,y:cfy-1,life:.6,big:true});say(L.lines.Yok[0],ccx,cfy-2.9);info(L.toll.done,L.toll.doneB)}
@@ -361,7 +382,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
   if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
+ items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;say('Plans cancelled!',it.x,it.y-1)}
   else if(it.k==='c'){P.fast=6;info('COFFEE','You run faster for 6 seconds.')}
@@ -374,7 +395,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else{P.phones=7;info('HEADPHONES','Nobody can touch you for 7 seconds.')}});
  // a quiet room: a checkpoint, and a breather
  var kx=Math.floor(P.x),ky=Math.floor(P.y-.5);if(S.swT>0)S.swT-=dt;if(tile(kx,ky)==='L'){if(!(S.swT>0)&&!S.onSw){var zz=zoneAt(kx,ky);lit[zz.name]=!lit[zz.name];say(lit[zz.name]?'Lights on. Everyone can see you.':'Lights off. Nobody can see you.',kx+.5,ky-1.4)}S.onSw=true;S.swT=.3}else S.onSw=false;
- if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
+ if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);sfx('quiet');say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
  // the door
  var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){win();return}   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
@@ -404,7 +425,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
   else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='P'&&L.reach&&!p.fed&&p.x>16){var rp=p.t%3.4;p.reach=rp>2.6?2:rp>2?1:0;var rd=(P.x-p.x)*p.f;if(p.reach===2&&!unseen&&S.mode==='play'&&rd>.5&&rd<1.75&&P.ground&&P.y>p.y-1.2&&P.y<p.y+.3){if(P.plate)feed(p);else{if(P.inv<=0)say(pick(L.lines.reach),p.x,p.y-2.6);hurt('P',p.x)}}}else p.reach=0;
-  if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
+  if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;sfx('blip');bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
   var small=p.k==='G'||p.k==='J';if(p.k!=='Y'&&p.k!=='Q'&&p.k!=='M'&&p.k!=='V'&&p.k!=='A'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(p.k==='P'&&(p.fed||P.plate)){if(!p.fed)feed(p);return}if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
   if(!mm){S.rollT=0;S.rollW=false}else{S.rollT=(S.rollT||0)+dt;mm.f=P.x<mm.x?-1:1;if(S.rollT>L.roll-1.8&&!S.rollW){S.rollW=true;if(!S.seenM){S.seenM=true;info('ROLL CALL','When the megaphone goes off, have your hood up or be off the ground.')}}
@@ -413,6 +434,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
    else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
   if(!unseen&&b.life>0&&Math.abs(b.x-P.x)<.62&&b.y>P.y-HH&&b.y<P.y){if(P.inv<=0)say(b.line,P.x,P.y-2.6);hurt('bubble',b.x);b.life=0}return b.life>0});
+ fx=fx.filter(function(q){q.life-=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=1.5*dt;return q.life>0});
  says=says.filter(function(s){s.life-=dt;return s.life>0});pops=pops.filter(function(q){q.life-=dt;return q.life>0});if(S.zoneT>0)S.zoneT-=dt;if(S.info&&(S.info.t-=dt)<=0)S.info=null;if(S.glow>0)S.glow-=dt}
 
 function isDark(z){return !!z.dark&&!lit[z.name]}
@@ -528,6 +550,7 @@ function bubbleSay(t,x,y,a,placed){var c=cx;c.font='800 .3px Montserrat,system-u
 function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c.fillRect(0,0,W,H);
  cam=bcx;camY=bcy;var snap=calm||S.mode==='ready',want=Math.max(0,Math.min(MW-vw,P.x-vw*(P.f>0?.36:.5))),wy=Math.max(0,Math.min(MH-VIEW,P.y-VIEW*.68));cam+=(want-cam)*(snap?1:.1);camY+=(wy-camY)*(snap?1:.07);
  bcx=cam;bcy=camY;if(!look){lookX*=.8;lookY*=.8;if(Math.abs(lookX)<.02)lookX=0;if(Math.abs(lookY)<.02)lookY=0}cam=Math.max(0,Math.min(MW-vw,cam+lookX));camY=Math.max(0,Math.min(MH-VIEW,camY+lookY));
+ if(S.shake>0){S.shake-=1/60;if(!calm){cam+=(Math.random()-.5)*S.shake*.5;camY+=(Math.random()-.5)*S.shake*.35}}
  c.save();c.beginPath();c.rect(0,sceneY,W,sceneH);c.clip();c.translate(0,sceneY);c.scale(u,u);c.translate(-cam,-camY);
  var x0=Math.floor(cam)-1,x1=Math.ceil(cam+vw)+1,x,y,t;
  // the wall, with windows on the sky
@@ -584,6 +607,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(it.k==='c')thing('coffee',it.x,by+.48);else if(it.k==='m')thing('phone',it.x,by+.48);
   else if(it.k==='o'&&party)thing('punch',it.x,by+.5,.72,false,'party-things');
   else if(it.k==='o')thing('tea',it.x,by+.46,ART['flat-things'].items.tea.w/PPT*1.4);else thing(it.k==='N'?'note':'phones',it.x,by+.42,ART['flat-things'].items[it.k==='N'?'note':'phones'].w/PPT*1.15)});
+ fx.forEach(function(q){c.globalAlpha=Math.min(1,q.life/.25)*.85;c.fillStyle='#fff';c.beginPath();c.arc(q.x,q.y,q.r*(1.6-q.life*1.5),0,6.2832);c.fill();c.globalAlpha=1});
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
  if(L.pram&&L.pram.x>x0-3&&L.pram.x<x1+3){var pd=ART['park-decor'],pi=pd.items[8],pim=IMG['park-decor'];if(pim.naturalWidth){var ph2=1.75,pw2=ph2*pi.w/pi.h;c.drawImage(pim,pi.x+1,pd.H-pi.h,pi.w-2,pi.h,L.pram.x-pw2/2,MH-2+.04-ph2,pw2,ph2);if(S.pramBaby)babyPic(L.pram.x-.12,MH-2-.95,.62)}}
@@ -624,7 +648,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  else if(f===0&&look&&!carry){sn='hero-more';fr=5}
  else if(f===0&&it2>4&&P.inv<=0){sn='hero-idle';fr=it2<7?Math.floor(it2/.28)%2:it2<10?2:it2<12.5?3:it2<16?4:5}
  if(hang&&IMG['hero-hang'].naturalWidth){var hfr=(P.balloons&&jumpKey()&&P.lift>0)?3:Math.abs(P.vx)>2.5?2:(calm?0:Math.floor(T/.45)%2);c.save();c.translate(P.x,fy);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-hang'],hfr*HG.w,0,HG.w,HG.h,-HG.ax*k,-HG.top*k,HG.w*k,HG.h*k);c.restore()}
- else if(ready){var SA=ART[sn],sim=IMG[sn];if(!sim||!sim.naturalWidth){SA=HERO;sim=img;fr=f}if(sim.naturalWidth){c.save();c.translate(P.x,P.y+.04-bob);c.scale(fl,1);if(rot)c.rotate(rot);c.globalAlpha=al;c.imageSmoothingQuality='high';if(legs>=0&&img.naturalWidth){var cut=.63;c.save();c.beginPath();c.rect(-2,-cut,4,cut+.3);c.clip();c.drawImage(img,legs*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.beginPath();c.rect(-2,-3,4,3-cut);c.clip()}c.drawImage(sim,fr*SA.w,0,SA.w,SA.h,-SA.ax*k,-SA.base*k,SA.w*k,SA.h*k);c.restore();c.globalAlpha=1}}
+ else if(ready){var SA=ART[sn],sim=IMG[sn];if(!sim||!sim.naturalWidth){SA=HERO;sim=img;fr=f}if(sim.naturalWidth){var sqv=calm?0:(P.sq||0);c.save();c.translate(P.x,P.y+.04-bob);c.scale(fl*(1-sqv*.1),1+sqv*.14);if(rot)c.rotate(rot);c.globalAlpha=al;c.imageSmoothingQuality='high';if(legs>=0&&img.naturalWidth){var cut=.63;c.save();c.beginPath();c.rect(-2,-cut,4,cut+.3);c.clip();c.drawImage(img,legs*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.beginPath();c.rect(-2,-3,4,3-cut);c.clip()}c.drawImage(sim,fr*SA.w,0,SA.w,SA.h,-SA.ax*k,-SA.base*k,SA.w*k,SA.h*k);c.restore();c.globalAlpha=1}}
  nemesis();
  if(P.plate)thing('plate',P.x+P.f*(cp?.68:.45),P.y-(cp?.93:.72),.7,false,'party-things');
  if(P.tissues&&family)thing('flask',P.x+P.f*(cp?.66:.45),P.y-(cp?.96:.55),.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x+P.f*(cp?.68:-.4),P.y-(cp?.82:.45),.9);
@@ -669,7 +693,7 @@ $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()
 var tpGary=0;(function(){var gg=$('pgtg');$('pgta').style.backgroundImage='url('+SRC+'title)';var pl=ART.presents,tl=$('pgtl');tl.style.aspectRatio=pl.W+'/'+pl.H;tl.style.backgroundImage='url('+SRC+'presents)';var GP=ART['gary-parts'],bb=document.createElement('b'),uu=document.createElement('u');[['point','gp',300,335],['torso','gt',50,355],['head','gh',57,25],['head2','gh2',49,25],['torso','gt gtf',50,355],['fist','gf',0,395]].forEach(function(q){var it=GP.items[q[0]],el=document.createElement('i'),w=it.w/GP.q,h=it.h/GP.q;el.className=q[1];el.style.left=(q[2]/8)+'%';el.style.top=(q[3]/7.3)+'%';el.style.width=(w/8)+'%';el.style.height=(h/7.3)+'%';el.style.backgroundImage='url('+SRC+'gary-parts)';el.style.backgroundSize=(GP.W/it.w*100)+'% '+(GP.H/it.h*100)+'%';el.style.backgroundPosition=(it.x/(GP.W-it.w)*100)+'% 100%';uu.appendChild(el)});bb.appendChild(uu);gg.appendChild(bb)})();
 $('pgplay').addEventListener('click',function(){titleOn=false;clearInterval(tpGary);$('pgtitle').hidden=true;load(startLv);$('pgintro').hidden=false;$('pgend').hidden=true;menu();$('pgcard').hidden=false;$('pggo').focus()});
 function pause(){if(titleOn||(S.mode!=='play'&&S.mode!=='ready'))return;S.pm=S.mode;S.mode='paused';keys={};btn={};stick=null;nemPic(null);card('Paused',NAME+' is pretending to check his phone.','','Carry on')}
-$('pgmenu').addEventListener('click',pause);addEventListener('keydown',function(e){if(e.key==='Escape'||e.key==='p'||e.key==='P')pause()});
+$('pgmenu').addEventListener('click',pause);$('pgsnd').classList.toggle('off',muted);$('pgsnd').addEventListener('click',function(){muted=!muted;try{localStorage.setItem('ih_hoodini_mute',muted?'1':'0')}catch(e){}this.classList.toggle('off',muted);wake();if(!muted)sfx('tea')});addEventListener('keydown',function(e){if(e.key==='Escape'||e.key==='p'||e.key==='P')pause()});
 $('pgre').addEventListener('click',function(){$('pgcard').hidden=true;load(LI);cv.focus()});$('pgtt').addEventListener('click',function(){$('pgcard').hidden=true;startLv=LI;load(LI);titleOn=true;$('pgtitle').hidden=false});
 $('pgcb').addEventListener('click',function(){if(S.mode==='paused'){S.mode=S.pm;$('pgcard').hidden=true;cv.focus();return}$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
 addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}startLv=askLv>0?askLv-1:Math.min(lastLv,unlocked());load(startLv,true);lay();requestAnimationFrame(loop);
@@ -685,13 +709,13 @@ export function platformPage(page, hub, v, presents) {
   const opening = presents ? presents.js + "\nihPresents('hoodini',false);(function(){var t=document.getElementById('pgtitle'),o=document.getElementById('dzi');if(!o||!o.isConnected)return;t.classList.add('wait');new MutationObserver(function(){if(o.classList.contains('bye')||!o.isConnected)t.classList.remove('wait')}).observe(o,{attributes:true})})();" : "";
   return page(TITLE, `${presents ? presents.html : ""}<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
-<button type="button" class="pm" id="pgmenu" aria-label="Pause and menu"><i></i><i></i></button>
+<button type="button" class="pm" id="pgmenu" aria-label="Pause and menu"><i></i><i></i></button><button type="button" class="pm snd" id="pgsnd" aria-label="Sound on or off">♪</button>
 <div class="tp" id="pgtitle"><div class="tp-art" id="pgta" role="img" aria-label="${TITLE}"></div><i class="tp-logo" id="pgtl" role="img" aria-label="Introvert Here… presents"></i><i class="tp-g" id="pgtg"></i><p class="tp-go"><button class="btn" id="pgplay" type="button">Play</button><a href="${hub.path}">Back to the room</a></p></div>
 <div class="card" id="pgcard" hidden><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
 <details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: he pulls his drawstrings tight and shuffles along, and nobody notices him for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
-<p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
+<p class="sm">Sound effects: the ♪ button turns them off. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
 <p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p><p class="go"><button class="btn alt" id="pgre" type="button">Start level again</button><button class="btn alt" id="pgtt" type="button">Title page</button></p><p class="sm" id="pglvh" hidden style="margin:14px 0 6px">Or pick a level:</p><p class="lv" id="pglv2" style="margin:0"></p></div>
