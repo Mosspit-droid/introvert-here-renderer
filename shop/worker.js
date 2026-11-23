@@ -1316,7 +1316,7 @@ ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
-  // "Introvert Here... presents" (Barry, 23 Nov): a three-second title card, like a film studio's. The logo fades in, its
+  // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in, its
   // three dots appear one by one, "presents" types itself out, then it fades into the game. Tap to skip; skipped for
   // anyone whose device asks for less motion, and shown once per visit.
   const intro = `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip"></p><button type="button" id="dzis">Skip</button></div>`;
@@ -1372,8 +1372,8 @@ addEventListener('pagehide',function(){tick();save()});setInterval(function(){ti
  if(calm||st.at>0){o.remove();return}o.addEventListener('click',end);
  var dots=o.querySelectorAll('i'),w='presents',k=0;setTimeout(function(){o.classList.add('on')},150);
  [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},1100+n*260)});
- setTimeout(function(){var t=setInterval(function(){$('#dzip').textContent=w.slice(0,++k);if(k>=w.length)clearInterval(t)},70)},2000);
- setTimeout(end,3600)})()})();` });
+ setTimeout(function(){var t=setInterval(function(){$('#dzip').textContent=w.slice(0,++k);if(k>=w.length)clearInterval(t)},230)},2100);
+ setTimeout(end,5300)})()})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------
