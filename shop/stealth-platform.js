@@ -233,6 +233,8 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .pg .card p{margin:0 0 10px;font-size:15px;line-height:1.45}.pg .card ul{margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.45}.pg .card li{margin-bottom:4px}
 .pg .card .go{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:12px 0 0}.pg .card .btn{background:#fad00c;color:#1c1611}.pg .card a{color:#f6efe0;font-size:14px}
 .pg .card .sm{font-size:13px;color:#b9ae9c;margin:0}
+.pg .card .btn.alt{background:transparent;color:#fad00c;border:2px solid #fad00c;font-size:14px;padding:9px 14px}
+.pg .pm{position:absolute;left:10px;top:10px;z-index:5;width:46px;height:46px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;border:2px solid #fad00c;background:rgba(27,27,42,.85);cursor:pointer;padding:0}.pg .pm i{display:block;width:6px;height:18px;border-radius:2px;background:#fad00c}
 .pg .tp{position:absolute;inset:0;z-index:7;overflow:hidden;background:#fde8b3}.pg .tp[hidden]{display:none}
 .pg .tp-art{position:absolute;inset:0;background:center bottom/100% auto no-repeat;animation:tpin .8s cubic-bezier(.2,1.4,.4,1) both,tpbreathe 7s .8s ease-in-out infinite alternate}
 .pg .tp-logo{position:absolute;left:50%;top:1.2%;z-index:2;height:9.5%;transform:translateX(-50%);background:center/contain no-repeat}
@@ -375,7 +377,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
  if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
- var unseen=P.hood||P.phones>0||P.baby>0||!!P.slide||isDark(zoneAt(P.x,P.y-.5));
+ var unseen=P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7;
   var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
@@ -638,8 +640,11 @@ addEventListener('keydown',function(e){if(S.mode!=='play'&&S.mode!=='ready')retu
 addEventListener('keyup',function(e){var k=e.key.length===1?e.key.toLowerCase():e.key;delete keys[k]});addEventListener('blur',function(){keys={};ptr={};btn={};stick=null;look=null});
 $('pggo').addEventListener('click',function(){$('pgcard').hidden=true;cv.focus()});
 var tpGary=0;(function(){var gg=$('pgtg');$('pgta').style.backgroundImage='url('+SRC+'title)';var pl=ART.presents,tl=$('pgtl');tl.style.aspectRatio=pl.W+'/'+pl.H;tl.style.backgroundImage='url('+SRC+'presents)';var GP=ART['gary-parts'],bb=document.createElement('b'),uu=document.createElement('u');[['point','gp',300,335],['torso','gt',50,355],['head','gh',57,25],['head2','gh2',49,25],['torso','gt gtf',50,355],['fist','gf',0,395]].forEach(function(q){var it=GP.items[q[0]],el=document.createElement('i'),w=it.w/GP.q,h=it.h/GP.q;el.className=q[1];el.style.left=(q[2]/8)+'%';el.style.top=(q[3]/7.3)+'%';el.style.width=(w/8)+'%';el.style.height=(h/7.3)+'%';el.style.backgroundImage='url('+SRC+'gary-parts)';el.style.backgroundSize=(GP.W/it.w*100)+'% '+(GP.H/it.h*100)+'%';el.style.backgroundPosition=(it.x/(GP.W-it.w)*100)+'% 100%';uu.appendChild(el)});bb.appendChild(uu);gg.appendChild(bb)})();
-$('pgplay').addEventListener('click',function(){titleOn=false;clearInterval(tpGary);$('pgtitle').hidden=true;load(startLv);$('pgcard').hidden=false;$('pggo').focus()});
-$('pgcb').addEventListener('click',function(){$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
+$('pgplay').addEventListener('click',function(){titleOn=false;clearInterval(tpGary);$('pgtitle').hidden=true;load(startLv);$('pgintro').hidden=false;$('pgend').hidden=true;menu();$('pgcard').hidden=false;$('pggo').focus()});
+function pause(){if(titleOn||(S.mode!=='play'&&S.mode!=='ready'))return;S.pm=S.mode;S.mode='paused';keys={};btn={};stick=null;nemPic(null);card('Paused',NAME+' is pretending to check his phone.','','Carry on')}
+$('pgmenu').addEventListener('click',pause);addEventListener('keydown',function(e){if(e.key==='Escape'||e.key==='p'||e.key==='P')pause()});
+$('pgre').addEventListener('click',function(){$('pgcard').hidden=true;load(LI);cv.focus()});$('pgtt').addEventListener('click',function(){$('pgcard').hidden=true;startLv=LI;load(LI);titleOn=true;$('pgtitle').hidden=false});
+$('pgcb').addEventListener('click',function(){if(S.mode==='paused'){S.mode=S.pm;$('pgcard').hidden=true;cv.focus();return}$('pgcard').hidden=true;if(S.mode==='lost')again();else if(S.mode==='won')load(LI<LV.length-1?LI+1:LI);else reset()});
 addEventListener('resize',lay);var askLv=parseInt((/[?&]level=(\d+)/.exec(location.search)||[])[1]||'0',10);if(askLv>1)unlock(Math.min(LV.length,askLv)-1);var lastLv=0;try{lastLv=parseInt(localStorage.getItem('ih_hoodini_last')||'0',10)||0}catch(e){}startLv=askLv>0?askLv-1:Math.min(lastLv,unlocked());load(startLv,true);lay();requestAnimationFrame(loop);
 // Hooks for the automatic play-tests.
 window.__pg={S:function(){return S},P:function(){return P},people:function(){return people},items:function(){return items},bubbles:function(){return bubbles},map:MAP,level:function(){return LI},load:load,movers:function(){return movers},bikes:function(){return bikes},tiles:function(){return MAP},ready:function(){return ready},
@@ -653,6 +658,7 @@ export function platformPage(page, hub, v, presents) {
   const opening = presents ? presents.js + "\nihPresents('hoodini',false);(function(){var t=document.getElementById('pgtitle'),o=document.getElementById('dzi');if(!o||!o.isConnected)return;t.classList.add('wait');new MutationObserver(function(){if(o.classList.contains('bye')||!o.isConnected)t.classList.remove('wait')}).observe(o,{attributes:true})})();" : "";
   return page(TITLE, `${presents ? presents.html : ""}<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
+<button type="button" class="pm" id="pgmenu" aria-label="Pause and menu"><i></i><i></i></button>
 <div class="tp" id="pgtitle"><div class="tp-art" id="pgta" role="img" aria-label="${TITLE}"></div><i class="tp-logo" id="pgtl" role="img" aria-label="Introvert Here… presents"></i><i class="tp-g" id="pgtg"></i><p class="tp-go"><button class="btn" id="pgplay" type="button">Play</button><a href="${hub.path}">Back to the room</a></p></div>
 <div class="card" id="pgcard" hidden><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
@@ -661,6 +667,6 @@ export function platformPage(page, hub, v, presents) {
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
-<p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p><p class="sm" id="pglvh" hidden style="margin:14px 0 6px">Or pick a level:</p><p class="lv" id="pglv2" style="margin:0"></p></div>
+<p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p><p class="go"><button class="btn alt" id="pgre" type="button">Start level again</button><button class="btn alt" id="pgtt" type="button">Title page</button></p><p class="sm" id="pglvh" hidden style="margin:14px 0 6px">Or pick a level:</p><p class="lv" id="pglv2" style="margin:0"></p></div>
 </div></div></div>`, { nav: "hub", body: "stealth", desc: "A platform game for introverts: get out of the office without being drawn into a conversation.", script: script + "\n" + opening });
 }
