@@ -591,6 +591,8 @@ async function mark(request, env) {
 
 // Approve from the app: calls the same Make approval link the old Approve button opened, then marks the item approved.
 async function approveItem(request, env) {
+  // The listing goes live a few minutes after approval (Make): have the site catalogue look again in 10 minutes (23 Nov).
+  try { const S = (await env.PENDING.get(SC.state, "json")) || {}; S.kickAt = Date.now() + 10 * 60e3; await env.PENDING.put(SC.state, JSON.stringify(S)); } catch (e) {}
   const data = await readBody(request);
   const items = await loadItems(env);
   const item = items[str(data.row)];
@@ -7730,6 +7732,7 @@ function scGallery(pics, variants, coll) {
 
 async function shopCatalogTick(env) {
   const S = (await env.PENDING.get(SC.state, "json")) || {}, now = Date.now();
+  if (S.kickAt && now >= S.kickAt) { S.kick = true; delete S.kickAt; await env.PENDING.put(SC.state, JSON.stringify(S)); }
   const coreDue = S.kick || !S.coreAt || now - S.coreAt > SC.coreEvery;
   if (!coreDue && !S.waiting && now - (S.batchAt || 0) < SC.batchEvery) return;
   await shopCatalogRun(env, {});
