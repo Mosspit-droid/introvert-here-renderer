@@ -585,6 +585,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .rounds{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}.rounds td,.rounds th{border:1px solid #3b3a35;padding:7px 8px;text-align:left}.rounds th{color:var(--muted);font-weight:700}
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.photos figure{margin:0;background:#f2efe6;color:#2a2622;border-radius:3px;padding:7px 7px 9px;box-shadow:0 3px 8px rgba(0,0,0,.35);font-size:12px;line-height:1.3}.photos figure:nth-child(odd){transform:rotate(-1.5deg)}.photos figure:nth-child(even){transform:rotate(1.2deg)}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#8b8172;color:#f2efe6;font-size:22px;margin-bottom:6px}.photos small{display:block;color:#6d665c;margin-top:3px}@media(max-width:520px){.photos{grid-template-columns:repeat(2,1fr)}}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
+.dzpic{display:block;width:100%;height:auto;border-radius:10px;margin:6px 0 16px}
 .gtee{margin:22px auto 6px;text-align:center}.gtee .tile{text-align:left}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
 .dm{--k:0;display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:8px 12px;border-radius:10px;background:#24231f;transition:background .4s}
@@ -1259,6 +1260,7 @@ function dorisPage(cat, print) {
   const mag = (w, cols) => `<span>${[...w].map((c, i) => `<i style="background:${cols[i % cols.length]};color:#fff">${c}</i>`).join("")}</span>`;
   const steps = [
     `<section class="box pz chap" data-intro><h1 class="tlogo"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
+<img class="dzpic" src="/s/doris-party.jpg?v=1" alt="Hoodini, hood up and hands in his pockets, shuffling past a crowded housewarming party towards the door." width="1672" height="941">
 <p>It’s 8pm. Your cousin Gareth’s housewarming. You promised you’d show your face. Your face has been shown.</p><p>Now you need to get home. Unseen. Unchatted-to. Unhugged.</p><p class="coo">Because somewhere in this house is Gareth’s mum. Aunt Doris.</p>
 <p><button class="btn go" type="button" id="start">Begin</button></p><p class="note" id="resume" hidden><button class="btn ghost" type="button" id="carry">Carry on where you left off</button></p><p class="note">Your progress is saved on this device.</p></section>`,
     chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee!”</p>`),
@@ -1300,7 +1302,7 @@ function dorisPage(cat, print) {
 <div class="keys" aria-hidden="true">${DZ_KEYS.map(([n, l]) => `<b>${n}<small>${l || "&nbsp;"}</small></b>`).join("")}</div>${lock("4-digit code", 1)}`),
     pz(13, "Your front door", "One last code.", `<p>The night bus drops you at the end of your road. Your street. Your door. Your own keypad.</p><p>You set this code years ago. It’s the sign you’d hang on your whole life, if you could. And tonight, you’ve been collecting it all along.</p>
 <p>Your kit, in the order you got it:</p><div class="kit" id="kitlist"></div>${lock("Your code", 0)}`),
-    `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. Nobody knows you’ve gone.</p><p id="won"></p>
+    `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><img class="dzpic" src="/s/doris-home.jpg?v=1" alt="Hoodini home at last, slumped against his front door, a Do Not Disturb sign on the handle and a mug of tea steaming by the lamp." width="1672" height="941" loading="lazy"><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. Nobody knows you’ve gone.</p><p id="won"></p>
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn" type="button" id="share">Share your escape</button></p>
 ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH-00014"], "Survived Doris? Dress for the next one.")}
