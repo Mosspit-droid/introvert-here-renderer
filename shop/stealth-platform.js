@@ -27,8 +27,8 @@ const HERO_NAME = "Hoodini";            // Barry's name for the introvert (21 No
 // P stander  W walker  T talker (speech bubbles)  C chaser (runs at you)  w where a walker turns round (invisible)
 // Keys (Barry, 23 Nov): the thing to collect, about a hundred a level, and you need 40 of them to open the way out.
 // They are scattered automatically over everywhere Hoodini can reach on foot (a rough model of his jump, chairs and
-// bouncy castles), every third one up at jump height, and never on top of a person. Wide gaps count as crossable on the level,
-// because every one of them has a bus, a swing, a slide or balloons over it.
+// bouncy castles), every third one up at jump height, and never on top of a person. Wide gaps only count as crossable when they are
+// real drops (a pit, water), because each of those has a swing, a bus or balloons over it.
 function keyed(map, n = 100) {
   const H = map.length, W = map[0].length, g = map.map((r) => r.replace(/o/g, ".").split(""));   // no more cups of tea: the keys top up the battery now (Barry, 23 Nov)
   const T = (x, y) => (y >= H ? "." : y < 0 || x < 0 || x >= W ? "#" : g[y][x]), sol = (c) => c === "#" || c === "F", floor = (c) => sol(c) || c === "=" || c === "B";
@@ -38,7 +38,10 @@ function keyed(map, n = 100) {
   const seen = new Set([start.join()]), q = [start];
   while (q.length) { const [x, y] = q.shift(), maxUp = T(x, y) === "^" ? 6 : T(x, y + 1) === "B" ? 11 : 3;
     for (let dx = -14; dx <= 14; dx++) for (let up = maxUp; up >= -H; up--) { const nx = x + dx, ny = y - up; if (!stand(nx, ny) || seen.has(nx + "," + ny)) continue;
-      if (Math.abs(dx) > 4 && up > 0) continue;   // long crossings (a bus, a swing, balloons, a slide) only on the level or downwards
+      if (Math.abs(dx) > 4) {   // long crossings only on the level or downwards, and only over a real drop (water, a pit): those all have a swing, a bus or balloons
+        if (up > 0) continue; let pit = true;
+        for (let xi = Math.min(x, nx) + 1; pit && xi < Math.max(x, nx); xi++) for (let yy = Math.min(y, ny); yy < H; yy++) if (floor(T(xi, yy))) { pit = false; break; }
+        if (!pit) continue; }
       if (up > 1 && maxUp === 3 && Math.abs(dx) > 3) continue;
       const top = Math.min(y, ny) - 1; let ok = clearCol(x, top, y) && clearCol(nx, top, ny);
       for (let xi = Math.min(x, nx) + 1; ok && xi < Math.max(x, nx); xi++) ok = !sol(T(xi, top)) && !sol(T(xi, top + 1));
