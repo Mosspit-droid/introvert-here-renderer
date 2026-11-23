@@ -25,6 +25,30 @@ const HERO_NAME = "Hoodini";            // Barry's name for the introvert (21 No
 // # floor, wall or ceiling  F filing cabinet (solid)  = shelf or desk (jump up through it)  ^ office chair (bounces you)
 // o tea  N plans-cancelled note  H headphones  c coffee (speed)  m phone call (one free pass)  K quiet room (checkpoint)  D the door out  S start
 // P stander  W walker  T talker (speech bubbles)  C chaser (runs at you)  w where a walker turns round (invisible)
+// Keys (Barry, 23 Nov): the thing to collect, about a hundred a level, and you need 40 of them to open the way out.
+// They are scattered automatically over everywhere Hoodini can reach on foot (a rough model of his jump, chairs and
+// bouncy castles), every third one up at jump height, and never on top of a person. Wide gaps count as crossable on the level,
+// because every one of them has a bus, a swing, a slide or balloons over it.
+function keyed(map, n = 100) {
+  const H = map.length, W = map[0].length, g = map.map((r) => r.split(""));
+  const T = (x, y) => (y >= H ? "." : y < 0 || x < 0 || x >= W ? "#" : g[y][x]), sol = (c) => c === "#" || c === "F", floor = (c) => sol(c) || c === "=" || c === "B";
+  const stand = (x, y) => y >= 1 && !sol(T(x, y)) && !sol(T(x, y - 1)) && floor(T(x, y + 1));
+  const clearCol = (x, y0, y1) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) if (sol(T(x, y))) return false; return true; };
+  let start = null; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === "S") start = [x, y];
+  const seen = new Set([start.join()]), q = [start];
+  while (q.length) { const [x, y] = q.shift(), maxUp = T(x, y) === "^" ? 6 : T(x, y + 1) === "B" ? 11 : 3;
+    for (let dx = -14; dx <= 14; dx++) for (let up = maxUp; up >= -H; up--) { const nx = x + dx, ny = y - up; if (!stand(nx, ny) || seen.has(nx + "," + ny)) continue;
+      if (Math.abs(dx) > 4 && up > 0) continue;   // long crossings (a bus, a swing, balloons, a slide) only on the level or downwards
+      if (up > 1 && maxUp === 3 && Math.abs(dx) > 3) continue;
+      const top = Math.min(y, ny) - 1; let ok = clearCol(x, top, y) && clearCol(nx, top, ny);
+      for (let xi = Math.min(x, nx) + 1; ok && xi < Math.max(x, nx); xi++) ok = !sol(T(xi, top)) && !sol(T(xi, top + 1));
+      if (ok) { seen.add(nx + "," + ny); q.push([nx, ny]); } } }
+  const busy = "PWTCGYJXQVMZAKDSh^", cand = [...seen].map((k) => k.split(",").map(Number)).filter(([x, y]) => x >= 4 && g[y][x] === "." && ![-1, 0, 1].some((d) => busy.includes(T(x + d, y)))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  for (let i = 0; i < Math.min(n, cand.length); i++) { let [x, y] = cand[Math.floor((i * cand.length) / Math.min(n, cand.length))];
+    if (i % 3 === 2 && T(x, y - 1) === "." && T(x, y - 2) === "." && !sol(T(x, y - 3))) y -= 2;
+    g[y][x] = "e"; }
+  return g.map((r) => r.join(""));
+}
 function office() {
   const W = 250, H = 20, G = 17, U = 8, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
@@ -74,7 +98,7 @@ const ZONES = [
   { x0: 192, x1: 250, name: "Reception", wall: "#e2efe6", dado: "#c8dfd0", rail: "#9fc2ac", tones: ["#d3e5d9", "#c0d8c8", "#acc9b6"], kinds: [12, 11, 13, 10, 12], win: true },
 ];
 const UPSTAIRS = { x0: 86, x1: 152, name: "Management", wall: "#e4eaf2", dado: "#cdd8e6", rail: "#a3b4cb", tones: ["#d5deea", "#c3cfe0", "#b0bfd4"], kinds: [0, 2, 4, 11, 1], win: true };
-const LEVEL = { name: "The Office", out: "the office", theme: "office", lost: "His spirit has been crushed. By middle management.", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", map: office(), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
+const LEVEL = { name: "The Office", out: "the office", theme: "office", lost: "His spirit has been crushed. By middle management.", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", need: 40, map: keyed(office()), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
   lines: { P: ["Have you got a sec?", "You’ll like this one.", "Are you coming to the thing?"], W: ["Ooh, just the person!", "Walk with me.", "Quick question."], T: ["How ARE you?", "Any plans for the weekend?", "Did you get my email?"], C: ["Come here, you!", "There you are!", "Don’t you run off!"], pit: ["You fell into a team-building exercise."] } };
 // Level 2, the high street: outdoors, one storey plus rooftops. Same letters as the office, plus:
 // G a dog on a lead (low: hop it)  u umbrella (hold jump in the air to float)   In the street, F is a crate, ^ a shop
@@ -111,7 +135,7 @@ const STREET_ZONES = [
   { x0: 139, x1: 193, name: "The Rooftops", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
   { x0: 193, x1: 232, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
 ];
-const STREET = { name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, map: highStreet(), zones: STREET_ZONES, upstairs: null,
+const STREET = { name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
   signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
@@ -168,7 +192,7 @@ const PARTY_ZONES = [
   { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [9, 10, 11, 9], dark: true },
   { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden", kinds: [12, 14, 13] },
 ];
-const PARTY = { name: "The House Party", out: "the house party", theme: "party", toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
+const PARTY = { name: "The House Party", out: "the house party", theme: "party", toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, need: 40, map: keyed(houseParty()), zones: PARTY_ZONES, upstairs: null,
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
   signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 86.5, y: 23.6, t: "TISSUES" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], A: ["CONGA!", "Get on the end!", "Da da da da da, HEY!"], reach: ["Have a drink!", "Try this, it’s lethal.", "Hold this a sec."], bite: ["Ooh, is that a sausage roll?", "Don’t mind if I do.", "Are those the mini quiches?"], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], pit: ["You fell into a conversation about house prices."] } };
@@ -208,7 +232,7 @@ const FAMILY_ZONES = [
   { x0: 0, x1: 38, name: "The Picnic", kinds: [0, 5, 8, 1] }, { x0: 38, x1: 90, name: "The Playground", kinds: [5, 1, 3, 7] }, { x0: 90, x1: 125, name: "The Bouncy Castle", kinds: [2, 5, 9, 6] },
   { x0: 125, x1: 163, name: "The Pond", kinds: [4, 5, 1, 4] }, { x0: 163, x1: 199, name: "The Bandstand", kinds: [7, 6, 1, 5] }, { x0: 199, x1: 232, name: "The Park Gate", kinds: [5, 7, 3, 6] },
 ];
-const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, map: park(), zones: FAMILY_ZONES, upstairs: null,
+const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, need: 40, map: keyed(park()), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
   signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 21.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 14.2, t: "THE BANDSTAND" }],
   pram: { x: 37.6 }, sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 24, 26, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 24, x1: 51, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
@@ -287,14 +311,14 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='a')items.push({k:'a',x:x+.5,x0:x+.5,y:y+.5,got:false,sway:(L.sway||[])[items.filter(function(q){return q.k==='a'}).length]||0})
   else if('PWTCGYJXQVMZA'.indexOf(c)>=0)people.push({k:c,x:x+.5,home:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
-  else if('oNHcmuftb'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
+  else if('oNHcmuftbe'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
  var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3];if(street&&dogNear){p.fixed=true;p.f=1}});
  people.forEach(function(p){if(p.k==='Y')p.fixed=true});
  items.filter(function(q){return q.k==='a'}).sort(function(m,n){return m.x-n.x}).forEach(function(q,i){q.sway=(L.sway||[])[i]||0});   // balloons are numbered left to right
  if(family)people.forEach(function(p){if(p.k==='P')p.skin=[4,6][p.i%2];if(p.k==='X')p.f=-1;if(p.k==='Q'||p.k==='V'||p.k==='M'||p.k==='Z')p.fixed=true});
  if(party){var st=0,tk=0;people.forEach(function(p){if(p.k==='P')p.skin=p.y<MH-2.5?4:[6,4][st++%2];if(p.k==='T'){var k2=tk++;p.sheet=k2<2?'party-people':'street-people';p.base=k2===0?0:2}})}
  P={x:sx+.5,y:sy+1,vx:0,vy:0,f:1,ground:true,coy:0,hood:false,hoodT:HOODMAX,cool:0,inv:0,phones:0,fast:0,shield:false,plate:false,tissues:false,baby:0,balloons:false,lift:2.5,bn:0,jT:9,jk:false,slide:null,fling:0,spinT:0,seeT:0,brolly:false,on:null,walkT:0,safe:[sx+.5,sy+1],wave:0};
- S={mode:'ready',batt:1,tea:0,notes:0,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
+ S={mode:'ready',batt:1,tea:0,notes:0,keys:0,keyT:items.filter(function(q){return q.k==='e'}).length,t:0,hits:0,cp:null,tries:0};keys={};btn={};stick=null;jumpQ=0;look=null;lookX=lookY=0}
 // Battery flat with a quiet room behind you: carry on from there with a full battery (what you collected stays collected).
 function again(){P.peak=null;if(!S.cp){reset();return}P.x=S.cp[0];P.y=S.cp[1];P.vx=P.vy=0;P.inv=1.5;P.hood=false;P.hoodT=HOODMAX;P.phones=0;P.safe=[P.x,P.y];S.batt=1;S.mode='play';S.tries++;bubbles=[];says=[];people.forEach(function(p){p.run=0;p.rest=1;p.follow=false})}
 function flat(){sfx('lose');nemPic(2);S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;card(NAME+' didn’t make it.',(S.why==='drop'?'It was a long way down. Next time, take the umbrella.':(L.lost||'His social battery is flat.'))+' '+NEM+' saw everything.',S.cp?'Back to the last quiet room.':'Back to your desk. Nobody saw anything.','Try again')}
@@ -315,20 +339,22 @@ function sfx(n){if(!AC||muted)return;
  else if(n==='laugh'){[620,520,620,520,440].forEach(function(f,i){tone(f,f*.82,.1,'square',.08,.3+i*.13)})}
  else if(n==='boing')tone(180,720,.22,'sine',.2);
  else if(n==='hood')hiss(.22,.12,420);
- else if(n==='quiet'){tone(660,660,.18,'sine',.14);tone(990,990,.3,'sine',.12,.14)}
+ else if(n==='quiet'){hiss(.05,.25,1800);hiss(.5,.1,260,.08);tone(196,147,.5,'sine',.1,.08)}
+ else if(n==='key'){tone(1568,1568,.05,'square',.06);tone(2093,2093,.09,'square',.06,.05)}
  else if(n==='blip')tone(520,440,.06,'square',.04);
  else if(n==='win'){[523,659,784,659,784,1047].forEach(function(f,i){tone(f,f,i===5?.4:.12,'square',.1,i*.12)})}
  else if(n==='lose'){[440,370,311,233].forEach(function(f,i){tone(f,f*.97,i===3?.5:.2,'triangle',.16,i*.2)})}
  else if(n==='fall')tone(500,80,.4,'sine',.16)}
 function puff(x,y,n,sp){if(calm)return;for(var i=0;i<n;i++)fx.push({x:x+(Math.random()-.5)*.4,y:y-.05,vx:(Math.random()-.5)*(sp||2.4),vy:-Math.random()*1.1,life:.38,r:.1+Math.random()*.1})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function need(){return /[?&]nokeys=1/.test(location.search)?0:Math.min(L.need||0,S.keyT||0)}
 function feed(p){people.forEach(function(o){if(o.k==='P'&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-p.x)<6.2)o.fed=true});P.plateN=(P.plateN||1)-1;pops.push({x:p.x,y:p.y-1.2,life:.6,big:true});say(pick((L.lines.bite)||['Ooh, lovely.']),p.x,p.y-2.6);if(P.plateN<=0){P.plate=false;info('THE PLATE IS EMPTY','They have eaten the lot. Anyone you fed will still let you past.')}}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.freeze=calm?0:.09;S.shake=.35;sfx('hurt');sfx('laugh');puff(P.x,P.y-.8,6,5);S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){sfx('win');S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
  card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',(S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':(S.hits+' conversations endured. You are owed a quiet weekend.'))+(more?'':' '+NEM+' was last seen being kissed by your aunt.'),
-  (party?'Punch ':'Tea ')+S.tea+' of '+total+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again')}
+  'Keys '+S.keys+' of '+S.keyT+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again')}
 
 // ---- one tick ----
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
@@ -382,7 +408,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
   if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
+ items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='e'){S.keys++;sfx('key');fx.push({x:it.x,y:it.y,vx:0,vy:-2.2,life:.3,r:.16});if(S.keys===need()&&need()>0){sfx('power');info('THE WAY OUT IS UNLOCKED','You have '+need()+' keys. There are '+S.keyT+' if you want them all.')}return}sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;say('Plans cancelled!',it.x,it.y-1)}
   else if(it.k==='c'){P.fast=6;info('COFFEE','You run faster for 6 seconds.')}
@@ -397,7 +423,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  var kx=Math.floor(P.x),ky=Math.floor(P.y-.5);if(S.swT>0)S.swT-=dt;if(tile(kx,ky)==='L'){if(!(S.swT>0)&&!S.onSw){var zz=zoneAt(kx,ky);lit[zz.name]=!lit[zz.name];say(lit[zz.name]?'Lights on. Everyone can see you.':'Lights off. Nobody can see you.',kx+.5,ky-1.4)}S.onSw=true;S.swT=.3}else S.onSw=false;
  if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);sfx('quiet');say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
  // the door
- var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){win();return}   // through the door, or sailing over the top of it
+ var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){if(S.keys>=need()){win();return}if(!(S.lockT>0)){S.lockT=3;sfx('lose');info('LOCKED','You need '+need()+' keys to get out. You have '+S.keys+'.')}}if(S.lockT>0)S.lockT-=dt;   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
  if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
@@ -594,7 +620,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(t==='D'){c.fillStyle='#2f7d4f';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle='#3fa76a';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=YEL;c.beginPath();c.arc(x+.78,y+.1,.07,0,6.2832);c.fill();ink(.04);
    c.fillStyle='#fff';rr(x+.5,y+.2,.34,.55,.06);c.fill();ink(.05);c.fillStyle='#d23b3b';c.font='800 .13px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('DO',x+.67,y+.38);c.fillText('NOT',x+.67,y+.52)}}
  // things to collect
- items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
+ items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;if(it.k==='e'){var kb=it.y+(calm?0:Math.sin(T*3+it.x*1.3)*.07),kw=calm?1:Math.cos(T*3.2+it.x);c.save();c.translate(it.x,kb);c.scale(kw,1);c.fillStyle=YEL;c.strokeStyle=INK;c.lineWidth=.06;c.beginPath();c.rect(-.045,-.08,.09,.42);c.rect(.045,.2,.12,.07);c.rect(.045,.06,.09,.07);c.fill();c.stroke();c.beginPath();c.arc(0,-.2,.17,0,6.2832);c.fill();c.stroke();c.fillStyle=INK;c.beginPath();c.arc(0,-.2,.06,0,6.2832);c.fill();c.restore();return}
+  var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
   if(it.k==='a')balloons(it.x,by+.3,1.15);
@@ -636,7 +663,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var HG=ART['hero-hang'],it2=P.idleT||0,sn='hero',fr=f,rot=0,al=P.hid?.38:P.inv>0?.55:1,cp=false,fl=P.f,bob=0,carry=P.plate||P.baby>0||P.tissues,legs=-1,fy2=Math.floor(P.y+.1);
  var sup=function(x){var t=tile(Math.floor(x),fy2);return solid(Math.floor(x),fy2)||t==='='||t==='B'},tee=(P.ground&&!P.on&&S.mode==='play'&&sup(P.x))?(!sup(P.x+.42)?1:!sup(P.x-.42)?-1:0):0;
  if(P.slide){sn='hero-extra';fr=1;rot=.3}
- else if(P.callT>0&&P.ground){sn='hero-extra';fr=0}
+ else if(P.callT>0&&P.ground){sn='hero-extra';fr=0;if(f>=4&&f<=7)legs=f}
  else if(P.hood&&P.ground){sn='hero-hood';fr=Math.abs(P.vx)>.2?Math.floor((P.hoodW||0)/.2)%4:1;al=.88}
  else if(S.mode==='won'){sn='hero-extra';fr=5}
  else if(P.cringeT>0){sn='hero-extra';fr=2}
@@ -661,6 +688,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var hx=W-12,hy=sceneY+10;c.fillStyle='rgba(27,27,42,.78)';rr(hx-214,hy,214,28,9);c.fill();hx-=14;
  c.strokeStyle=CREAM;c.lineWidth=2;rr(hx-188,hy+6,64,16,4);c.stroke();c.fillStyle=CREAM;c.fillRect(hx-122,hy+10,3,8);c.fillStyle=S.glow>0?'#fff':S.batt>.3?YEL:'#ff6a4f';c.fillRect(hx-185,hy+9,58*Math.max(0,S.batt),10);
  c.fillStyle=CREAM;c.font='700 12px Montserrat,system-ui,sans-serif';c.textAlign='left';c.textBaseline='middle';c.fillText((party?'CUP ':'TEA ')+S.tea,hx-110,hy+15);c.fillText('NOTES '+S.notes+'/3',hx-62,hy+15);
+ var kx0=W-12-214-142,kok=S.keys>=need();c.fillStyle=kok?'rgba(47,125,79,.92)':'rgba(27,27,42,.85)';rr(kx0,hy,134,28,9);c.fill();c.strokeStyle=YEL;c.lineWidth=2;c.stroke();c.fillStyle=YEL;c.font='800 14px Montserrat,system-ui,sans-serif';c.textAlign='center';c.fillText('KEYS '+S.keys+'/'+(S.keyT||0),kx0+67,hy+15);
  var zn=zoneAt(P.x,P.y-.5);if(S.zone!==zn.name){S.zone=zn.name;S.zoneT=S.mode==='ready'?0:2.6}if(S.zoneT>0){var za=Math.min(1,S.zoneT*2,(2.6-S.zoneT)*4);c.globalAlpha=Math.max(0,za);c.font='800 '+(tall?15:18)+'px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var zt=zn.name.toUpperCase(),zw2=c.measureText(zt).width+36;c.fillStyle='rgba(27,27,42,.82)';rr(W/2-zw2/2,sceneY+sceneH*.16,zw2,36,10);c.fill();c.fillStyle=YEL;c.fillText(zt,W/2,sceneY+sceneH*.16+19);c.globalAlpha=1}
  if(S.info){var ia=Math.min(1,S.info.t*2,(4-S.info.t)*5),iy=sceneY+sceneH*.3;c.globalAlpha=Math.max(0,ia);c.textAlign='center';c.textBaseline='middle';c.font='600 '+(tall?12:14)+'px Montserrat,system-ui,sans-serif';var iw=Math.min(W-24,Math.max(c.measureText(S.info.b).width+36,180));
   c.fillStyle=YEL;rr(W/2-iw/2,iy,iw,tall?54:58,12);c.fill();c.strokeStyle='#1c1611';c.lineWidth=2;c.stroke();c.fillStyle='#1c1611';c.font='800 '+(tall?14:16)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.a,W/2,iy+18);c.font='600 '+(tall?11:13)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.b,W/2,iy+(tall?38:40),iw-20);c.globalAlpha=1}
@@ -714,7 +742,7 @@ export function platformPage(page, hub, v, presents) {
 <div class="card" id="pgcard" hidden><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
-<details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: he pulls his drawstrings tight and shuffles along, and nobody notices him for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
+<details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: he pulls his drawstrings tight and shuffles along, and nobody notices him for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Keys</b> are what you’re here for. You need 40 to unlock the way out; the rest are for showing off.</li><li><b>Tea</b> tops up your battery. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">Sound effects: the ♪ button turns them off. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
