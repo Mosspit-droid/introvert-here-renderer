@@ -72,6 +72,12 @@ def cellt(fig, s, cw, ch, ax, top):
     c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - cxf), top)); return c
 hh = figures(key("hero-hang.png")); assert len(hh) == 5, len(hh)
 save("hero-hang", strip([cellt(f, isc, 320, 280, 160, 6) for f in hh]), w=320, h=280, ax=160, top=6, n=5)
+# Hood Up: drawstrings pulled tight, a four-step shuffle (Barry, 23 Nov)
+hd = figures(key("hero-hood.png")); assert len(hd) == 4, len(hd)
+save("hero-hood", strip([cell(f, isc, **HC) for f in hd]), w=220, h=230, ax=110, base=226, n=4)
+# Extra poses: on a call 0, sliding 1, cringing 2, soaked 3, carrying 4, the small win 5
+hx = figures(key("hero-extra.png")); assert len(hx) == 6, len(hx)
+save("hero-extra", strip([cell(f, isc, cw=300, ch=230, ax=120, base=226, top=.4) for f in hx]), w=300, h=230, ax=120, base=226, n=6)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)

@@ -300,7 +300,7 @@ function flat(){nemPic(2);S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;
 function info(a,b){S.info={a:a,b:b,t:4}}
 function say(t,x,y){if(!t)return;for(var i=0;i<says.length;i++)if(says[i].t===t){says[i].life=2.2;says[i].x=x;says[i].y=y;return}says.push({t:t,x:x,y:y,life:2.2});if(says.length>4)says.shift()}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
-function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
+function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
@@ -317,7 +317,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // Hood Up: on the ground, while B is held and there is hood left
  var want=hoodKey()&&P.ground&&P.cool<=0&&P.hoodT>0&&S.mode==='play';
  if(want){P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
- if(P.hood)sv*=.27;if(P.callT>0)P.callT-=dt;
+ if(P.hood)sv*=.27;if(P.callT>0)P.callT-=dt;if(P.cringeT>0)P.cringeT-=dt;if(P.wetT>0)P.wetT-=dt;P.hoodW=P.hood?(P.hoodW||0)+Math.abs(P.vx)*dt:0;
  // running
  if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
  var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
@@ -349,7 +349,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  var cyy=Math.floor(P.y-.01),onChair=tile(Math.floor(P.x),cyy)==='^'||tile(Math.floor(P.x+.55),cyy)==='^'||tile(Math.floor(P.x-.55),cyy)==='^';if(P.vy>=0&&onChair&&P.y>=cyy+.15){   // generous: brush against it and up you go
   P.vy=-23;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false}
  if(P.ground&&solid(Math.floor(P.x),Math.floor(P.y+.1))&&solid(Math.floor(P.x-1),Math.floor(P.y+.1))&&solid(Math.floor(P.x+1),Math.floor(P.y+.1)))P.safe=[P.x,P.y];
- if(P.y>MH+2){P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(S.batt<=.001){flat();return}}
+ if(P.y>MH+2){P.inv=0;S.why='fell';S.batt-=.25;S.hits++;say(L.lines.pit[0],P.safe[0],P.safe[1]-2.4);P.x=P.safe[0];P.y=P.safe[1];P.vx=P.vy=0;P.inv=1.6;if(family)P.wetT=3.5;if(S.batt<=.001){flat();return}}
  // the crying corner: no way past, over or through until they have their tissues
  if(!S.given){var cr=people.filter(function(q){return q.k==='Y'});if(cr.length){var ccx=(cr[0].x+cr[cr.length-1].x)/2,cfy=cr[0].y,reach=cr.length/2+.65;if(S.cryT>0)S.cryT-=dt;
    if(P.y<=cfy+.1&&P.y>cfy-4.8&&Math.abs(P.x-ccx)<reach){if(P.tissues){S.given=true;P.tissues=false;pops.push({x:ccx,y:cfy-1,life:.6,big:true});say(L.lines.Yok[0],ccx,cfy-2.9);info(L.toll.done,L.toll.doneB)}
@@ -587,22 +587,28 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(party)people.forEach(function(q){if(q.k!=='C'||!q.lost||q.x<x0||q.x>x1)return;c.globalAlpha=.55;person(q);c.globalAlpha=1;c.fillStyle='#fff';c.beginPath();c.ellipse(q.x,q.y-2.45,.3,.24,0,0,6.2832);c.fill();ink(.06);c.fillStyle=INK;c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('?',q.x,q.y-2.43)});
  if(L.torch)people.forEach(function(q){if(q.k!=='C'||!isDark(zoneAt(q.x,q.y-.5)))return;var tg=c.createLinearGradient(q.x,0,q.x+q.f*5,0);tg.addColorStop(0,'rgba(255,240,170,.55)');tg.addColorStop(1,'rgba(255,240,170,0)');c.fillStyle=tg;c.beginPath();c.moveTo(q.x+q.f*.3,q.y-1.1);c.lineTo(q.x+q.f*5,q.y-2.4);c.lineTo(q.x+q.f*5,q.y+.05);c.closePath();c.fill();person(q)});
  // you
- var k=1.7/HERO.pph,f=(P.hood||P.slide)?2:S.mode==='won'?3:P.inv>1.15?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
+ var k=1.7/HERO.pph,f=(P.hood||P.slide)?2:S.mode==='won'?3:P.cringeT>0?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
  if(P.phones>0){c.strokeStyle='#7a5cff';c.lineWidth=.07;c.globalAlpha=.5+.3*Math.sin(T*4);c.beginPath();c.arc(P.x,P.y-.85,1.05,0,6.2832);c.stroke();c.globalAlpha=1}
  var hang=!P.ground&&(P.balloons||P.float)&&!P.slide&&!(P.inv>1.15)&&S.mode!=='won',fy=P.y-2.1;
  if(P.balloons)balloons(hang?P.x:P.x-P.f*.15,hang?fy-.45:P.y-2.25,1.05);
  if(P.float)thing('brolly',hang?P.x:P.x+P.f*.22,hang?fy+.12:P.y-.75,1.9,false,'street-things');
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
- var HG=ART['hero-hang'],ID=ART['hero-idle'],it2=P.idleT||0;
+ var HG=ART['hero-hang'],it2=P.idleT||0,sn='hero',fr=f,rot=0,al=P.inv>0?.55:1,cp=false;
+ if(P.slide){sn='hero-extra';fr=1;rot=.3}
+ else if(P.callT>0&&P.ground){sn='hero-extra';fr=0}
+ else if(P.hood&&P.ground){sn='hero-hood';fr=Math.abs(P.vx)>.2?Math.floor((P.hoodW||0)/.2)%4:1;al=.88}
+ else if(S.mode==='won'){sn='hero-extra';fr=5}
+ else if(P.cringeT>0){sn='hero-extra';fr=2}
+ else if(f===0&&P.wetT>0){sn='hero-extra';fr=3}
+ else if(f===0&&(P.plate||P.baby>0||(P.tissues&&family))){sn='hero-extra';fr=4;cp=true}
+ else if(f===0&&it2>4&&P.inv<=0){sn='hero-idle';fr=it2<7?Math.floor(it2/.28)%2:it2<10?2:it2<12.5?3:it2<16?4:5}
  if(hang&&IMG['hero-hang'].naturalWidth){var hfr=(P.balloons&&jumpKey()&&P.lift>0)?3:Math.abs(P.vx)>2.5?2:(calm?0:Math.floor(T/.45)%2);c.save();c.translate(P.x,fy);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-hang'],hfr*HG.w,0,HG.w,HG.h,-HG.ax*k,-HG.top*k,HG.w*k,HG.h*k);c.restore()}
- else if(((P.hood&&!P.slide)||P.callT>0)&&P.ground&&IMG['hero-idle'].naturalWidth){var sh=(P.hood&&Math.abs(P.vx)>.2&&!calm)?Math.abs(Math.sin(T*10))*.06:0;c.save();c.translate(P.x,P.y+.04-sh);c.scale(P.f,1);if(sh)c.rotate(Math.sin(T*10)*.04);c.globalAlpha=P.hood?.85:1;c.imageSmoothingQuality='high';c.drawImage(IMG['hero-idle'],(P.callT>0?2:3)*ID.w,0,ID.w,ID.h,-ID.ax*k,-ID.base*k,ID.w*k,ID.h*k);c.restore();c.globalAlpha=1}
- else if(f===0&&it2>4&&P.inv<=0&&IMG['hero-idle'].naturalWidth){var ifr=it2<7?Math.floor(it2/.28)%2:it2<10?2:it2<12.5?3:it2<16?4:5;c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-idle'],ifr*ID.w,0,ID.w,ID.h,-ID.ax*k,-ID.base*k,ID.w*k,ID.h*k);c.restore()}
- else if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(P.slide)c.rotate(.35);c.globalAlpha=P.inv>0?.55:(P.hood&&!P.slide)?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
+ else if(ready){var SA=ART[sn],sim=IMG[sn];if(!sim||!sim.naturalWidth){SA=HERO;sim=img;fr=f}if(sim.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(rot)c.rotate(rot);c.globalAlpha=al;c.imageSmoothingQuality='high';c.drawImage(sim,fr*SA.w,0,SA.w,SA.h,-SA.ax*k,-SA.base*k,SA.w*k,SA.h*k);c.restore();c.globalAlpha=1}}
  nemesis();
- if(P.plate)thing('plate',P.x+P.f*.45,P.y-.72,.7,false,'party-things');
- if(P.tissues&&family)thing('flask',P.x+P.f*.45,P.y-.55,.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
- if(P.baby>0)babyPic(P.x+P.f*.35,P.y-.85,.8);
+ if(P.plate)thing('plate',P.x+P.f*(cp?.68:.45),P.y-(cp?.93:.72),.7,false,'party-things');
+ if(P.tissues&&family)thing('flask',P.x+P.f*(cp?.66:.45),P.y-(cp?.96:.55),.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
+ if(P.baby>0)babyPic(P.x+P.f*(cp?.66:.35),P.y-(cp?1.2:.85),.8);
  if(P.fast>0&&!calm){c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.06;for(var q2=0;q2<3;q2++){c.beginPath();c.moveTo(P.x-P.f*(.5+q2*.12),P.y-.4-q2*.4);c.lineTo(P.x-P.f*(1+q2*.12),P.y-.4-q2*.4);c.stroke()}}
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
  var placed=[];says.forEach(function(s){bubbleSay(s.t,s.x,s.y,Math.min(1,s.life*2),placed)});
@@ -655,7 +661,7 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 // presents = the site's shared "Introvert Here... presents" title card ({ html, js } from worker.js), shown before the title page.
 export function platformPage(page, hub, v, presents) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents, "hero-hood": ART["hero-hood"], "hero-extra": ART["hero-extra"] })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   const opening = presents ? presents.js + "\nihPresents('hoodini',false);(function(){var t=document.getElementById('pgtitle'),o=document.getElementById('dzi');if(!o||!o.isConnected)return;t.classList.add('wait');new MutationObserver(function(){if(o.classList.contains('bye')||!o.isConnected)t.classList.remove('wait')}).observe(o,{attributes:true})})();" : "";
   return page(TITLE, `${presents ? presents.html : ""}<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
