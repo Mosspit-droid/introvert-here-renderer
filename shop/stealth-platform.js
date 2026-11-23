@@ -45,7 +45,8 @@ function office() {
   put(79, G, "F"); box(80, 81, 16, G, "F"); box(82, 84, 15, G, "F"); put(84, 14, "^"); box(86, 150, 9, 10, "#");
   // 5. The first floor: holes to fall through, a chaser, a chair up to note 2, a talker. Below it, the all-hands meeting.
   row(89, 91, U, "o"); put(94, U, "W"); hole(98, 100); put(106, U, "C"); hole(112, 116); row(113, 114, 9, "=");
-  put(118, U, "^"); row(120, 124, 5, "="); put(122, 4, "N"); row(120, 121, 4, "o"); put(128, U, "T"); hole(134, 137); row(139, 141, U, "o"); put(144, U, "W");
+  put(118, U, "^"); row(120, 124, 5, "="); put(122, 4, "N"); row(120, 121, 4, "o"); put(128, U, "F"); put(132, U, "T");   // the cabinet stops his chatter reaching the foot of the ledge (Barry, 23 Nov)
+  hole(134, 137); row(139, 141, U, "o"); put(144, U, "W");
   for (let x = 93; x <= 147; x += 6) put(x, G, "P");   // spaced so each can be hopped; the first floor is the easier way
   put(88, G, "m"); put(103, U, "c");
   put(153, G, "K");
@@ -299,7 +300,7 @@ function flat(){nemPic(2);S.mode='lost';S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;
 function info(a,b){S.info={a:a,b:b,t:4}}
 function say(t,x,y){if(!t)return;for(var i=0;i<says.length;i++)if(says[i].t===t){says[i].life=2.2;says[i].x=x;says[i].y=y;return}says.push({t:t,x:x,y:y,life:2.2});if(says.length>4)says.shift()}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
-function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
+function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
 function win(){S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
@@ -316,7 +317,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;
  // Hood Up: on the ground, while B is held and there is hood left
  var want=hoodKey()&&P.ground&&P.cool<=0&&P.hoodT>0&&S.mode==='play';
  if(want){P.hood=true;P.hoodT-=dt;if(P.hoodT<=0){P.hood=false;P.cool=1.5}}else{if(P.hood)P.cool=Math.max(P.cool,.4);P.hood=false;if(!hoodKey())P.hoodT=Math.min(HOODMAX,P.hoodT+dt*1.2)}
- if(P.hood){d=0;sv=0}
+ if(P.hood)sv*=.27;if(P.callT>0)P.callT-=dt;
  // running
  if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
  var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
@@ -595,13 +596,13 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.phones>0&&!calm)for(var mn=0;mn<3;mn++){var ma=T*3+mn*2.1;c.fillStyle='#7a5cff';c.font='800 .5px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('♪',P.x+Math.cos(ma)*.95,P.y-1+Math.sin(ma)*.7)}
  var HG=ART['hero-hang'],ID=ART['hero-idle'],it2=P.idleT||0;
  if(hang&&IMG['hero-hang'].naturalWidth){var hfr=(P.balloons&&jumpKey()&&P.lift>0)?3:Math.abs(P.vx)>2.5?2:(calm?0:Math.floor(T/.45)%2);c.save();c.translate(P.x,fy);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-hang'],hfr*HG.w,0,HG.w,HG.h,-HG.ax*k,-HG.top*k,HG.w*k,HG.h*k);c.restore()}
+ else if(((P.hood&&!P.slide)||P.callT>0)&&P.ground&&IMG['hero-idle'].naturalWidth){var sh=(P.hood&&Math.abs(P.vx)>.2&&!calm)?Math.abs(Math.sin(T*10))*.06:0;c.save();c.translate(P.x,P.y+.04-sh);c.scale(P.f,1);if(sh)c.rotate(Math.sin(T*10)*.04);c.globalAlpha=P.hood?.85:1;c.imageSmoothingQuality='high';c.drawImage(IMG['hero-idle'],(P.callT>0?2:3)*ID.w,0,ID.w,ID.h,-ID.ax*k,-ID.base*k,ID.w*k,ID.h*k);c.restore();c.globalAlpha=1}
  else if(f===0&&it2>4&&P.inv<=0&&IMG['hero-idle'].naturalWidth){var ifr=it2<7?Math.floor(it2/.28)%2:it2<10?2:it2<12.5?3:it2<16?4:5;c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);c.imageSmoothingQuality='high';c.drawImage(IMG['hero-idle'],ifr*ID.w,0,ID.w,ID.h,-ID.ax*k,-ID.base*k,ID.w*k,ID.h*k);c.restore()}
  else if(ready&&img.naturalWidth){c.save();c.translate(P.x,P.y+.04);c.scale(P.f,1);if(P.slide)c.rotate(.35);c.globalAlpha=P.inv>0?.55:(P.hood&&!P.slide)?.8:1;c.imageSmoothingQuality='high';c.drawImage(img,f*HERO.w,0,HERO.w,HERO.h,-HERO.ax*k,-HERO.base*k,HERO.w*k,HERO.h*k);c.restore();c.globalAlpha=1}
  nemesis();
  if(P.plate)thing('plate',P.x+P.f*.45,P.y-.72,.7,false,'party-things');
  if(P.tissues&&family)thing('flask',P.x+P.f*.45,P.y-.55,.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x-P.f*.4,P.y-.45,.9);
  if(P.baby>0)babyPic(P.x+P.f*.35,P.y-.85,.8);
- if(P.shield){c.fillStyle=INK;rr(P.x+P.f*.22-.09,P.y-1.52,.18,.3,.04);c.fill();c.fillStyle='#3fd16a';rr(P.x+P.f*.22-.06,P.y-1.48,.12,.2,.02);c.fill()}
  if(P.fast>0&&!calm){c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.06;for(var q2=0;q2<3;q2++){c.beginPath();c.moveTo(P.x-P.f*(.5+q2*.12),P.y-.4-q2*.4);c.lineTo(P.x-P.f*(1+q2*.12),P.y-.4-q2*.4);c.stroke()}}
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
  var placed=[];says.forEach(function(s){bubbleSay(s.t,s.x,s.y,Math.min(1,s.life*2),placed)});
@@ -663,7 +664,7 @@ export function platformPage(page, hub, v, presents) {
 <div class="card" id="pgcard" hidden><div>
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
-<details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: sit tight and nobody notices you for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
+<details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: he pulls his drawstrings tight and shuffles along, and nobody notices him for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Tea</b> tops it up. <b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">A test level. No sound. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
 <div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
