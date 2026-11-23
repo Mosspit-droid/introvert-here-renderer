@@ -590,7 +590,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dzi{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:#0e0d0c;transition:opacity .7s}.dzi.bye{opacity:0;pointer-events:none}
 .dzil{position:relative;width:min(78vw,560px);opacity:0;transition:opacity .9s}.dzi.on .dzil{opacity:1}.dzil img{display:block;width:100%;height:auto}
 .dzil i{position:absolute;top:58%;height:16%;width:2.6%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:90.8%}.dzil i:nth-of-type(2){left:93.1%}.dzil i:nth-of-type(3){left:95.3%}.dzil i.off{opacity:0}
-.dzi p{margin:0;min-height:1.3em;font:600 clamp(18px,4.2vmin,34px) Montserrat,sans-serif;letter-spacing:.32em;color:#f2f0ea;text-transform:lowercase}
+.dzi p{margin:0;min-height:1.3em;font:600 clamp(18px,4.2vmin,34px) Montserrat,sans-serif;letter-spacing:.32em;color:#f2f0ea;text-transform:lowercase;opacity:0;transition:opacity 1s}.dzi p.on{opacity:1}
 .dzi button{position:absolute;right:16px;bottom:16px;background:none;border:1px solid #3b3a35;color:#9a958a;border-radius:999px;padding:7px 14px;font:600 13px Montserrat,sans-serif;cursor:pointer}
 .gtee{margin:22px auto 6px;text-align:center}.gtee .tile{text-align:left}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
@@ -1230,7 +1230,7 @@ function meter(){var l=lv[n()]||0;$('.dm').dataset.lv=l;$('.dm img').src='/s/dor
 function reset(){$('.say').textContent='';$('.got').classList.remove('on');$('.got').innerHTML='';$('.hints').innerHTML='';$('.hint').hidden=false;$('.hint').textContent='Hint, please';$('.hint').classList.remove('give');$('.lock').classList.remove('open');$('#pa').value='';meter()}
 $('#pn').addEventListener('change',reset);
 $('form').addEventListener('submit',function(e){e.preventDefault();var k=n(),p=P[k],v=String($('#pa').value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
- if(p.a.test(v)){$('.lock').classList.add('open');$('.say').textContent='Correct.';var g=$('.got');g.innerHTML=p.got?'<b>Add to your kit: '+p.got[1]+'</b><br>'+p.got[2]:(k==='13'?'<b>You’re home.</b><br>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB.<br><br>And then your phone buzzes. Aunt Doris: “Lovely to see you!! Same time at Christmas? xx”':'Click. It opens. On to the next.');g.classList.add('on')}
+ if(p.a.test(v)){$('.lock').classList.add('open');$('.say').textContent='Correct.';var g=$('.got');g.innerHTML=p.got?'<b>Add to your kit: '+p.got[1]+'</b><br>'+p.got[2]:(k==='13'?'<b>You’re home.</b><br>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB.<br><br>And then your phone buzzes. Aunt Doris: “Lovely to see you Hoodini!! Same time at Christmas? xx”':'Click. It opens. On to the next.');g.classList.add('on')}
  else{var l=$('.lock');l.classList.remove('no');void l.offsetWidth;l.classList.add('no');tries[k]=(tries[k]||0);$('.say').textContent=p.no[tries[k]++%p.no.length];var x=(lv[k]||0)+1;if(x>=4){x=0;$('#hug').hidden=false}lv[k]=x;meter()}});
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 $('.hint').addEventListener('click',function(){var k=n(),p=P[k],u=$('.hints').children.length;if(u<p.h.length){var q=document.createElement('p'),last=u===p.h.length-1,t=p.h[u];q.textContent=last&&!/^The answer/.test(t)?'The answer: '+t:t;if(last)q.className='ans';$('.hints').appendChild(q)}if($('.hints').children.length>=p.h.length)this.hidden=true;else{this.textContent='Just tell me the answer';this.classList.add('give')}});
@@ -1253,7 +1253,7 @@ const DZ_P_JS = String.raw`var P={
 11:{a:/^(1019|19|1019PM)$/,got:['R','Run','10:19. Nobody in the hall. You run. Quietly.'],no:['Gareth walks straight into you. “Off already?”','Doris rounds the corner. You freeze. She doesn’t see you. This time.','No. List who is in the hall each minute while the slow song plays.'],h:['The slow song starts at 10:17 and lasts 4 minutes, so it plays from 10:17 to 10:21. List who is in the hall each minute.','Gareth 10:18 and 10:21, Doris 10:17 and 10:21, Dave 10:20, Pat 10:20. That leaves 10:19.']},
 12:{a:/^4663$/,got:['B','Back gate','The gate clicks open. At the end of the road, the night bus is just pulling in.'],no:['The gate stays shut. The dog next door starts barking.','Beep. Wrong. Very loud beep.','No. Check your pockets. Then the letters on the keypad.'],h:['It’s the word Doris underlined on the back of the photo you took.','HOME: H is 4, O is 6, M is 6, E is 3. The code is 4663.']},
 13:{a:/^DONOTDISTURB$/,no:['The door stays locked. You’re so close you can smell the teabags.','No. Look at your kit.','Not quite. Take the first letter of each thing, in order.'],h:['Take the first letter of each thing in your kit, in order.','DO NOT DISTURB.']}};`;
-const DZ_TALK_JS = String.raw`var TALK=[["Coo-ee! There you are! Still on your own, are you?",[["Mm.",1,"Doris pauses. She isn’t used to “Mm.”"],["Yes, and honestly I’m very happy.",0,"Happy? On your own? Oh, you poor thing. My neighbour’s son is single, you know. He collects lighthouses..."],["Is that a new cardigan, Doris?",0,"Ooh, do you like it? Marks and Spencer. Well. Let me tell you about the queue..."]]],
+const DZ_TALK_JS = String.raw`var TALK=[["Coo-ee! There you are, Hoodini! Still on your own, are you?",[["Mm.",1,"Doris pauses. She isn’t used to “Mm.”"],["Yes, and honestly I’m very happy.",0,"Happy? On your own? Oh, you poor thing. My neighbour’s son is single, you know. He collects lighthouses..."],["Is that a new cardigan, Doris?",0,"Ooh, do you like it? Marks and Spencer. Well. Let me tell you about the queue..."]]],
  ["And how’s work? Still doing that... computer thing?",[["Actually it’s really interesting, I’ve just started a new project—",0,"Ooh, a project! Tell me everything. Start from the beginning. Don’t leave anything out."],["What do you mean, “that computer thing”?",0,"Well, you know. Typing. Our Kevin does typing. Have I told you about our Kevin?"],["It’s fine.",1,"“Fine,” says Doris, slowly. Her eyes narrow. She’s regrouping."]]],
  ["You should come to my Zumba class! Thursday nights!",[["Maybe.",0,"Lovely! I’ll put you down. Bring a towel. And a friend. Do you have friends?"],["I’ve got a bad knee.",1,"“Oh, say no more!” Doris looks at your knee with deep sympathy. She takes a step back."],["I’d love to, but Thursdays are tricky.",0,"Wednesdays, then! There’s a Wednesday class! Silver Steppers!"]]],
  ["Well, I’d better find Gareth. Lovely to—",[["Oh, before you go, Doris...",0,"She turns back. Oh no. Oh no, she’s turned back."],["Lovely to see you too!",1,"And she’s gone. You exhale for the first time in four minutes."],["Doris, can I ask you something?",0,"“Of course, love!” She settles in. She’s cancelled all her plans. For you."]]]];`;
@@ -1269,7 +1269,7 @@ function dorisPage(cat, print) {
 <img class="dzpic" src="/s/doris-party.jpg?v=1" alt="Hoodini, hood up and hands in his pockets, shuffling past a crowded housewarming party towards the door." width="1672" height="941">
 <p>It’s 8pm. Your cousin Gareth’s housewarming. You promised you’d show your face. Your face has been shown.</p><p>Now you need to get home. Unseen. Unchatted-to. Unhugged.</p><p class="coo">Because somewhere in this house is Gareth’s mum. Aunt Doris.</p>
 <p><button class="btn go" type="button" id="start">Begin</button></p><p class="note" id="resume" hidden><button class="btn ghost" type="button" id="carry">Carry on where you left off</button></p><p class="note">Your progress is saved on this device.</p></section>`,
-    chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee!”</p>`),
+    chap("Part one", "She has arrived", `<p class="coo">From the hallway, a voice like a car alarm in a cardigan: “Coo-ee! Hoo-diii-niii!”</p>`),
     pz(1, "The coat pile", "Find your coat.", `<p>Every coat in the house is heaped on the spare bed. Yours is in there somewhere.</p>
 <ul class="clues"><li>It has a hood. (Hoods are for hiding in.)</li><li>It isn’t green.</li><li>It has more buttons than the red one.</li><li>It isn’t grey. Grey coats belong to Aunt Doris. Never touch Aunt Doris’s coats.</li><li>Its tag number is under 60.</li></ul>
 <div class="coats">${DZ_COATS.map(partyCoat).join("")}</div>${lock("Tag number", 1)}`),
@@ -1309,17 +1309,17 @@ function dorisPage(cat, print) {
     pz(13, "Your front door", "One last code.", `<p>The night bus drops you at the end of your road. Your street. Your door. Your own keypad.</p><p>You set this code years ago. It’s the sign you’d hang on your whole life, if you could. And tonight, you’ve been collecting it all along.</p>
 <p>Your kit, in the order you got it:</p><div class="kit" id="kitlist"></div>${lock("Your code", 0)}`),
     `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><img class="dzpic" src="/s/doris-home.jpg?v=1" alt="Hoodini home at last, slumped against his front door, a Do Not Disturb sign on the handle and a mug of tea steaming by the lamp." width="1672" height="941" loading="lazy"><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. Nobody knows you’ve gone.</p><p id="won"></p>
-<p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
+<p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you Hoodini!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn" type="button" id="share">Share your escape</button></p>
 ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH-00014"], "Survived Doris? Dress for the next one.")}
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn ghost" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
-  // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in, its
-  // three dots appear one by one, "presents" types itself out, then it fades into the game. Tap to skip; skipped for
+  // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in
+  // without its dots, "presents" fades in, then the three dots appear one by one, then it fades into the game. Tap to skip; skipped for
   // anyone whose device asks for less motion, and shown once per visit.
-  const intro = `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip"></p><button type="button" id="dzis">Skip</button></div>`;
+  const intro = `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip">presents</p><button type="button" id="dzis">Skip</button></div>`;
   return page("Escape From Aunt Doris", `${intro}<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
@@ -1370,10 +1370,10 @@ addEventListener('pagehide',function(){tick();save()});setInterval(function(){ti
 (function(){var o=$('#dzi'),done=false,calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches||sessionStorage.getItem('ih_dzi')}catch(_){}
  function end(){if(done)return;done=true;try{sessionStorage.setItem('ih_dzi','1')}catch(_){}o.classList.add('bye');setTimeout(function(){o.remove()},800)}
  if(calm||st.at>0){o.remove();return}o.addEventListener('click',end);
- var dots=o.querySelectorAll('i'),w='presents',k=0;setTimeout(function(){o.classList.add('on')},150);
- [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},1100+n*260)});
- setTimeout(function(){var t=setInterval(function(){$('#dzip').textContent=w.slice(0,++k);if(k>=w.length)clearInterval(t)},230)},2100);
- setTimeout(end,5300)})()})();` });
+ var dots=o.querySelectorAll('i');setTimeout(function(){o.classList.add('on')},150);
+ setTimeout(function(){$('#dzip').classList.add('on')},1400);
+ [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},2900+n*450)});
+ setTimeout(end,5000)})()})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------
