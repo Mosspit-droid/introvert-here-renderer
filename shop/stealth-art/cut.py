@@ -88,6 +88,10 @@ def trim_(f): m = f[..., 3] > 128; ys = np.where(m.any(axis=1))[0]; xs_ = np.whe
 mf = [(trim_(km[round(140 * mq):round(580 * mq), round(x0 * mq):round(x1 * mq)]), fr) for x0, x1, fr in [(20, 345, .23), (375, 670, .6), (700, 1000, .42), (1030, 1325, .44), (1360, 1716, .45), (1718, 1930, .66)]]
 msc = 203 / mf[5][0].shape[0]
 save("hero-more", strip([cellx(f, msc, 340, 230, 170, 226, fr) for f, fr in mf]), w=340, h=230, ax=170, base=226, n=6)
+# The key, the thing to collect: four frames of a spin, each centred in a square
+kf = figures(key("key.png")); assert len(kf) == 4, len(kf); ks = 150 / max(f.shape[0] for f in kf)
+def centred(fig, sc, n): im = scaled(fig, sc); c = Image.new("RGBA", (n, n), (0, 0, 0, 0)); c.alpha_composite(im, ((n - im.width) // 2, (n - im.height) // 2)); return c
+save("key", strip([centred(f, ks, 160) for f in kf]), w=160, h=160, n=4)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
