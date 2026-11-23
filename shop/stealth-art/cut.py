@@ -168,6 +168,7 @@ s = 2.25 * PPT / pk_[4].shape[0]; save("park-parents", strip([cellf(f, s, 360, 2
 
 # The arch nemesis, the colleague who points and laughs: smug 0, laughing 1-2, peeking (head and arm only) 3, caught 4, defeated 5
 kn = key("nemesis.png"); nq = kn.shape[1] / 2000; nf = [trimmed(kn[round(90 * nq):round(610 * nq), round(x0 * nq):round(x1 * nq)]) for x0, x1 in [(40, 270), (340, 652), (655, 1005), (1040, 1320), (1350, 1650), (1700, 1970)]]
+save("nemesis-big", strip([cellf(f, 1, 460, 590, 170, 586) for f in nf[1:3]]), w=460, h=590, n=2)   # the title page: his two laughing poses at full size (his legs sit below the screen)
 save("nemesis-peek", Image.fromarray(nf[3], "RGBA"))           # the title page: just his head, shoulders and pointing arm, leaning in from the corner
 s = 2.1 * PPT / nf[0].shape[0]; save("nemesis", strip([cellf(f, s, 440, 270, 170, 266) for f in nf]), w=440, h=270, ax=170, base=266, n=6)
 
