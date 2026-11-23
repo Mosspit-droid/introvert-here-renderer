@@ -18,7 +18,7 @@ import { levelPage } from "./stealth-level.js";
 import { platformPage } from "./stealth-platform.js";
 import { FILES } from "./stealth-art/art.js";
 
-const ART_V = 16;   // put this up by one whenever the pictures change, so phones fetch the new ones
+const ART_V = 17;   // put this up by one whenever the pictures change, so phones fetch the new ones
 
 const TITLE = "Just Passing Through";   // working title: reads on from the brand name, "Introvert Here… Just Passing Through"
 
