@@ -587,6 +587,11 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.photos figure{margin:0;background:#f2efe6;color:#2a2622;border-radius:3px;padding:7px 7px 9px;box-shadow:0 3px 8px rgba(0,0,0,.35);font-size:12px;line-height:1.3}.photos figure:nth-child(odd){transform:rotate(-1.5deg)}.photos figure:nth-child(even){transform:rotate(1.2deg)}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#8b8172;color:#f2efe6;font-size:22px;margin-bottom:6px}.photos small{display:block;color:#6d665c;margin-top:3px}@media(max-width:520px){.photos{grid-template-columns:repeat(2,1fr)}}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
 .dzpic{display:block;width:100%;height:auto;border-radius:10px;margin:6px 0 16px}
+.dzi{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:#0e0d0c;transition:opacity .7s}.dzi.bye{opacity:0;pointer-events:none}
+.dzil{position:relative;width:min(78vw,560px);opacity:0;transition:opacity .9s}.dzi.on .dzil{opacity:1}.dzil img{display:block;width:100%;height:auto}
+.dzil i{position:absolute;top:58%;height:16%;width:2.6%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:90.8%}.dzil i:nth-of-type(2){left:93.1%}.dzil i:nth-of-type(3){left:95.3%}.dzil i.off{opacity:0}
+.dzi p{margin:0;min-height:1.3em;font:600 clamp(18px,4.2vmin,34px) Montserrat,sans-serif;letter-spacing:.32em;color:#f2f0ea;text-transform:lowercase}
+.dzi button{position:absolute;right:16px;bottom:16px;background:none;border:1px solid #3b3a35;color:#9a958a;border-radius:999px;padding:7px 14px;font:600 13px Montserrat,sans-serif;cursor:pointer}
 .gtee{margin:22px auto 6px;text-align:center}.gtee .tile{text-align:left}
 .sting{text-align:center}.sting .txt{margin:14px auto;text-align:left}
 .dm{--k:0;display:flex;align-items:center;gap:12px;margin:10px 0 8px;padding:8px 12px;border-radius:10px;background:#24231f;transition:background .4s}
@@ -1311,7 +1316,11 @@ ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
-  return page("Escape From Aunt Doris", `<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
+  // "Introvert Here... presents" (Barry, 23 Nov): a three-second title card, like a film studio's. The logo fades in, its
+  // three dots appear one by one, "presents" types itself out, then it fades into the game. Tap to skip; skipped for
+  // anyone whose device asks for less motion, and shown once per visit.
+  const intro = `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip"></p><button type="button" id="dzis">Skip</button></div>`;
+  return page("Escape From Aunt Doris", `${intro}<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
 // answers (letters and digits only), what each puzzle leaves you with, wrong-answer lines, and two hints each
@@ -1357,7 +1366,14 @@ function talkNode(){var box=$('#tk'),node=TALK[tk],d=document.createElement('div
  var o=document.createElement('div');o.className='opts';node[1].forEach(function(r){var b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent=r[0];b.addEventListener('click',function(){
   o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>Aunt Doris</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
   if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. She edges closer.';closer(box.closest('.pz'));setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
-addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0)})();` });
+addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0);
+(function(){var o=$('#dzi'),done=false,calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches||sessionStorage.getItem('ih_dzi')}catch(_){}
+ function end(){if(done)return;done=true;try{sessionStorage.setItem('ih_dzi','1')}catch(_){}o.classList.add('bye');setTimeout(function(){o.remove()},800)}
+ if(calm||st.at>0){o.remove();return}o.addEventListener('click',end);
+ var dots=o.querySelectorAll('i'),w='presents',k=0;setTimeout(function(){o.classList.add('on')},150);
+ [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},1100+n*260)});
+ setTimeout(function(){var t=setInterval(function(){$('#dzip').textContent=w.slice(0,++k);if(k>=w.length)clearInterval(t)},70)},2000);
+ setTimeout(end,3600)})()})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------
