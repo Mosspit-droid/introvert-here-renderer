@@ -1257,6 +1257,20 @@ const DZ_TALK_JS = String.raw`var TALK=[["Coo-ee! There you are, Hoodini! Still 
  ["And how’s work? Still doing that... computer thing?",[["Actually it’s really interesting, I’ve just started a new project—",0,"Ooh, a project! Tell me everything. Start from the beginning. Don’t leave anything out."],["What do you mean, “that computer thing”?",0,"Well, you know. Typing. Our Kevin does typing. Have I told you about our Kevin?"],["It’s fine.",1,"“Fine,” says Doris, slowly. Her eyes narrow. She’s regrouping."]]],
  ["You should come to my Zumba class! Thursday nights!",[["Maybe.",0,"Lovely! I’ll put you down. Bring a towel. And a friend. Do you have friends?"],["I’ve got a bad knee.",1,"“Oh, say no more!” Doris looks at your knee with deep sympathy. She takes a step back."],["I’d love to, but Thursdays are tricky.",0,"Wednesdays, then! There’s a Wednesday class! Silver Steppers!"]]],
  ["Well, I’d better find Gareth. Lovely to—",[["Oh, before you go, Doris...",0,"She turns back. Oh no. Oh no, she’s turned back."],["Lovely to see you too!",1,"And she’s gone. You exhale for the first time in four minutes."],["Doris, can I ask you something?",0,"“Of course, love!” She settles in. She’s cancelled all her plans. For you."]]]];`;
+// "Introvert Here... presents" title card, for any of the site's games (Barry, 23 Nov). Put ${PRESENTS_HTML()} at the
+// top of the page body and ${PRESENTS_JS} in its script, then call ihPresents(key, skip): key names the game (the card
+// shows once per visit per key), skip=true leaves it out (e.g. when carrying on a saved game). The logo fades in without
+// its dots, "presents" fades in, then the three dots appear one by one, then it fades away (about 5 seconds; tap to
+// skip; never shown to anyone whose device asks for less motion). Styles: .dzi in STYLE. Logo files: brand-logos/presents/.
+const PRESENTS_HTML = () => `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip">presents</p><button type="button" id="dzis">Skip</button></div>`;
+const PRESENTS_JS = `function ihPresents(key,skip){var o=document.getElementById('dzi');if(!o)return;var done=false,calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches||sessionStorage.getItem('ih_dzi_'+key)}catch(_){}
+ function end(){if(done)return;done=true;try{sessionStorage.setItem('ih_dzi_'+key,'1')}catch(_){}o.classList.add('bye');setTimeout(function(){o.remove()},800)}
+ if(calm||skip){o.remove();return}o.addEventListener('click',end);
+ var dots=o.querySelectorAll('i');setTimeout(function(){o.classList.add('on')},150);
+ setTimeout(function(){document.getElementById('dzip').classList.add('on')},1400);
+ [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},2900+n*450)});
+ setTimeout(end,5000)}`;
+
 function dorisPage(cat, print) {
   const lock = print ? (ph) => `<p class="ans"><b>Your answer</b><span></span></p>` : (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
   const meter = print ? "" : `<div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
@@ -1319,7 +1333,7 @@ ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH
   // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in
   // without its dots, "presents" fades in, then the three dots appear one by one, then it fades into the game. Tap to skip; skipped for
   // anyone whose device asks for less motion, and shown once per visit.
-  const intro = `<div class="dzi" id="dzi" aria-hidden="true"><div class="dzil"><img src="/logo-wide.png?v=${ASSET_V}" alt=""><i></i><i></i><i></i></div><p id="dzip">presents</p><button type="button" id="dzis">Skip</button></div>`;
+  const intro = PRESENTS_HTML();
   return page("Escape From Aunt Doris", `${intro}<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
 var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
@@ -1367,13 +1381,8 @@ function talkNode(){var box=$('#tk'),node=TALK[tk],d=document.createElement('div
   o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>Aunt Doris</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
   if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. She edges closer.';closer(box.closest('.pz'));setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
 addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0);
-(function(){var o=$('#dzi'),done=false,calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches||sessionStorage.getItem('ih_dzi')}catch(_){}
- function end(){if(done)return;done=true;try{sessionStorage.setItem('ih_dzi','1')}catch(_){}o.classList.add('bye');setTimeout(function(){o.remove()},800)}
- if(calm||st.at>0){o.remove();return}o.addEventListener('click',end);
- var dots=o.querySelectorAll('i');setTimeout(function(){o.classList.add('on')},150);
- setTimeout(function(){$('#dzip').classList.add('on')},1400);
- [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},2900+n*450)});
- setTimeout(end,5000)})()})();` });
+${PRESENTS_JS}
+ihPresents('dorisgame',st.at>0)})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------
