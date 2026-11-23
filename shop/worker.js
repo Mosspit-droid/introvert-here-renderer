@@ -86,7 +86,9 @@ async function route(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
-      if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);   // works on the preview too (its own tally)
+      if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);
+      if (path === "/api/doris-code" && request.method === "POST") return await dorisCodeApi(request, env);   // works on the preview too
+      if (path === "/api/doris-checkout" && request.method === "POST") return await dorisCheckout(env, url);   // explains itself on the preview   // works on the preview too (its own tally)
       if (isPreview(env) && path.startsWith("/api/")) return json({ error: "This is the preview copy of the shop, so checkout is switched off." }, 403);
       if (isPreview(env) && path === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
       if (path === "/api/stripe-webhook" && request.method === "POST") return await stripeWebhook(request, env, ctx);
@@ -114,7 +116,8 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
-      if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env)));
+      if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env), false, await dorisUnlocked(env, cookie(request, "ih_doris"))));
+      if (path === HUB.path + "/aunt-doris/unlocked") return await dorisThanks(env, url);
       if (path === HUB.path + "/aunt-doris/print" && isPreview(env)) return html(dorisPage(null, true));   // preview only: it's the paid booklet
       if (path === HUB.path + "/aunt-doris/check" || path === "/doris") return html(dorisCheckPage());
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
@@ -234,6 +237,7 @@ async function checkout(request, env, url) {
     "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]": "10",
     "metadata[shop]": "IH-UK",
     "payment_intent_data[metadata][shop]": "IH-UK",
+    allow_promotion_codes: "true",   // VOTED5 (vote page) and HOODINI5 (the hunt): created in Stripe as promotion codes
   });
   if (Object.keys(form).some((k) => k.endsWith("[metadata][personal]"))) form["custom_text[submit][message]"] = "Personalised items can’t be returned for a change of mind. Faulty, damaged or misnamed items are always put right, and the rest of your order can be returned as normal.";
   if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "The shop isn't connected to Stripe yet (the Stripe key hasn't been saved in the approvals app)." }, 503);
@@ -276,6 +280,7 @@ async function stripeWebhook(request, env, ctx) {
   if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") return json({ ignored: event.type });
   const s = event.data.object;
   if (s.payment_status !== "paid") return json({ waiting: s.payment_status });
+  if ((s.metadata || {}).product === "doris") { await dorisIssue(env, s.id, !!s.livemode); return json({ game: true }); }   // not a clothing order
   const key = "shop:order:" + s.id;
   if (await env.PENDING.get(key)) return json({ duplicate: true });
   await env.PENDING.put(key, JSON.stringify({ status: "processing", at: Date.now() }));
@@ -587,6 +592,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.photos figure{margin:0;background:#f2efe6;color:#2a2622;border-radius:3px;padding:7px 7px 9px;box-shadow:0 3px 8px rgba(0,0,0,.35);font-size:12px;line-height:1.3}.photos figure:nth-child(odd){transform:rotate(-1.5deg)}.photos figure:nth-child(even){transform:rotate(1.2deg)}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#8b8172;color:#f2efe6;font-size:22px;margin-bottom:6px}.photos small{display:block;color:#6d665c;margin-top:3px}@media(max-width:520px){.photos{grid-template-columns:repeat(2,1fr)}}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
 .dzpic{display:block;width:100%;height:auto;border-radius:10px;margin:6px 0 16px}
+.dzhave{margin:18px auto 0;max-width:420px;text-align:center}.dzhave summary{cursor:pointer;color:var(--muted);font-size:14px}.dzhave form{display:flex;gap:8px;margin-top:10px}.dzhave input{flex:1;min-width:0;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:#141412;color:var(--text);font:700 17px Montserrat,sans-serif;letter-spacing:.14em;text-transform:uppercase;text-align:center}.dzhave .btn{margin:0}
 .dzi{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:#0e0d0c;transition:opacity .7s}.dzi.bye{opacity:0;pointer-events:none}
 .dzil{position:relative;width:min(78vw,560px);opacity:0;transition:opacity .9s}.dzi.on .dzil{opacity:1}.dzil img{display:block;width:100%;height:auto}
 .dzil i{position:absolute;top:58%;height:18%;width:2.2%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:88.07%}.dzil i:nth-of-type(2){left:90.35%}.dzil i:nth-of-type(3){left:92.62%}.dzil i.off{opacity:0}
@@ -1271,7 +1277,60 @@ const PRESENTS_JS = `function ihPresents(key,skip){var o=document.getElementById
  [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},2900+n*450)});
  setTimeout(end,5000)}`;
 
-function dorisPage(cat, print) {
+// ---------------- Escape From Aunt Doris: pay to unlock (Barry, 23 Nov) ----------------
+// Part One is free. After it the game asks £4.99 to unlock the rest (Stripe Checkout, no delivery). On payment the
+// buyer gets an unlock code, kept in a cookie on that device and shown to them for use on others ("Already bought it?").
+// Without a valid code the page doesn't contain Parts Two and Three at all. Codes live in KV doris:codes
+// ({ code: { s: session id, at, live } }). DORIS_PRICE is in pence. On the preview, PREVIEW-DORIS unlocks it for testing.
+const DORIS_PRICE = 499;
+function dorisCodeFor(sessionId) { let h = 2166136261; for (const c of sessionId + "|doris") { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } let h2 = h ^ 0x9e3779b9; for (const c of sessionId) { h2 ^= c.charCodeAt(0); h2 = Math.imul(h2, 2246822519) >>> 0; }
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let out = ""; for (const n of [h, h2]) for (let i = 0; i < 4; i++) out += A[(n >>> (i * 8)) % 32]; return out.slice(0, 4) + "-" + out.slice(4); }
+async function dorisCodes(env) { return (await env.PENDING.get("doris:codes", "json")) || {}; }
+async function dorisIssue(env, sessionId, live) {
+  const code = dorisCodeFor(sessionId), all = await dorisCodes(env);
+  if (!all[code]) { all[code] = { s: sessionId, at: Date.now(), live }; await env.PENDING.put("doris:codes", JSON.stringify(all)); }
+  return code;
+}
+const dorisNorm = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^(.{4})(.{4})$/, "$1-$2");
+async function dorisUnlocked(env, code) {
+  code = dorisNorm(code); if (!code) return false;
+  if (isPreview(env) && code === "PREVIEWDORIS") return true;
+  return !!(await dorisCodes(env))[code];
+}
+const dorisCookie = (code, secure = true) => `ih_doris=${encodeURIComponent(code)}; Path=/; Max-Age=63072000; SameSite=Lax${secure ? "; Secure" : ""}`;
+async function dorisCodeApi(request, env) {
+  let b = {}; try { b = await request.json(); } catch (_) {}
+  const code = dorisNorm(b.code);
+  if (!(await dorisUnlocked(env, code))) return json({ ok: false, error: "That code doesn’t work. Check it and try again." }, 400);
+  return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Set-Cookie": dorisCookie(code, request.url.startsWith("https:")) } });
+}
+async function dorisCheckout(env, url) {
+  if (isPreview(env)) return json({ error: "This is the preview copy, so payments are switched off. Use the code PREVIEW-DORIS to test." }, 403);
+  if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "Payments aren’t switched on yet. Please try again soon." }, 503);
+  const form = {
+    mode: "payment", locale: "en-GB", allow_promotion_codes: "true",
+    "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "gbp", "line_items[0][price_data][unit_amount]": String(DORIS_PRICE),
+    "line_items[0][price_data][product_data][name]": "Escape From Aunt Doris: the full game",
+    "line_items[0][price_data][product_data][description]": "Parts Two and Three, on this device and any other with your unlock code.",
+    "metadata[product]": "doris", "payment_intent_data[metadata][product]": "doris",
+    success_url: `${url.origin}${HUB.path}/aunt-doris/unlocked?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${url.origin}${HUB.path}/aunt-doris`,
+  };
+  try { const s = await stripe(env, "POST", "/checkout/sessions", form); return json({ url: s.url }); }
+  catch (e) { console.error("doris checkout", e); return json({ error: "Sorry, payment is unavailable right now." }, 502); }
+}
+async function dorisThanks(env, url) {
+  const id = url.searchParams.get("session_id") || "";
+  let s = null; try { if (/^cs_/.test(id)) s = await stripe(env, "GET", "/checkout/sessions/" + id); } catch (_) {}
+  if (!s || s.payment_status !== "paid" || (s.metadata || {}).product !== "doris") return html(page("Escape From Aunt Doris", mascotMsg("peek", "Hmm.", "We couldn’t confirm that payment. If you were charged, email admin@mosspit.org and we’ll sort it.", HUB.path + "/aunt-doris", "Back to the game"), { nav: "hub", noindex: true }));
+  const code = await dorisIssue(env, s.id, !!s.livemode);
+  return html(page("Unlocked", `<div class="dz"><section class="box pz chap"><h1 class="tlogo" style="max-width:420px"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
+<h2 style="font-family:Montserrat;color:#f6efe0;font-size:24px;text-transform:uppercase">Unlocked. Thank you.</h2><p>Parts Two and Three are open on this device.</p>
+<p>Playing on another phone or computer? Use this code:</p><p class="vcode" style="justify-content:center;margin:6px auto 4px"><span>${esc(code)}</span></p><p class="note">Keep it somewhere. We’ve also emailed your receipt.</p>
+<p><a class="btn" href="${HUB.path}/aunt-doris?go=1">Carry on escaping</a></p></section></div>`, { nav: "hub", noindex: true }), 200, { "Set-Cookie": dorisCookie(code) });
+}
+
+function dorisPage(cat, print, full) {
   const lock = print ? (ph) => `<p class="ans"><b>Your answer</b><span></span></p>` : (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
   const meter = print ? "" : `<div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
   const tail = print ? `<p class="chk">Check your answer at <b>introverthere.com/doris</b></p>` : `<p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p><p class="next"><button class="btn go" type="button">Carry on</button></p>`;
@@ -1330,6 +1389,16 @@ ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
+  if (!full) {   // Part One only, then the paywall where Part Two would begin
+    const k = steps.findIndex((x) => x.includes(">Part two<"));
+    const pay = `<section class="box pz chap" data-pay hidden><p class="pt">End of Part One</p><h2>She’s still out there</h2>
+<p class="coo">Doris has the photo album out. Your coat’s on, your phone’s charged, and you’re nowhere near the door.</p>
+<p>Ten more puzzles stand between you and your sofa: the photo album, the tea round, charades, the family photo, the playlist, the hallway, the back gate and your own front door.</p>
+<p style="font-size:20px;font-weight:800;margin:14px 0 4px">Unlock the rest: £${(DORIS_PRICE / 100).toFixed(2)}</p><p class="note" style="margin-top:0">One payment. Yours to keep, on any device.</p>
+<p><button class="btn" type="button" id="dzbuy">Unlock Parts Two and Three</button></p><p class="say" id="dzbm"></p>
+<details class="dzhave"><summary>Already bought it? Enter your code</summary><form id="dzcf"><input id="dzci" autocomplete="off" autocapitalize="characters" placeholder="XXXX-XXXX" aria-label="Your unlock code"><button class="btn ghost" type="submit">Unlock</button></form><p class="say" id="dzcm"></p></details></section>`;
+    steps.splice(k, steps.length - k - 1, pay);
+  }
   // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in
   // without its dots, "presents" fades in, then the three dots appear one by one, then it fades into the game. Tap to skip; skipped for
   // anyone whose device asks for less motion, and shown once per visit.
@@ -1349,7 +1418,7 @@ function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_)
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
-function show(i){tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
+function show(i){i=Math.max(0,Math.min(i,S.length-1));tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
  if(s.dataset.n==='2'&&!st.done['2'])talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
  if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'. Hugs: '+(st.hugs||0)+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
@@ -1362,7 +1431,8 @@ function solved(s){var n=s.dataset.n;st.done[n]=1;save();looksSolved(s);if(n==='
 S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';s.insertBefore(nav,s.firstChild);
  $('.bk',nav).addEventListener('click',function(){show(Math.max(1,cur-1))});$('.fw',nav).addEventListener('click',function(){show(st.max)})});
 $$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start')fresh();show(cur+1)})});
-var prev=load();if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#carry').addEventListener('click',function(){st=prev;show(prev.at)})}
+var prev=load(),go=false;try{go=/[?&]go=1/.test(location.search)||sessionStorage.getItem('ih_doris_go');sessionStorage.removeItem('ih_doris_go')}catch(_){}
+if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#carry').addEventListener('click',function(){st=prev;show(prev.at)})}
 // a fresh game: forget progress and put every puzzle back as it was
 function fresh(){st={at:0,ms:0,hints:0,done:{},max:0};t0=0;S.forEach(function(x){delete x.dataset.r;var l=$('.lock',x);if(l)l.classList.remove('open','no');var g=$('.got',x);if(g){g.classList.remove('on');g.innerHTML=''}var nx=$('.next',x);if(nx)nx.classList.remove('on');var hp=$('.hintp',x);if(hp)hp.hidden=false;var hs=$('.hints',x);if(hs)hs.innerHTML='';var hb=$('.hint',x);if(hb){hb.hidden=false;hb.textContent='Hint, please';hb.classList.remove('give')}var inp=$('input',x);if(inp)inp.value='';var sy=$('.say',x);if(sy)sy.textContent=''});save()}
 $('#again').addEventListener('click',function(){fresh();show(0)});
@@ -1380,9 +1450,12 @@ function talkNode(){var box=$('#tk'),node=TALK[tk],d=document.createElement('div
  var o=document.createElement('div');o.className='opts';node[1].forEach(function(r){var b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent=r[0];b.addEventListener('click',function(){
   o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>Aunt Doris</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
   if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. She edges closer.';closer(box.closest('.pz'));setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
-addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0);
+addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);if(go&&prev&&prev.at>0&&!prev.fin){st=prev;show(prev.at)}else show(0);
 ${PRESENTS_JS}
-ihPresents('dorisgame',st.at>0)})();` });
+ihPresents('dorisgame',st.at>0||!!go);
+var buy=$('#dzbuy');if(buy){buy.addEventListener('click',function(){buy.disabled=true;buy.textContent='Opening secure checkout…';tick();save();
+ fetch('/api/doris-checkout',{method:'POST'}).then(function(r){return r.json()}).then(function(o){if(o.url){location.href=o.url;return}$('#dzbm').textContent=o.error||'Sorry, payment is unavailable right now.';buy.disabled=false;buy.textContent='Unlock Parts Two and Three'}).catch(function(){$('#dzbm').textContent='Sorry, payment is unavailable right now.';buy.disabled=false;buy.textContent='Unlock Parts Two and Three'})});
+ $('#dzcf').addEventListener('submit',function(e){e.preventDefault();var c=$('#dzci').value;fetch('/api/doris-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:c})}).then(function(r){return r.json()}).then(function(o){if(o.ok){tick();save();try{sessionStorage.setItem('ih_doris_go','1')}catch(_){}location.reload()}else $('#dzcm').textContent=o.error}).catch(function(){$('#dzcm').textContent='Couldn’t check that just now. Try again.'})})}})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------

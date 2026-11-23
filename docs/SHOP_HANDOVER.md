@@ -127,6 +127,12 @@ R2 `site/` (copies in `shop/assets/site/`).
 - Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one); all 7 shows the code **HOODINI5** (5% off). Like
   VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
 
+### Aunt Doris: pay to unlock (23 Nov)
+- Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
+  records the code). Unlock codes in KV `doris:codes`; a cookie `ih_doris` keeps the device unlocked; the code works
+  on other devices via "Already bought it?". Locked pages don't contain Parts Two and Three. Preview test code:
+  PREVIEW-DORIS. Shop checkout now accepts promotion codes (VOTED5, HOODINI5 to be created in Stripe at launch).
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support
