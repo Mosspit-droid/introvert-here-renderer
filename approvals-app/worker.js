@@ -8028,6 +8028,12 @@ async function siteBuilt(request, env) {
 }
 async function siteBuildTick(env) {
   const Q = await env.PENDING.get(SB, "json"); if (!Q) return;
+  if (Q.cur && !Q.cur.pid && Date.now() - Q.cur.at > 15 * 60e3) {   // handed out but not built (due Etsy work went first): back in the queue
+    Q.tries = Q.tries || {}; Q.tries[Q.cur.code] = (Q.tries[Q.cur.code] || 0) + 1;
+    if (Q.tries[Q.cur.code] < 4) (Q.queue = Q.queue || []).unshift(Q.cur.code);
+    else Q.log = [{ code: Q.cur.code, ok: false, at: Date.now(), msg: "The builder didn't build it after four tries." }].concat(Q.log || []).slice(0, 40);
+    delete Q.cur; await env.PENDING.put(SB, JSON.stringify(Q));
+  }
   if (!Q.cur && (Q.queue || []).length) {   // backstop (23 Nov: a start was missed and the queue sat idle): restart an idle builder
     const lk = await env.PENDING.get("lock:builder", "json"), idle = !lk || (lk.passed && Date.now() - lk.at > 4 * 60e3);
     const last = Number((await env.PENDING.get("site-kick-at")) || 0);
