@@ -46,7 +46,8 @@ function keyed(map, n = 100) {
       const top = Math.min(y, ny) - 1; let ok = clearCol(x, top, y) && clearCol(nx, top, ny);
       for (let xi = Math.min(x, nx) + 1; ok && xi < Math.max(x, nx); xi++) ok = !sol(T(xi, top)) && !sol(T(xi, top + 1));
       if (ok) { seen.add(nx + "," + ny); q.push([nx, ny]); } } }
-  const busy = "PWTCGYJXQVMZAKDSh^", cand = [...seen].map((k) => k.split(",").map(Number)).filter(([x, y]) => x >= 4 && g[y][x] === "." && ![-1, 0, 1].some((d) => busy.includes(T(x + d, y)))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  let doorX = W; for (let y = 0; y < H; y++) { const d = g[y].indexOf("D"); if (d >= 0) doorX = Math.min(doorX, d); }   // nothing at or past the way out: touching it ends the level
+  const busy = "PWTCGYJXQVMZAKDSh^", cand = [...seen].map((k) => k.split(",").map(Number)).filter(([x, y]) => x >= 4 && x < doorX - 1 && g[y][x] === "." && ![-1, 0, 1].some((d) => busy.includes(T(x + d, y)))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   for (let i = 0; i < Math.min(n, cand.length); i++) { let [x, y] = cand[Math.floor((i * cand.length) / Math.min(n, cand.length))];
     if (i % 3 === 2 && T(x, y - 1) === "." && T(x, y - 2) === "." && !sol(T(x, y - 3))) y -= 2;
     g[y][x] = "e"; }
@@ -248,6 +249,8 @@ const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "fa
 
 // The arch nemesis: a colleague who turns up wherever Hoodini slips up, points and laughs. Stand-in art; the name is a draft.
 const NEMESIS_NAME = "Gary from Sales";
+// The end-of-level rating: [score out of 100 it starts at, grade, verdict]. Score = keys (60) + battery left (40). Drafts for Barry.
+const GRADES = [[90, "A+", "Ghost. Nobody can confirm he was ever there."], [75, "A", "A clean exit. One witness, unreliable."], [55, "B", "Mildly traumatised. Recoverable with a quiet weekend."], [35, "C", "Socially sunburnt. Needs a lie down."], [0, "D", "Technically escaped. Spiritually still in there."]];
 const FAILS = ["You have agreed to attend a barbecue.", "You are now on the social committee.", "You said “we must do this again”. You must now do this again.", "You have been added to a group chat."];
 
 const CSS = `
@@ -256,7 +259,10 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 .pg [hidden]{display:none!important}
 .pg canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .pg .card{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(22,20,18,.72);overflow:auto}
-.pg .card>div{width:min(100%,430px);margin:auto;padding:20px 20px 18px;border-radius:16px;background:rgba(24,21,17,.97);border:2px solid #fad00c;border-bottom-width:6px;color:#f6efe0;box-shadow:0 14px 40px rgba(0,0,0,.6)}
+.pg .card>div{width:min(100%,460px);margin:auto;color:#f6efe0;box-shadow:0 14px 40px rgba(0,0,0,.6);--pad:18px}
+.pg .card .sheet{width:100%;border-collapse:collapse;margin:2px 0 12px;font-size:14px}.pg .card .sheet th{text-align:left;font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#b9ae9c;padding:7px 0;border-bottom:1px dashed #4a453c}.pg .card .sheet td{text-align:right;font-weight:800;color:#fad00c;padding:7px 0;border-bottom:1px dashed #4a453c;white-space:nowrap}
+.pg .card .rate{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 12px;border:2px solid #fad00c;border-radius:10px}.pg .card .rate b{flex:none;font:900 30px/1 Montserrat,sans-serif;color:#1c1611;background:#fad00c;border-radius:8px;padding:8px 10px;transform:rotate(-4deg)}.pg .card .rate span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#b9ae9c;display:block}.pg .card .rate strong{display:block;font-size:15px;line-height:1.25;color:#f6efe0}
+.pg .card .rate i{font-style:normal;color:#fad00c;letter-spacing:.1em;font-size:14px}
 .pg .card .pre{margin:0;font-size:13px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}
 .pg .card h1,.pg .card h2{margin:2px 0 10px;font-size:26px;line-height:1.1;font-weight:800;text-wrap:balance}
 .pg .card p{margin:0 0 10px;font-size:15px;line-height:1.45}.pg .card ul{margin:0 0 12px;padding-left:18px;font-size:14px;line-height:1.45}.pg .card li{margin-bottom:4px}
@@ -282,13 +288,13 @@ body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-t
 @media (prefers-reduced-motion:reduce){.pg .tp-art,.pg .tp .btn{animation:none}.pg .tp-g,.pg .tp-g u,.pg .tp-g i{animation:none!important}.pg .tp-g{transform:none}}
 .pg .card .how{margin:0 0 4px}.pg .card .how summary{cursor:pointer;font-size:14px;font-weight:700;color:#fad00c;padding:6px 0;list-style-position:inside}.pg .card .how[open] summary{margin-bottom:6px}
 .pg .card .lv{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}.pg .card .lv button{font:700 13px/1 Montserrat,sans-serif;padding:9px 12px;border-radius:999px;border:2px solid #f6efe0;background:transparent;color:#f6efe0;cursor:pointer}.pg .card .lv button.on{background:#fad00c;border-color:#fad00c;color:#1c1611}.pg .card .lv button:disabled{opacity:.35;cursor:default}
-@media (max-height:440px){.pg .card h1,.pg .card h2{font-size:20px}.pg .card ul{font-size:13px}.pg .card>div{width:min(100%,640px);padding:12px 16px}.pg .card p{font-size:13px;margin-bottom:6px}}
+@media (max-height:440px){.pg .card h1,.pg .card h2{font-size:20px}.pg .card ul{font-size:13px}.pg .card>div{width:min(100%,640px);--pad:10px}.pg .card .sheet th,.pg .card .sheet td{padding:3px 0}.pg .card p{font-size:13px;margin-bottom:6px}}
 `;
 
 // The game, run in the visitor's browser. Written without backticks or dollar-braces so it can sit in String.raw.
 const CLIENT = String.raw`
 (function(){
-var LV=__LEVELS__,LI=0,L=LV[0],TH=null,NAME=__NAME__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,NEM=__NEM__,SRC=__SRC__;
+var LV=__LEVELS__,LI=0,L=LV[0],TH=null,NAME=__NAME__,ART=__ART__,HERO=ART.hero,FAILS=__FAILS__,GRADES=__GRADES__,NEM=__NEM__,SRC=__SRC__;
 var $=function(i){return document.getElementById(i)},box=$('pg'),cv=$('pgc'),cx=cv.getContext('2d'),calm=false;
 try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(e){}
 var hd=document.querySelector('header');box.style.setProperty('--hh',(hd?hd.offsetHeight:63)+'px');
@@ -354,10 +360,12 @@ function need(){return /[?&]nokeys=1/.test(location.search)?0:Math.min(L.need||0
 function feed(p){people.forEach(function(o){if(o.k==='P'&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-p.x)<6.2)o.fed=true});P.plateN=(P.plateN||1)-1;pops.push({x:p.x,y:p.y-1.2,life:.6,big:true});say(pick((L.lines.bite)||['Ooh, lovely.']),p.x,p.y-2.6);if(P.plateN<=0){P.plate=false;info('THE PLATE IS EMPTY','They have eaten the lot. Anyone you fed will still let you past.')}}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.freeze=calm?0:.09;S.shake=.35;sfx('hurt');sfx('laugh');puff(P.x,P.y-.8,6,5);S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
-function card(h,p,sm,b){$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
-function win(){sfx('win');S.mode='won';P.wave=1;var total=items.filter(function(i){return i.k==='o'}).length,more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
- card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',(S.hits===0?'Not one conversation. They’ll assume he’s still at his desk.':S.hits===1?'One conversation endured. You nodded in all the right places.':(S.hits+' conversations endured. You are owed a quiet weekend.'))+(more?'':' '+NEM+' was last seen being kissed by your aunt.'),
-  'Keys '+S.keys+' of '+S.keyT+' · Plans cancelled '+S.notes+' of 3 · '+Math.round(S.t)+' seconds',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again')}
+function card(h,p,sm,b){$('pgsheet').hidden=true;$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
+function win(){sfx('win');S.mode='won';P.wave=1;var more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
+ var bp=Math.round(Math.max(0,S.batt)*100),kp2=S.keyT?S.keys/S.keyT:0,sc=Math.round(kp2*60+Math.max(0,S.batt)*40),g=GRADES.filter(function(q){return sc>=q[0]})[0],st=sc>=90?5:sc>=75?4:sc>=55?3:sc>=35?2:1;
+ card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',more?'':NEM+' was last seen being kissed by your aunt.','',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again');
+ var row=function(a,b){return '<tr><th>'+a+'</th><td>'+b+'</td></tr>'},mm=Math.floor(S.t/60),ss=Math.round(S.t%60);
+ $('pgsheet').innerHTML='<table class="sheet">'+row('Social battery on leaving',bp+'%')+row('Keys',S.keys+' of '+S.keyT)+row('Conversations endured',S.hits)+row('Plans cancelled',S.notes+' of 3')+row('Time',mm+':'+(ss<10?'0':'')+ss)+'</table><div class="rate"><b>'+g[1]+'</b><div><span>Rating <i>'+'★★★★★'.slice(0,st)+'<span style="display:inline;color:#4a453c;letter-spacing:.1em;font-size:14px">'+'★★★★★'.slice(st)+'</span></i></span><strong>'+g[2]+'</strong></div></div>';$('pgsheet').hidden=false}
 
 // ---- one tick ----
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
@@ -741,19 +749,19 @@ window.__pg={S:function(){return S},P:function(){return P},people:function(){ret
 // presents = the site's shared "Introvert Here... presents" title card ({ html, js } from worker.js), shown before the title page.
 export function platformPage(page, hub, v, presents) {
   const j = (x) => JSON.stringify(x).replace(/</g, "\\u003c");
-  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents, "hero-hood": ART["hero-hood"], "hero-extra": ART["hero-extra"], "hero-more": ART["hero-more"], "park-cast": ART["park-cast"], "park-mega": ART["park-mega"], key: ART.key })).replace("__FAILS__", () => j(FAILS)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
+  const script = CLIENT.replace("__LEVELS__", () => j([LEVEL, STREET, PARTY, FAMILY])).replace("__NAME__", () => j(HERO_NAME)).replace("__ART__", () => j({ hero: ART.hero, "flat-people": ART["flat-people"], "flat-movers": ART["flat-movers"], "flat-things": ART["flat-things"], "flat-decor": ART["flat-decor"], "street-people": ART["street-people"], "street-movers": ART["street-movers"], "street-bike": ART["street-bike"], "street-things": ART["street-things"], "street-shops": ART["street-shops"], "party-host": ART["party-host"], "party-dancer": ART["party-dancer"], "party-people": ART["party-people"], "party-things": ART["party-things"], "party-decor": ART["party-decor"], "party-criers": ART["party-criers"], "park-play": ART["park-play"], "park-things": ART["park-things"], "park-decor": ART["park-decor"], "park-people": ART["park-people"], "park-kid": ART["park-kid"], "park-parents": ART["park-parents"], nemesis: ART.nemesis, "hero-idle": ART["hero-idle"], "hero-hang": ART["hero-hang"], "gary-parts": ART["gary-parts"], presents: ART.presents, "hero-hood": ART["hero-hood"], "hero-extra": ART["hero-extra"], "hero-more": ART["hero-more"], "park-cast": ART["park-cast"], "park-mega": ART["park-mega"], key: ART.key })).replace("__FAILS__", () => j(FAILS)).replace("__GRADES__", () => j(GRADES)).replace("__NEM__", () => j(NEMESIS_NAME)).replace("__SRC__", () => j(hub.path + "/stealth?v=" + v + "&a="));
   const opening = presents ? presents.js + "\nihPresents('hoodini',false);(function(){var t=document.getElementById('pgtitle'),o=document.getElementById('dzi');if(!o||!o.isConnected)return;t.classList.add('wait');new MutationObserver(function(){if(o.classList.contains('bye')||!o.isConnected)t.classList.remove('wait')}).observe(o,{attributes:true})})();" : "";
   return page(TITLE, `${presents ? presents.html : ""}<style>${CSS}</style><div class="pg" id="pg">
 <canvas id="pgc" tabindex="0" role="img" aria-label="A side-scrolling platform game set in an office, starring ${HERO_NAME}, a small figure in a navy hoodie. Use the on-screen thumb pad to run, A to jump and B to put your hood up. On a keyboard: arrow keys to run, Z or Space to jump, X or Shift to put your hood up."></canvas>
 <button type="button" class="pm" id="pgmenu" aria-label="Pause and menu"><i></i><i></i></button><button type="button" class="pm snd" id="pgsnd" aria-label="Sound on or off">♪</button>
 <div class="tp" id="pgtitle"><div class="tp-art" id="pgta" role="img" aria-label="${TITLE}"></div><i class="tp-logo" id="pgtl" role="img" aria-label="Introvert Here… presents"></i><i class="tp-g" id="pgtg"></i><p class="tp-go"><button class="btn" id="pgplay" type="button">Play</button><a href="${hub.path}">Back to the room</a></p></div>
-<div class="card" id="pgcard" hidden><div>
+<div class="card" id="pgcard" hidden><div class="thing">
 <div id="pgintro"><p class="pre">Introvert Here…</p><h1>${TITLE}</h1>
 <p id="pgintrop">${LEVEL.intro}</p><p class="lv" id="pglv"></p>
 <details class="how"><summary>How to play</summary><ul><li><b>Left thumb</b> steers. <b>A</b> jumps: hold it to jump higher, and steer in the air.</li><li><b>B</b> is Hood Up: he pulls his drawstrings tight and shuffles along, and nobody notices him for a couple of seconds. It’s the only way through a low ceiling.</li><li><b>Touch a person or a speech bubble</b> and it costs a quarter of your social battery.</li><li><b>Drag the picture</b> to look around before you leap. The game waits while you do.</li><li><b>Power-ups glow.</b> Each one tells you what it does when you pick it up.</li><li><b>Keys</b> are what you’re here for. You need 40 to unlock the way out, and each one tops up your battery a little.</li><li><b>Quiet rooms</b> save your place. <b>Office chairs</b> bounce. Three <b>plans-cancelled notes</b> are hidden.</li></ul>
 <p class="sm">Sound effects: the ♪ button turns them off. On a computer: arrow keys, Z or Space to jump, X or Shift for Hood Up.</p></details>
 <p class="go"><button class="btn" id="pggo" type="button">Sneak out</button><a href="${hub.path}">Back to the room</a></p></div>
-<div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><p class="sm" id="pgcs"></p>
+<div id="pgend" hidden><div id="pgnem" hidden style="float:right;margin:-6px -6px 4px 8px"></div><p class="pre">Introvert Here…</p><h2 id="pgch"></h2><p id="pgcp"></p><div id="pgsheet" hidden></div><p class="sm" id="pgcs"></p>
 <p class="go"><button class="btn" id="pgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p><p class="go"><button class="btn alt" id="pgre" type="button">Start level again</button><button class="btn alt" id="pgtt" type="button">Title page</button></p><p class="sm" id="pglvh" hidden style="margin:14px 0 6px">Or pick a level:</p><p class="lv" id="pglv2" style="margin:0"></p></div>
 </div></div></div>`, { nav: "hub", body: "stealth", desc: "A platform game for introverts: get out of the office without being drawn into a conversation.", script: script + "\n" + opening });
 }
