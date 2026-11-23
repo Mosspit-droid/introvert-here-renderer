@@ -8027,7 +8027,14 @@ async function siteBuilt(request, env) {
   return json({ ok: true });
 }
 async function siteBuildTick(env) {
-  const Q = await env.PENDING.get(SB, "json"); if (!Q || !Q.cur || !Q.cur.pid) return;
+  const Q = await env.PENDING.get(SB, "json"); if (!Q) return;
+  if (!Q.cur && (Q.queue || []).length) {   // backstop (23 Nov: a start was missed and the queue sat idle): restart an idle builder
+    const lk = await env.PENDING.get("lock:builder", "json"), idle = !lk || (lk.passed && Date.now() - lk.at > 4 * 60e3);
+    const last = Number((await env.PENDING.get("site-kick-at")) || 0);
+    if (idle && Date.now() - last > 10 * 60e3) { await env.PENDING.put("site-kick-at", String(Date.now())); await amendHook(env, { action: "kick" }).catch(() => {}); }
+    return;
+  }
+  if (!Q.cur || !Q.cur.pid) return;
   const c = Q.cur, fail = async (msg) => { Q.log = [{ code: c.code, ok: false, pid: c.pid, at: Date.now(), msg }].concat(Q.log || []).slice(0, 40); delete Q.cur; await env.PENDING.put(SB, JSON.stringify(Q)); await siteKick(env); };
   try {
     if (Date.now() - c.at > 2 * 3600e3) return await fail("Finishing it off took over 2 hours (Printify product " + c.pid + " was made).");
