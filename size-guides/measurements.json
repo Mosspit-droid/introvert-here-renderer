@@ -1,0 +1,173 @@
+{
+  "_note": "Garment measurements in INCHES, laid flat, copied from Printify's size charts (Barry's screenshots, 18 Nov 2026). Centimetres are worked out from these. A garment shows the yellow 'to confirm' tag until its 'confirmed' is true. Change a number here and rerun build.js to regenerate every guide.",
+  "sizes": [
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL"
+  ],
+  "garments": {
+    "tshirt": {
+      "label": "UNISEX T-SHIRT",
+      "model": "Gildan 5000",
+      "chest": [
+        18,
+        20,
+        22,
+        24,
+        26,
+        28
+      ],
+      "length": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "sleeve": [
+        15.1,
+        16.5,
+        18,
+        19.5,
+        21,
+        22.4
+      ],
+      "confirmed": true,
+      "tolerance_in": 1.5,
+      "sleeve_from": "centre_back"
+    },
+    "longsleeve": {
+      "label": "UNISEX LONG-SLEEVE T-SHIRT",
+      "model": "Gildan 2400",
+      "chest": [
+        18,
+        20,
+        22,
+        24,
+        26,
+        28
+      ],
+      "length": [
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "sleeve": [
+        25,
+        25.5,
+        26,
+        26.5,
+        27,
+        27.5
+      ],
+      "confirmed": true,
+      "tolerance_in": 1,
+      "sleeve_from": "shoulder"
+    },
+    "sweatshirt": {
+      "label": "UNISEX SWEATSHIRT",
+      "model": "Gildan 18000",
+      "chest": [
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "length": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "sleeve": [
+        33.5,
+        34.5,
+        35.5,
+        36.5,
+        37.5,
+        38.5
+      ],
+      "confirmed": true,
+      "tolerance_in": 1.5,
+      "sleeve_from": "centre_back"
+    },
+    "hoodie": {
+      "label": "UNISEX HOODIE",
+      "model": "Gildan 18500",
+      "chest": [
+        20,
+        22,
+        24,
+        26,
+        28,
+        30
+      ],
+      "length": [
+        27.1,
+        28,
+        29.1,
+        30,
+        31,
+        32
+      ],
+      "confirmed": true,
+      "tolerance_in": 1.5,
+      "sleeve": [
+        33.5,
+        34.5,
+        35.5,
+        36.5,
+        37.5,
+        38.5
+      ],
+      "sleeve_from": "centre_back"
+    }
+  },
+  "ranges": {
+    "IH": {
+      "name": "INTROVERT HERE",
+      "logo": "brand-logos/main-collections/introvert-here-stacked.png",
+      "accent": "#F2F0EC"
+    },
+    "SH": {
+      "name": "SHHH.",
+      "logo": "brand-logos/main-collections/shhh-stacked.png",
+      "accent": "#A8CEA8"
+    },
+    "PC": {
+      "name": "PER CONTRACT.",
+      "logo": "brand-logos/main-collections/per-contract-stacked.png",
+      "accent": "#D2443C"
+    },
+    "OS": {
+      "name": "OFF THE SHELF",
+      "logo": "brand-logos/off-the-shelf/off-the-shelf-logo-stacked.png",
+      "accent": "#E0B52C"
+    },
+    "EX": {
+      "name": "EXCLUSIVE.",
+      "logo": "brand-logos/main-collections/exclusive-stacked.png",
+      "accent": "#E5333A",
+      "garments": [
+        "tshirt"
+      ],
+      "_note": "Exclusive. is T-shirts only (Barry, 18 Nov 2026)."
+    },
+    "IP": {
+      "name": "IN PERSON.",
+      "logo": "brand-logos/main-collections/in-person-stacked.png",
+      "accent": "#4A8FE7"
+    }
+  }
+}
