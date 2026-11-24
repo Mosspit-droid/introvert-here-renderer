@@ -133,6 +133,19 @@ R2 `site/` (copies in `shop/assets/site/`).
   on other devices via "Already bought it?". Locked pages don't contain Parts Two and Three. Preview test code:
   PREVIEW-DORIS. Shop checkout now accepts promotion codes (VOTED5, HOODINI5 to be created in Stripe at launch).
 
+### Launch day checklist (planned Mon 30 Nov)
+1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.
+2. Barry: put the Stripe webhook's signing secret into the shop worker's `STRIPE_WEBHOOK_SECRET`; save the live
+   secret key in the app's Orders page.
+3. Barry: in Stripe, create promotion codes VOTED5 (5%) and HOODINI5 (5%), one use per customer.
+4. Me: `catalog()` reads `shop:catalog-next` for the real shop too; deploy the real shop (`shop/wrangler.toml`,
+   AUTO_SEND=yes) from this branch. Copy KV `shop:preview:*` assets the real shop needs (logo-xmas.png, icon.png) to `shop:*`.
+5. Together: a real test order (refund it), a real Aunt Doris unlock (refund it).
+6. Barry: Google Merchant Center (free listings), feed `https://introverthere.com/google-products.xml`.
+Final check 24 Nov: 197 pages crawled, no broken links; 77 pages checked on phone and desktop with no script
+errors, missing files or sideways scrolling; checkout tested against Stripe test mode (prices, promotion codes, In
+Person returns note).
+
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.
 - 21 Nov: Barry's **live** Stripe account is verified (sole trader, statement descriptor INTROVERT HERE, support
