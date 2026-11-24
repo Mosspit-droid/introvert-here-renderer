@@ -223,8 +223,10 @@ function supermarket() {
   box(128, 136, 13, 15, "#"); put(139, G, "T"); pit(143, 145); put(148, G, "F"); box(149, 150, 16, G, "F"); row(152, 156, 13, "="); put(154, 12, "N");
   put(157, G, "w"); put(160, G, "C"); put(163, G, "h"); put(166, G, "w"); put(169, G, "K");
   // 5. The checkouts: three chatty tills to hop across the top of, headphones, the self-checkout queue, the way out
-  put(172, G, "F"); row(174, 178, 14, "="); put(176, G, "T"); row(182, 186, 14, "="); put(184, G, "T"); row(190, 194, 14, "="); put(192, G, "T");
-  put(198, G, "H"); row(201, 207, G, "P"); put(214, G, "D");
+  //    (Barry, 24 Nov: it was impassable. Now a proper staircase up, only two tills, a display that stops their chatter reaching where
+  //    you come down, and the high route carries on over the queue. The ground route with headphones is still there.)
+  put(170, G, "F"); box(171, 172, 16, G, "F"); row(174, 178, 14, "="); put(176, G, "T"); row(181, 185, 14, "="); row(188, 192, 14, "="); put(190, G, "T");
+  put(195, G, "F"); put(198, G, "H"); row(196, 207, 14, "="); row(202, 206, G, "P"); put(214, G, "D");
   return g.map((r) => r.join(""));
 }
 const SHOP_ZONES = [
@@ -234,9 +236,9 @@ const SHOP_ZONES = [
   { x0: 125, x1: 170, name: "Frozen", wall: "#dff3f5", dado: "#bfe3e8", rail: "#86c3cc", tones: ["#cfeaee", "#b3dbe1", "#97ccd4"], kinds: [9, 10, 9], win: false },
   { x0: 170, x1: 222, name: "The Checkouts", wall: "#f6e4e0", dado: "#ebc9c1", rail: "#cf9c90", tones: ["#f0d5ce", "#e3bdb3", "#d6a598"], kinds: [12, 13, 12, 10], win: true },
 ];
-const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", lost: "Unexpected item in the bagging area.", talkEvery: 1.9, chaseSpeed: 3.6, chaseWind: .9, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, map: keyed(supermarket()), zones: SHOP_ZONES, upstairs: null,
+const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.6, chaseWind: .9, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, map: keyed(supermarket()), zones: SHOP_ZONES, upstairs: null,
   intro: "Hoodini only needs milk. The supermarket is between him and home, and tonight everyone he knows needs milk too.",
-  signs: [{ x: 12, y: 14.4, t: "FREE SAMPLES: JUMP THEM" }, { x: 46.5, y: 9.6, t: "REDUCED SECTION" }, { x: 46.5, y: 10.3, t: "GO OVER THE TOP" }, { x: 95.5, y: 14.3, t: "WET FLOOR: RIDE THE TROLLEY" }, { x: 132.5, y: 11.6, t: "HOOD UP" }, { x: 184.5, y: 12.2, t: "ACROSS THE TILLS" }],
+  signs: [{ x: 12, y: 14.4, t: "FREE SAMPLES: JUMP THEM" }, { x: 46.5, y: 9.6, t: "REDUCED SECTION" }, { x: 46.5, y: 10.3, t: "GO OVER THE TOP" }, { x: 95.5, y: 14.3, t: "WET FLOOR: RIDE THE TROLLEY" }, { x: 132.5, y: 11.6, t: "HOOD UP" }, { x: 173, y: 12.2, t: "UP AND OVER THE TILLS" }],
   movers: [{ trolley: true, x0: 91.3, x1: 99.7, y: 16.9, w: 2.2, speed: 2.2 }],
   tannoy: ["Cleaner to aisle six. Cleaner to aisle six.", "Would the owner of a navy hoodie please come to customer services.", "This is a colleague announcement: Gary to the tills, please.", "Shoppers are reminded that eye contact is optional."],
   lines: { P: ["Is that you? In HERE?", "Ooh, what are you having for tea?", "I never see you in here!"], W: ["Excuse me, do you work here?", "Can you reach the top shelf for me?", "Where do they keep the eggs?"], T: ["Do you need a bag?", "Have you got a loyalty card?", "Busy today, isn’t it?", "Doing anything nice later?"], C: ["It IS you! From SCHOOL!", "Hang on, I’ll walk round with you!", "Wait there, I’ll get my trolley!"], reach: ["Try the cheese!", "Free sample?", "It’s a new yoghurt!"], pit: ["You slipped on the wet floor. Three people asked if you were all right."] } };
