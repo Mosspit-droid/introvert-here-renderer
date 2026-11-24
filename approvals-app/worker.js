@@ -7854,7 +7854,7 @@ async function shopCatalogRun(env, opt) {
       if (!gal.images.some((i) => i.live)) problems.push(w.code + ": no text-free photos stored yet, so the site can't preview the name");
     }
     const d = designs[gagId] || (designs[gagId] = { id: gagId, coll, collection: w.c, title: w.stem, slug: scSlug(w.stem) + "-" + gagId.toLowerCase(), text: w.text, garments: {} });
-    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, video: (vidsOwn[w.code] && vidsOwn[w.code].at ? { url: "/v/" + w.code + ".mp4?v=" + vidsOwn[w.code].at, poster: "/v/" + w.code + ".jpg?v=" + vidsOwn[w.code].at } : null), printifyId: w.ip ? null : w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site, personal,
+    d.garments[type] = { label: SC_GARMENTS[type], code: w.code, video: (vidsOwn[w.code] && vidsOwn[w.code].at ? { url: "/v/" + w.code + ".mp4?v=" + vidsOwn[w.code].at, poster: gal.tile || ("/v/" + w.code + ".jpg?v=" + vidsOwn[w.code].at) } : null), printifyId: w.ip ? null : w.pid, etsyId: w.eid, etsyUrl: w.eid ? "https://www.etsy.com/listing/" + w.eid : "", siteOnly: !!w.site, personal,
       priceFrom: Math.min(...g.variants.map((v) => v.price)), variants: g.variants, images: gal.images, mockups: [], tile: gal.tile, mainColour: gal.mainColour, sizeGuide: gal.sizeGuide,
       features: (S.feat || {})[w.c + "|" + type] || "", pAt: g.pAt };
   }
