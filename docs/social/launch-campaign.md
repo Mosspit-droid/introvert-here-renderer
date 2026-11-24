@@ -51,6 +51,7 @@ Cut-outs: stand, walk, peek, sit, wave, head, silhouette (`brand-logos/mascot/`)
 - **Canva AI video works for Hoodini.** Test "The doorbell" (10 s, 9:16, 720p; Canva asset VAHb3JudKAQ). Barry: "looks fantastic". References uploaded to Canva: Hoodini sitting `MAHb3KrV8G8`, standing `MAHb3MYPIM8` (cut-outs scaled up 4× on a cream background).
 - How it was made: `create-video`, guide `generic`, Hoodini as the presenter reference, the stand pose as a detail reference. The room was described in words. Ambience only (chime, rustle, lamp click), no music, and no lettering.
 - **Finishing step:** download the clip, then add Barry's line, the logo and an end card in the renderer. Needs `media.canva.com` (added to the environment's allowed hosts on 24 Nov). The first download attempt was blocked by the session's permission check, so Barry needs to allow it.
+- **First short: "Meet Hoodini"** (Hoodini's first appearance). Line from Barry: "Meet Hoodini. He'd rather you didn't." Claude's suggestion: split it, with "Meet Hoodini." over the opening as the hook and "He'd rather you didn't." when the lamp goes off. Draft: `social/launch/out/meet-hoodini-short.mp4`. Waiting for Barry's verdict. Post it the week after launch, as the first "Hoodini vs the world". End card: add introverthere.com if the site is live by then. Caption idea: "Meet Hoodini, our mascot. He's hiding on introverthere.com. Seven times."
 - Each new AI clip needs Barry's OK, because it uses the Canva AI allowance.
 
 ## Rules
