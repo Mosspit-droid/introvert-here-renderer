@@ -1,0 +1,52 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0b0b0a;font-family:Montserrat,sans-serif;color:#f2f0ea}
+#stage{position:absolute;inset:0;background:#0b0b0a}
+/* spotlight: a soft cone from above and a pool of light on the floor */
+#cone{position:absolute;left:50%;top:-60px;width:760px;height:1300px;transform:translateX(-50%);
+  background:linear-gradient(180deg,rgba(255,244,214,.20),rgba(255,244,214,.07) 70%,rgba(255,244,214,0));
+  clip-path:polygon(44% 0,56% 0,100% 100%,0 100%);filter:blur(6px);opacity:0}
+#pool{position:absolute;left:50%;top:1150px;width:700px;height:150px;transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at center,rgba(255,244,214,.45),rgba(255,244,214,.12) 55%,transparent 72%);opacity:0}
+#hood{position:absolute;left:50%;top:1170px;height:560px;transform-origin:50% 100%;
+  transform:translate(-50%,-100%)}
+#logo{position:absolute;left:50%;top:1420px;width:600px;transform:translateX(-50%);opacity:0}
+#url{position:absolute;left:0;right:0;top:1560px;text-align:center;font-weight:600;font-size:46px;letter-spacing:.02em;opacity:0}
+#grain{position:absolute;inset:0;opacity:.06;mix-blend-mode:overlay}
+</style></head><body>
+<div id="stage">
+  <div id="cone"></div><div id="pool"></div>
+  <img id="hood" src="assets/mascot-stand.png">
+  <img id="logo" src="assets/logo-wide.png"><div id="url">introverthere.com</div>
+  <svg id="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+</div>
+<script>
+const q = new URLSearchParams(location.search);
+if (q.get('url') === '0') document.getElementById('url').remove();
+const c01 = x => Math.max(0, Math.min(1, x));
+const ease = x => { x = c01(x); return x * x * (3 - 2 * x); };
+const $ = id => document.getElementById(id);
+// t in seconds. 0-0.5 dark; spotlight clunks on; he stands lit; shuffles back into the dark; light stays on the empty spot.
+window.frame = t => {
+  const on = t >= 0.5 ? 1 : 0;                         // a spotlight snaps on, it doesn't fade
+  const flick = t > 0.5 && t < 0.62 ? 0.55 : 1;        // tiny flicker as it strikes
+  $('cone').style.opacity = on * flick;
+  $('pool').style.opacity = on * flick;
+  // shuffle back: three small steps between 1.5 s and 3.0 s
+  const p = ease((t - 1.5) / 1.5);
+  const steps = Math.sin(c01((t - 1.5) / 1.5) * Math.PI * 3);
+  const bob = Math.abs(steps) * -10;
+  const scale = 1 - 0.15 * p;
+  const rise = -70 * p;                                 // further back = a little higher up the frame
+  const dx = -300 * p + steps * 6;                     // backs out of the beam to the left
+  $('hood').style.transform = `translate(calc(-50% + ${dx}px), calc(-100% + ${rise + bob}px)) scale(${scale})`;
+  // lit while in the pool, falls into shadow as he leaves it
+  const lit = on ? 1 - 0.94 * ease((t - 1.8) / 0.9) : 0.06;
+  $('hood').style.filter = `brightness(${lit})`;
+  $('logo').style.opacity = ease((t - 2.4) / 0.6) * .92;
+  const u = $('url'); if (u) u.style.opacity = ease((t - 2.7) / 0.6);
+};
+frame(4);
+</script></body></html>

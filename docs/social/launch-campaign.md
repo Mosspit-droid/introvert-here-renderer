@@ -31,7 +31,7 @@ Times are 19:30 UK unless noted. "Video" = 9:16 for Reels, TikTok and Stories. "
 | Tue 1 Dec | **Excuse Generator:** three excuses as a carousel (Barry picks the three). "Get yours." | carousel + video | /uk/escape-room/… |
 | Wed 2 Dec | **Gift guide:** order by 12 Dec (long sleeves by 5 Dec) | still/carousel from the product feed | /uk/gifts |
 | Thu 3 Dec | **Aunt Doris:** the hug picture. "She's at every party. Can you escape?" Plus a story: long sleeves by Saturday | still + story | Aunt Doris page |
-| Sat 5 Dec | **Hoodini hunt**, hinted only: "He's hiding on the site. Seven times. Find him, get something." Plus a story: last day for long sleeves | still + video | introverthere.com |
+| Sat 5 Dec | Story only: last day for long sleeves (the Hoodini hunt post is dropped; see Rules) | story | /uk/gifts |
 | Mon 7 Dec | **Spot the Introvert #1:** one painting, answer the next day in the comments and stories | still | Spot the Introvert |
 | Wed 9 Dec | **Christmas:** three days left to order | still | /uk/gifts |
 | Fri 11 Dec | **Christmas:** last orders tomorrow | still + story | /uk/gifts |
@@ -51,12 +51,12 @@ Cut-outs: stand, walk, peek, sit, wave, head, silhouette (`brand-logos/mascot/`)
 - **Canva AI video works for Hoodini.** Test "The doorbell" (10 s, 9:16, 720p; Canva asset VAHb3JudKAQ). Barry: "looks fantastic". References uploaded to Canva: Hoodini sitting `MAHb3KrV8G8`, standing `MAHb3MYPIM8` (cut-outs scaled up 4× on a cream background).
 - How it was made: `create-video`, guide `generic`, Hoodini as the presenter reference, the stand pose as a detail reference. The room was described in words. Ambience only (chime, rustle, lamp click), no music, and no lettering.
 - **Finishing step:** download the clip, then add Barry's line, the logo and an end card in the renderer. Needs `media.canva.com` (added to the environment's allowed hosts on 24 Nov). The first download attempt was blocked by the session's permission check, so Barry needs to allow it.
-- **First short: "Meet Hoodini"** (Hoodini's first appearance). Line from Barry: "Meet Hoodini. He'd rather you didn't." Claude's suggestion: split it, with "Meet Hoodini." over the opening as the hook and "He'd rather you didn't." when the lamp goes off. Draft: `social/launch/out/meet-hoodini-short.mp4`. Waiting for Barry's verdict. Post it the week after launch, as the first "Hoodini vs the world". End card: add introverthere.com if the site is live by then. Caption idea: "Meet Hoodini, our mascot. He's hiding on introverthere.com. Seven times."
+- **First short: "Meet Hoodini"** (Hoodini's first appearance). Line from Barry: "Meet Hoodini. He'd rather you didn't." Claude's suggestion: split it, with "Meet Hoodini." over the opening as the hook and "He'd rather you didn't." when the lamp goes off. **Barry chose the split version.** End card (`social/launch/endcard.html`): a spotlight snaps on, Hoodini stands lit, then shuffles back out of the beam into the dark. The light stays on the empty spot, then the logo and introverthere.com appear. Post it the week after launch, as the first "Hoodini vs the world". The caption must not mention the hunt.
 - Each new AI clip needs Barry's OK, because it uses the Canva AI allowance.
 
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
-- Never say where Hoodini hides.
+- **Never signpost the Hoodini hunt** (Barry, 24 Nov): no hints that he's hiding on the site, no "seven times", nothing. People find him for themselves. It's more rewarding, and it may get people talking online.
 - The gag launch posts from Make (Etsy video to Instagram, Facebook and Pinterest) carry on as they are. Pointing them at the site instead of Etsy is Barry's call, later.
 
 ## Barry's steps
