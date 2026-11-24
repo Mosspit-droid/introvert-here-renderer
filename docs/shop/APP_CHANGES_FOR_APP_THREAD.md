@@ -245,3 +245,14 @@ catalogue has one. 99 of the 120 listings have an Etsy video; none reach the sit
 2. In the catalogue, on each garment with a video: `video: { url: "/v/<CODE>.mp4?v=<at>", poster: "/v/<CODE>.jpg?v=<at>" }`.
    The site serves `/v/...` from R2 with range requests (phones stream it). Re-copy when a video is regenerated.
 3. Tell the shop thread when the first few are in, so it can check them on the preview.
+
+## Added 24 Nov: no more opening mockup flash in gag videos
+
+Barry doesn't want the 0.8-second garment flash ("teaser") that opened about half the videos. In `buildPage.js` the
+teaser is now off unless a spec explicitly sets `teaser: true` (line in `pickVariant`). Changed on branch
+`ccr-2e2fbc93-uwhyvw` only.
+
+1. Make the same change wherever the renderer is deployed (Render builds from its branch; the branch above isn't merged).
+2. Re-render the existing videos that open with the flash, re-upload them to Etsy (replacing the old video) and let the
+   site's video copy pick up the new VIDEO_ETSY_ID. Only some videos have it: check a frame at ~0.2s (IH-00003's
+   T-shirt does; IH-00001, IH-00002 and IH-00005 don't). Do it gradually; no rush before launch beyond what's easy.

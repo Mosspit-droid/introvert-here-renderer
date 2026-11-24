@@ -112,7 +112,7 @@ function isExCollection(collection) {
 //     punch  - setup lines appear, a beat, then the last line lands with a bump
 //     words  - word by word, like captions
 //   motion: how the product photos move - zoomOut, zoomIn, panLeft, panRight
-//   teaser: open with a 0.8s flash of the garment before the gag (a visual hook)
+//   teaser: open with a 0.8s flash of the garment before the gag. Off by default since 24 Nov; only if spec.teaser is true
 const TEXT_STYLES = ['type', 'lines', 'punch', 'words'];
 const MOTIONS = ['zoomOut', 'zoomIn', 'panLeft', 'panRight'];
 
@@ -131,7 +131,8 @@ function pickVariant(spec) {
   return {
     textStyle: TEXT_STYLES.includes(spec.textStyle) ? spec.textStyle : TEXT_STYLES[h % TEXT_STYLES.length],
     motion: MOTIONS.includes(spec.motion) ? spec.motion : MOTIONS[Math.floor(h / 7) % MOTIONS.length],
-    teaser: typeof spec.teaser === 'boolean' ? spec.teaser : Math.floor(h / 101) % 2 === 0,
+    // Off unless a spec asks for it (Barry, 24 Nov: the opening flash of a mockup before the gag looked awful).
+    teaser: spec.teaser === true,
   };
 }
 
