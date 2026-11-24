@@ -203,6 +203,15 @@ save("park-cast", strip([cellf(f, s, 420, 290, 170, 286) for f in pc]), w=420, h
 pm = figures(key2("park-mega.png")); assert len(pm) == 5, len(pm); s = 2.0 * PPT / pm[1].shape[0]
 save("park-mega", strip([cellf(f, s, 460, 310, 170, 306) for f in pm]), w=460, h=310, ax=170, base=306, n=5)
 
+# The high street in the rain (Barry, 24 Nov): the dog walker 0-1, (the busker 2-3, not used: he stays dry), the hen party 4-7, then the
+# clipboard walker 8-11, all under umbrellas. The runner and the cyclist stay as they are.
+rp = figures(key("street-people-rain.png"), 2); assert len(rp) == 8, len(rp)
+rm = figures(key("street-movers-rain.png"), 3); assert len(rm) == 10, len(rm)
+for f in rp[:2]:      # trim the trailing lead, as on the dry sheet
+    h = f.shape[0]; xs = np.where((f[int(h * .92):, :, 3] > 128).any(axis=0))[0]; cut = xs[-1] + int(h * .1); f[int(h * .45):, cut:, 3] = 0
+rs1 = 2.1 * PPT / (.795 * rp[0].shape[0]); rs2 = 2.05 * PPT / (.85 * rm[0].shape[0])   # sized by the person, not by the umbrella
+save("street-rain", strip([cellf(f, rs1, 440, 350, 170, 346) for f in rp] + [cellf(f, rs2, 440, 350, 170, 346) for f in rm[:4]]), w=440, h=350, ax=170, base=346, n=12)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
