@@ -128,8 +128,9 @@ function highStreet() {
   put(154, G, "P"); put(156, G, "^"); row(154, 155, 9, "o"); box(158, 164, 13, G, "#");
   put(167, G, "P"); put(169, G, "P"); put(171, G, "^"); row(167, 169, 9, "o"); box(172, 178, 13, G, "#"); put(175, 12, "K");
   put(181, G, "T"); put(184, G, "^"); put(182, 8, "N"); box(185, 191, 13, G, "#"); row(187, 189, 12, "o");
-  // 5. The park gate: a cycle lane, another old friend, a busker, the gate
-  put(205, G, "c"); put(207, G, "w"); put(211, G, "C"); row(214, 216, G, "o"); put(219, G, "T"); put(226, G, "D");
+  // 5. The park gate: a cycle lane, a busker, the gate
+  put(205, G, "c"); row(214, 216, G, "o");   // no old friend here any more: a cyclist, a runner and a busker at once was impossible (Barry, 24 Nov)
+  put(219, G, "T"); put(226, G, "D");
   return g.map((r) => r.join(""));
 }
 const STREET_ZONES = [
