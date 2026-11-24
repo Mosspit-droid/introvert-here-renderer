@@ -31,7 +31,7 @@ Agents are used only where judgement is needed. Repeated steps are scripts (stan
 
 | Role | Kind | Job | Reads | Writes |
 |---|---|---|---|---|
-| **Planner** | agent, weekly | Turns the 4-week calendar into next week's briefs. Rotates the characters and collections so none is left out. Avoids clashes with launch posts. | `calendar.md`, rotation log, launch posts due | `packs/<week>/briefs.json` |
+| **Planner** | agent, weekly | Turns the calendar into next week's briefs. Rotates Hoodini ideas and collections so none is left out. Avoids clashes with launch posts. | `launch-campaign.md` calendar, rotation log, launch posts due | `packs/<week>/briefs.json` |
 | **Writer ("Brian")** | agent | Image text and captions in the right voice, plus 3–8 hashtags. Gives 3 options for each line and picks the best one. | `characters.md`, collection voices (below) | captions in the brief |
 | **Art director** | agent with the Canva connector | Builds each post in Canva from the series template and the character art, then exports every size. | brand kit `kAHHlEC03pw`, series templates, `team/` art | Canva design + exported files |
 | **Critic ("Keith")** | agent, separate from the art director | Checks each post against the checklist below. Sends weak ones back (2 tries at most), then passes it on marked "needs Barry's eye". | export, brief, checklist | pass/redo + reason |
