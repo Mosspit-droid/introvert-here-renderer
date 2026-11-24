@@ -258,7 +258,7 @@ const FAILS = ["You have agreed to attend a barbecue.", "You are now on the soci
 
 const CSS = `
 body.stealth main{max-width:none;padding:0;margin:0}body.stealth footer{margin-top:0}
-.pg{position:relative;height:calc(100dvh - var(--hh,63px));min-height:300px;overflow:hidden;background:#20222b;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
+.pg{position:relative;z-index:6;height:calc(100dvh - var(--hh,63px));min-height:300px;overflow:hidden;background:#20222b;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;touch-action:none}
 .pg [hidden]{display:none!important}
 .pg canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .pg .card{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(22,20,18,.72);overflow:auto}
