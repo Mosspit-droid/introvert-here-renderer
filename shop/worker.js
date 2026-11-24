@@ -412,7 +412,11 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
 .door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
 .strip{margin:clamp(40px,6vw,80px) 0 0}
-.pret{border-left:3px solid #4a8fe7;padding-left:10px}.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
+.pret{border-left:3px solid #4a8fe7;padding-left:10px}.nbadge{position:absolute;z-index:2;top:calc(var(--ft) + 8px);left:calc(var(--ft) + 8px);display:flex;flex-direction:column;align-items:center;width:clamp(58px,34%,84px);overflow:hidden;border-radius:7px;background:#4a8fe7;box-shadow:0 3px 10px rgba(0,0,0,.45);transform:rotate(-6deg);font-family:Montserrat,sans-serif;line-height:1;text-align:center;pointer-events:none}
+.nbadge b{display:block;padding:4px 0 0;color:#fff;font-size:clamp(11px,2.6cqw,15px);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.nbadge i{display:block;padding:1px 0 3px;color:#fff;font-size:clamp(6px,1.3cqw,8px);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.nbadge em{display:block;width:100%;margin-bottom:5px;padding:4px 0;background:#fff;color:#1d1d1b;font-style:normal;font-size:clamp(10px,2.4cqw,14px);font-weight:800;letter-spacing:.04em;font-family:'Comic Sans MS','Marker Felt','Segoe Print',cursive}
+.tile{container-type:inline-size}
+.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
 .xn{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:#5b1316;border:1px solid #a7322d;color:#f6efe0;font-size:14px;line-height:1.4;text-align:center}.xn b{color:#fff}.xn a{color:#f6d06b;white-space:nowrap}
 .xgift{display:flex;flex-direction:column;gap:4px;margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#5b1316,#2a3d24);border:1px solid #a7322d;color:#f6efe0;text-decoration:none}.xgift b{font-size:clamp(20px,3vw,26px);text-transform:uppercase;letter-spacing:.02em}.xgift span{color:#e9d9a0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
@@ -830,7 +834,9 @@ function mixedItems(cat, list, types) {
 function tileHtml({ d, t }) {
   const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
   const varies = g.variants.some((v) => v.price !== g.priceFrom);
-  return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
+  // In Person tiles carry a name-badge sticker (Barry, 24 Nov): the "Hello, my name is" kind, in the range's blue.
+  const badge = g.personal ? `<span class="nbadge" aria-label="Personalised with your name"><b>Hello</b><i>my name is</i><em>YOU</em></span>` : "";
+  return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}">${badge}<img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
 }
 
 // ---------------- Google Shopping product feed (/google-products.xml) ----------------
