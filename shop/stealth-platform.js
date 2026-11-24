@@ -479,7 +479,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
   if(!mm){S.rollT=0;S.rollW=false}else{S.rollT=(S.rollT||0)+dt;mm.f=P.x<mm.x?-1:1;if(S.rollT>L.roll-1.8&&!S.rollW){S.rollW=true;if(!S.seenM){S.seenM=true;info('ROLL CALL','When the megaphone goes off, have your hood up or be off the ground.')}}
    if(S.rollT>=L.roll){S.rollT=0;S.rollW=false;S.rollF=.7;say('HAS ANYONE SEEN '+NAME.toUpperCase()+'?',mm.x,mm.y-2.7);if(!unseen&&P.ground&&tile(kx,ky)!=='K'){say(pick(L.lines.M),P.x,P.y-2.7);hurt('M',mm.x)}}}}
- bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=b.x1+7;b.t=0}}else{b.x-=11*dt;if(b.x<b.x0-7)b.x=null;
+ bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=Math.min(Math.max(b.x1+7,cam+vw+2),b.x1+32);b.t=0}}else{b.x-=11*dt;if(b.x<Math.max(Math.min(b.x0-7,cam-2),b.x0-32))b.x=null;   /* they ride in from off the screen and out the other side, not out of thin air */
    else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
   if(!unseen&&b.life>0&&Math.abs(b.x-P.x)<.62&&b.y>P.y-HH&&b.y<P.y){if(P.inv<=0)say(b.line,P.x,P.y-2.6);hurt('bubble',b.x);b.life=0}return b.life>0});
