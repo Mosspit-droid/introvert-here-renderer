@@ -92,6 +92,9 @@ save("hero-more", strip([cellx(f, msc, 340, 230, 170, 226, fr) for f, fr in mf])
 kf = figures(key("key.png")); assert len(kf) == 4, len(kf); ks = 150 / max(f.shape[0] for f in kf)
 def centred(fig, sc, n): im = scaled(fig, sc); c = Image.new("RGBA", (n, n), (0, 0, 0, 0)); c.alpha_composite(im, ((n - im.width) // 2, (n - im.height) // 2)); return c
 save("key", strip([centred(f, ks, 160) for f in kf]), w=160, h=160, n=4)
+# The Do Not Disturb hanger: refills the social battery (three hidden per level). Swinging left 0, straight 1, right 2.
+hg = figures(key("hanger.png")); assert len(hg) == 3, len(hg); hgs = 190 / max(f.shape[0] for f in hg)
+save("hanger", strip([centred(f, hgs, 200) for f in hg]), w=200, h=200, n=3)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
