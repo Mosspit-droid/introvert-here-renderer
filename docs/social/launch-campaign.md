@@ -9,12 +9,13 @@ Based on `docs/social/site-launch-brief.md` (branch ccr-2e2fbc93-uwhyvw). The si
 - **Platforms:** Instagram (feed, stories, reels), Facebook, Pinterest, TikTok, Threads, Bluesky.
 - **Extras:** Christmas deadline reminders; ongoing series after launch week; launch video recorded automatically from the live site.
 - **No Black Friday post.**
-- Meet the Team moves to January. Team Doris (the T-rex) stays away from the feed while Aunt Doris is being promoted.
+- **Meet the Team is dropped** (Barry, 24 Nov): those images were a joke for the Etsy About page. **Hoodini is the company mascot** and the face of the socials from now on.
+- **Launch post: Mon 30 Nov at 19:30, not 12:00.** Barry is at work during the day. The launch video is recorded on Sunday 29 Nov from the finished site and approved that evening. On Monday morning, once the site is live, a quick check confirms nothing has changed, and then Postiz posts it at 19:30.
 
 ## How it's automated
 1. Each post type is a builder page in `social/launch/` (site palette, Hoodini cut-outs, Montserrat). It renders 4:5, 9:16 and 2:3 stills plus a short vertical video. No Canva AI credits used.
 2. Series content comes straight from the site: the 40 excuses, the 10 Spot the Introvert paintings, and products from `google-products.xml`.
-3. Launch video: on 30 Nov, after the site is live, Playwright records the real site (gate → room → Excuse Generator), and Hoodini walks across at the end.
+3. Launch video: on Sun 29 Nov, Playwright records the finished site (gate → room → Excuse Generator), and Hoodini walks across at the end. Barry approves it that evening. It's scheduled for Mon 19:30, after a quick morning check that the live site matches. The footage shows the site only, never the preview address.
 4. Claude shows each post as a preview. Barry says OK. Claude schedules it in Postiz for every platform it suits.
 5. After launch: the product feed is added as a catalogue in Pinterest and in Meta Commerce Manager. Claude walks Barry through it step by step.
 
@@ -26,7 +27,7 @@ Times are 19:30 UK unless noted. "Video" = 9:16 for Reels, TikTok and Stories. "
 |---|---|---|---|
 | Thu 26 Nov | **Teaser 1:** Hoodini's nose round a lit doorway. "Something's coming. Please don't make a fuss." (**built**, `01-teaser-door.html`) | still + 7 s video | none |
 | Sat 28 Nov | **Teaser 2:** the warning gate. "We built a room to get away from people. You're not invited. Fine. Monday." | still + video | none |
-| Mon 30 Nov (12:00) | **Launch:** "It's live. Please don't visit." Site recording plus Hoodini walk-on | video + still | introverthere.com |
+| Mon 30 Nov (19:30) | **Launch:** "It's live. Please don't visit." Site recording plus Hoodini walk-on | video + still | introverthere.com |
 | Tue 1 Dec | **Excuse Generator:** three excuses as a carousel (Barry picks the three). "Get yours." | carousel + video | /uk/escape-room/… |
 | Wed 2 Dec | **Gift guide:** order by 12 Dec (long sleeves by 5 Dec) | still/carousel from the product feed | /uk/gifts |
 | Thu 3 Dec | **Aunt Doris:** the hug picture. "She's at every party. Can you escape?" Plus a story: long sleeves by Saturday | still + story | Aunt Doris page |
@@ -39,10 +40,16 @@ Times are 19:30 UK unless noted. "Video" = 9:16 for Reels, TikTok and Stories. "
 
 From 14 Dec, two series posts a week: **Spot the Introvert** (Mondays) and **Excuse of the week** (Thursdays), plus **Vote on the next gag** now and then.
 
+## Hoodini, the mascot (ongoing ideas)
+Cut-outs: stand, walk, peek, sit, wave, head, silhouette (`brand-logos/mascot/`). Ideas to develop after launch week:
+- **Hoodini vs the world:** short, relatable introvert moments (the doorbell, the office party, "quick call?"), each a still plus a short animation built from the cut-outs.
+- **Reluctant announcements:** Hoodini fronting every launch or offer, as if he'd rather not.
+- **Seasonal:** Christmas parties, New Year, Introvert Day (2 Jan).
+- **Animation:** moving cut-outs now (free). Later, Canva AI video using the cut-outs as the reference, if a test clip is worth the AI allowance. A flat cartoon stays more consistent than the old photoreal team images.
+
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
 - Never say where Hoodini hides.
-- Aunt Doris (the hug-obsessed aunt) is not the team's Doris (the knitting T-rex).
 - The gag launch posts from Make (Etsy video to Instagram, Facebook and Pinterest) carry on as they are. Pointing them at the site instead of Etsy is Barry's call, later.
 
 ## Barry's steps

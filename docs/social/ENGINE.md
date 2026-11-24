@@ -1,15 +1,17 @@
 # Social engine: plan (11 Nov 2026)
 
-Status: **plan only. Nothing built yet.** Decisions from Barry on 11 Nov:
+Status: **plan only.** Update 24 Nov: Meet the Team is dropped, Hoodini is the mascot, and the site launch campaign comes first (`launch-campaign.md`).
+
+Earlier status: Decisions from Barry on 11 Nov:
 - Posting goes through **Postiz**. Approvals happen in the **Introvert Here approvals app**, not in Postiz or Canva.
 - **3–4 posts a week**, on top of the automatic listing launch posts (Make scenario 7783647, left as it is).
-- **Meet the Team leads the first month.** The own shop isn't live, so the posts aren't a sales push. They build the brand, and the only link is the Etsy shop.
+- ~~Meet the Team leads the first month~~ (dropped 24 Nov).
 - Plan first. Build after Barry has reviewed this.
 
 Later decisions on 11 Nov:
 - **Barry writes all the text** (image lines and captions). Agents only fit it to each platform (length, hashtags, alt text). The Writer role below is reduced to that.
 - **Visuals come from prompts**, with as little involvement from Barry as possible. Barry is making clean reference shots of each character on 12 Nov (front full body on a plain background, three-quarter view, and in their usual setting with no text). Every image and clip is generated from those references so the characters stay consistent.
-- **Animation:** moving stills for most posts (push-in, parallax from separated image layers, typing text), plus AI video clips (Canva `create-video`) where they're worth it. Barry is watching the Canva AI limit. First test: **Meet The Boss** (`clips/01-meet-the-boss.md`).
+- **Animation:** moving stills for most posts (push-in, parallax from separated image layers, typing text), plus AI video clips (Canva `create-video`) where they're worth it. Barry is watching the Canva AI limit. (The Meet The Boss test clip is dropped. Any AI video test now uses Hoodini.)
 - **Channels:** Instagram, Facebook, Threads, Pinterest, TikTok, YouTube Shorts, Bluesky to try. **No Reddit.** X and LinkedIn not for now.
 
 ## What it does
