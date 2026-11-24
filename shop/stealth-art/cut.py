@@ -215,6 +215,20 @@ for f in rp[:2]:      # trim the trailing lead, as on the dry sheet
 rs1 = 2.1 * PPT / (.795 * rp[0].shape[0]); rs2 = 2.05 * PPT / (.85 * rm[0].shape[0])   # sized by the person, not by the umbrella
 save("street-rain", strip([cellf(f, rs1, 440, 350, 170, 346) for f in rp] + [cellf(f, rs2, 440, 350, 170, 346) for f in rm[:4]]), w=440, h=350, ax=170, base=346, n=12)
 
+# Level 5, the supermarket (Barry, 24 Nov). People: the sample lady 0-1, the checkout assistant 2-3, the shopper 4-5, the old man 6-7.
+hp = figures(key("shop-people.png"), 2); assert len(hp) == 8, len(hp); s = 2.1 * PPT / hp[2].shape[0]
+save("shop-people", strip([cellf(f, s, 440, 290, 170, 286) for f in hp]), w=440, h=290, ax=170, base=286, n=8)
+# Movers: the slow trolley 0-3, the old school friend running 4-6 and out of breath 7 (placed by the head, so the trolley sticks out in front)
+hm = figures(key("shop-movers.png"), 2); assert len(hm) == 8, len(hm); s1 = 2.05 * PPT / max(f.shape[0] for f in hm[:4]); s2 = 2.05 * PPT / hm[5].shape[0]
+def cellh(fig, sc, cw, ch, ax, base, frac): im = scaled(fig, sc); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[: max(1, int(a_.shape[0] * .3)), : max(1, int(a_.shape[1] * frac))].any(axis=0))[0]; c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - (xs[0] + xs[-1]) / 2), base - im.height)); return c
+save("shop-movers", strip([cellh(f, s1, 560, 262, 150, 258, .45) for f in hm[:4]] + [cellh(f, s2, 560, 262, 150, 258, 1) for f in hm[4:]]), w=560, h=262, ax=150, base=258, n=8)
+_, ht_, _, _ = boxes("shop-things.png", [(20, 480, 80, 470), (505, 865, 60, 470), (875, 1385, 5, 470), (1400, 1745, 80, 465), (10, 545, 530, 880), (585, 945, 500, 880), (975, 1260, 500, 880), (1315, 1755, 505, 880)])
+sheet_("shop-things", ht_, [215, 150, 300, 150, 190, 235, 285, 300], ["trolley", "crates", "tins", "wetfloor", "till", "selfcheck", "staff", "exit"])
+# Background: 0 cereal shelves 1 tins and jars 2 fruit and veg stand 3 freezer 4 bakery rack 5 aisle sign 6 chiller 7 magazines 8 baskets 9 offer sign
+_, hd_, _, _ = boxes("shop-decor.png", [(30, 350, 50, 485), (375, 700, 50, 485), (705, 1080, 30, 485), (1090, 1415, 55, 485), (1430, 1765, 60, 485), (15, 310, 535, 870), (320, 735, 550, 875), (735, 1115, 535, 875), (1130, 1445, 535, 875), (1460, 1765, 505, 875)])
+dh = [3.5, 3.5, 3.3, 3.7, 3.3, 1.6, 2.5, 2.4, 1.6, 2.4]; cells = [scaled(f, dh[i] * PPT * .75 / f.shape[0]) for i, f in enumerate(hd_)]; xs = np.cumsum([0] + [c.width for c in cells]).tolist()
+save("shop-decor", strip(cells), items=[dict(x=xs[i], w=cells[i].width, h=cells[i].height) for i in range(len(cells))], ppt=PPT * .75)
+
 # The Pacer: walk 0-5, then clipboard 6, spotted 7, talking 8, laughing 9, then the cupcake: noticing 10, picking up 11, delighted 12, eating 13
 pw = figures(key("pacer-walk2.png"), 2); pp = figures(key("pacer-poses.png")); ck = figures(key("pacer-cake.png"), gap=30)
 # In the first pose the cupcake sits by her feet (under the overhang of her hair): lift it out of the bottom of the picture.
