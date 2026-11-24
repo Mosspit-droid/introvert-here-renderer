@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:transparent;width:1080px;height:1920px;overflow:hidden;font-family:Montserrat,sans-serif;color:#f2f0ea}
+.line{position:absolute;left:0;right:0;top:300px;text-align:center;padding:0 90px;font-weight:800;font-size:88px;line-height:1.08;letter-spacing:-.02em;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+.card{position:absolute;inset:0;background:radial-gradient(ellipse 70% 50% at 50% 45%,#23221f 0%,#121211 70%,#0b0b0a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:70px}
+.card img.h{height:420px}.card img.l{width:640px}
+.card p{font-size:34px;color:#a9a59b}
+</style></head><body></body>
+<script>
+const q=new URLSearchParams(location.search);
+document.body.innerHTML = q.get('mode')==='card'
+ ? `<div class="card"><img class="h" src="assets/mascot-stand.png"><img class="l" src="assets/logo-wide.png">${q.get('sub')?`<p>${q.get('sub')}</p>`:''}</div>`
+ : `<div class="line">${q.get('text')}</div>`;
+</script></html>
