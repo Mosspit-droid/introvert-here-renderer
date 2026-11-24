@@ -47,6 +47,12 @@ Cut-outs: stand, walk, peek, sit, wave, head, silhouette (`brand-logos/mascot/`)
 - **Seasonal:** Christmas parties, New Year, Introvert Day (2 Jan).
 - **Animation:** moving cut-outs now (free). Later, Canva AI video using the cut-outs as the reference, if a test clip is worth the AI allowance. A flat cartoon stays more consistent than the old photoreal team images.
 
+## Short-form video (tested 24 Nov)
+- **Canva AI video works for Hoodini.** Test "The doorbell" (10 s, 9:16, 720p; Canva asset VAHb3JudKAQ). Barry: "looks fantastic". References uploaded to Canva: Hoodini sitting `MAHb3KrV8G8`, standing `MAHb3MYPIM8` (cut-outs scaled up 4× on a cream background).
+- How it was made: `create-video`, guide `generic`, Hoodini as the presenter reference, the stand pose as a detail reference. The room was described in words. Ambience only (chime, rustle, lamp click), no music, and no lettering.
+- **Finishing step:** download the clip, then add Barry's line, the logo and an end card in the renderer. Needs `media.canva.com` (added to the environment's allowed hosts on 24 Nov). The first download attempt was blocked by the session's permission check, so Barry needs to allow it.
+- Each new AI clip needs Barry's OK, because it uses the Canva AI allowance.
+
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
 - Never say where Hoodini hides.
