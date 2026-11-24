@@ -139,7 +139,9 @@ const STREET_ZONES = [
   { x0: 139, x1: 193, name: "The Rooftops", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
   { x0: 193, x1: 232, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
 ];
-const STREET = { name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
+// rain: showers that come and go. In the rain everyone puts an umbrella up and cannot see past it (the people who chase you only
+// spot you from close up), but the pavement is slippery (Barry, 24 Nov).
+const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
   signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
@@ -373,7 +375,7 @@ function win(){sfx('win');S.mode='won';P.wave=1;var more=LI<LV.length-1;if(more)
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
 function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;if(S.freeze>0){S.freeze-=dt;return}
  movers.forEach(function(m){if(m.sw){var ox=m.x,sa=Math.sin((S.t+m.ph)*6.2832/m.per);m.x=m.cx+m.amp*sa;m.y=m.cy-Math.abs(sa)*.5;if(P.on===m){P.x+=m.x-ox;P.y=m.y}return}if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
- var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;
+ var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;if(L.rain){var rn=(S.t%50)>22;if(rn&&!S.raining){hiss(.8,.12,2400);if(!S.seenR){S.seenR=true;info('IT’S RAINING','Umbrellas up. People who chase you can’t see past them. The pavement is slippery.')}}S.raining=rn;S.wet=Math.max(0,Math.min(1,(S.wet||0)+(rn?dt:-dt)/1.5));if(S.wet>.3){S.rainS=(S.rainS||0)+dt;if(S.rainS>.35){S.rainS=0;hiss(.4,.03*S.wet,3200)}}}else S.wet=0;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.fast>0)P.fast-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
  // Hood Up: on the ground, while B is held and there is hood left
  var want=hoodKey()&&P.ground&&P.cool<=0&&P.hoodT>0&&S.mode==='play';
@@ -381,7 +383,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  if(P.hood)sv*=.27;if(P.ground&&sv===0&&Math.abs(P.vx)>4.5&&!(P.skidT>0))P.skidT=.3;if(P.skidT>0)P.skidT-=dt;if(P.callT>0)P.callT-=dt;if(P.cringeT>0)P.cringeT-=dt;if(P.wetT>0)P.wetT-=dt;P.hoodW=P.hood?(P.hoodW||0)+Math.abs(P.vx)*dt:0;
  // running
  if(jumpKey()&&!P.jk)P.jT=0;P.jk=!!jumpKey();P.jT+=dt;
- var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC:AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
+ var tv=sv*RUN*(P.fast>0?1.45:1),ac=(P.ground?ACC*(S.wet>.5?.4:1):AIR)*dt;if(P.vx<tv)P.vx=Math.min(tv,P.vx+ac);else if(P.vx>tv)P.vx=Math.max(tv,P.vx-ac);if(P.fling>0){P.fling-=dt;P.vx=13;P.f=1}if(d)P.f=d;   // quicker to turn in the air than on the carpet
  // jumping, with a little forgiveness either side of an edge
  if(P.ground)P.coy=.1;else P.coy-=dt;
  if(jumpQ>0&&P.coy>0&&!P.hood){P.vy=-JUMP;P.ground=false;P.coy=0;jumpQ=0;P.sq=1;sfx('jump');puff(P.x,P.y,3)}
@@ -442,7 +444,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  P.hid=P.ground&&Math.abs(P.vx)<1.2&&tile(Math.floor(P.x),Math.floor(P.y-.5))==='h';if(P.hid&&!S.seenH){S.seenH=true;info('BEHIND THE CURTAIN','Stand still here and nobody can see you. It does not use up your hood.')}
  var unseen=P.hid||P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
  people.forEach(function(p){p.t+=dt;
-  var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7;
+  var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<(S.wet>.5?2.3:7);
   var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
   if(p.k==='C'&&party&&isDark(zoneAt(p.x,p.y-.5))){p.run=0;p.rest=0;p.wind=0;p.lost=true;var gx=p.x+p.f*.5;if(solid(Math.floor(gx),Math.floor(p.y-.5))||tile(Math.floor(gx),Math.floor(p.y-.5))==='w'||!solid(Math.floor(gx),Math.floor(p.y+.1)))p.f=-p.f;else p.x+=p.f*.55*dt}
   else if(p.k==='C'){p.lost=false;if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=L.chaseRest||2.2}else if(near&&!un&&S.mode==='play'){p.run=L.chaseRun||3.1;p.wind=L.chaseWind||.55;p.f=P.x<p.x?-1:1;say(L.chaseCall||pick(L.lines.C),p.x,p.y-2.5);if(L.chaseCall&&!S.seenC){S.seenC=true;info('THE HOST HAS SPOTTED YOU','He points first, then runs. Jump him, or stand still behind a curtain.')}}
@@ -650,7 +652,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
  if(L.pram&&L.pram.x>x0-3&&L.pram.x<x1+3){var pd=ART['park-decor'],pi=pd.items[8],pim=IMG['park-decor'];if(pim.naturalWidth){var ph2=1.75,pw2=ph2*pi.w/pi.h;c.drawImage(pim,pi.x+1,pd.H-pi.h,pi.w-2,pi.h,L.pram.x-pw2/2,MH-2+.04-ph2,pw2,ph2);if(S.pramBaby)babyPic(L.pram.x-.12,MH-2-.95,.62)}}
- people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
+ people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1){person(p);if(S.wet>.05&&'PWCT'.indexOf(p.k)>=0){c.globalAlpha=Math.min(1,S.wet*1.5);thing('brolly',p.x+p.f*.12,p.y-1.05,1.9,false,'street-things');c.globalAlpha=1}}});
  if(L.roll&&S.rollW&&S.mode==='play'){var rl=Math.max(0,(L.roll-S.rollT)/1.8),bx2=cam+vw/2,by3=camY+1.9;c.fillStyle='#e0303a';rr(bx2-3.1,by3-.38,6.2,.76,.16);c.fill();ink(.08);c.fillStyle='#fff';c.font='800 .36px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ROLL CALL: HOOD UP!',bx2,by3-.02);c.fillStyle=YEL;c.fillRect(bx2-2.9,by3+.24,5.8*rl,.08)}
  movers.forEach(function(m){if(!m.sw)thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things')});
  bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;if(due||b.x!==null){c.fillStyle=YEL;c.beginPath();c.arc(b.x1+.4,MH-2-2.6,.34,0,6.2832);c.fill();ink(.07);c.fillStyle=INK;c.font='800 .42px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('!',b.x1+.4,MH-2-2.58)}
@@ -696,6 +698,9 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
  var placed=[];says.forEach(function(s){bubbleSay(s.t,s.x,s.y,Math.min(1,s.life*2),placed)});
  c.restore();if(titleOn)return;
+ if(S.wet>0){var rw=S.wet;c.save();c.beginPath();c.rect(0,sceneY,W,sceneH);c.clip();c.fillStyle='rgba(30,40,70,'+(.24*rw)+')';c.fillRect(0,sceneY,W,sceneH);c.strokeStyle='rgba(215,230,255,'+(.55*rw)+')';c.lineWidth=1.6;c.lineCap='round';c.beginPath();
+  var gy=sceneY+(MH-2-camY)*u,rt=calm?0:T;for(var ri2=0;ri2<90;ri2++){var rx=((ri2*137.5+rt*-260-cam*u*.6)%(W+80)+W+80)%(W+80)-40,ry=sceneY+((ri2*71.3+rt*(760+ri2%5*40))%sceneH);c.moveTo(rx,ry);c.lineTo(rx-7,ry+20)}c.stroke();
+  if(!calm){c.strokeStyle='rgba(215,230,255,'+(.6*rw)+')';c.lineWidth=1.3;for(var si=0;si<14;si++){var sp2=(T*2.2+si*.37)%1,sx3=((si*211.7+Math.floor(T*2.2+si*.37)*97-cam*u)%W+W)%W;c.beginPath();c.ellipse(sx3,gy+3,2+sp2*9,1+sp2*2.5,0,3.1416,6.2832);c.stroke()}}c.restore()}
  // the display: battery, tea and notes
  var hy=sceneY+10,hs=Math.min(1,(W-150)/440),low=S.batt<=.26,kok=S.keys>=need(),kp=S.keyPop>0?(S.keyPop-=1/60,1+S.keyPop*1.2):1;c.save();c.translate(W-12,hy);c.scale(hs,hs);
  c.fillStyle='rgba(27,27,42,.9)';rr(-262,0,262,50,12);c.fill();c.strokeStyle=low&&!calm&&Math.floor(T*4)%2?'#ff6a4f':YEL;c.lineWidth=3;c.stroke();
