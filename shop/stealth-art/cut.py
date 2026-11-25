@@ -95,6 +95,12 @@ save("key", strip([centred(f, ks, 160) for f in kf]), w=160, h=160, n=4)
 # The Do Not Disturb hanger: refills the social battery (three hidden per level). Swinging left 0, straight 1, right 2.
 hg = figures(key("hanger.png")); assert len(hg) == 3, len(hg); hgs = 190 / max(f.shape[0] for f in hg)
 save("hanger", strip([centred(f, hgs, 200) for f in hg]), w=200, h=200, n=3)
+# Gary's heads, for the little circle beside the social battery: smirk 0, grin 1, snort 2, laughing 3, helpless 4, gone 5 (facing left)
+kh = key("gary-heads.png"); hq = kh.shape[1] / 2000; ghs = []
+for x0, x1 in [(20, 325), (350, 655), (668, 990), (1015, 1308), (1308, 1652), (1652, 1995)]:
+    f = trim_(kh[:, round(x0 * hq):round(x1 * hq)]); im = scaled(f, 300 / (430 * hq)); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[int(a_.shape[0] * .93):].any(axis=0))[0]
+    c = Image.new("RGBA", (340, 330), (0, 0, 0, 0)); c.alpha_composite(im, (round(170 - (xs[0] + xs[-1]) / 2), 330 - im.height)); ghs.append(c)
+save("gary-heads", strip(ghs), w=340, h=330, n=6)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
