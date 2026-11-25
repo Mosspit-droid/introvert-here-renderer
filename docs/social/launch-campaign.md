@@ -80,6 +80,9 @@ Postiz is on a free trial: check the end date and price. **Barry gets overwhelme
 - **Offsite Ads opted out, 25 Nov:** the ~15% fee would exceed the ~£4 margin per sale. (Etsy says Google Shopping placement stays free.)
 - Barry is disillusioned after 8 months with little traffic. Keep scope tight: no new jobs until the test gives evidence.
 
+## Standing order from Barry
+Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
+
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
 - **Never signpost the Hoodini hunt** (Barry, 24 Nov): no hints that he's hiding on the site, no "seven times", nothing. People find him for themselves. It's more rewarding, and it may get people talking online.
