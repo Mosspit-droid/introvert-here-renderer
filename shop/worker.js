@@ -1004,7 +1004,17 @@ const BUSY = {
 const ML_ACCOUNT = "2825119";
 const ML_FORM = "jF2XBx";
 function newsletterPage() {
-  const form = ML_ACCOUNT ? `<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
+  // MailerLite draws its form white; these rules repaint it in the Escape Room's colours (dark, cream text, yellow button).
+  const mlCss = `<style>.ml-embedded,.ml-embedded *{font-family:Montserrat,sans-serif!important}
+.ml-embedded .ml-form-embedContainer,.ml-embedded .ml-form-embedWrapper,.ml-embedded .ml-form-embedBody,.ml-embedded .ml-form-successBody,.ml-embedded .ml-form-align-center,.ml-embedded form{background:transparent!important;background-color:transparent!important;border:0!important;box-shadow:none!important;width:100%!important;max-width:100%!important}
+.ml-embedded .ml-form-embedBody,.ml-embedded .ml-form-successBody{padding:6px 0 0!important}
+.ml-embedded h4,.ml-embedded p,.ml-embedded span,.ml-embedded label,.ml-embedded li{color:#f6efe0!important}
+.ml-embedded .ml-form-embedPermissions p,.ml-embedded .ml-form-embedPermissions span,.ml-embedded .ml-form-recaptcha + p{color:#b8b0a3!important;font-size:12px!important}
+.ml-embedded input[type=email],.ml-embedded input[type=text]{background:#141412!important;background-color:#141412!important;color:#f6efe0!important;border:2px solid #f6efe0!important;border-radius:10px!important;font-size:16px!important;padding:12px 14px!important;height:auto!important;box-shadow:none!important}
+.ml-embedded input::placeholder{color:#9b9488!important}
+.ml-embedded button,.ml-embedded .primary{background:#fad00c!important;background-color:#fad00c!important;color:#141412!important;border:0!important;border-radius:10px!important;font-weight:800!important;font-size:16px!important;padding:12px 18px!important;height:auto!important;box-shadow:none!important}
+.ml-embedded button:hover{background:#ffe04a!important}</style>`;
+  const form = ML_ACCOUNT ? `${mlCss}<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
   return page("Newsletter", `<div class="nlb"><section class="box"><p class="step">The noticeboard</p><h1>The newsletter</h1>
 <p>Occasional. Quiet. New gags, new games, and the odd discount for people who’d rather not be told about things in person.</p>
 <p>No small talk. Unsubscribe any time, with one click and no explanation.</p>${form}
