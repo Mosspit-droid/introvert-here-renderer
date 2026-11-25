@@ -75,6 +75,11 @@ Connected to Claude as a claude.ai connector (`mcp__Postiz__*`, sign-in, no API 
 - Bluesky introverthereshop.bsky.social `cmww075070pt5qd07tw588omf`
 Postiz is on a free trial: check the end date and price. **Barry gets overwhelmed by long setup lists: one step at a time.** Nothing is posted without his OK.
 
+## Paid test (25 Nov)
+- **Etsy Ads on, 25 Nov:** all listings advertised, budget meant to be US$1/day (Barry to confirm it isn't the US$5 default). Leave alone for 30 days; review around 25 Dec: views, clicks, orders. That's the honest test of whether people want the products.
+- **Offsite Ads opted out, 25 Nov:** the ~15% fee would exceed the ~£4 margin per sale. (Etsy says Google Shopping placement stays free.)
+- Barry is disillusioned after 8 months with little traffic. Keep scope tight: no new jobs until the test gives evidence.
+
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
 - **Never signpost the Hoodini hunt** (Barry, 24 Nov): no hints that he's hiding on the site, no "seven times", nothing. People find him for themselves. It's more rewarding, and it may get people talking online.
