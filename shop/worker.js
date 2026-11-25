@@ -632,6 +632,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dmf{width:86px;height:86px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
 .dmf img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.dm[data-lv="0"] .dmf img{max-height:46%}.dm[data-lv="1"] .dmf img{max-height:66%}.dm[data-lv="2"] .dmf img{max-height:86%}.dm[data-lv="3"] .dmf img{max-height:none;width:118%;max-width:none;margin-bottom:-10%}
 .dml{margin:0;font-size:14px;font-weight:600;line-height:1.35}.dm[data-lv="2"]{background:#33201e}.dm[data-lv="3"]{background:#4a1518}
+.hug.kitd .in{text-align:left;width:min(440px,100%);max-height:86vh;overflow:auto;background:#1d1a17;border:2px solid #fad00c;border-radius:12px;padding:18px}.kitd h2{margin:0 0 10px}.kitd ol{margin:0 0 14px;padding-left:22px}.kitd li{margin:0 0 10px}.kitd li b{color:#fad00c}.kitd .none{color:#b8b0a3}
 .hug{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,5,7,.95)}.hug[hidden]{display:none}
 .hug .in{max-width:420px;text-align:center}.hugpic{width:min(60vw,250px);margin:0 auto}.hugpic img{display:block;width:100%;height:auto;max-height:52vh;object-fit:contain;animation:hugsq 1.1s ease-in-out infinite;transform-origin:50% 90%}
 .hug .ttl{font-size:clamp(60px,16vw,110px);margin:4px 0 8px}@keyframes hugsq{0%,100%{transform:scale(1)}50%{transform:scale(1.06,.96)}}
@@ -1521,7 +1522,7 @@ function dorisPage(cat, print, full) {
 ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH-00014"], "Survived Doris? Dress for the next one.")}
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn ghost" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
-  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
+  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div><div class="hug kitd" id="kitd" hidden role="dialog" aria-label="Your kit"><div class="in"><h2>Your kit</h2><div id="kitl"></div><p style="text-align:center;margin:0"><button class="btn" type="button" id="kitok">Back to it</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
   if (!full) {   // Part One only, then the paywall where Part Two would begin
     const k = steps.findIndex((x) => x.includes(">Part two<"));
@@ -1548,6 +1549,11 @@ function setLv(m,lv){m.dataset.lv=lv;$('img',m).src='/s/doris-'+(lv+1)+'.png?v=1
 [1,2,3,4,'hug'].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
 function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;st.hugs=(st.hugs||0)+1;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
+// "Your kit" (Barry, 25 Nov): everything collected so far, with what each one said, so clues like the bus time can be looked up again.
+function kitOpen(){var ks=Object.keys(P).map(Number).filter(function(k){return st.done[k]&&P[k].got}).sort(function(a,b){return a-b});
+ var l=$('#kitl');l.innerHTML='';if(!ks.length){l.innerHTML='<p class="none">Nothing yet. Your pockets are empty.</p>'}else{var ol=document.createElement('ol');ks.forEach(function(k){var li=document.createElement('li'),b=document.createElement('b');b.textContent=P[k].got[1];li.appendChild(b);li.appendChild(document.createElement('br'));li.appendChild(document.createTextNode(P[k].got[2]));ol.appendChild(li)});l.appendChild(ol)}
+ $('#kitd').hidden=false;$('#kitd .in').scrollTop=0;$('#kitok').focus({preventScroll:true})}
+$('#kitok').addEventListener('click',function(){$('#kitd').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
@@ -1562,7 +1568,7 @@ function looksSolved(s){var n=s.dataset.n,p=P[n];s.dataset.r=1;$('.say',s).textC
 function solved(s){var n=s.dataset.n;st.done[n]=1;save();looksSolved(s);if(n===String(N))setTimeout(function(){show(cur+1)},900)}
 // Back and Forward (Barry, 21 Nov): every screen after the first can go back, so earlier clues can be looked at again.
 // Forward returns to the furthest screen reached. Solved puzzles show as solved when revisited.
-S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';s.insertBefore(nav,s.firstChild);
+S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost kb" type="button">Your kit</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';$('.kb',nav).addEventListener('click',kitOpen);s.insertBefore(nav,s.firstChild);
  $('.bk',nav).addEventListener('click',function(){show(Math.max(1,cur-1))});$('.fw',nav).addEventListener('click',function(){show(st.max)})});
 $$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start')fresh();show(cur+1)})});
 var prev=load(),go=false;try{go=/[?&]go=1/.test(location.search)||sessionStorage.getItem('ih_doris_go');sessionStorage.removeItem('ih_doris_go')}catch(_){}
