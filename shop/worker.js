@@ -115,6 +115,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/gate") return html(gatePage());
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
+      if (path === HUB.path + "/newsletter") return html(newsletterPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
       if (path === HUB.path + "/aunt-doris") {
@@ -998,6 +999,18 @@ const BUSY = {
   chat: ["Are you free?", "Quick one", "It can’t wait", "Did you see my email?", "The one about my message", "Calling you now", "Actually, can you call me", "URGENT", "Ignore that", "No, don’t ignore that"],
   sync: ["Syncing 4,812 items", "Reconciling the figures", "Uploading the big file", "Verifying the verification", "Backing up the backup"],
 };
+// The noticeboard (Barry, 25 Nov): the MailerLite sign-up form (form jF2XBx). MailerLite's own script draws the form
+// into the div; it needs the account number from MailerLite's embed code (Forms > the form > Embed > JavaScript snippet).
+const ML_ACCOUNT = "";
+const ML_FORM = "jF2XBx";
+function newsletterPage() {
+  const form = ML_ACCOUNT ? `<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
+  return page("Newsletter", `<div class="nlb"><section class="box"><p class="step">The noticeboard</p><h1>The newsletter</h1>
+<p>Occasional. Quiet. New gags, new games, and the odd discount for people who’d rather not be told about things in person.</p>
+<p>No small talk. Unsubscribe any time, with one click and no explanation.</p>${form}
+<p class="note">We only email people who sign up. See our <a href="/privacy">privacy notice</a>.</p></section><p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`,
+    { nav: "hub", desc: "The Introvert Here newsletter: occasional, quiet, and easy to leave.", script: ML_ACCOUNT ? `(function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments)},l=d.createElement(e),l.async=1,l.src=u,n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n)})(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');ml('account','${ML_ACCOUNT}');` : "" });
+}
 function lookBusyPage() {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Look Busy | ${SHOP_NAME}</title><meta name="description" content="A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work."><link rel="icon" href="/icon.png">
@@ -1877,7 +1890,7 @@ const ROOM = [
     wide: { r: [[41, 46.5, 7.6, 11.5]], d: [44.8, 52.5] }, tall: { r: [[34, 49.6, 13.8, 6.8]], d: [41, 53.2] } },
   { name: "Excuse Generator", href: HUB.path + "/excuses",
     wide: { r: [[49.3, 53.5, 6.4, 9.5]], d: [52.4, 58.1], f: "b" }, tall: { r: [[50.5, 52.6, 10.5, 6]], d: [55.9, 55.6], f: "b" } },
-  { name: "Newsletter", soon: "Nothing pinned up yet. The newsletter is coming. Come back later.",
+  { name: "Newsletter", href: HUB.path + "/newsletter",
     wide: { r: [[66.5, 16.5, 7.2, 26.5]], d: [70.1, 22] }, tall: { r: [[41, 23, 13.5, 11.8]], d: [47.7, 28.5], f: "r" } },
   { name: "The shop", href: "/uk/shop",
     wide: { r: [[74.4, 21, 9.6, 35.5]], d: [79, 44], f: "b" }, tall: { r: [[85, 24.5, 13, 16.5]], d: [91.5, 32], f: "rb" } },
@@ -2039,7 +2052,8 @@ function legalPage(which) {
 <p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full. Other items in the same order keep the change-of-mind right above.</p>
 <p><b>Return address:</b> Introvert Here returns, ${ADDRESS}. Please email us first so we know to expect it.</p>`],
     privacy: ["Privacy", `<p>We collect only what we need to take payment and deliver your order: your name, email, phone number and delivery address. Payment is handled by Stripe; we never see your card details. Your delivery details are passed to our print partner (Printify) to make and post your order.</p>
-<p>We keep order records for as long as the law requires for accounts. We don't sell your data, send marketing without asking, or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
+<p>We keep order records for as long as the law requires for accounts. We don't sell your data or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
+<p>Newsletter: we send an occasional newsletter, only to people who sign up for it on our noticeboard. Your email address is held by our email provider, MailerLite, for that purpose alone. Every email has an unsubscribe link, and you can unsubscribe any time; or email us and we'll take you off.</p>
 <p>Controller: Mosspit Studios, ${ADDRESS}. Questions or requests: ${EMAIL}. You can also complain to the Information Commissioner's Office (ico.org.uk).</p>`],
     contact: ["Contact", `<p>Email: ${EMAIL}</p><p>Post: Mosspit Studios, ${ADDRESS}</p><p>We reply as soon as we can, usually within two working days. In writing. Obviously.</p>`],
   };
