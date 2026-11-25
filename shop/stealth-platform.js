@@ -29,13 +29,13 @@ const HERO_NAME = "Hoodini";            // Barry's name for the introvert (21 No
 // They are scattered automatically over everywhere Hoodini can reach on foot (a rough model of his jump, chairs and
 // bouncy castles), every third one up at jump height, and never on top of a person. Wide gaps only count as crossable when they are
 // real drops (a pit, water), because each of those has a swing, a bus or balloons over it.
-function keyed(map, n = 100) {
+function keyed(map, n = 100, seeds = []) {
   const H = map.length, W = map[0].length, g = map.map((r) => r.replace(/o/g, ".").split(""));   // no more cups of tea: the keys top up the battery now (Barry, 23 Nov)
   const T = (x, y) => (y >= H ? "." : y < 0 || x < 0 || x >= W ? "#" : g[y][x]), sol = (c) => c === "#" || c === "F", floor = (c) => sol(c) || c === "=" || c === "B";
   const stand = (x, y) => y >= 1 && !sol(T(x, y)) && !sol(T(x, y - 1)) && floor(T(x, y + 1));
   const clearCol = (x, y0, y1) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) if (sol(T(x, y))) return false; return true; };
   let start = null; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (g[y][x] === "S") start = [x, y];
-  const seen = new Set([start.join()]), q = [start];
+  const seen = new Set([start.join()]), q = [start]; seeds.forEach((sd) => { seen.add(sd.join()); q.push(sd); });
   while (q.length) { const [x, y] = q.shift(), maxUp = T(x, y) === "^" ? 6 : T(x, y + 1) === "B" ? 11 : 3;
     for (let dx = -14; dx <= 14; dx++) for (let up = maxUp; up >= -H; up--) { const nx = x + dx, ny = y - up; if (!stand(nx, ny) || seen.has(nx + "," + ny)) continue;
       if (Math.abs(dx) > 4) {   // long crossings only on the level or downwards, and only over a real drop (water, a pit): those all have a swing, a bus or balloons
@@ -47,7 +47,7 @@ function keyed(map, n = 100) {
       for (let xi = Math.min(x, nx) + 1; ok && xi < Math.max(x, nx); xi++) ok = !sol(T(xi, top)) && !sol(T(xi, top + 1));
       if (ok) { seen.add(nx + "," + ny); q.push([nx, ny]); } } }
   let doorX = W; for (let y = 0; y < H; y++) { const d = g[y].indexOf("D"); if (d >= 0) doorX = Math.min(doorX, d); }   // nothing at or past the way out: touching it ends the level
-  const busy = "PWTCGYJXQVMZARKDSh^", cand = [...seen].map((k) => k.split(",").map(Number)).filter(([x, y]) => x >= 4 && x < doorX - 1 && g[y][x] === "." && ![-1, 0, 1].some((d) => busy.includes(T(x + d, y)))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const busy = "PWTCGYJXQVMZARKDSh^g", cand = [...seen].map((k) => k.split(",").map(Number)).filter(([x, y]) => x >= 4 && x < doorX - 1 && g[y][x] === "." && ![-1, 0, 1].some((d) => busy.includes(T(x + d, y)))).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   for (let i = 0; i < Math.min(n, cand.length); i++) { let [x, y] = cand[Math.floor((i * cand.length) / Math.min(n, cand.length))];
     if (i % 3 === 2 && T(x, y - 1) === "." && T(x, y - 2) === "." && !sol(T(x, y - 3))) y -= 2;
     g[y][x] = "e"; }
@@ -204,46 +204,49 @@ const PARTY = { name: "The House Party", out: "the house party", theme: "party",
   signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 86.5, y: 23.6, t: "TISSUES" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], A: ["CONGA!", "Get on the end!", "Da da da da da, HEY!"], reach: ["Have a drink!", "Try this, it’s lethal.", "Hold this a sec."], bite: ["Ooh, is that a sausage roll?", "Don’t mind if I do.", "Are those the mini quiches?"], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], pit: ["You fell into a conversation about house prices."] } };
 
-// Level 5, the supermarket (Barry, 24 Nov). Drawn with the office's look for now (stand-in). New here: a shopping trolley to ride
-// across the wet floor, people offering free samples (they reach out), tannoy announcements, and the checkouts to hop over.
+// Level 5, the supermarket (Barry, 25 Nov, second go). Four aisles on ONE floor, drawn front to back: you see your own aisle and
+// the one behind it. Change aisle with the stick (up = further back, down = towards the front) at the open end of the shelving or at
+// a gap in it (links, below). The open ends alternate, so you zig-zag; one thing off the shopping list (g) is in each aisle, and the
+// self-service checkout will not serve you without all four. From the back aisle a one-way queue lane comes forward to the tills.
+// R shoppers who nip round the ends too.  The lanes are rows of the map 7 apart (laneY is where feet stand).
 function supermarket() {
-  const W = 222, H = 20, G = 17, g = Array.from({ length: H }, () => Array(W).fill("."));
+  const W = 78, H = 34, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
-  const pit = (x0, x1) => box(x0, x1, 18, 19, ".");
-  box(0, W - 1, 18, 19, "#"); box(0, 0, 0, 19, "#"); box(W - 1, W - 1, 0, 19, "#");
-  put(2, G, "S");
-  // 1. Fruit and veg: the first free sample, a stack of crates up to a shelf (sign 1), someone doing a slow lap with a trolley
-  put(12, G, "P"); put(18, G, "F"); box(19, 20, 16, G, "F"); row(22, 26, 14, "="); put(24, 13, "N"); put(28, G, "w"); put(32, G, "W"); put(36, G, "w"); put(39, G, "K");
-  // 2. The aisles: headphones, then the reduced section (a scrum round the yellow stickers that you cannot hop) with crates up to the shelf above it, then someone from school
-  put(42, G, "H"); put(45, G, "F"); box(46, 47, 16, G, "F"); row(49, 58, 14, "="); row(51, 56, G, "P");
-  put(63, G, "c"); put(65, G, "w"); put(67, G, "h"); put(70, G, "C"); put(73, G, "h"); put(76, G, "w"); put(80, G, "T"); put(84, G, "K");
-  // 3. Cleaning in aisle six: a wide wet floor, crossed on a runaway trolley (sign 2 above it), then samples and a browser
-  pit(90, 101); put(95, 12, "N"); put(105, G, "P"); put(110, G, "m"); put(112, G, "w"); put(116, G, "W"); put(120, G, "w"); put(123, G, "K");
-  // 4. Frozen: a low freezer tunnel with a chatty shelf-stacker beyond it (Hood Up), a spill, crates up to sign 3, another old friend
-  box(128, 136, 13, 15, "#"); put(139, G, "T"); pit(143, 145); put(148, G, "F"); box(149, 150, 16, G, "F"); row(152, 156, 13, "="); put(154, 12, "N");
-  put(157, G, "w"); put(160, G, "C"); put(163, G, "h"); put(166, G, "w"); put(169, G, "K");
-  // 5. The checkouts: three chatty tills to hop across the top of, headphones, the self-checkout queue, the way out
-  //    (Barry, 24 Nov: it was impassable. Now a proper staircase up, only two tills, a display that stops their chatter reaching where
-  //    you come down, and the high route carries on over the queue. The ground route with headphones is still there.)
-  put(170, G, "F"); box(171, 172, 16, G, "F"); row(174, 178, 14, "="); put(176, G, "T"); row(181, 185, 14, "="); row(188, 192, 14, "="); put(190, G, "T");
-  put(195, G, "F"); put(198, G, "H"); row(196, 207, 14, "="); row(202, 206, G, "P"); put(214, G, "D");
+  box(0, W - 1, 32, 33, "#"); box(0, 0, 0, 33, "#"); box(W - 1, W - 1, 0, 33, "#"); [25, 18, 11].forEach((y) => row(1, W - 2, y, "#"));
+  const A = 31, B = 24, C = 17, D = 10;   // the row people stand in, in aisles 1 (front) to 4 (back)
+  box(55, 55, 12, 31, "#"); put(55, 25, "#"); put(55, 18, "#"); box(63, 63, 5, 24, "#");   // the queue lane is walled off from aisles 1 to 3
+  // Aisle 1, bread: in at the left, out at the right. Someone you know, a slow trolley.
+  put(3, A, "S"); put(14, A, "P"); put(34, A, "R"); put(46, A, "g");
+  // Aisle 2, beans: in at the right, out at the left. Two trolleys and an old school friend.
+  put(52, B, "K"); put(44, B, "R"); put(33, B, "w"); put(26, B, "C"); put(18, B, "w"); put(12, B, "R"); put(9, B, "g");
+  // Aisle 3, eggs: in at the left, out at the right. Free samples, headphones, the reduced-section scrum, the eggs beyond it.
+  put(4, C, "K"); put(11, C, "P"); put(22, C, "R"); put(27, C, "H"); row(31, 35, C, "P"); put(46, C, "g");
+  // Aisle 4, milk, at the back and in the far corner as always: in at the right, the milk at the left, then back to the queue.
+  put(52, D, "K"); put(44, D, "R"); put(38, D, "w"); put(30, D, "C"); put(22, D, "w"); put(14, D, "R"); put(5, D, "g");
+  // The queue lane (down only) and the tills: two chatty ones, then the self-service checkout
+  put(61, C, "T"); put(57, B, "T"); put(58, A, "H"); put(62, A, "T"); put(67, A, "T"); put(73, A, "D");
   return g.map((r) => r.join(""));
 }
 const SHOP_ZONES = [
-  { x0: 0, x1: 40, name: "Fruit & Veg", wall: "#e8f3da", dado: "#cfe3b4", rail: "#9fbf78", tones: ["#dbeac6", "#c8dcab", "#b4cd90"], kinds: [2, 8, 2, 9], win: false },
-  { x0: 40, x1: 86, name: "The Reduced Section", wall: "#fdf1c9", dado: "#f6dd8e", rail: "#d9b84f", tones: ["#f5e3a6", "#ecd27f", "#e0c05c"], kinds: [0, 1, 9, 7], win: false },
-  { x0: 86, x1: 125, name: "Cleaning in Aisle Six", wall: "#e2ecf5", dado: "#c6d7e8", rail: "#93adc9", tones: ["#d3e0ee", "#bccfe2", "#a5bdd6"], kinds: [1, 0, 6, 8], win: false },
-  { x0: 125, x1: 170, name: "Frozen", wall: "#dff3f5", dado: "#bfe3e8", rail: "#86c3cc", tones: ["#cfeaee", "#b3dbe1", "#97ccd4"], kinds: [3, 6, 3], win: false },
-  { x0: 170, x1: 222, name: "The Checkouts", wall: "#f6e4e0", dado: "#ebc9c1", rail: "#cf9c90", tones: ["#f0d5ce", "#e3bdb3", "#d6a598"], kinds: [7, 8, 9, 4], win: false },
+  { x0: 0, x1: 78, y0: 26, y1: 32, name: "Aisle 1: Bread", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
+  { x0: 0, x1: 56, y0: 19, y1: 24, name: "Aisle 2: Tins", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
+  { x0: 0, x1: 56, y0: 12, y1: 17, name: "Aisle 3: The Reduced Section", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
+  { x0: 0, x1: 56, y0: 0, y1: 10, name: "Aisle 4: Milk. Obviously.", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
+  { x0: 56, x1: 78, y0: 0, y1: 24, name: "The Queue", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
 ];
-const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.6, chaseWind: .9, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, map: keyed(supermarket()), zones: SHOP_ZONES, upstairs: null,
-  intro: "Hoodini only needs milk. The supermarket is between him and home, and tonight everyone he knows needs milk too.",
-  signs: [{ x: 12, y: 14.4, t: "FREE SAMPLES: JUMP THEM" }, { x: 53.5, y: 12, t: "REDUCED TO CLEAR" }, { x: 53.5, y: 12.7, t: "GO OVER THE TOP SHELF" }, { x: 95.5, y: 14.3, t: "WET FLOOR: RIDE THE TROLLEY" }, { x: 132.5, y: 11.6, t: "HOOD UP" }, { x: 173, y: 12.2, t: "UP AND OVER THE TILLS" }],
-  movers: [{ trolley: true, x0: 91.3, x1: 99.7, y: 16.45, w: 2.1, speed: 2.2 }], props: [{ n: "tins", x: 59.6 }, { n: "wetfloor", x: 88.6 }, { n: "wetfloor", x: 103 }, { n: "selfcheck", x: 209.5 }, { n: "selfcheck", x: 211.8 }],
+const SHOP_LINKS = [{ a: 0, b: 1, x0: 49.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.5 }, { a: 2, b: 3, x0: 49.5, x1: 54.9 },
+  { a: 0, b: 1, x0: 23, x1: 27, gap: true }, { a: 1, b: 2, x0: 37, x1: 41, gap: true }, { a: 2, b: 3, x0: 15, x1: 19, gap: true },
+  { a: 3, b: 2, x0: 56, x1: 63, down: true }, { a: 2, b: 1, x0: 56, x1: 63, down: true }, { a: 1, b: 0, x0: 56, x1: 63, down: true }];
+const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", view: 13.6, laneY: [32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 55], aisle: [9.5, 48], list: ["BREAD", "BEANS", "EGGS", "MILK"], seeds: [[3, 24], [3, 17], [3, 10], [59, 24], [59, 17], [59, 10]],
+  lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.4, chaseWind: 1, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, zones: SHOP_ZONES, upstairs: null,
+  intro: "Hoodini only needs four things. Bread, beans, eggs and milk: one in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
+  signs: [{ x: 5, y: 27.3, t: "AISLE 1" }, { x: 52, y: 27.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 27.3, t: "GAP" }, { x: 52, y: 20.3, t: "AISLE 2" }, { x: 39, y: 20.3, t: "GAP" }, { x: 5, y: 13.3, t: "AISLE 3" }, { x: 33, y: 13.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 13.3, t: "GAP" }, { x: 52, y: 6.4, t: "AISLE 4" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 73.5, y: 27.3, t: "SELF-SERVICE" }],
+  props: [{ n: "selfcheck", x: 71.2 }, { n: "selfcheck", x: 75.6 }],
   chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? At your age?", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
-    W: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
-  tannoy: ["Cleaner to aisle six. Cleaner to aisle six.", "Would the owner of a navy hoodie please come to customer services.", "This is a colleague announcement: Gary to the tills, please.", "Shoppers are reminded that eye contact is optional.", "The reduced section is now open. Form an orderly scrum.", "Could the gentleman hiding behind the tins please stop."],
-  lines: { P: ["Is that you? In HERE?", "Ooh, what are you having for tea?", "I never see you in here!"], W: ["Excuse me, do you work here?", "Can you reach the top shelf for me?", "Where do they keep the eggs?"], T: ["Do you need a bag?", "Have you got a loyalty card?", "Busy today, isn’t it?", "Doing anything nice later?"], C: ["It IS you! From SCHOOL!", "Hang on, I’ll walk round with you!", "Wait there, I’ll get my trolley!"], reach: ["Try the cheese!", "Free sample?", "It’s a new yoghurt!"], pit: ["You slipped on the wet floor. Three people asked if you were all right."] } };
+    R: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes.", "Ooh, I’ll just nip round the end."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
+  tannoy: ["Cleaner to aisle six. There is no aisle six.", "Would the owner of a navy hoodie please come to customer services.", "This is a colleague announcement: Gary to the tills, please.", "Shoppers are reminded that eye contact is optional.", "The reduced section is now open. Form an orderly scrum.", "Could the gentleman hiding behind the tins please stop."],
+  lines: { P: ["Is that you? In HERE?", "Ooh, what are you having for tea?", "I never see you in here!"], R: ["Excuse me, do you work here?", "Can you reach the top shelf for me?", "Where do they keep the eggs?"], T: ["Do you need a bag?", "Have you got a loyalty card?", "Busy today, isn’t it?", "Doing anything nice later?"], C: ["It IS you! From SCHOOL!", "Hang on, I’ll walk round with you!", "Wait there, I’ll get my trolley!"], reach: ["Try the cheese!", "Free sample?", "It’s a new yoghurt!"], pit: ["You slipped."] } };
+SHOP.map = keyed(supermarket(), 100, SHOP.seeds);
 
 // A test, not a level (?aisles=1). Version 2 (Barry, 25 Nov): the aisles are on one floor, drawn front and back (the back one further
 // away, not higher up). You change aisle by pushing the stick up or down at either end of the shelving, or at a gap in it. No ledges.
@@ -255,7 +258,7 @@ function aisleTest() {
   put(3, G, "S"); put(18, G, "R"); put(40, G, "P"); put(22, 10, "P"); put(34, 10, "R"); put(46, 10, "R"); put(56, 10, "D");
   return g.map((r) => r.join(""));
 }
-const AISLES = { name: "Aisle test", out: "the aisle test", theme: "shop", view: 13.6, laneY: [18, 11], ends: [8, 52], gaps: [30], aisle: [9.5, 50.5], reach: true, lost: "Wrong aisle.", need: 0, map: keyed(aisleTest(), 20), zones: [{ x0: 0, x1: 60, name: "Two aisles", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false }], upstairs: null,
+const AISLES = { name: "Aisle test", out: "the aisle test", theme: "shop", view: 13.6, laneY: [18, 11], links: [{ a: 0, b: 1, x0: 1, x1: 8 }, { a: 0, b: 1, x0: 52, x1: 59 }, { a: 0, b: 1, x0: 28.4, x1: 31.6, gap: true }], shelf: [8, 52], aisle: [9.5, 50.5], reach: true, lost: "Wrong aisle.", need: 0, map: keyed(aisleTest(), 20), zones: [{ x0: 0, x1: 60, name: "Two aisles", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false }], upstairs: null,
   intro: "A test. The way out is at the far end of the BACK aisle. Push the stick UP or DOWN to change aisle: you can do it at either end of the shelves, or at the gap in the middle. The shoppers do it too.",
   signs: [{ x: 4, y: 13.4, t: "STICK UP: BACK AISLE" }, { x: 30, y: 13.4, t: "GAP" }, { x: 55.5, y: 7.4, t: "WAY OUT" }],
   chat: { R: ["They’ve moved the eggs AGAIN.", "I’ve been round three times for the stock cubes.", "Have you SEEN the price of butter?", "Ooh, I’ll just nip round the end."], P: ["That’s a LOT of cheese for one.", "Meal deal? At your age?"] },
@@ -387,7 +390,7 @@ function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='a')items.push({k:'a',x:x+.5,x0:x+.5,y:y+.5,got:false,sway:(L.sway||[])[items.filter(function(q){return q.k==='a'}).length]||0})
   else if('PWTCGYJXQVMZAR'.indexOf(c)>=0)people.push({k:c,x:x+.5,home:x+.5,y:y+1,f:-1,t:Math.random()*2,i:people.length,run:0,rest:0})
-  else if('oNHcmuftbe'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
+  else if('oNHcmuftbeg'.indexOf(c)>=0)items.push({k:c,x:x+.5,y:y+.5,got:false})}
  var hen=0;people.forEach(function(p){if(p.k!=='P')return;var dogNear=people.some(function(o){return o.k==='G'&&Math.abs(o.x-p.x)<3.5});p.skin=street?(dogNear?0:4+(hen++%2)*2):[0,4,6][p.i%3];if(street&&dogNear){p.fixed=true;p.f=1}});
  people.forEach(function(p){if(p.k==='Y')p.fixed=true});
  items.filter(function(q){return q.k==='a'}).sort(function(m,n){return m.x-n.x}).forEach(function(q,i){q.sway=(L.sway||[])[i]||0});   // balloons are numbered left to right
@@ -425,12 +428,13 @@ var RN=null;
 function rainVol(v){if(!AC)return;try{if(!RN){var n=AC.sampleRate*2,b=AC.createBuffer(1,n,AC.sampleRate),a=b.getChannelData(0),i,l=0;for(i=0;i<n;i++){l=l*.6+(Math.random()*2-1)*.4;a[i]=l}var src=AC.createBufferSource(),hp=AC.createBiquadFilter(),lp=AC.createBiquadFilter();RN=AC.createGain();src.buffer=b;src.loop=true;hp.type='highpass';hp.frequency.value=700;lp.type='lowpass';lp.frequency.value=2600;RN.gain.value=0;src.connect(hp);hp.connect(lp);lp.connect(RN);RN.connect(AC.destination);src.start()}RN.gain.setTargetAtTime(muted?0:v*.022,AC.currentTime,.6)}catch(e){}}
 function puff(x,y,n,sp){if(calm)return;for(var i=0;i<n;i++)fx.push({x:x+(Math.random()-.5)*.4,y:y-.05,vx:(Math.random()-.5)*(sp||2.4),vy:-Math.random()*1.1,life:.38,r:.1+Math.random()*.1})}
 function pick(a){return a[Math.floor(Math.random()*a.length)]}
+function laneLink(i,x,dir){var ls=L.links||[],n;for(n=0;n<ls.length;n++){var q=ls[n];if(x<q.x0||x>q.x1)continue;if(q.down){if(dir>0&&q.a===i)return q.b}else if(dir<0&&q.a===i)return q.b;else if(dir>0&&q.b===i)return q.a}return null}
 function need(){return /[?&]nokeys=1/.test(location.search)?0:Math.min(L.need||0,S.keyT||0)}
 function feed(p){people.forEach(function(o){if(o.k==='P'&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-p.x)<6.2)o.fed=true});P.plateN=(P.plateN||1)-1;pops.push({x:p.x,y:p.y-1.2,life:.6,big:true});say(pick((L.lines.bite)||['Ooh, lovely.']),p.x,p.y-2.6);if(P.plateN<=0){P.plate=false;info('THE PLATE IS EMPTY','They have eaten the lot. Anyone you fed will still let you past.')}}
 function hurt(why,from){if(P.inv>0||S.mode!=='play')return;if(P.plate&&why==='P')return;if(P.plate&&why!=='fell'){P.plate=false;P.inv=1.3;pops.push({x:P.x,y:P.y-1,life:.6,big:true});say('Your plate!',P.x,P.y-2.7);info('YOU DROPPED THE PLATE','It only works on people standing still. That one was moving.');return}if(P.shield&&why!=='fell'){P.shield=false;P.inv=1.3;P.callT=1.3;say(L.lines.shield?L.lines.shield[0]:'Sorry, on a call.',P.x,P.y-2.7);pops.push({x:P.x,y:P.y-1,life:.6,big:true});info('THE PHONE CALL SAVED YOU','That was your free pass. It is used up now.');return}S.why=why;S.batt-=.25;S.hits++;P.cringeT=.6;S.freeze=calm?0:.09;S.shake=.35;sfx('hurt');sfx('laugh');puff(P.x,P.y-.8,6,5);S.nemAt=T;S.nemSide=(P.x-cam>vw/2)?-1:1;P.inv=1.6;P.hood=false;P.vy=-8;P.vx=(from!=null&&from>P.x?-1:1)*5;P.ground=false;
  if(S.batt<=.001)flat()}
 function card(h,p,sm,b){$('pgsheet').hidden=true;$('pgch').textContent=h;$('pgcp').textContent=p;$('pgcs').textContent=sm;$('pgcb').textContent=b;$('pgintro').hidden=true;$('pgend').hidden=false;$('pgcard').hidden=false;menu();$('pgcb').focus()}
-function win(){sfx('win');S.mode='won';P.wave=1;var more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
+function win(){if(L.laneY&&!calm&&S.mode==='play'){S.mode='reveal';S.revT=0;sfx('win');return}if(S.mode!=='reveal')sfx('win');S.mode='won';P.wave=1;var more=LI<LV.length-1;if(more)unlock(LI+1);nemPic(more?null:5);
  var bp=Math.round(Math.max(0,S.batt)*100),kp2=S.keyT?S.keys/S.keyT:0,sc=Math.round(kp2*60+Math.max(0,S.batt)*40),g=GRADES.filter(function(q){return sc>=q[0]})[0],st=sc>=90?5:sc>=75?4:sc>=55?3:sc>=35?2:1;
  card(more?NAME+' made it out of '+L.out+'.':NAME+' is free at last.',more?'':NEM+' was last seen being kissed by your aunt.','',more?'Next: '+LV[LI+1].name:'Play '+L.name+' again');
  var row=function(a,b){return '<tr><th>'+a+'</th><td>'+b+'</td></tr>'},mm=Math.floor(S.t/60),ss=Math.round(S.t%60);
@@ -441,8 +445,8 @@ function win(){sfx('win');S.mode='won';P.wave=1;var more=LI<LV.length-1;if(more)
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
 function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;if(S.freeze>0){S.freeze-=dt;return}
  if(L.laneY){if(P.laneT>0)P.laneT-=dt;P.lo=(P.lo||0)*Math.max(0,1-dt*9);var lv=(keys.i?-1:0)+(keys.k?1:0);if(!lv&&stick&&Math.abs(stick.vy||0)>.7&&Math.abs(stick.v)<.65)lv=stick.vy>0?1:-1;
-  var canLane=P.x<L.ends[0]||P.x>L.ends[1]||(L.gaps||[]).some(function(q){return Math.abs(P.x-q)<1.5});S.canLane=canLane&&P.ground;
-  if(lv&&P.ground&&!(P.laneT>0)&&S.mode==='play'&&canLane){var back=P.y<14;if((lv<0&&!back)||(lv>0&&back)){var ty=back?L.laneY[0]:L.laneY[1];P.lo=P.y-ty;P.y=ty;P.vy=0;P.vx=0;P.laneT=.5;P.safe=[P.x,P.y];sfx('hood')}}}
+  var li=P.ground?L.laneY.indexOf(Math.round(P.y*100)/100):-1,upL=li<0?null:laneLink(li,P.x,-1),dnL=li<0?null:laneLink(li,P.x,1);S.canUp=!!upL;S.canDn=!!dnL;
+  if(lv&&li>=0&&!(P.laneT>0)&&S.mode==='play'){var to=lv<0?upL:dnL;if(to!=null){var ty=L.laneY[to];P.lo=P.y-ty;P.y=ty;P.vy=0;P.vx=0;P.laneT=.5;P.safe=[P.x,P.y];sfx('hood')}}}
  movers.forEach(function(m){if(m.sw){var ox=m.x,sa=Math.sin((S.t+m.ph)*6.2832/m.per);m.x=m.cx+m.amp*sa;m.y=m.cy-Math.abs(sa)*.5;if(P.on===m){P.x+=m.x-ox;P.y=m.y}return}if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
  var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;if(L.tannoy){S.tanT=(S.tanT==null?9:S.tanT)+dt;if(S.tanT>11){S.tanT=0;sfx('quiet');say('BING BONG. '+pick(L.tannoy),cam+vw/2,camY+2.2)}}if(L.rain){var rn=(S.t%50)>22;if(rn&&!S.raining){if(!S.seenR){S.seenR=true;info('IT’S RAINING','Anyone standing under an umbrella can’t see you. Walkers can still walk into you. The pavement is slippery.')}}S.raining=rn;S.wet=Math.max(0,Math.min(1,(S.wet||0)+(rn?dt:-dt)/1.5));}else S.wet=0;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.fast>0)P.fast-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
@@ -491,7 +495,8 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
   if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='e'){S.keys++;S.batt=Math.min(1,S.batt+.015);S.keyPop=.22;sfx('key');fx.push({x:it.x,y:it.y,vx:0,vy:-2.2,life:.3,r:.16});if(S.keys===need()&&need()>0){sfx('power');info('THE WAY OUT IS UNLOCKED','You have '+need()+' keys. There are '+S.keyT+' if you want them all.')}return}sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
+ items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='g'){S.list=(S.list||0)+1;sfx('power');var gi=L.laneY.indexOf(Math.round(it.y+.5));info(L.list[gi]+': GOT IT',S.list>=L.list.length?'That is everything. Join the queue at the back, on the right.':(L.list.length-S.list)+' more on the list.');return}
+  if(it.k==='e'){S.keys++;S.batt=Math.min(1,S.batt+.015);S.keyPop=.22;sfx('key');fx.push({x:it.x,y:it.y,vx:0,vy:-2.2,life:.3,r:.16});if(S.keys===need()&&need()>0){sfx('power');info('THE WAY OUT IS UNLOCKED','You have '+need()+' keys. There are '+S.keyT+' if you want them all.')}return}sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;S.batt=1;S.glow=.6;info('DO NOT DISTURB','Social battery fully recharged.')}
   else if(it.k==='c'){P.fast=6;info('COFFEE','You run faster for 6 seconds.')}
@@ -506,7 +511,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  var kx=Math.floor(P.x),ky=Math.floor(P.y-.5);if(S.swT>0)S.swT-=dt;if(tile(kx,ky)==='L'){if(!(S.swT>0)&&!S.onSw){var zz=zoneAt(kx,ky);lit[zz.name]=!lit[zz.name];say(lit[zz.name]?'Lights on. Everyone can see you.':'Lights off. Nobody can see you.',kx+.5,ky-1.4)}S.onSw=true;S.swT=.3}else S.onSw=false;
  if(tile(kx,ky)==='K'&&(!S.cp||S.cp[0]!==kx+.5)){S.cp=[kx+.5,ky+1];S.batt=Math.min(1,S.batt+.25);sfx('quiet');say('Quiet room. Nobody in here.',kx+.5,ky-1.4)}
  // the door
- var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){if(S.keys>=need()){win();return}if(!(S.lockT>0)){S.lockT=3;sfx('lose');info('LOCKED','You need '+need()+' keys to get out. You have '+S.keys+'.')}}if(S.lockT>0)S.lockT-=dt;   // through the door, or sailing over the top of it
+ var dx=Math.floor(P.x),dy=Math.floor(P.y-.5);if(tile(dx,dy)==='D'||tile(dx,dy+1)==='D'||tile(dx,dy+2)==='D'||tile(dx,dy+3)==='D'){var short=L.list?L.list.length-(S.list||0):0;if(S.keys>=need()&&short<=0){win();return}if(!(S.lockT>0)){S.lockT=3;sfx('lose');if(short>0)info('HAVE YOU FORGOTTEN SOMETHING?','There '+(short>1?'are ':'is ')+short+' more thing'+(short>1?'s':'')+' on your list.');else info('LOCKED','You need '+need()+' keys to get out. You have '+S.keys+'.')}}if(S.lockT>0)S.lockT-=dt;   // through the door, or sailing over the top of it
  // people: standers stand, walkers walk between obstacles, talkers send out speech bubbles
  if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
@@ -518,7 +523,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
   if(p.k==='C'&&party&&isDark(zoneAt(p.x,p.y-.5))){p.run=0;p.rest=0;p.wind=0;p.lost=true;var gx=p.x+p.f*.5;if(solid(Math.floor(gx),Math.floor(p.y-.5))||tile(Math.floor(gx),Math.floor(p.y-.5))==='w'||!solid(Math.floor(gx),Math.floor(p.y+.1)))p.f=-p.f;else p.x+=p.f*.55*dt}
   else if(p.k==='C'){p.lost=false;if(p.rest>0)p.rest-=dt;else if(p.run>0){p.run-=dt;if(p.run<=0)p.rest=L.chaseRest||2.2}else if(near&&!un&&S.mode==='play'){p.run=L.chaseRun||3.1;p.wind=L.chaseWind||.55;p.f=P.x<p.x?-1:1;say(L.chaseCall||pick(L.lines.C),p.x,p.y-2.5);if(L.chaseCall&&!S.seenC){S.seenC=true;info('THE HOST HAS SPOTTED YOU','He points first, then runs. Jump him, or stand still behind a curtain.')}}
    if(p.wind>0)p.wind-=dt;else if(p.run>0){if(!un)p.f=P.x<p.x?-1:1;var cx2=p.x+p.f*.5;if(!(solid(Math.floor(cx2),Math.floor(p.y-.5))||tile(Math.floor(cx2),Math.floor(p.y-.5))==='w'||!solid(Math.floor(cx2),Math.floor(p.y+.1))))p.x+=p.f*(L.chaseSpeed||3.7)*dt}}
-  else if(p.k==='R'){var ra=L.aisle;if(p.gone>0){p.gone-=dt;if(p.gone<=0){p.y=p.y>14?L.laneY[1]:L.laneY[0];p.f=-p.f}}else{p.x+=p.f*(1.7+(p.i%3)*.45)*dt;if(p.x<ra[0]||p.x>ra[1]){p.x=Math.max(ra[0],Math.min(ra[1],p.x));if(Math.random()<.55)p.gone=1.2;else p.f=-p.f}}}
+  else if(p.k==='R'){var ra=L.aisle;if(p.gone>0){p.gone-=dt;if(p.gone<=0){p.y=L.laneY[p.to];p.f=-p.f}}else{p.x+=p.f*(1.7+(p.i%3)*.45)*dt;if(p.x<ra[0]||p.x>ra[1]){p.x=Math.max(ra[0],Math.min(ra[1],p.x));var rl=L.laneY.indexOf(p.y),ex2=p.f>0?ra[1]+3:ra[0]-3,opts=[laneLink(rl,ex2,-1),laneLink(rl,ex2,1)].filter(function(q){return q!=null});if(opts.length&&Math.random()<.55){p.gone=1.2;p.to=pick(opts)}else p.f=-p.f}}}
   else if(p.k==='W'||p.k==='J'){var ax=p.x+p.f*.5,blocked=solid(Math.floor(ax),Math.floor(p.y-.5))||'^w'.indexOf(tile(Math.floor(ax),Math.floor(p.y-.5)))>=0||!solid(Math.floor(ax),Math.floor(p.y+.1))||people.some(function(o){return o!==p&&Math.abs(o.y-p.y)<.5&&Math.abs(o.x-ax)<.5});if(blocked)p.f=-p.f;else p.x+=p.f*(p.k==='J'?(L.kidSpeed||3):(L.walkSpeed||2.1))*dt}
   else if(p.k==='V'){var vp=p.t%6.4;p.on=vp<2.4||(vp>=3.2&&vp<5.6);p.f=vp<2.8?-1:vp<6?1:-1;var vd=(P.x-p.x)*p.f;if(Math.abs(P.x-p.x)<10&&!S.seenV){S.seenV=true;info('THE VIDEO CAMERA','Stay out of the beam. Hood up as it passes, or be up high.')}
    if(p.on&&!unseen&&S.mode==='play'&&vd>.7&&vd<6&&P.y>p.y-2.7&&P.y<p.y+.3){if(P.inv<=0)say(pick(L.lines.V),p.x,p.y-2.6);hurt('V',p.x)}}
@@ -549,7 +554,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  says=says.filter(function(s){s.life-=dt;return s.life>0});pops=pops.filter(function(q){q.life-=dt;return q.life>0});if(S.zoneT>0)S.zoneT-=dt;if(S.info&&(S.info.t-=dt)<=0)S.info=null;if(S.glow>0)S.glow-=dt}
 
 function isDark(z){return !!z.dark&&!lit[z.name]}
-function zoneAt(x,y){var u2=L.upstairs,zi;if(party){for(zi=0;zi<L.zones.length;zi++){var q=L.zones[zi];if(x>=q.x0&&x<q.x1&&y>=q.y0&&y<q.y1+2)return q}return L.zones[0]}if(u2&&y<10.5&&x>=u2.x0&&x<u2.x1)return u2;for(var i=0;i<L.zones.length;i++)if(x<L.zones[i].x1)return L.zones[i];return L.zones[L.zones.length-1]}
+function zoneAt(x,y){var u2=L.upstairs,zi;if(party||L.laneY){for(zi=0;zi<L.zones.length;zi++){var q=L.zones[zi];if(x>=q.x0&&x<q.x1&&y>=q.y0&&y<q.y1+2)return q}return L.zones[0]}if(u2&&y<10.5&&x>=u2.x0&&x<u2.x1)return u2;for(var i=0;i<L.zones.length;i++)if(x<L.zones[i].x1)return L.zones[i];return L.zones[L.zones.length-1]}
 // ---- painting: flat colours and chunky outlines ----
 var W=0,H=0,u=30,vw=13,sceneH=0,sceneY=0,dpr=1,cam=0,camY=0,tall=false,PAD={};
 function lay(){W=box.clientWidth;H=box.clientHeight;dpr=Math.min(3,window.devicePixelRatio||1);cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);tall=H>W;
@@ -677,12 +682,14 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle='#8fd3f4';rr(x,wy0,3,3.2,.12);c.fill();ink();c.fillStyle='#fff';c.beginPath();c.ellipse(x+.9+((x*7+k*3)%5)*.2,wy0+.9,.5,.2,0,0,6.2832);c.ellipse(x+1.9,wy0+1.7,.6,.22,0,0,6.2832);c.fill();c.fillStyle=INK;c.fillRect(x+1.46,wy0,.08,3.2);c.fillRect(x,wy0+1.56,3,.08);
   if(!solid(x+6,Math.floor(wy0+1))&&!solid(x+6,Math.floor(wy0+2.4))&&(Math.floor(x/9)+k)%5!==2){poster(x+6,wy0+.3,Math.floor(x/9)*2+k)}
   else if(!solid(x+6,Math.floor(wy0+1))){c.fillStyle='#fff';c.beginPath();c.arc(x+6,wy0+1,.42,0,6.2832);c.fill();ink();c.beginPath();c.moveTo(x+6,wy0+1);c.lineTo(x+6,wy0+.75);c.moveTo(x+6,wy0+1);c.lineTo(x+6.18,wy0+1.1);ink(.06)}});
- if(L.laneY){var fl='#ddd6c8',sdc=ART['shop-decor'],sim=IMG['shop-decor'],e0=L.ends[0],e1=L.ends[1];c.fillStyle='#cfc7b6';c.fillRect(x0,5.6,x1-x0,.5);
-  var shelf=function(sx0,y0,y1,k){var it=sdc.items[k%2];if(sim.naturalWidth)c.drawImage(sim,it.x,sdc.H-it.h,it.w,it.h,sx0,y0,3.3,y1-y0);else{c.fillStyle='#9aa4af';c.fillRect(sx0,y0,3.3,y1-y0)}};
-  for(var bx2=Math.floor(x0/3.3)*3.3;bx2<x1;bx2+=3.3)shelf(bx2,5.9,9.4,Math.round(bx2/3.3)+1);
-  c.fillStyle=fl;c.fillRect(x0,9.4,x1-x0,2.7);c.fillRect(x0,12,x1-x0,8);c.fillStyle='rgba(27,27,42,.07)';for(var fx2=Math.floor(x0/2)*2;fx2<x1;fx2+=2){c.fillRect(fx2,9.4,.05,2.6);c.fillRect(fx2-.6,15.4,.05,4.6)}
-  for(var bx3=e0;bx3<e1-.1;bx3+=3.3){if((L.gaps||[]).some(function(q){return bx3+3.3>q-1.6&&bx3<q+1.6}))continue;if(bx3+3.3<x0||bx3>x1)continue;c.fillStyle='rgba(27,27,42,.16)';c.fillRect(bx3,15.35,3.3,.28);shelf(bx3,12,15.4,Math.round(bx3/3.3))}
-  if(S.canLane&&S.mode==='play'&&!calm){var ay=P.y<14?P.y+.55:P.y-2.5,up2=P.y>14;c.fillStyle=YEL;c.strokeStyle=INK;c.lineWidth=.07;c.beginPath();var bo=Math.sin(T*6)*.08;if(up2){c.moveTo(P.x,ay-.35+bo);c.lineTo(P.x+.3,ay+bo);c.lineTo(P.x-.3,ay+bo)}else{c.moveTo(P.x,ay+.35+bo);c.lineTo(P.x+.3,ay+bo);c.lineTo(P.x-.3,ay+bo)}c.closePath();c.fill();c.stroke()}}
+ if(L.laneY){var fl='#ddd6c8',sdc=ART['shop-decor'],sim=IMG['shop-decor'],LY=L.laneY,yb=LY[LY.length-1],s0=L.shelf[0],s1=L.shelf[1];
+  var shelf=function(sx0,y0,y1,k,wd){var it=sdc.items[[0,1,0,6,1,3][((k%6)+6)%6]];if(sim.naturalWidth)c.drawImage(sim,it.x,sdc.H-it.h,it.w*(wd/3.3),it.h,sx0,y0,wd,y1-y0);else{c.fillStyle='#9aa4af';c.fillRect(sx0,y0,wd,y1-y0)}};
+  c.fillStyle='#cfc7b6';c.fillRect(x0,yb-5.6,x1-x0,.6);for(var bx2=Math.floor(x0/3.3)*3.3;bx2<x1;bx2+=3.3)shelf(bx2,yb-5.1,yb-1.6,Math.round(bx2/3.3)+3,3.3);
+  c.fillStyle=fl;c.fillRect(x0,yb-1.6,x1-x0,MH-yb+1.6);c.fillStyle='rgba(27,27,42,.07)';for(var fx2=Math.floor(x0/2)*2;fx2<x1;fx2+=2)LY.forEach(function(yy){c.fillRect(fx2,yy-1.6,.05,2.6)});
+  for(var pi=0;pi<LY.length-1;pi++){var Y=LY[pi+1];if(Y+4.4<camY||Y+1>camY+VIEW+1)continue;var open=(L.links||[]).filter(function(q){return !q.down&&q.a===pi&&q.b===pi+1});
+   for(var bx3=s0;bx3<s1-.05;bx3+=1.1){if(bx3+1.1<x0||bx3>x1)continue;if(open.some(function(q){return bx3+1.1>q.x0+.1&&bx3<q.x1-.1}))continue;var cell=Math.floor((bx3-s0)/3.3),off=(bx3-s0)-cell*3.3,it2=sdc.items[[0,1,0,6,1,3][(cell+pi*2)%6]];c.fillStyle='rgba(27,27,42,.16)';c.fillRect(bx3,Y+4.35,1.11,.28);
+    if(sim.naturalWidth)c.drawImage(sim,it2.x+it2.w*off/3.3,sdc.H-it2.h,it2.w/3,it2.h,bx3,Y+1,1.11,3.4)}}
+  if(S.mode==='play'&&!calm&&(S.canUp||S.canDn)&&P.ground){var bo=Math.sin(T*6)*.08;c.fillStyle=YEL;c.strokeStyle=INK;c.lineWidth=.07;if(S.canUp){var ay=P.y-2.5;c.beginPath();c.moveTo(P.x,ay-.35+bo);c.lineTo(P.x+.3,ay+bo);c.lineTo(P.x-.3,ay+bo);c.closePath();c.fill();c.stroke()}if(S.canDn){var ay2=P.y+.5;c.beginPath();c.moveTo(P.x,ay2+.35-bo);c.lineTo(P.x+.3,ay2-bo);c.lineTo(P.x-.3,ay2-bo);c.closePath();c.fill();c.stroke()}}}
  (L.signs||[]).forEach(function(sg){c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(sg.t).width+.5;c.fillStyle=YEL;rr(sg.x-w/2,sg.y-.3,w,.6,.1);c.fill();ink(.07);c.fillStyle=INK;c.fillText(sg.t,sg.x,sg.y+.02)});
  // gaps in the floor are a dark stairwell
  for(x=Math.max(1,x0);x<Math.min(MW-1,x1);x++)if(tile(x,MH-2)==='.'){var pg=c.createLinearGradient(0,MH-2,0,MH);pg.addColorStop(0,family?'#6fc3ea':street?'#4a4f58':'#3a3350');pg.addColorStop(1,family?'#3f8fc0':street?'#2b2f36':'#15131f');c.fillStyle=pg;c.fillRect(x,MH-2,1.01,2.01);c.fillStyle='rgba(255,255,255,.08)';c.fillRect(x,MH-1.4,1.01,.08);c.fillRect(x,MH-.7,1.01,.08)}
@@ -702,10 +709,10 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(t==='F'){if(shop)thing('crates',x+.5,y+1.02,1.06,false,'shop-things');else thing('cabinet',x+.5,y+1.02,1.04)}
   else if(t==='^'&&party){var zn2=zoneAt(x,y).name;thing(zn2==='The Garden'?'trampoline':zn2==='The Coat Bedroom'?'bed':'sofa',x+.5,y+1.02,null,false,'party-things')}
   else if(t==='^'){thing('chair',x+.5,y+1.02,1.45)}
-  else if(t==='D'){if(party)thing('gate',x+.5,y+1.02,null,false,'party-things');else if(shop)thing('exit',x+.5,y+1.02,null,false,'shop-things');else thing('exit',x+.5,y+1.02)}
+  else if(t==='D'){if(party)thing('gate',x+.5,y+1.02,null,false,'party-things');else if(shop)thing(L.laneY?'selfcheck':'exit',x+.5,y+1.02,null,false,'shop-things');else thing('exit',x+.5,y+1.02)}
   else if(t==='K'){var gy2=party&&y>MH-4;if(party)thing(gy2?'cupboard':'engaged',x+(gy2?-.6:.5),y+1.02,null,false,'party-things');else if(shop)thing('staff',x+.5,y+1.02,null,false,'shop-things');else thing('quiet',x+.5,y+1.02);if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-(gy2?.2:1.6),.16,0,6.2832);c.fill();ink(.06)}}
   else if(t==='k'){var on=S.cp&&S.cp[0]===x+.5;c.fillStyle='#3d5a8c';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle=on?'#ffe9a8':'#5b7db8';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=INK;c.font='800 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('QUIET',x+.5,y-.5);c.fillText('ROOM',x+.5,y-.25);c.fillStyle=on?'#3fa76a':'#d23b3b';c.beginPath();c.arc(x+.5,y+.25,.12,0,6.2832);c.fill();ink(.05)}
-  else if(t==='#'&&L.laneY){c.fillStyle='#ddd6c8';c.fillRect(x,y,1.01,1.01)}
+  else if(t==='#'&&L.laneY){var isFloor=y>=MH-2||x===0||x===MW-1||L.laneY.indexOf(y)>=0;if(isFloor){c.fillStyle='#ddd6c8';c.fillRect(x,y,1.01,1.01)}else{c.fillStyle='#7d8794';c.fillRect(x+.3,y,.4,1.01);c.fillStyle='#e0303a';c.fillRect(x+.3,y+.3,.4,.2)}}
   else if(t==='#'){var under=tile(x,y+1)!=='#'&&y<MH-1;if(under){c.fillStyle=INK;c.fillRect(x,y+.97,1.01,.07)}var topRow=tile(x,y-1)!=='#',th=TH,sn=L.stone;if(family&&sn&&x>=sn[0]&&x<=sn[1]&&y>=sn[2]&&y<=sn[3])th={a:'#c9ccd3',b:'#aeb2bb',c:'#e4e6ea'};c.fillStyle=topRow?th.a:th.b;c.fillRect(x,y,1.01,1.01);if(under){c.fillStyle=INK;c.fillRect(x,y+.96,1.01,.08)}if(topRow){c.fillStyle=th.c;c.fillRect(x,y,1.01,.16);c.fillStyle=INK;c.fillRect(x,y-.04,1.01,.08)}
    if(!solid(x-1,y)&&x>0){c.fillStyle=INK;c.fillRect(x-.04,y,.08,1.01)}if(!solid(x+1,y)&&x<MW-1){c.fillStyle=INK;c.fillRect(x+.96,y,.08,1.01)}}
   else if(t==='F'){c.fillStyle='#9fb2d1';rr(x+.03,y+.03,.94,.97,.05);c.fill();ink();c.fillStyle='#7f93b5';rr(x+.14,y+.16,.72,.3,.04);c.fill();ink(.05);rr(x+.14,y+.58,.72,.3,.04);c.fill();ink(.05);c.fillStyle=INK;c.fillRect(x+.4,y+.28,.2,.06);c.fillRect(x+.4,y+.7,.2,.06)}
@@ -715,7 +722,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(t==='D'){c.fillStyle='#2f7d4f';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle='#3fa76a';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=YEL;c.beginPath();c.arc(x+.78,y+.1,.07,0,6.2832);c.fill();ink(.04);
    c.fillStyle='#fff';rr(x+.5,y+.2,.34,.55,.06);c.fill();ink(.05);c.fillStyle='#d23b3b';c.font='800 .13px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('DO',x+.67,y+.38);c.fillText('NOT',x+.67,y+.52)}}
  // things to collect
- items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;if(it.k==='e'){var kb=it.y+(calm?0:Math.sin(T*3+it.x*1.3)*.07),KA=ART.key,kim=IMG.key,kfr=calm?0:Math.floor(T/.13+it.x*1.7)%4,ksz=.86;if(kim&&kim.naturalWidth)c.drawImage(kim,kfr*KA.w,0,KA.w,KA.h,it.x-ksz/2,kb-ksz/2,ksz,ksz);return}
+ items.forEach(function(it){if(it.got||it.x<x0||it.x>x1)return;if(it.k==='g'){var gn=L.list[L.laneY.indexOf(Math.round(it.y+.5))]||'?',gb=it.y-.1+(calm?0:Math.sin(T*3+it.x)*.08),gg=c.createRadialGradient(it.x,gb,0,it.x,gb,1.2);gg.addColorStop(0,'rgba(250,208,12,.8)');gg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=gg;c.beginPath();c.arc(it.x,gb,1.2,0,6.2832);c.fill();c.fillStyle='#fff';rr(it.x-.62,gb-.42,1.24,.84,.12);c.fill();ink(.07);c.fillStyle=INK;c.font='800 .3px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(gn,it.x,gb+.02);return}
+  if(it.k==='e'){var kb=it.y+(calm?0:Math.sin(T*3+it.x*1.3)*.07),KA=ART.key,kim=IMG.key,kfr=calm?0:Math.floor(T/.13+it.x*1.7)%4,ksz=.86;if(kim&&kim.naturalWidth)c.drawImage(kim,kfr*KA.w,0,KA.w,KA.h,it.x-ksz/2,kb-ksz/2,ksz,ksz);return}
   var up=it.k!=='o',by=it.y+(calm?0:Math.sin(T*(up?4:3)+it.x)*(up?.14:.06));
   if(up){var pu=calm?.5:.5+.5*Math.sin(T*5+it.x),hg=c.createRadialGradient(it.x,by,0,it.x,by,.75+pu*.2);hg.addColorStop(0,'rgba(250,208,12,.75)');hg.addColorStop(1,'rgba(250,208,12,0)');c.fillStyle=hg;c.beginPath();c.arc(it.x,by,1,0,6.2832);c.fill();
    if(!calm)for(var sp=0;sp<4;sp++){var sa=T*2.2+sp*1.571+it.x,sx2=it.x+Math.cos(sa)*.62,sy2=by+Math.sin(sa)*.62;c.fillStyle='#fff';c.beginPath();c.moveTo(sx2,sy2-.12);c.lineTo(sx2+.04,sy2-.04);c.lineTo(sx2+.12,sy2);c.lineTo(sx2+.04,sy2+.04);c.lineTo(sx2,sy2+.12);c.lineTo(sx2-.04,sy2+.04);c.lineTo(sx2-.12,sy2);c.lineTo(sx2-.04,sy2-.04);c.closePath();c.fill();ink(.035)}}
@@ -802,7 +810,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle='rgba(0,0,0,.35)';rr(ix+2,iy+5,iw,ih,13);c.fill();c.fillStyle=YEL;rr(ix,iy,iw,ih,13);c.fill();c.fillStyle='#1a1a18';rr(ix+ft,iy+ft,iw-ft*2,ih-ft-fb,8);c.fill();
   var dw=fb*3.2,dh=fb*.56,dx0=ix+iw-ft-fb*.12-dw,dy0=iy+ih-fb*.22-dh;rr(dx0,dy0,dw,dh,dh/2);c.fill();c.fillStyle=YEL;[.21,.5,.79].forEach(function(q){c.beginPath();c.arc(dx0+dw*q,dy0+dh/2,fb*.135,0,6.2832);c.fill()});
   c.fillStyle=YEL;c.font='800 '+(tall?13:15)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.a,W/2,iy+ft+15);c.fillStyle='#f6efe0';c.font='600 '+(tall?11:13)+'px Montserrat,system-ui,sans-serif';c.fillText(S.info.b,W/2,iy+ft+(tall?33:35),iw-24);c.globalAlpha=1}
- var ups=[];if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push('PHONE: 1 FREE PASS');if(P.plate)ups.push('PLATE: FEEDS '+(P.plateN||1)+' MORE '+((P.plateN||1)>1?'GROUPS':'GROUP'));if(P.tissues)ups.push(L.toll.item);if(P.baby>0)ups.push('BABY '+Math.ceil(P.baby));if(P.balloons)ups.push('BALLOONS: HOLD A TO RISE');if(P.brolly)ups.push('UMBRELLA: HOLD A TO FLOAT');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+16+50*hs,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+27.5+50*hs)}
+ var ups=[];if(L.list)ups.push('LIST '+(S.list||0)+'/'+L.list.length);if(P.fast>0)ups.push('COFFEE '+Math.ceil(P.fast));if(P.phones>0)ups.push('HEADPHONES '+Math.ceil(P.phones));if(P.shield)ups.push('PHONE: 1 FREE PASS');if(P.plate)ups.push('PLATE: FEEDS '+(P.plateN||1)+' MORE '+((P.plateN||1)>1?'GROUPS':'GROUP'));if(P.tissues)ups.push(L.toll.item);if(P.baby>0)ups.push('BABY '+Math.ceil(P.baby));if(P.balloons)ups.push('BALLOONS: HOLD A TO RISE');if(P.brolly)ups.push('UMBRELLA: HOLD A TO FLOAT');if(ups.length){c.font='800 11px Montserrat,system-ui,sans-serif';c.textAlign='right';c.textBaseline='middle';var ut=ups.join('  ·  '),uw=c.measureText(ut).width+18;c.fillStyle=YEL;rr(W-12-uw,sceneY+16+50*hs,uw,22,8);c.fill();c.fillStyle='#1c1611';c.fillText(ut,W-21,sceneY+27.5+50*hs)}
  if(look){c.font='800 12px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var lw=c.measureText('LOOKING AROUND · GAME PAUSED').width+24;c.fillStyle=YEL;rr(W/2-lw/2,sceneY+sceneH-34,lw,24,12);c.fill();c.fillStyle='#1c1611';c.fillText('LOOKING AROUND · GAME PAUSED',W/2,sceneY+sceneH-21)}
  if(!ready){c.fillStyle=CREAM;c.textAlign='center';c.font='600 14px Montserrat,system-ui,sans-serif';c.fillText('Unrolling the carpet…',W/2,sceneY+sceneH/2)}
  // the buttons, laid out like an old handheld
@@ -812,7 +820,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle=stick&&Math.abs(stick.v)>.18?YEL:CREAM;c.beginPath();c.arc(o.x0+o.v*sr*.6,o.y0+(L.laneY?(o.vy||0)*sr*.6:0),sr*.42,0,6.2832);c.fill();c.stroke();
   [['b','B'],['a','A']].forEach(function(q){var b=PAD[q[0]],on=!!btn[q[0]];c.fillStyle=on?YEL:'#c9364a';c.beginPath();c.arc(b.x,b.y,b.r,0,6.2832);c.fill();c.strokeStyle='#14151c';c.lineWidth=3;c.stroke();
    c.fillStyle=on?'#1c1611':CREAM;c.font='800 '+Math.round(b.r*.7)+'px Montserrat,system-ui,sans-serif';c.fillText(q[1],b.x,b.y+1);c.font='700 10px Montserrat,system-ui,sans-serif';c.fillStyle=CREAM;c.globalAlpha=.75;c.fillText(q[0]==='a'?'JUMP':'HOOD UP',b.x,b.y+b.r+12);c.globalAlpha=tall?1:.8});c.globalAlpha=1}}
-var last=0,titleOn=true,titleT=0,titleLv=-1,startLv=0;function loop(now){var dt=Math.min(.033,(now-last)/1000||0);last=now;T+=dt;if(!document.hidden&&ready)update(dt);if(RN||(S&&S.wet>0))rainVol(S&&S.mode==='play'&&!titleOn&&!document.hidden?(S.wet||0):0);draw();requestAnimationFrame(loop)}
+var last=0,titleOn=true,titleT=0,titleLv=-1,startLv=0;function loop(now){var dt=Math.min(.033,(now-last)/1000||0);last=now;T+=dt;if(S&&S.mode==='reveal'){S.revT+=dt;var rk=Math.min(1,S.revT/2.6);rk=rk*rk*(3-2*rk);VIEW=(L.view||11)+(MH+1-(L.view||11))*rk;lay();if(S.revT>4.2)win()}
+ if(!document.hidden&&ready)update(dt);if(RN||(S&&S.wet>0))rainVol(S&&S.mode==='play'&&!titleOn&&!document.hidden?(S.wet||0):0);draw();requestAnimationFrame(loop)}
 
 // ---- thumbs and keys ----
 var ptr={};
