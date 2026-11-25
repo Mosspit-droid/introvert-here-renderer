@@ -83,6 +83,13 @@ Postiz is on a free trial: check the end date and price. **Barry gets overwhelme
 ## Profiles (done 25 Nov)
 All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) and the bio "Everything you need to be left the hell alone." Banners on Facebook (`facebook-cover-1640x924.png`; the 1640x624 version gets cropped badly on phones), YouTube and Bluesky. Links: Facebook and Pinterest already show introverthere.com; Threads has the Etsy shop link. **Swap all links to introverthere.com on launch day.** TikTok name stays "introverthere.shop" until 2 Dec (7-day lock); reminder set.
 
+## Newsletter (decided 25 Nov)
+- Service: **MailerLite** (free up to 1,000 subscribers). Barry has no ActiveCampaign account (the plugin is just installed, not connected).
+- Reason to join: **first look at each Exclusive, plus 5% off for joining**.
+- Sender: contact@introverthere.com. Monthly, drafted by Claude, approved by Barry.
+- Before launch of the signup: the site's privacy page must stop promising "no marketing emails"; the site's Newsletter noticeboard gets the signup box; a 5% Stripe promotion code for new subscribers (site checkout accepts codes). Site changes go through Barry's site/app thread.
+- Excuse cards use Barry's hundred new excuses in the repo, not the old ChatGPT ones.
+
 ## Standing order from Barry
 Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
 
