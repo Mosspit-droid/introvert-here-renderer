@@ -289,7 +289,7 @@ export function stealthPage(page, hub, url, presents) {
   }
   if (q.has("walk")) return walkTestPage(page, hub);
   if (q.has("corridor")) return levelPage(page, hub, ART_V);   // the pen-and-ink corridor with the Pacer and the Boss
-  if (!q.has("sheet") && !q.has("old")) return platformPage(page, hub, ART_V, presents);   // the game as it stands: the platformer
+  if (!q.has("sheet") && !q.has("old")) return platformPage(page, hub, ART_V, presents, q.has("aisles"));   // the game as it stands: the platformer
   if (url && url.searchParams.has("sheet")) return page("Character sheet", `<h1 style="font-size:20px;margin:18px 0 6px">Character sheet: the introvert</h1><p class="note" style="margin:0 0 12px">Options to pick from. Not in the game yet. <a href="${hub.path}/stealth">Back to the corridor test</a></p><img src="${SHEET}" alt="Four pixel-art versions of a hooded figure in a navy hoodie, each shown side on, front on and as a silhouette." style="display:block;width:100%;max-width:600px;height:auto;image-rendering:pixelated;border-radius:8px">`, { nav: "hub", noindex: true });
   const j = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const script = CLIENT.replace("__PEOPLE__", () => j(PEOPLE)).replace("__FILLER__", () => j(FILLER)).replace("__FAILS__", () => j(FAILS));
