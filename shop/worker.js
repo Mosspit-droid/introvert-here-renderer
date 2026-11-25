@@ -1001,7 +1001,7 @@ const BUSY = {
 };
 // The noticeboard (Barry, 25 Nov): the MailerLite sign-up form (form jF2XBx). MailerLite's own script draws the form
 // into the div; it needs the account number from MailerLite's embed code (Forms > the form > Embed > JavaScript snippet).
-const ML_ACCOUNT = "";
+const ML_ACCOUNT = "2825119";
 const ML_FORM = "jF2XBx";
 function newsletterPage() {
   const form = ML_ACCOUNT ? `<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
