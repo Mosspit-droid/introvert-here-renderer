@@ -216,15 +216,15 @@ function supermarket() {
   const A = 38, B = 31, C = 24, D = 17, E = 10;   // the row people stand in, in aisles 1 (front) to 5 (back)
   box(55, 55, 12, 38, "#"); box(62, 62, 5, 31, "#");   // the queue lane is roped off from aisles 1 to 4; aisle 5 runs straight into it (Barry, 25 Nov: no doubling back)
   // Aisle 1, bread: in at the left, out at the right. Someone you know, a slow trolley.
-  put(3, A, "S"); put(14, A, "P"); put(34, A, "R"); put(46, A, "g");
+  put(3, A, "S"); put(14, A, "P"); put(20, A, "R"); put(34, A, "R"); put(41, A, "P"); put(46, A, "g");
   // Aisle 2, tins: in at the right, out at the left. Two trolleys and an old school friend.
-  put(52, B, "K"); put(44, B, "R"); put(33, B, "w"); put(26, B, "C"); put(18, B, "w"); put(12, B, "R"); put(9, B, "g");
+  put(52, B, "K"); put(44, B, "R"); put(33, B, "w"); put(26, B, "C"); put(18, B, "w"); put(12, B, "R"); put(9, B, "g"); put(39, B, "P"); put(15, B, "P");
   // Aisle 3, eggs: in at the left, out at the right. Free samples, headphones, the reduced-section scrum, the eggs beyond it.
-  put(4, C, "K"); put(11, C, "P"); put(22, C, "R"); put(27, C, "H"); row(31, 35, C, "P"); put(46, C, "g");
+  put(4, C, "K"); put(11, C, "P"); put(16, C, "R"); put(22, C, "R"); put(27, C, "H"); put(42, C, "R"); row(31, 35, C, "P"); put(46, C, "g");
   // Aisle 4, coffee: in at the right, out at the left. Trolleys and another old friend.
-  put(52, D, "K"); put(44, D, "R"); put(40, D, "w"); put(28, D, "C"); put(20, D, "w"); put(14, D, "R"); put(9, D, "g");
+  put(52, D, "K"); put(44, D, "R"); put(40, D, "w"); put(28, D, "C"); put(20, D, "w"); put(14, D, "R"); put(9, D, "g"); put(35, D, "P"); put(47, D, "P");
   // Aisle 5, milk, at the back as always: in at the left, the milk near the far end, and straight on into the queue.
-  put(4, E, "K"); put(12, E, "P"); put(24, E, "R"); put(38, E, "R"); put(48, E, "g");
+  put(4, E, "K"); put(12, E, "P"); put(18, E, "R"); put(24, E, "R"); put(31, E, "P"); put(38, E, "R"); put(44, E, "P"); put(48, E, "g");
   put(30, B - 2, "N"); put(42, D - 2, "N"); put(20, E - 2, "N");   // the three Do Not Disturb signs, at jump height
   // The front of the shop: headphones where the queue lets you out, two chatty tills, then the self-service checkout
   put(58, A, "H"); put(65, A, "T"); put(69, A, "T"); put(74, A, "D");
@@ -547,9 +547,9 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
   else if(p.k==='P'&&p.follow&&S.mode==='play'){var fdx=P.x-p.x;if(Math.abs(P.y-p.y)<3&&Math.abs(fdx)>.4&&!unseen){p.f=fdx>0?1:-1;var fx=p.x+p.f*.5;if(!solid(Math.floor(fx),Math.floor(p.y-.5))&&solid(Math.floor(fx),Math.floor(p.y+.1)))p.x+=p.f*1.2*dt}p.q=(p.q||0)+dt;if(p.q>4.5&&Math.abs(fdx)<9){p.q=0;say(p.line,p.x,p.y-2.5)}}
   else if(p.k!=='G'&&!p.fixed&&!brol&&Math.abs(P.x-p.x)<9&&Math.abs(P.y-p.y)<3)p.f=P.x<p.x?-1:1;
   if(p.k==='P'&&L.reach&&!p.fed&&p.x>16){var rp=p.t%3.4;p.reach=rp>2.6?2:rp>2?1:0;var rd=(P.x-p.x)*p.f;if(p.reach===2&&!unseen&&S.mode==='play'&&rd>.5&&rd<1.75&&P.ground&&P.y>p.y-1.2&&P.y<p.y+.3){if(P.plate)feed(p);else{if(P.inv<=0)say(pick(L.lines.reach),p.x,p.y-2.6);hurt('P',p.x)}}}else p.reach=0;
-  if(L.chat&&S.mode==='play'&&L.chat[p.k]&&Math.abs(P.x-p.x)<10&&Math.abs(P.y-p.y)<6){p.ct=(p.ct==null?1+Math.random()*4:p.ct)-dt;if(p.ct<=0){p.ct=4+Math.random()*5;say(pick(L.chat[p.k]),p.x,p.y-2.9)}}
+  if(L.chat&&S.mode==='play'&&L.chat[p.k]&&!(p.gone>0)&&Math.abs(P.x-p.x)<12&&Math.abs(P.y-p.y)<(L.laneY?1:6)){p.ct=(p.ct==null?.15+Math.random()*.7:p.ct)-dt;if(p.ct<=0){p.ct=2.6+Math.random()*2.6;say(pick(L.chat[p.k]),p.x,p.y-2.9)}}
   if(p.k==='T'&&p.t>(L.talkEvery||2)&&Math.abs(P.x-p.x)<14&&Math.abs(P.y-p.y)<3){p.t=0;sfx('blip');bubbles.push({x:p.x+p.f*.6,y:p.y-.75,f:p.f,life:2.6,line:pick(L.lines.T)})}
-  var small=p.k==='G'||p.k==='J';if(!(p.gone>0)&&p.k!=='Y'&&p.k!=='Q'&&p.k!=='M'&&p.k!=='V'&&p.k!=='A'&&!un&&Math.abs(P.x-p.x)<(small?.42:.62)&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(brol&&(p.k==='P'||(P.x-p.x)*p.f<.15))return;if(p.k==='P'&&(p.fed||P.plate)){if(!p.fed)feed(p);return}if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
+  var small=p.k==='G'||p.k==='J',px2=p.k==='R'&&p.i%4!==3?p.x+p.f*.55:p.x,pw2=p.k==='R'?.85:small?.42:.62;if(!(p.gone>0)&&p.k!=='Y'&&p.k!=='Q'&&p.k!=='M'&&p.k!=='V'&&p.k!=='A'&&!un&&Math.abs(P.x-px2)<pw2&&P.y>p.y-(small?.8:1.95)&&P.y-HH<p.y){if(brol&&(p.k==='P'||(P.x-p.x)*p.f<.15))return;if(p.k==='P'&&(p.fed||P.plate)){if(!p.fed)feed(p);return}if(P.inv<=0){if(!p.line)p.line=pick(L.lines[p.k]);say(L.follow?p.line:pick(L.lines[p.k]),p.x,p.y-2.5);if(L.follow&&p.k==='P'&&!p.follow){p.follow=true;p.fixed=true;info('A RELATIVE IS FOLLOWING YOU','They will keep asking. Keep moving, or put your hood up.')}}hurt(p.k,p.x)}});
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
   if(!mm){S.rollT=0;S.rollW=false}else{S.rollT=(S.rollT||0)+dt;mm.f=P.x<mm.x?-1:1;if(S.rollT>L.roll-1.8&&!S.rollW){S.rollW=true;if(!S.seenM){S.seenM=true;info('ROLL CALL','When the megaphone goes off, have your hood up or be off the ground.')}}
    if(S.rollT>=L.roll){S.rollT=0;S.rollW=false;S.rollF=.7;say('HAS ANYONE SEEN '+NAME.toUpperCase()+'?',mm.x,mm.y-2.7);if(!unseen&&P.ground&&tile(kx,ky)!=='K'){say(pick(L.lines.M),P.x,P.y-2.7);hurt('M',mm.x)}}}}
