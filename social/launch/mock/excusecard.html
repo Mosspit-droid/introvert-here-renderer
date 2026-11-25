@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;800&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;font-family:Montserrat,sans-serif;color:#fff}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 55% at 50% 42%,#23221f,#121211 70%,#0b0b0a)}
+.head{position:absolute;left:110px;right:110px;top:520px;text-align:center;font-weight:800;font-size:76px;letter-spacing:.02em;color:#fad00c;line-height:1.05}
+.box{position:absolute;left:110px;width:860px;top:760px;text-align:right;font-weight:400;line-height:1.2;letter-spacing:-.04em}
+.yw{position:absolute;left:110px;width:860px;text-align:right;font-weight:400;letter-spacing:-.04em;color:#a9a59b}
+.logo{position:absolute;left:50%;width:380px;bottom:300px;transform:translateX(-50%);opacity:.85}
+.m{position:absolute;visibility:hidden;font-weight:400;letter-spacing:-.04em;white-space:nowrap}
+</style></head><body><div class="bg"></div>
+<div class="head">THIS WEEK'S<br>EXCUSE</div><div class="box" id="box"></div><div class="yw" id="yw">YOU'RE WELCOME.</div>
+<img class="logo" src="logo-wide.png"><span class="m" id="m">WWWWWWWWWWWW</span>
+<script>
+const t=new URLSearchParams(location.search).get('text')||"… I'M DEFROSTING\nTHE VICAR.";
+const box=document.getElementById('box');
+box.innerHTML=t.split('\n').map(l=>l?'<div>'+l+'</div>':'<div style="height:1.2em">&nbsp;</div>').join('');
+document.fonts.ready.then(()=>{const m=document.getElementById('m');m.style.fontSize='100px';const fs=860/m.getBoundingClientRect().width*100;
+box.style.fontSize=fs+'px';const yw=document.getElementById('yw');yw.style.fontSize=(fs*0.7)+'px';
+yw.style.top=(box.getBoundingClientRect().bottom+fs*1.0)+'px';document.title='ready'});
+</script></body></html>
