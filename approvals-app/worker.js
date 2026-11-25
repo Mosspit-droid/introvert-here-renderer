@@ -46,6 +46,7 @@ export default {
     ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
     ctx.waitUntil(titleTestTick(env).catch(() => {}));
     ctx.waitUntil(shopVideoTick(env).catch(() => {}));
+    ctx.waitUntil(videoRemakeTick(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -363,7 +364,12 @@ async function ingest(request, env, ctx, url) {
   // A newer render for the same row replaces the older one (its code is the live one).
   // Remember if this listing's earlier video was already posted to social, so a re-approval can skip posting again.
   const prior = items[row];
-  const postedBefore = !!(prior && (prior.postedBefore || (prior.status === "approved" && prior.result && prior.result.ok)));
+  let postedBefore = !!(prior && (prior.postedBefore || (prior.status === "approved" && prior.result && prior.result.ok)));
+  // A listing that's already live was posted when it first went live (25 Nov: the old record had been cleared, so a
+  // remade video defaulted to posting again). Remakes started by the app are always replacements.
+  if (!postedBefore) { const pc = str(data.product), am = await env.PENDING.get("amend", "json"), g = am && (am.gags || []).find((x) => x.id === pc.slice(0, 8));
+    const remakes = (await env.PENDING.get("video-remake", "json")) || {};
+    if ((g && (g.live || []).includes(pc.slice(9))) || (remakes.sent || []).includes(pc)) postedBefore = true; }
   items[row] = {
     postedBefore,
     row,
@@ -8300,4 +8306,35 @@ async function shopVideoTick(env) {
     } catch (e) { own[code] = Object.assign({}, own[code] || {}, { err: String(e.message || e).slice(0, 120), errAt: Date.now() }); }
   }
   await env.PENDING.put(SV.own, JSON.stringify(own));   // the catalogue picks the videos up on its next half-hourly run
+}
+
+// ---------- Remaking videos without the opening flash (Barry, 24 Nov) ----------
+// KV "video-remake": {queue, batch: [{code, old}], sent, at}. Six at a time: the old Etsy video is removed, the video
+// columns in Core are cleared, and the video scenario renders a new one (no flash since the renderer change), which
+// comes to Approvals as a replacement (not posted to social by default). The next six start once all of these are
+// approved and back on Etsy with a new video id (read from Core by the site catalogue).
+const VR = { key: "video-remake", size: 6 };
+async function videoRemakeTick(env) {
+  const Q = await env.PENDING.get(VR.key, "json"); if (!Q || (!(Q.queue || []).length && !(Q.batch || []).length)) return;
+  const st = (await env.PENDING.get(SC.state, "json")) || {}, vids = st.vids || {};
+  if ((Q.batch || []).length) {
+    const left = Q.batch.filter((b) => !vids[b.code] || String(vids[b.code].v) === String(b.old));
+    if (left.length) return;   // still waiting for approval / upload
+    Q.done = (Q.done || []).concat(Q.batch.map((b) => b.code)); Q.batch = [];
+  }
+  const next = (Q.queue || []).splice(0, VR.size); if (!next.length) { await env.PENDING.put(VR.key, JSON.stringify(Q)); return; }
+  const R = await coreTable(env, "LISTING_REGISTRY_TABLE"), rc = (k) => R.col(k), batch = [];
+  for (const code of next) {
+    const i = R.rows.findIndex((r) => String(r[rc("PRODUCT_CODE")]) === code); if (i < 0) continue;
+    const lid = String(R.rows[i][rc("ETSY_LISTING_ID")] || ""), vid = String(R.rows[i][rc("VIDEO_ETSY_ID")] || "");
+    if (lid && vid) await etsyTool(env, "/shops/" + IP.shop + "/listings/" + lid + "/videos/" + vid, "DELETE", null, {}).catch(() => {});
+    for (const c of ["VIDEO_FILENAME", "VIDEO_ETSY_ID", "VIDEO_STATUS", "VIDEO_UPLOADED_AT"])
+      await coreTool(env, CORE_WB() + "/tables/LISTING_REGISTRY_TABLE/columns/" + c + "/dataBodyRange/cell(row=" + i + ",column=0)", "PATCH", { values: [[""]] });
+    batch.push({ code, old: vid }); Q.sent = (Q.sent || []).concat([code]);
+  }
+  Q.batch = batch; Q.at = Date.now();
+  await env.PENDING.put(VR.key, JSON.stringify(Q));
+  const token = env.SECRETS && (await env.SECRETS.get("make_token"));
+  if (token) await fetch(MAKE_API + "/scenarios/7696096/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: false }) }).catch(() => {});
+  await notify(env, "", "New videos to approve soon", batch.length + " videos are being remade without the opening flash. Approve them as usual; they won't be posted to social again.", "film");
 }
