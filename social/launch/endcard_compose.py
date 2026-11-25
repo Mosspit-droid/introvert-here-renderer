@@ -63,8 +63,6 @@ while True:
             lit=(L[...,0]>0.5).sum()/max(1,(Lraw[...,0]>0.5).sum())
             if t>T1+0.3 and lit<0.08: gone=t
             else: out=out*(1-L)+A*L
-        if gone and t>gone+0.3:
-            k=sm((t-gone-0.3)/0.6); ba=brand[...,3:]/255*k; out=out*(1-ba)+brand[...,:3]*ba
     Image.fromarray(np.clip(out,0,255).astype(np.uint8)).save('comp/%04d.png'%i); i+=1
-    if (gone and t>gone+1.9) or t>12: break
-print('gone at', gone)
+    if (gone and t>gone+3.0) or t>14: break
+print('gone at', gone); open('gone.txt','w').write(str(gone))
