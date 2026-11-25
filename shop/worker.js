@@ -117,7 +117,16 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
-      if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env), false, await dorisUnlocked(env, cookie(request, "ih_doris"))));
+      if (path === HUB.path + "/aunt-doris") {
+        // preview only: a link with ?unlock=PREVIEW-DORIS opens the whole game straight away, for testers
+        const u = isPreview(env) && url.searchParams.get("unlock");
+        if (u && (await dorisUnlocked(env, u))) {
+          const r = html(dorisPage(await catalog(env), false, true));
+          const h = new Headers(r.headers); h.append("Set-Cookie", dorisCookie(dorisNorm(u), request.url.startsWith("https:")));
+          return new Response(r.body, { status: r.status, headers: h });
+        }
+        return html(dorisPage(await catalog(env), false, await dorisUnlocked(env, cookie(request, "ih_doris"))));
+      }
       if (path === HUB.path + "/aunt-doris/unlocked") return await dorisThanks(env, url);
       if (path === HUB.path + "/aunt-doris/print" && isPreview(env)) return html(dorisPage(null, true));   // preview only: it's the paid booklet
       if (path === HUB.path + "/aunt-doris/check" || path === "/doris") return html(dorisCheckPage());
@@ -1502,7 +1511,7 @@ function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_)
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
-function show(i){i=Math.max(0,Math.min(i,S.length-1));tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
+function show(i){i=Math.max(0,Math.min(i,S.length-1));tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();if(s.hasAttribute('data-pay'))t0=0;var dm=$('.dm',s);if(dm)setLv(dm,0);
  if(s.dataset.n==='2'&&!st.done['2'])talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
  if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'. Hugs: '+(st.hugs||0)+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
