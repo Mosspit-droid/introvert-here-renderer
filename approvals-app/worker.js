@@ -47,6 +47,7 @@ export default {
     ctx.waitUntil(titleTestTick(env).catch(() => {}));
     ctx.waitUntil(shopVideoTick(env).catch(() => {}));
     ctx.waitUntil(videoRemakeTick(env).catch(() => {}));
+    ctx.waitUntil(imgFetchTick(env).catch(() => {}));
     ctx.waitUntil(ordersFlush(env).catch(() => {}));
     ctx.waitUntil(shopOrdersLog(env).catch(() => {}));
     ctx.waitUntil(ipWeeklyTick(env).catch(() => {}));
@@ -71,6 +72,11 @@ export default {
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
       if (pathname === "/api/site-built" && method === "POST") return await siteBuilt(request, env);
+      if (pathname === "/api/tool-result" && method === "POST") {   // results from Make helper scenarios whose own outputs don't come back (Pinterest tool, 25 Nov)
+        if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+        const d = await readBody(request), ref = str(d.ref).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60); if (!ref) return json({ error: "no ref" }, 400);
+        await env.PENDING.put("tool-result:" + ref, JSON.stringify({ at: Date.now(), status: str(d.status), body: String(d.body || "").slice(0, 900000) }), { expirationTtl: 86400 });
+        return json({ ok: true }); }
       if (pathname === "/api/template-result" && method === "POST") return await templateResult(request, env);
       if (pathname === "/api/ip-print-result" && method === "POST") return await ipPrintResult(request, env);
       if (pathname === "/api/photo-job" && method === "GET") return checkSecret(request, env) ? json((await env.PENDING.get("photo-job", "json")) || {}) : json({ error: "bad secret" }, 403);
@@ -8337,4 +8343,15 @@ async function videoRemakeTick(env) {
   const token = env.SECRETS && (await env.SECRETS.get("make_token"));
   if (token) await fetch(MAKE_API + "/scenarios/7696096/run", { method: "POST", headers: { Authorization: "Token " + token, "Content-Type": "application/json" }, body: JSON.stringify({ responsive: false }) }).catch(() => {});
   await notify(env, "", "New videos to approve soon", batch.length + " videos are being remade without the opening flash. Approve them as usual; they won't be posted to social again.", "film");
+}
+
+// One-off helper (25 Nov, Pinterest clean-up): copy listed images (KV "img-fetch": [{key, url}]) into R2 tmp/ so they
+// can be compared with the listing photos. Pinterest's image host only; 25 a run.
+async function imgFetchTick(env) {
+  if (!env.PHOTOS) return;
+  const L = await env.PENDING.get("img-fetch", "json"); if (!Array.isArray(L) || !L.length) return;
+  const batch = L.splice(0, 25);
+  for (const x of batch) { try { const u = new URL(x.url); if (u.hostname !== "i.pinimg.com") continue;
+    const r = await fetch(u.href); if (r.ok) await env.PHOTOS.put("tmp/" + String(x.key).replace(/[^A-Za-z0-9_-]/g, "") + ".jpg", r.body, { httpMetadata: { contentType: "image/jpeg" } }); } catch (e) {} }
+  await env.PENDING.put("img-fetch", JSON.stringify(L));
 }
