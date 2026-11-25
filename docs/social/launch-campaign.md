@@ -88,6 +88,8 @@ All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) a
 - Reason to join: **first look at each Exclusive, plus 5% off for joining**.
 - Sender: contact@introverthere.com. Monthly, drafted by Claude, approved by Barry.
 - Before launch of the signup: the site's privacy page must stop promising "no marketing emails"; the site's Newsletter noticeboard gets the signup box; a 5% Stripe promotion code for new subscribers (site checkout accepts codes). Site changes go through Barry's site/app thread.
+- **Built 25 Nov:** MailerLite account "Introvert Here" (Google login introverthereshop@gmail.com; 14-day trial, then free plan, 250 subscribers). Group "Newsletter". Embedded form "Noticeboard signup", double opt-in on. Heading "Stay home. We'll come to you."; text "First look at every Exclusive, before the news goes stale. Plus 5% off your first order." Share URL: https://preview.mailerlite.io/forms/2825119/205147270196233966/share
+- **Still to do:** (1) the site thread embeds the form on the Newsletter noticeboard (embed code from the form's Actions menu) and updates the privacy page; (2) a welcome email automation with the 5% code; (3) create that code in Stripe; (4) a business postal address for the email footer before the first send.
 - Excuse cards use Barry's hundred new excuses in the repo, not the old ChatGPT ones.
 
 ## Standing order from Barry
