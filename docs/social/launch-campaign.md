@@ -64,6 +64,17 @@ Cut-outs: stand, walk, peek, sit, wave, head, silhouette (`brand-logos/mascot/`)
 - Flora's own agent can also publish to TikTok, Pinterest and Meta. That's a possible alternative to Postiz; compare before paying for both.
 - Each new AI clip needs Barry's OK, because it uses the Canva AI allowance.
 
+## Postiz (set up 25 Nov)
+Connected to Claude as a claude.ai connector (`mcp__Postiz__*`, sign-in, no API key). Channels and Postiz ids:
+- TikTok (business) introverthere.shop `cmwvyz7e30p73qd07a6hhawkr`
+- Instagram Introvert Here `cmwvvxzek0nu0qd07bkxjfxsn`
+- Facebook Page Introvert Here `cmwvw4ft40nrvpj07pe8pc2rb`
+- Pinterest introverthereshop `cmwvvzbiu0nuaqd07hl0hqkxa`
+- Threads introverthere.shop `cmwvx4iz60og1qd0755ntk11j`
+- YouTube Introvert Here (@introverthereshop, on introverthereshop@gmail.com) `cmwvzpo9p0o5go307sej7ky97`
+- Bluesky introverthereshop.bsky.social `cmww075070pt5qd07tw588omf`
+Postiz is on a free trial: check the end date and price. **Barry gets overwhelmed by long setup lists: one step at a time.** Nothing is posted without his OK.
+
 ## Rules
 - No preview link before 30 Nov. Teasers carry no link.
 - **Never signpost the Hoodini hunt** (Barry, 24 Nov): no hints that he's hiding on the site, no "seven times", nothing. People find him for themselves. It's more rewarding, and it may get people talking online.
