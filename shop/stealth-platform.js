@@ -214,7 +214,7 @@ function supermarket() {
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
   box(0, W - 1, 32, 33, "#"); box(0, 0, 0, 33, "#"); box(W - 1, W - 1, 0, 33, "#"); [25, 18, 11].forEach((y) => row(1, W - 2, y, "#"));
   const A = 31, B = 24, C = 17, D = 10;   // the row people stand in, in aisles 1 (front) to 4 (back)
-  box(55, 55, 12, 31, "#"); put(55, 25, "#"); put(55, 18, "#"); box(63, 63, 5, 24, "#");   // the queue lane is walled off from aisles 1 to 3
+  box(55, 55, 12, 31, "#"); put(55, 25, "#"); put(55, 18, "#"); box(62, 62, 5, 24, "#");   // the queue lane is walled off from aisles 1 to 3
   // Aisle 1, bread: in at the left, out at the right. Someone you know, a slow trolley.
   put(3, A, "S"); put(14, A, "P"); put(34, A, "R"); put(46, A, "g");
   // Aisle 2, beans: in at the right, out at the left. Two trolleys and an old school friend.
@@ -224,7 +224,7 @@ function supermarket() {
   // Aisle 4, milk, at the back and in the far corner as always: in at the right, the milk at the left, then back to the queue.
   put(52, D, "K"); put(44, D, "R"); put(38, D, "w"); put(30, D, "C"); put(22, D, "w"); put(14, D, "R"); put(5, D, "g");
   // The queue lane (down only) and the tills: two chatty ones, then the self-service checkout
-  put(61, C, "T"); put(57, B, "T"); put(58, A, "H"); put(62, A, "T"); put(67, A, "T"); put(73, A, "D");
+  put(58, A, "H"); put(65, A, "T"); put(69, A, "T"); put(74, A, "D");
   return g.map((r) => r.join(""));
 }
 const SHOP_ZONES = [
@@ -236,13 +236,13 @@ const SHOP_ZONES = [
 ];
 const SHOP_LINKS = [{ a: 0, b: 1, x0: 49.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.5 }, { a: 2, b: 3, x0: 49.5, x1: 54.9 },
   { a: 0, b: 1, x0: 23, x1: 27, gap: true }, { a: 1, b: 2, x0: 37, x1: 41, gap: true }, { a: 2, b: 3, x0: 15, x1: 19, gap: true },
-  { a: 3, b: 2, x0: 56, x1: 63, down: true }, { a: 2, b: 1, x0: 56, x1: 63, down: true }, { a: 1, b: 0, x0: 56, x1: 63, down: true }];
+  { a: 3, b: 2, x0: 56, x1: 61, down: true }, { a: 2, b: 1, x0: 56, x1: 61, down: true }, { a: 1, b: 0, x0: 56, x1: 61, down: true }];
 const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", view: 13.6, laneY: [32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 55], aisle: [9.5, 48], list: ["BREAD", "BEANS", "EGGS", "MILK"], seeds: [[3, 24], [3, 17], [3, 10], [59, 24], [59, 17], [59, 10]],
   lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.4, chaseWind: 1, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, zones: SHOP_ZONES, upstairs: null,
   intro: "Hoodini only needs four things. Bread, beans, eggs and milk: one in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
-  signs: [{ x: 5, y: 27.3, t: "AISLE 1" }, { x: 52, y: 27.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 27.3, t: "GAP" }, { x: 52, y: 20.3, t: "AISLE 2" }, { x: 39, y: 20.3, t: "GAP" }, { x: 5, y: 13.3, t: "AISLE 3" }, { x: 33, y: 13.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 13.3, t: "GAP" }, { x: 52, y: 6.4, t: "AISLE 4" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 73.5, y: 27.3, t: "SELF-SERVICE" }],
-  props: [{ n: "selfcheck", x: 71.2 }, { n: "selfcheck", x: 75.6 }],
-  chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? At your age?", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
+  signs: [{ x: 5, y: 27.3, t: "AISLE 1" }, { x: 52, y: 27.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 27.3, t: "GAP" }, { x: 52, y: 20.3, t: "AISLE 2" }, { x: 39, y: 20.3, t: "GAP" }, { x: 5, y: 13.3, t: "AISLE 3" }, { x: 33, y: 13.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 13.3, t: "GAP" }, { x: 52, y: 6.4, t: "AISLE 4" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 74.5, y: 27.3, t: "SELF-SERVICE" }],
+  props: [{ n: "selfcheck", x: 72.4 }, { n: "selfcheck", x: 76.4 }],
+  chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? Living the dream.", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
     R: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes.", "Ooh, I’ll just nip round the end."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
   tannoy: ["Cleaner to aisle six. There is no aisle six.", "Would the owner of a navy hoodie please come to customer services.", "This is a colleague announcement: Gary to the tills, please.", "Shoppers are reminded that eye contact is optional.", "The reduced section is now open. Form an orderly scrum.", "Could the gentleman hiding behind the tins please stop."],
   lines: { P: ["Is that you? In HERE?", "Ooh, what are you having for tea?", "I never see you in here!"], R: ["Excuse me, do you work here?", "Can you reach the top shelf for me?", "Where do they keep the eggs?"], T: ["Do you need a bag?", "Have you got a loyalty card?", "Busy today, isn’t it?", "Doing anything nice later?"], C: ["It IS you! From SCHOOL!", "Hang on, I’ll walk round with you!", "Wait there, I’ll get my trolley!"], reach: ["Try the cheese!", "Free sample?", "It’s a new yoghurt!"], pit: ["You slipped."] } };
@@ -261,7 +261,7 @@ function aisleTest() {
 const AISLES = { name: "Aisle test", out: "the aisle test", theme: "shop", view: 13.6, laneY: [18, 11], links: [{ a: 0, b: 1, x0: 1, x1: 8 }, { a: 0, b: 1, x0: 52, x1: 59 }, { a: 0, b: 1, x0: 28.4, x1: 31.6, gap: true }], shelf: [8, 52], aisle: [9.5, 50.5], reach: true, lost: "Wrong aisle.", need: 0, map: keyed(aisleTest(), 20), zones: [{ x0: 0, x1: 60, name: "Two aisles", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false }], upstairs: null,
   intro: "A test. The way out is at the far end of the BACK aisle. Push the stick UP or DOWN to change aisle: you can do it at either end of the shelves, or at the gap in the middle. The shoppers do it too.",
   signs: [{ x: 4, y: 13.4, t: "STICK UP: BACK AISLE" }, { x: 30, y: 13.4, t: "GAP" }, { x: 55.5, y: 7.4, t: "WAY OUT" }],
-  chat: { R: ["They’ve moved the eggs AGAIN.", "I’ve been round three times for the stock cubes.", "Have you SEEN the price of butter?", "Ooh, I’ll just nip round the end."], P: ["That’s a LOT of cheese for one.", "Meal deal? At your age?"] },
+  chat: { R: ["They’ve moved the eggs AGAIN.", "I’ve been round three times for the stock cubes.", "Have you SEEN the price of butter?", "Ooh, I’ll just nip round the end."], P: ["That’s a LOT of cheese for one.", "Meal deal? Living the dream."] },
   lines: { R: ["Is that you? In HERE?", "Ooh, what are you having for tea?", "Mind your ankles."], P: ["I never see you in here!", "Is that ALL you’re getting?"], reach: ["Try the cheese!", "Free sample?"], pit: ["You fell."] } };
 
 // Level 4, the family picnic in the park (Barry, 22 Nov). No runners. The heart of it: a child has lost their
@@ -444,9 +444,9 @@ function win(){if(L.laneY&&!calm&&S.mode==='play'){S.mode='reveal';S.revT=0;sfx(
 // How hard you are steering, -1 to 1: keys are all or nothing, the thumb pad is gradual.
 function steer(){var k=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0);if(k)return k;if(!stick)return 0;var v=stick.v,m=Math.abs(v);return m<.18?0:(v>0?1:-1)*Math.min(1,.35+(m-.18)/.5*.65)}function hoodKey(){return keys.x||keys.Shift||keys.ArrowDown||keys.s||btn.b}function jumpKey(){return keys.z||keys[' ']||keys.ArrowUp||keys.w||btn.a}
 function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;if(S.freeze>0){S.freeze-=dt;return}
- if(L.laneY){if(P.laneT>0)P.laneT-=dt;P.lo=(P.lo||0)*Math.max(0,1-dt*9);var lv=(keys.i?-1:0)+(keys.k?1:0);if(!lv&&stick&&Math.abs(stick.vy||0)>.7&&Math.abs(stick.v)<.65)lv=stick.vy>0?1:-1;
+ if(L.laneY){if(P.laneT>0)P.laneT-=dt;if(P.lo){var ls=dt*13;P.lo=Math.abs(P.lo)<=ls?0:P.lo-(P.lo>0?ls:-ls);P.walkT+=dt}var lv=(keys.i?-1:0)+(keys.k?1:0);if(!lv&&stick&&Math.abs(stick.vy||0)>.7&&Math.abs(stick.v)<.65)lv=stick.vy>0?1:-1;
   var li=P.ground?L.laneY.indexOf(Math.round(P.y*100)/100):-1,upL=li<0?null:laneLink(li,P.x,-1),dnL=li<0?null:laneLink(li,P.x,1);S.canUp=!!upL;S.canDn=!!dnL;
-  if(lv&&li>=0&&!(P.laneT>0)&&S.mode==='play'){var to=lv<0?upL:dnL;if(to!=null){var ty=L.laneY[to];P.lo=P.y-ty;P.y=ty;P.vy=0;P.vx=0;P.laneT=.5;P.safe=[P.x,P.y];sfx('hood')}}}
+  if(lv&&li>=0&&!(P.laneT>0)&&S.mode==='play'){var to=lv<0?upL:dnL;if(to!=null){var ty=L.laneY[to];P.lo=P.y-ty;P.y=ty;P.vy=0;P.vx=0;P.laneT=1.1;P.safe=[P.x,P.y]}}if(P.lo){keys.ArrowLeft=keys.ArrowRight=keys.a=keys.d=0;P.vx=0}}
  movers.forEach(function(m){if(m.sw){var ox=m.x,sa=Math.sin((S.t+m.ph)*6.2832/m.per);m.x=m.cx+m.amp*sa;m.y=m.cy-Math.abs(sa)*.5;if(P.on===m){P.x+=m.x-ox;P.y=m.y}return}if(m.wait>0){m.wait-=dt;return}var dx=m.v*dt;m.x+=dx;if(P.on===m)P.x+=dx;if((m.v>0&&m.x>=m.x1)||(m.v<0&&m.x<=m.x0)){m.x=m.v>0?m.x1:m.x0;m.v=-m.v;m.wait=1.4}});P.on=null;
  var sv=steer(),d=sv>0?1:sv<0?-1:0;if(S.mode==='ready'&&(d||jumpQ>0||hoodKey()))S.mode='play';if(S.mode==='play')S.t+=dt;if(L.tannoy){S.tanT=(S.tanT==null?9:S.tanT)+dt;if(S.tanT>11){S.tanT=0;sfx('quiet');say('BING BONG. '+pick(L.tannoy),cam+vw/2,camY+2.2)}}if(L.rain){var rn=(S.t%50)>22;if(rn&&!S.raining){if(!S.seenR){S.seenR=true;info('IT’S RAINING','Anyone standing under an umbrella can’t see you. Walkers can still walk into you. The pavement is slippery.')}}S.raining=rn;S.wet=Math.max(0,Math.min(1,(S.wet||0)+(rn?dt:-dt)/1.5));}else S.wet=0;
  if(P.inv>0)P.inv-=dt;if(P.phones>0)P.phones-=dt;if(P.fast>0)P.fast-=dt;if(P.cool>0)P.cool-=dt;if(jumpQ>0)jumpQ-=dt;
@@ -516,7 +516,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
  P.hid=P.ground&&Math.abs(P.vx)<1.2&&tile(Math.floor(P.x),Math.floor(P.y-.5))==='h';if(P.hid&&!S.seenH){S.seenH=true;info('BEHIND THE CURTAIN','Stand still here and nobody can see you. It does not use up your hood.')}
- var unseen=P.hid||P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
+ var unseen=P.hid||P.laneT>0||P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7,brol=S.wet>.5&&(p.k==='P'||p.k==='W');if(brol&&p.k==='P')p.f=1;
   var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
@@ -687,7 +687,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   c.fillStyle='#cfc7b6';c.fillRect(x0,yb-5.6,x1-x0,.6);for(var bx2=Math.floor(x0/3.3)*3.3;bx2<x1;bx2+=3.3)shelf(bx2,yb-5.1,yb-1.6,Math.round(bx2/3.3)+3,3.3);
   c.fillStyle=fl;c.fillRect(x0,yb-1.6,x1-x0,MH-yb+1.6);c.fillStyle='rgba(27,27,42,.07)';for(var fx2=Math.floor(x0/2)*2;fx2<x1;fx2+=2)LY.forEach(function(yy){c.fillRect(fx2,yy-1.6,.05,2.6)});
   for(var pi=0;pi<LY.length-1;pi++){var Y=LY[pi+1];if(Y+4.4<camY||Y+1>camY+VIEW+1)continue;var open=(L.links||[]).filter(function(q){return !q.down&&q.a===pi&&q.b===pi+1});
-   for(var bx3=s0;bx3<s1-.05;bx3+=1.1){if(bx3+1.1<x0||bx3>x1)continue;if(open.some(function(q){return bx3+1.1>q.x0+.1&&bx3<q.x1-.1}))continue;var cell=Math.floor((bx3-s0)/3.3),off=(bx3-s0)-cell*3.3,it2=sdc.items[[0,1,0,6,1,3][(cell+pi*2)%6]];c.fillStyle='rgba(27,27,42,.16)';c.fillRect(bx3,Y+4.35,1.11,.28);
+   for(var bx3=s0;bx3+1.1<=s1+.05;bx3+=1.1){if(bx3+1.1<x0||bx3>x1)continue;if(open.some(function(q){return bx3+1.1>q.x0+.1&&bx3<q.x1-.1}))continue;var cell=Math.floor((bx3-s0)/3.3),off=(bx3-s0)-cell*3.3,it2=sdc.items[[0,1,0,6,1,3][(cell+pi*2)%6]];c.fillStyle='rgba(27,27,42,.16)';c.fillRect(bx3,Y+4.35,1.11,.28);
     if(sim.naturalWidth)c.drawImage(sim,it2.x+it2.w*off/3.3,sdc.H-it2.h,it2.w/3,it2.h,bx3,Y+1,1.11,3.4)}}
   if(S.mode==='play'&&!calm&&(S.canUp||S.canDn)&&P.ground){var bo=Math.sin(T*6)*.08;c.fillStyle=YEL;c.strokeStyle=INK;c.lineWidth=.07;if(S.canUp){var ay=P.y-2.5;c.beginPath();c.moveTo(P.x,ay-.35+bo);c.lineTo(P.x+.3,ay+bo);c.lineTo(P.x-.3,ay+bo);c.closePath();c.fill();c.stroke()}if(S.canDn){var ay2=P.y+.5;c.beginPath();c.moveTo(P.x,ay2+.35-bo);c.lineTo(P.x+.3,ay2-bo);c.lineTo(P.x-.3,ay2-bo);c.closePath();c.fill();c.stroke()}}}
  (L.signs||[]).forEach(function(sg){c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(sg.t).width+.5;c.fillStyle=YEL;rr(sg.x-w/2,sg.y-.3,w,.6,.1);c.fill();ink(.07);c.fillStyle=INK;c.fillText(sg.t,sg.x,sg.y+.02)});
@@ -712,7 +712,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   else if(t==='D'){if(party)thing('gate',x+.5,y+1.02,null,false,'party-things');else if(shop)thing(L.laneY?'selfcheck':'exit',x+.5,y+1.02,null,false,'shop-things');else thing('exit',x+.5,y+1.02)}
   else if(t==='K'){var gy2=party&&y>MH-4;if(party)thing(gy2?'cupboard':'engaged',x+(gy2?-.6:.5),y+1.02,null,false,'party-things');else if(shop)thing('staff',x+.5,y+1.02,null,false,'shop-things');else thing('quiet',x+.5,y+1.02);if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-(gy2?.2:1.6),.16,0,6.2832);c.fill();ink(.06)}}
   else if(t==='k'){var on=S.cp&&S.cp[0]===x+.5;c.fillStyle='#3d5a8c';rr(x-.1,y-1.1,1.2,2.1,.08);c.fill();ink();c.fillStyle=on?'#ffe9a8':'#5b7db8';rr(x+.02,y-.98,.96,1.98,.05);c.fill();ink(.05);c.fillStyle=INK;c.font='800 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('QUIET',x+.5,y-.5);c.fillText('ROOM',x+.5,y-.25);c.fillStyle=on?'#3fa76a':'#d23b3b';c.beginPath();c.arc(x+.5,y+.25,.12,0,6.2832);c.fill();ink(.05)}
-  else if(t==='#'&&L.laneY){var isFloor=y>=MH-2||x===0||x===MW-1||L.laneY.indexOf(y)>=0;if(isFloor){c.fillStyle='#ddd6c8';c.fillRect(x,y,1.01,1.01)}else{c.fillStyle='#7d8794';c.fillRect(x+.3,y,.4,1.01);c.fillStyle='#e0303a';c.fillRect(x+.3,y+.3,.4,.2)}}
+  else if(t==='#'&&L.laneY){var isFloor=y>=MH-2||x===0||x===MW-1||L.laneY.indexOf(y)>=0;if(isFloor){c.fillStyle='#ddd6c8';c.fillRect(x,y,1.01,1.01)}else{c.fillStyle='#b3202a';c.fillRect(x+.44,y,.12,1.01);if(L.laneY.indexOf(y+1)>=0||(y%3===0&&L.laneY.indexOf(y)<0)){c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(x+.5,y+1,.3,.08,0,0,6.2832);c.fill();c.fillStyle='#c9ccd3';rr(x+.42,y+.1,.16,.9,.05);c.fill();ink(.05);c.fillStyle='#8d939c';c.beginPath();c.ellipse(x+.5,y+.98,.24,.07,0,0,6.2832);c.fill();ink(.04);c.fillStyle=YEL;c.beginPath();c.arc(x+.5,y+.1,.13,0,6.2832);c.fill();ink(.04)}}}
   else if(t==='#'){var under=tile(x,y+1)!=='#'&&y<MH-1;if(under){c.fillStyle=INK;c.fillRect(x,y+.97,1.01,.07)}var topRow=tile(x,y-1)!=='#',th=TH,sn=L.stone;if(family&&sn&&x>=sn[0]&&x<=sn[1]&&y>=sn[2]&&y<=sn[3])th={a:'#c9ccd3',b:'#aeb2bb',c:'#e4e6ea'};c.fillStyle=topRow?th.a:th.b;c.fillRect(x,y,1.01,1.01);if(under){c.fillStyle=INK;c.fillRect(x,y+.96,1.01,.08)}if(topRow){c.fillStyle=th.c;c.fillRect(x,y,1.01,.16);c.fillStyle=INK;c.fillRect(x,y-.04,1.01,.08)}
    if(!solid(x-1,y)&&x>0){c.fillStyle=INK;c.fillRect(x-.04,y,.08,1.01)}if(!solid(x+1,y)&&x<MW-1){c.fillStyle=INK;c.fillRect(x+.96,y,.08,1.01)}}
   else if(t==='F'){c.fillStyle='#9fb2d1';rr(x+.03,y+.03,.94,.97,.05);c.fill();ink();c.fillStyle='#7f93b5';rr(x+.14,y+.16,.72,.3,.04);c.fill();ink(.05);rr(x+.14,y+.58,.72,.3,.04);c.fill();ink(.05);c.fillStyle=INK;c.fillRect(x+.4,y+.28,.2,.06);c.fillRect(x+.4,y+.7,.2,.06)}
@@ -761,7 +761,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(party)people.forEach(function(q){if(q.k!=='C'||!q.lost||q.x<x0||q.x>x1)return;c.globalAlpha=.55;person(q);c.globalAlpha=1;c.fillStyle='#fff';c.beginPath();c.ellipse(q.x,q.y-2.45,.3,.24,0,0,6.2832);c.fill();ink(.06);c.fillStyle=INK;c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('?',q.x,q.y-2.43)});
  if(L.torch)people.forEach(function(q){if(q.k!=='C'||!isDark(zoneAt(q.x,q.y-.5)))return;var tg=c.createLinearGradient(q.x,0,q.x+q.f*5,0);tg.addColorStop(0,'rgba(255,240,170,.55)');tg.addColorStop(1,'rgba(255,240,170,0)');c.fillStyle=tg;c.beginPath();c.moveTo(q.x+q.f*.3,q.y-1.1);c.lineTo(q.x+q.f*5,q.y-2.4);c.lineTo(q.x+q.f*5,q.y+.05);c.closePath();c.fill();person(q)});
  // you
- var k=1.7/HERO.pph,f=(P.hood||P.slide)?2:S.mode==='won'?3:P.cringeT>0?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:Math.abs(P.vx)>.5?4+Math.floor(P.walkT/.085)%4:0;
+ var k=1.7/HERO.pph,f=(P.hood||P.slide)?2:S.mode==='won'?3:P.cringeT>0?11:!P.ground?(P.vy<2?8:9):P.landT>0?10:(Math.abs(P.vx)>.5||P.lo)?4+Math.floor(P.walkT/.085)%4:0;
  c.fillStyle='rgba(27,27,42,.2)';c.beginPath();c.ellipse(P.x,Math.min(P.y,MH-2)+.02,.4,.08,0,0,6.2832);if(P.ground)c.fill();
  if(P.phones>0){c.strokeStyle='#7a5cff';c.lineWidth=.07;c.globalAlpha=.5+.3*Math.sin(T*4);c.beginPath();c.arc(P.x,P.y-.85,1.05,0,6.2832);c.stroke();c.globalAlpha=1}
  var hang=!P.ground&&(P.balloons||P.float)&&!P.slide&&!(P.inv>1.15)&&S.mode!=='won',fy=P.y-2.1;
