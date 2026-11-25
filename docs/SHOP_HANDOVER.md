@@ -130,6 +130,12 @@ R2 `site/` (copies in `shop/assets/site/`).
   spend £25, max 50 a month per kind, one per internet address per month. Codes never appear in page source.
   Counts in KV `reward:<kind>:<YYYY-MM>`. The preview shows a sample code instead.
 
+### Newsletter (25 Nov)
+- Escape Room noticeboard pin "Minimal contact" opens /uk/escape-room/newsletter: Barry's MailerLite form (account
+  2825119, form jF2XBx; double opt-in), repainted in site colours. After MailerLite's thank-you shows, the page fetches a
+  one-off HELLO-XXXXXX code (reward kind `hello`: 5%, £25 minimum, 30 days, one use, first order only, 50 a month).
+  Privacy notice covers the newsletter and MailerLite.
+
 ### Aunt Doris: pay to unlock (23 Nov)
 - Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
   records the code). Unlock codes in KV `doris:codes`; a cookie `ih_doris` keeps the device unlocked; the code works

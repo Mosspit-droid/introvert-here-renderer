@@ -1016,8 +1016,14 @@ function newsletterPage() {
 #nlf #nlf2 .ml-embedded button:hover{background:#ffe04a!important}</style>`;
   const form = ML_ACCOUNT ? `${mlCss}<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
   return page("Minimal Contact", `<div class="nlb" id="nlf"><section class="box" id="nlf2"><h1>Minimal contact</h1>${form}
+<div class="hello" id="hello" hidden><p class="step">Your 5% off</p><p class="vcode" style="margin:6px 0"><span id="hcode"></span></p><p class="note" id="hnote">Use it at checkout on your first order of £25 or more, within 30 days. One use.</p></div>
 <p class="note">We only email people who sign up. See our <a href="/privacy">privacy notice</a>.</p></section><p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`,
-    { nav: "hub", desc: "Minimal contact: the Introvert Here newsletter. Occasional, quiet, and easy to leave.", script: ML_ACCOUNT ? `(function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments)},l=d.createElement(e),l.async=1,l.src=u,n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n)})(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');ml('account','${ML_ACCOUNT}');` : "" });
+    { nav: "hub", desc: "Minimal contact: the Introvert Here newsletter. Occasional, quiet, and easy to leave.", script: ML_ACCOUNT ? `(function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments)},l=d.createElement(e),l.async=1,l.src=u,n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n)})(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');ml('account','${ML_ACCOUNT}');
+// the 5% the form promises (Barry, 25 Nov): once MailerLite shows its "thanks" message, fetch a one-off code (first order only)
+(function(){var K='ih_hello',box=document.getElementById('hello');function show(o){if(!o||!o.code){if(o&&o.full){document.getElementById('hcode').textContent='All gone this month';document.getElementById('hnote').textContent='We’ve given out this month’s codes. Your newsletter will have the next offer.';box.hidden=false}return}document.getElementById('hcode').textContent=o.code;if(o.sample)document.getElementById('hnote').textContent='Preview copy: real codes start on launch day.';box.hidden=false}
+ var prev=null;try{prev=JSON.parse(localStorage.getItem(K)||'null')}catch(_){}if(prev)show(prev);var asked=!!prev;
+ var t=setInterval(function(){var ok=document.querySelector('.ml-embedded .ml-form-successBody');if(!ok||asked||!ok.offsetParent)return;asked=true;clearInterval(t);
+  fetch('/api/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'hello'})}).then(function(r){return r.json()}).then(function(o){if(o.code){try{localStorage.setItem(K,JSON.stringify({code:o.code,sample:o.sample}))}catch(_){}}show(o)}).catch(function(){})},600)})();` : "" });
 }
 function lookBusyPage() {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -1705,7 +1711,7 @@ async function upcoming(env) {
 // month from the same internet address. The code isn't in any page, so it can't be read from the source.
 // The 5% coupon is created once in Stripe (id IH5OFF). On the preview no code is made: it shows a sample.
 const REWARD_CAP = 50, REWARD_MIN = 2500, REWARD_DAYS = 30;
-const REWARD_PREFIX = { hoodini: "HOODINI", vote: "VOTED" };
+const REWARD_PREFIX = { hoodini: "HOODINI", vote: "VOTED", hello: "HELLO" };   // hello: newsletter sign-up, first order only
 async function rewardCode(request, env, kind) {
   if (!REWARD_PREFIX[kind]) return { error: "bad kind" };
   const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", rnd = crypto.getRandomValues(new Uint8Array(6));
@@ -1718,7 +1724,7 @@ async function rewardCode(request, env, kind) {
   if (count.n >= REWARD_CAP) return { full: true };
   try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
   const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
-    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "metadata[kind]": kind };
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
   try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
   catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
   count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
