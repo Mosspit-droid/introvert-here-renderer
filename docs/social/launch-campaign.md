@@ -80,6 +80,9 @@ Postiz is on a free trial: check the end date and price. **Barry gets overwhelme
 - **Offsite Ads opted out, 25 Nov:** the ~15% fee would exceed the ~£4 margin per sale. (Etsy says Google Shopping placement stays free.)
 - Barry is disillusioned after 8 months with little traffic. Keep scope tight: no new jobs until the test gives evidence.
 
+## Profiles (done 25 Nov)
+All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) and the bio "Everything you need to be left the hell alone." Banners on Facebook (`facebook-cover-1640x924.png`; the 1640x624 version gets cropped badly on phones), YouTube and Bluesky. Links: Facebook and Pinterest already show introverthere.com; Threads has the Etsy shop link. **Swap all links to introverthere.com on launch day.** TikTok name stays "introverthere.shop" until 2 Dec (7-day lock); reminder set.
+
 ## Standing order from Barry
 Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
 
