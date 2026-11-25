@@ -222,6 +222,9 @@ save("shop-people", strip([cellf(f, s, 440, 290, 170, 286) for f in hp]), w=440,
 hm = figures(key("shop-movers.png"), 2); assert len(hm) == 8, len(hm); s1 = 2.05 * PPT / max(f.shape[0] for f in hm[:4]); s2 = 2.05 * PPT / hm[5].shape[0]
 def cellh(fig, sc, cw, ch, ax, base, frac): im = scaled(fig, sc); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[: max(1, int(a_.shape[0] * .3)), : max(1, int(a_.shape[1] * frac))].any(axis=0))[0]; c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.alpha_composite(im, (round(ax - (xs[0] + xs[-1]) / 2), base - im.height)); return c
 save("shop-movers", strip([cellh(f, s1, 560, 262, 150, 258, .45) for f in hm[:4]] + [cellh(f, s2, 560, 262, 150, 258, 1) for f in hm[4:]]), w=560, h=262, ax=150, base=258, n=8)
+# More trolley shoppers (Barry, 25 Nov): the man in the football shirt 0-3, the dad with the toddler 4-7, the lady with the tartan bag 8-11
+hw = figures(key("shop-walkers.png"), 3); assert len(hw) == 12, len(hw)
+save("shop-walkers", strip([cellh(f, 2.1 * PPT / hw[0].shape[0], 560, 262, 150, 258, .45) for f in hw[:4]] + [cellh(f, 2.1 * PPT / hw[4].shape[0], 560, 262, 150, 258, .4) for f in hw[4:8]] + [cellh(f, 1.9 * PPT / hw[8].shape[0], 560, 262, 150, 258, 1) for f in hw[8:]]), w=560, h=262, ax=150, base=258, n=12)
 _, ht_, _, _ = boxes("shop-things.png", [(20, 480, 80, 470), (505, 865, 60, 470), (875, 1385, 5, 470), (1400, 1745, 80, 465), (10, 545, 530, 880), (585, 945, 500, 880), (975, 1260, 500, 880), (1315, 1755, 505, 880)])
 sheet_("shop-things", ht_, [215, 150, 300, 150, 190, 235, 285, 300], ["trolley", "crates", "tins", "wetfloor", "till", "selfcheck", "staff", "exit"])
 # Background: 0 cereal shelves 1 tins and jars 2 fruit and veg stand 3 freezer 4 bakery rack 5 aisle sign 6 chiller 7 magazines 8 baskets 9 offer sign
