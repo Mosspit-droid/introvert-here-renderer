@@ -133,8 +133,13 @@ R2 `site/` (copies in `shop/assets/site/`).
 ### Aunt Doris: pay to unlock (23 Nov)
 - Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
   records the code). Unlock codes in KV `doris:codes`; a cookie `ih_doris` keeps the device unlocked; the code works
-  on other devices via "Already bought it?". Locked pages don't contain Parts Two and Three. Preview test code:
-  PREVIEW-DORIS. Shop checkout accepts promotion codes (the one-off reward codes).
+  on other devices via "Already bought it?". Locked pages don't contain anything after Part One. Preview test code:
+  PREVIEW-DORIS, or the one-tap tester link `/uk/escape-room/aunt-doris?unlock=PREVIEW-DORIS` (preview only). The clock
+  pauses on the paywall.
+- 25 Nov: grown from 13 to 19 puzzles after a 21-minute test run. New Part Three (10 to 15: washing-up, loo queue,
+  Gareth's speech, kids' room, smokers, taxi app); the old Part Three is Part Four (16 to 19). Harder: Sam's text
+  (shift grows along each word), back gate (6 digits: HOME + minutes till the bus), front door (DO NOT DISTURB GO AWAY,
+  with GO AWAY picked up in the middle of the kit). The booklet PDF needs remaking before the Etsy listing. Shop checkout accepts promotion codes (the one-off reward codes).
 
 ### Launch day checklist (planned Mon 30 Nov)
 1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.

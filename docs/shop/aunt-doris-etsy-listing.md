@@ -18,19 +18,19 @@ Now you need to get home. Unseen. Unchatted-to. Unhugged.
 
 Because somewhere in this house is Gareth's mum. Aunt Doris.
 
-ESCAPE FROM AUNT DORIS is a printable escape room for one person and a pen. Thirteen puzzles stand between you and your sofa: a coat pile, a conversation you must survive, a dead phone, a family photo album, a tea round, charades, a coded text, a guarded house, a playlist, a hallway and two locked doors.
+ESCAPE FROM AUNT DORIS is a printable escape room for one person and a pen. Nineteen puzzles stand between you and your sofa: a coat pile, a conversation you must survive, a dead phone, a family photo album, a tea round, charades, a coded text, a guarded house, the washing-up, the loo queue, a speech, a toy box, the smokers, a taxi app, a playlist, a hallway and two locked doors.
 
 HOW IT WORKS
-1. Print the booklet (18 A4 pages).
+1. Print the booklet (about 25 A4 pages).
 2. Solve each puzzle on paper.
 3. Check your answers on your phone at introverthere.com/doris.
 4. Every wrong answer brings Aunt Doris a step closer. Four wrong answers on the same puzzle and she hugs you.
 5. Stuck? The checker has hints. The second one tells you the answer, so only press it if you mean it.
 
 WHAT YOU GET
-• An 18-page A4 PDF: cover, how to play, 13 puzzles, and a page to collect your kit for the final code
+• A printable A4 PDF: cover, how to play, 19 puzzles, and a page to collect your kit for the final code
 • Online answer checking, hints and Aunt Doris, free, on any phone
-• About 45 minutes of not talking to anyone
+• About 45 to 60 minutes of not talking to anyone
 
 GOOD TO KNOW
 • Designed for one player. Obviously.
@@ -64,6 +64,8 @@ From Introvert Here: everything you need to be left the hell alone.
 - Pictures: etsy-1.jpg (cover), etsy-2.jpg (pages), etsy-3.jpg (how it works); made from the booklet
 
 ## Before posting
+
+- 25 Nov: the game grew to 19 puzzles (new Part Three). Remake the PDF and the Etsy pictures from /aunt-doris/print before listing.
 
 - The online game at introverthere.com/aunt-doris is still free to play in full until pay-to-unlock is built
   (after Stripe goes live). Buyers would notice. Post the listing after that, or at the same time.

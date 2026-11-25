@@ -12,7 +12,7 @@ Nothing gets posted without his OK.
 - Escape Room contents (all at introverthere.com/uk/escape-room/...): a warning gate ("Abandon hope…"), a cosy room
   you tap around in, **Look Busy** (fake busy phone screen), **the Excuse Generator** (40 absurd excuses, very
   shareable), **Spot the Introvert** (find the hidden introvert in a painting; 10 paintings, 5 a game; has a Share
-  button), **Vote on the next gag** (5% code for voting), **Escape From Aunt Doris** (paper/online escape room, Part
+  button), **Vote on the next gag** (5% code for voting), **Escape From Aunt Doris** (paper/online escape room, 19 puzzles, Part
   One free, £4.99 to unlock; also a printable booklet for Etsy later, not yet listed).
 - **Hoodini** is the mascot: short, hood up, only his nose showing, hands thrust in his hoodie pocket, hunched. He hides
   in seven places on the site (the Hoodini hunt; all seven earns 5% off). Don't explain where he hides.
