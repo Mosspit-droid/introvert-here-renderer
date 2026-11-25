@@ -87,6 +87,7 @@ async function route(request, env, ctx) {
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
       if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);
+      if (path === "/api/reward" && request.method === "POST") return await rewardApi(request, env);   // the Hoodini hunt
       if (path === "/api/doris-code" && request.method === "POST") return await dorisCodeApi(request, env);   // works on the preview too
       if (path === "/api/doris-checkout" && request.method === "POST") return await dorisCheckout(env, url);   // explains itself on the preview   // works on the preview too (its own tally)
       if (isPreview(env) && path.startsWith("/api/")) return json({ error: "This is the preview copy of the shop, so checkout is switched off." }, 403);
@@ -250,7 +251,7 @@ async function checkout(request, env, url) {
     "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]": "10",
     "metadata[shop]": "IH-UK",
     "payment_intent_data[metadata][shop]": "IH-UK",
-    allow_promotion_codes: "true",   // VOTED5 (vote page) and HOODINI5 (the hunt): created in Stripe as promotion codes
+    allow_promotion_codes: "true",   // the one-off reward codes (rewardCode: Hoodini hunt, vote page)
   });
   if (Object.keys(form).some((k) => k.endsWith("[metadata][personal]"))) form["custom_text[submit][message]"] = "Personalised items can’t be returned for a change of mind. Faulty, damaged or misnamed items are always put right, and the rest of your order can be returned as normal.";
   if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "The shop isn't connected to Stripe yet (the Stripe key hasn't been saved in the approvals app)." }, 503);
@@ -656,7 +657,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .vgrid.done .vc .btn{display:none}.vc .mine-tag{display:none;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}.vgrid.done .vc.mine .mine-tag{display:block}
 .vthanks{display:none;max-width:560px;margin:8px auto 40px;text-align:center}.vthanks.on{display:block}
 .vthanks h2{margin:0 0 6px}.vcode{display:inline-flex;align-items:center;gap:10px;margin:14px 0 6px;padding:10px 12px 10px 18px;border:2px dashed #fad00c;border-radius:12px;font:800 22px/1 Montserrat,sans-serif;letter-spacing:.12em}
-.vcode .btn{margin:0;padding:8px 14px;font-size:13px;letter-spacing:0}
+.vcode[hidden]{display:none}.vcode .btn{margin:0;padding:8px 14px;font-size:13px;letter-spacing:0}
 /* Spot the Introvert: a painting in a frame, with someone hiding in it. The painting gets nearly all of the screen
    (Barry, 21 Nov: "just too small"); everything else is two thin strips above it and two below. */
 body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!important}
@@ -715,19 +716,23 @@ body.room main{max-width:none;padding:0;margin:0}
 `;
 // ---------------- The Hoodini hunt (Barry, 22 Nov) ----------------
 // Hoodini (the mascot) hides in seven places. Most only turn up about one page in six, peek out for four seconds and
-// duck away; tap him to find him. All seven earns a 5% code (HOODINI5: create it in Stripe before launch). No hint
-// anywhere that the hunt exists. Progress is kept on the visitor's device.
+// duck away; tap him to find him. All seven earns a one-off 5% code (rewardCode). No hint
+// anywhere that the hunt exists. Progress is kept on the visitor's device. The reward is a one-off code (see rewardCode).
 //   1 tile: a product tile in the shop        2 footer: over the footer, on long pages
 //   3 room: behind the curtain in the Escape Room   4 basket: the empty basket's Hoodini, tapped
 //   5 lost: the page-not-found Hoodini, tapped     6 night: asleep on the front page, 10pm to 6am
 //   7 excuse: after the 10th excuse in the Excuse Generator
-const huntJs = () => `(function(){var K='ih_hood',N=7,CODE='HOODINI5',S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
+const huntJs = () => `(function(){var K='ih_hood',N=7,S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(_){}}
 function toast(t){var d=document.createElement('div');d.className='hoodt';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.classList.add('on')},20);setTimeout(function(){d.classList.remove('on');setTimeout(function(){d.remove()},400)},3200)}
-function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+CODE+'</b> <button class="btn ghost" type="button">Copy</button></p><p><button class="btn" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
- var bs=m.querySelectorAll('button');bs[0].onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(CODE).then(function(){bs[0].textContent='Copied'})};bs[1].onclick=function(){m.remove()}}
+function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><div class="hoodr"><p>Getting your reward…</p></div><p><button class="btn hoodx" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
+ m.querySelector('.hoodx').onclick=function(){m.remove()};var box=m.querySelector('.hoodr');
+ function show(o){if(o&&o.code){S.code=o.code;save();box.innerHTML='<p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+o.code+'</b> <button class="btn ghost" type="button">Copy</button></p><p class="note">Yours alone: one use, on orders of £25 or more, for 30 days.'+(o.sample?' (Preview copy: a real code is made on the live site.)':'')+'</p>';var c=box.querySelector('button');c.onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(o.code).then(function(){c.textContent='Copied'})}}
+  else box.innerHTML=o&&o.full?'<p>He’s hiding properly this month: all the codes have gone. Try again next month.</p>':'<p>He slipped away before we could get your code. Try tapping him again later.</p>'}
+ if(S.code){show({code:S.code});return}
+ fetch('/api/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'hoodini'})}).then(function(r){return r.json()}).then(function(o){if(!o.code)S.shown=0,save();show(o)}).catch(function(){S.shown=0;save();show(null)})}
 function found(id,el){if(el){el.classList.remove('out');el.classList.add('gone')}if(S.f.indexOf(id)<0){S.f.push(id);save()}var n=S.f.length;
- if(n>=N){if(!S.shown){S.shown=1;save();reward()}else toast('He’s had enough. Your code: '+CODE)}else toast('You found Hoodini. '+n+' of '+N+'.')}
+ if(n>=N){if(!S.shown){S.shown=1;save();reward()}else toast(S.code?'He’s had enough. Your code: '+S.code:'He’s had enough.')}else toast('You found Hoodini. '+n+' of '+N+'.')}
 function peek(id,parent,css,dir,now){if(!parent)return;var b=document.createElement('span');b.className='hoodb hb-'+dir;b.style.cssText=css;b.innerHTML='<img src="/s/mascot-head-sticker.png?v=1" alt="">';parent.appendChild(b);
  b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();found(id,b)});
  var go=function(){setTimeout(function(){if(b.classList.contains('gone'))return;b.classList.add('out');setTimeout(function(){b.classList.remove('out')},4000)},now?200:1200)};
@@ -1605,7 +1610,6 @@ $('#go').addEventListener('click',function(){t0=Date.now();show(1)});
 // Where the gags come from: KV shop:upcoming, which the app is to keep current from Core (see the app thread's note).
 // Until it does, VOTE_FALLBACK is a copy of the next three from Core's GAGS_TABLE (read 21 Nov), skipping In Person
 // and Exclusive, which have no regular schedule.
-const VOTE_CODE = "VOTED5";
 const VOTE_FALLBACK = [
   { id: "IH-00119", coll: "IH", title: "Karaoke", due: "2026-11-23", text: "... OH GOD.\n\nWHY'D IT HAVE\nTO BE KARAOKE?" },
   { id: "IH-00017", coll: "IH", title: "I Do Overthink", due: "2026-11-30", text: "... I DO OVERTHINK.\n\nBEATS WHAT\nYOU DO." },
@@ -1618,6 +1622,36 @@ async function upcoming(env) {
   list = (Array.isArray(list) && list.length ? list : VOTE_FALLBACK).filter((g) => !g.due || g.due > today);
   return (list.length >= 2 ? list : VOTE_FALLBACK).slice(0, 3);
 }
+// ---------------- Reward codes (Barry, 25 Nov) ----------------
+// Finding all seven Hoodinis, or voting, earns 5% off. Each person gets their own code, made in Stripe at that moment:
+// single use, expires after 30 days, minimum spend £25, at most REWARD_CAP a month per kind, and one per kind per
+// month from the same internet address. The code isn't in any page, so it can't be read from the source.
+// The 5% coupon is created once in Stripe (id IH5OFF). On the preview no code is made: it shows a sample.
+const REWARD_CAP = 50, REWARD_MIN = 2500, REWARD_DAYS = 30;
+const REWARD_PREFIX = { hoodini: "HOODINI", vote: "VOTED" };
+async function rewardCode(request, env, kind) {
+  if (!REWARD_PREFIX[kind]) return { error: "bad kind" };
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", rnd = crypto.getRandomValues(new Uint8Array(6));
+  const code = REWARD_PREFIX[kind] + "-" + [...rnd].map((n) => A[n % 32]).join("");
+  if (isPreview(env) || !(await getSecret(env, "stripe_secret_key"))) return { code: REWARD_PREFIX[kind] + "-SAMPLE", sample: true };
+  const month = new Date().toISOString().slice(0, 7), ip = request.headers.get("CF-Connecting-IP") || "";
+  const ck = `reward:${kind}:${month}`, count = (await env.PENDING.get(ck, "json")) || { n: 0, ips: {} };
+  const ipk = ip ? String(Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip + "|ih")))).slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("")) : "";
+  if (ipk && count.ips[ipk]) return { code: count.ips[ipk], again: true };
+  if (count.n >= REWARD_CAP) return { full: true };
+  try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
+  const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "metadata[kind]": kind };
+  try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
+  catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
+  count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
+  return { code };
+}
+async function rewardApi(request, env) {
+  let b = {}; try { b = await request.json(); } catch (_) {}
+  try { return json(await rewardCode(request, env, b.kind)); } catch (e) { console.error("reward", e); return json({ error: true }, 502); }
+}
+
 async function castVote(request, env) {
   let b = {}; try { b = await request.json(); } catch (_) {}
   const list = await upcoming(env), round = list.map((g) => g.id).join("+");
@@ -1625,7 +1659,8 @@ async function castVote(request, env) {
   const key = isPreview(env) ? "shop:votes-preview" : "shop:votes", all = (await env.PENDING.get(key, "json")) || {};
   const r = (all[round] = all[round] || {}); r[b.id] = (r[b.id] || 0) + 1;
   await env.PENDING.put(key, JSON.stringify(all));
-  return json({ ok: true, code: VOTE_CODE });
+  let rw = {}; try { rw = await rewardCode(request, env, "vote"); } catch (e) { console.error("vote reward", e); }
+  return json({ ok: true, ...rw });
 }
 function votePage(list) {
   const round = list.map((g) => g.id).join("+");
@@ -1638,7 +1673,7 @@ function votePage(list) {
 <p class="muted lead vlead" style="margin-top:8px">Three new designs are on their way. Pick the one you want first. Voting is anonymous. Obviously.</p>
 <div class="vgrid" id="vg">${list.map(card).join("")}</div>
 <div class="vthanks" id="vt" role="status" aria-live="polite"><h2>Your vote’s in.</h2><p class="muted">We’ll let you know what’s next. As a thank you, here’s 5% off anything in the shop:</p>
-<div class="vcode"><span id="vcode">${VOTE_CODE}</span><button class="btn ghost" id="vcopy" type="button">Copy</button></div><p class="note" id="vnote">One use per customer. Expires 30 days after you vote.</p></div>
+<div class="vcode"><span id="vcode">…</span><button class="btn ghost" id="vcopy" type="button">Copy</button></div><p class="note" id="vnote">Your own code: one use, on orders of £25 or more, for 30 days.</p></div>
 <p class="note"><a href="${HUB.path}">← Back to the room</a></p>`, { nav: "hub", desc: "Vote on the next Introvert Here design.", script: `
 (function(){var R=${JSON.stringify(round)},g=document.getElementById('vg'),calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(_){}
 // the text is laid out like the videos: the size at which 12 capital Ws fill the text box exactly
@@ -1648,10 +1683,11 @@ function fit(){var m=document.createElement('span');m.style.cssText='position:ab
 function type(c){var ch=c.querySelectorAll('.ch');if(calm){[].forEach.call(ch,function(x){x.classList.add('on')});return}var i=0;(function t(){if(i<ch.length){ch[i++].classList.add('on');setTimeout(t,42)}})()}
 var cards=g.querySelectorAll('.vc');if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.unobserve(e.target);setTimeout(function(){type(e.target)},250)}})},{threshold:.5});[].forEach.call(cards,function(c){io.observe(c)})}else[].forEach.call(cards,type);
 function done(id){g.classList.add('done');[].forEach.call(g.querySelectorAll('.ch'),function(x){x.classList.add('on')});[].forEach.call(cards,function(c){c.classList.toggle('mine',c.dataset.id===id)});document.getElementById('vt').classList.add('on')}
-var prev=null;try{prev=JSON.parse(localStorage.getItem('ih_vote')||'null')}catch(_){}if(prev&&prev.round===R)done(prev.id);
+function showCode(o){var c=document.getElementById('vcode'),n=document.getElementById('vnote');if(o&&o.code){c.textContent=o.code;if(o.sample)n.textContent='Preview copy: a real code is made on the live site.'}else{document.querySelector('#vt .vcode').hidden=true;n.textContent=o&&o.full?'We’ve given out all this month’s codes. Thanks for voting anyway.':'Thanks for voting.'}}
+var prev=null;try{prev=JSON.parse(localStorage.getItem('ih_vote')||'null')}catch(_){}if(prev&&prev.round===R){done(prev.id);showCode(prev.reward)}
 g.addEventListener('click',function(e){var b=e.target.closest('[data-vote]');if(!b||g.classList.contains('done'))return;var id=b.dataset.vote;
  try{localStorage.setItem('ih_vote',JSON.stringify({round:R,id:id,at:Date.now()}))}catch(_){}done(id);
- fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).catch(function(){});
+ fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).then(function(r){return r.json()}).then(function(o){showCode(o);try{localStorage.setItem('ih_vote',JSON.stringify({round:R,id:id,at:Date.now(),reward:o.code?{code:o.code,sample:o.sample}:{full:o.full}}))}catch(_){}}).catch(function(){showCode(null)});
  document.getElementById('vt').scrollIntoView({behavior:calm?'auto':'smooth',block:'center'})});
 document.getElementById('vcopy').addEventListener('click',function(){var c=document.getElementById('vcode').textContent,n=document.getElementById('vnote');if(navigator.clipboard)navigator.clipboard.writeText(c).then(function(){n.textContent='Copied. Use it at checkout.'},function(){})})})();` });
 }

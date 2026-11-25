@@ -124,8 +124,11 @@ R2 `site/` (copies in `shop/assets/site/`).
 - The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
 
 ### The Hoodini hunt (22 Nov)
-- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one); all 7 shows the code **HOODINI5** (5% off). Like
-  VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
+- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one).
+- Reward codes (25 Nov, `rewardCode`): finding all 7 Hoodinis or voting makes a one-off Stripe promotion code
+  (HOODINI-XXXXXX / VOTED-XXXXXX) on the 5% coupon IH5OFF (created automatically): single use, 30 days, minimum
+  spend £25, max 50 a month per kind, one per internet address per month. Codes never appear in page source.
+  Counts in KV `reward:<kind>:<YYYY-MM>`. The preview shows a sample code instead.
 
 ### Aunt Doris: pay to unlock (23 Nov)
 - Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
@@ -137,7 +140,7 @@ R2 `site/` (copies in `shop/assets/site/`).
 1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.
 2. Barry: put the Stripe webhook's signing secret into the shop worker's `STRIPE_WEBHOOK_SECRET`; save the live
    secret key in the app's Orders page.
-3. Barry: in Stripe, create promotion codes VOTED5 (5%) and HOODINI5 (5%), one use per customer.
+3. Nothing to create for discounts: reward codes are made in Stripe on demand (see below).
 4. Me: `catalog()` reads `shop:catalog-next` for the real shop too; deploy the real shop (`shop/wrangler.toml`,
    AUTO_SEND=yes) from this branch. Copy KV `shop:preview:*` assets the real shop needs (logo-xmas.png, icon.png) to `shop:*`.
 5. Together: a real test order (refund it), a real Aunt Doris unlock (refund it).
