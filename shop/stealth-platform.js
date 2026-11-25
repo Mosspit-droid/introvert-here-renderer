@@ -102,7 +102,7 @@ const ZONES = [
   { x0: 192, x1: 250, name: "Reception", wall: "#e2efe6", dado: "#c8dfd0", rail: "#9fc2ac", tones: ["#d3e5d9", "#c0d8c8", "#acc9b6"], kinds: [12, 11, 13, 10, 12], win: true },
 ];
 const UPSTAIRS = { x0: 86, x1: 152, name: "Management", wall: "#e4eaf2", dado: "#cdd8e6", rail: "#a3b4cb", tones: ["#d5deea", "#c3cfe0", "#b0bfd4"], kinds: [0, 2, 4, 11, 1], win: true };
-const LEVEL = { name: "The Office", out: "the office", theme: "office", lost: "His spirit has been crushed. By middle management.", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", need: 40, map: keyed(office()), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
+const LEVEL = { name: "The Office", out: "the office", theme: "office", gary: { x: 151.5, y: 18 }, lost: "His spirit has been crushed. By middle management.", intro: "This is Hoodini. He’s had a long day at work. A gossiping rabble stands between him and the exit. He cannot let them stop him. Not when his very freedom is at stake. And his sanity.", need: 40, map: keyed(office()), zones: ZONES, upstairs: UPSTAIRS, signs: [{ x: 50.6, y: 14.2, t: "LOW CEILING" }, { x: 50.6, y: 14.9, t: "HOLD B: HOOD UP" }, { x: 76.6, y: 13.6, t: "UPSTAIRS IS QUIETER" }, { x: 89.5, y: 13.2, t: "ALL-HANDS MEETING" }],
   lines: { P: ["Have you got a sec?", "You’ll like this one.", "Are you coming to the thing?"], W: ["Ooh, just the person!", "Walk with me.", "Quick question."], T: ["How ARE you?", "Any plans for the weekend?", "Did you get my email?"], C: ["Come here, you!", "There you are!", "Don’t you run off!"], pit: ["You fell into a team-building exercise."] } };
 // Level 2, the high street: outdoors, one storey plus rooftops. Same letters as the office, plus:
 // G a dog on a lead (low: hop it)  u umbrella (hold jump in the air to float)   In the street, F is a crate, ^ a shop
@@ -142,7 +142,7 @@ const STREET_ZONES = [
 ];
 // rain: showers that come and go. In the rain the dog walker, the hen party and the clipboard walker put umbrellas up: the ones
 // standing still cannot see you at all, and the walker only catches you if he walks into you. The busker, the runner and the cyclist carry on as normal. The pavement is slippery (Barry, 24 Nov).
-const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
+const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", gary: { x: 99.5, y: 18 }, lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
   signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
@@ -199,48 +199,50 @@ const PARTY_ZONES = [
   { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [9, 10, 11, 9], dark: true },
   { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden", kinds: [12, 14, 13] },
 ];
-const PARTY = { name: "The House Party", out: "the house party", theme: "party", toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, need: 40, map: keyed(houseParty()), zones: PARTY_ZONES, upstairs: null,
+const PARTY = { name: "The House Party", out: "the house party", theme: "party", gary: { x: 12.5, y: 27 }, toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, need: 40, map: keyed(houseParty()), zones: PARTY_ZONES, upstairs: null,
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
   signs: [{ x: 47, y: 21.4, t: "UP THE STAIRS" }, { x: 63.6, y: 23.6, t: "KITCHEN" }, { x: 86.5, y: 23.6, t: "TISSUES" }, { x: 20.5, y: 12.3, t: "SOFA: UP TO THE LOFT" }, { x: 88.5, y: 4.6, t: "TAKE THE UMBRELLA" }, { x: 88.5, y: 5.3, t: "IT IS A LONG WAY DOWN" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], A: ["CONGA!", "Get on the end!", "Da da da da da, HEY!"], reach: ["Have a drink!", "Try this, it’s lethal.", "Hold this a sec."], bite: ["Ooh, is that a sausage roll?", "Don’t mind if I do.", "Are those the mini quiches?"], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], pit: ["You fell into a conversation about house prices."] } };
 
-// Level 5, the supermarket (Barry, 25 Nov, second go). Four aisles on ONE floor, drawn front to back: you see your own aisle and
+// Level 5, the supermarket (Barry, 25 Nov, second go). Five aisles on ONE floor, drawn front to back: you see your own aisle and
 // the one behind it. Change aisle with the stick (up = further back, down = towards the front) at the open end of the shelving or at
 // a gap in it (links, below). The open ends alternate, so you zig-zag; one thing off the shopping list (g) is in each aisle, and the
-// self-service checkout will not serve you without all four. From the back aisle a one-way queue lane comes forward to the tills.
+// self-service checkout will not serve you without all five. The back aisle runs straight into a one-way queue lane that comes forward to the tills.
 // R shoppers who nip round the ends too.  The lanes are rows of the map 7 apart (laneY is where feet stand).
 function supermarket() {
-  const W = 78, H = 34, g = Array.from({ length: H }, () => Array(W).fill("."));
+  const W = 78, H = 41, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
-  box(0, W - 1, 32, 33, "#"); box(0, 0, 0, 33, "#"); box(W - 1, W - 1, 0, 33, "#"); [25, 18, 11].forEach((y) => row(1, W - 2, y, "#"));
-  const A = 31, B = 24, C = 17, D = 10;   // the row people stand in, in aisles 1 (front) to 4 (back)
-  box(55, 55, 12, 31, "#"); put(55, 25, "#"); put(55, 18, "#"); box(62, 62, 5, 24, "#");   // the queue lane is walled off from aisles 1 to 3
+  box(0, W - 1, 39, 40, "#"); box(0, 0, 0, 40, "#"); box(W - 1, W - 1, 0, 40, "#"); [32, 25, 18, 11].forEach((y) => row(1, W - 2, y, "#"));
+  const A = 38, B = 31, C = 24, D = 17, E = 10;   // the row people stand in, in aisles 1 (front) to 5 (back)
+  box(55, 55, 12, 38, "#"); box(62, 62, 5, 31, "#");   // the queue lane is roped off from aisles 1 to 4; aisle 5 runs straight into it (Barry, 25 Nov: no doubling back)
   // Aisle 1, bread: in at the left, out at the right. Someone you know, a slow trolley.
   put(3, A, "S"); put(14, A, "P"); put(34, A, "R"); put(46, A, "g");
-  // Aisle 2, beans: in at the right, out at the left. Two trolleys and an old school friend.
+  // Aisle 2, tins: in at the right, out at the left. Two trolleys and an old school friend.
   put(52, B, "K"); put(44, B, "R"); put(33, B, "w"); put(26, B, "C"); put(18, B, "w"); put(12, B, "R"); put(9, B, "g");
   // Aisle 3, eggs: in at the left, out at the right. Free samples, headphones, the reduced-section scrum, the eggs beyond it.
   put(4, C, "K"); put(11, C, "P"); put(22, C, "R"); put(27, C, "H"); row(31, 35, C, "P"); put(46, C, "g");
-  // Aisle 4, milk, at the back and in the far corner as always: in at the right, the milk at the left, then back to the queue.
-  put(52, D, "K"); put(44, D, "R"); put(38, D, "w"); put(30, D, "C"); put(22, D, "w"); put(14, D, "R"); put(5, D, "g");
-  // The queue lane (down only) and the tills: two chatty ones, then the self-service checkout
+  // Aisle 4, coffee: in at the right, out at the left. Trolleys and another old friend.
+  put(52, D, "K"); put(44, D, "R"); put(40, D, "w"); put(28, D, "C"); put(20, D, "w"); put(14, D, "R"); put(9, D, "g");
+  // Aisle 5, milk, at the back as always: in at the left, the milk near the far end, and straight on into the queue.
+  put(4, E, "K"); put(12, E, "P"); put(24, E, "R"); put(38, E, "R"); put(48, E, "g");
+  // The front of the shop: headphones where the queue lets you out, two chatty tills, then the self-service checkout
   put(58, A, "H"); put(65, A, "T"); put(69, A, "T"); put(74, A, "D");
   return g.map((r) => r.join(""));
 }
+const SZ = { wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false };
 const SHOP_ZONES = [
-  { x0: 0, x1: 78, y0: 26, y1: 32, name: "Aisle 1: Bread", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
-  { x0: 0, x1: 56, y0: 19, y1: 24, name: "Aisle 2: Tins", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
-  { x0: 0, x1: 56, y0: 12, y1: 17, name: "Aisle 3: The Reduced Section", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
-  { x0: 0, x1: 56, y0: 0, y1: 10, name: "Aisle 4: Milk. Obviously.", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
-  { x0: 56, x1: 78, y0: 0, y1: 24, name: "The Queue", wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false },
+  { ...SZ, x0: 0, x1: 78, y0: 33, y1: 39, name: "Aisle 1: Bread" }, { ...SZ, x0: 0, x1: 56, y0: 26, y1: 31, name: "Aisle 2: Tins" }, { ...SZ, x0: 0, x1: 56, y0: 19, y1: 24, name: "Aisle 3: The Reduced Section" },
+  { ...SZ, x0: 0, x1: 56, y0: 12, y1: 17, name: "Aisle 4: Coffee" }, { ...SZ, x0: 0, x1: 56, y0: 0, y1: 10, name: "Aisle 5: Milk. Obviously." }, { ...SZ, x0: 56, x1: 78, y0: 0, y1: 31, name: "The Queue" },
 ];
-const SHOP_LINKS = [{ a: 0, b: 1, x0: 49.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.5 }, { a: 2, b: 3, x0: 49.5, x1: 54.9 },
-  { a: 0, b: 1, x0: 23, x1: 27, gap: true }, { a: 1, b: 2, x0: 37, x1: 41, gap: true }, { a: 2, b: 3, x0: 15, x1: 19, gap: true },
-  { a: 3, b: 2, x0: 56, x1: 61, down: true }, { a: 2, b: 1, x0: 56, x1: 61, down: true }, { a: 1, b: 0, x0: 56, x1: 61, down: true }];
-const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", view: 13.6, laneY: [32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 55], aisle: [9.5, 48], list: ["BREAD", "BEANS", "EGGS", "MILK"], seeds: [[3, 24], [3, 17], [3, 10], [59, 24], [59, 17], [59, 10]],
+const SHOP_LINKS = [{ a: 0, b: 1, x0: 49.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.5 }, { a: 2, b: 3, x0: 49.5, x1: 54.9 }, { a: 3, b: 4, x0: 1, x1: 7.5 },
+  { a: 0, b: 1, x0: 23, x1: 27, gap: true }, { a: 1, b: 2, x0: 37, x1: 41, gap: true }, { a: 2, b: 3, x0: 15, x1: 19, gap: true }, { a: 3, b: 4, x0: 33, x1: 37, gap: true },
+  { a: 4, b: 3, x0: 56, x1: 61, down: true }, { a: 3, b: 2, x0: 56, x1: 61, down: true }, { a: 2, b: 1, x0: 56, x1: 61, down: true }, { a: 1, b: 0, x0: 56, x1: 61, down: true }];
+const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", gary: { x: 48, y: 32 }, view: 13.6, laneY: [39, 32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 55], aisle: [9.5, 48], list: ["BREAD", "BEANS", "EGGS", "COFFEE", "MILK"],
+  aisleSigns: [["BREAD", "CAKES", "JAM"], ["TINS", "BEANS", "PASTA SAUCE"], ["EGGS", "BISCUITS", "REDUCED"], ["COFFEE", "TEA", "CEREAL"], ["MILK", "CHEESE", "YOGHURT"]],
+  seeds: [[3, 31], [3, 24], [3, 17], [3, 10], [59, 31], [59, 24], [59, 17], [59, 10]],
   lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.4, chaseWind: 1, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, zones: SHOP_ZONES, upstairs: null,
-  intro: "Hoodini only needs four things. Bread, beans, eggs and milk: one in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
-  signs: [{ x: 5, y: 27.3, t: "AISLE 1" }, { x: 52, y: 27.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 27.3, t: "GAP" }, { x: 52, y: 20.3, t: "AISLE 2" }, { x: 39, y: 20.3, t: "GAP" }, { x: 5, y: 13.3, t: "AISLE 3" }, { x: 33, y: 13.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 13.3, t: "GAP" }, { x: 52, y: 6.4, t: "AISLE 4" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 74.5, y: 27.3, t: "SELF-SERVICE" }],
+  intro: "Hoodini only needs five things: bread, beans, eggs, coffee and milk. One in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
+  signs: [{ x: 52, y: 34.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 34.3, t: "GAP" }, { x: 39, y: 27.3, t: "GAP" }, { x: 33, y: 20.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 20.3, t: "GAP" }, { x: 35, y: 13.3, t: "GAP" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 74.5, y: 34.3, t: "SELF-SERVICE" }],
   props: [{ n: "selfcheck", x: 72.4 }, { n: "selfcheck", x: 76.4 }],
   chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? Living the dream.", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
     R: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes.", "Ooh, I’ll just nip round the end."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
@@ -299,7 +301,7 @@ const FAMILY_ZONES = [
   { x0: 0, x1: 38, name: "The Picnic", kinds: [0, 5, 8, 1] }, { x0: 38, x1: 90, name: "The Playground", kinds: [5, 1, 3, 7] }, { x0: 90, x1: 125, name: "The Bouncy Castle", kinds: [2, 5, 9, 6] },
   { x0: 125, x1: 163, name: "The Pond", kinds: [4, 5, 1, 4] }, { x0: 163, x1: 199, name: "The Bandstand", kinds: [7, 6, 1, 5] }, { x0: 199, x1: 232, name: "The Park Gate", kinds: [5, 7, 3, 6] },
 ];
-const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, need: 40, map: keyed(park()), zones: FAMILY_ZONES, upstairs: null,
+const FAMILY = { name: "The Family Picnic", out: "the family picnic", theme: "family", gary: { x: 88.5, y: 28 }, lost: "The family has absorbed him.", talkEvery: 2, walkSpeed: 2.2, need: 40, map: keyed(park()), zones: FAMILY_ZONES, upstairs: null,
   intro: "Hoodini cut back through the park and straight into a family picnic he had forgotten about. A child has lost her balloons. Everyone is looking at him.",
   signs: [{ x: 24.5, y: 19.6, t: "TEA" }, { x: 42.5, y: 21.6, t: "SLIDE" }, { x: 75.5, y: 24.4, t: "ROUNDABOUT" }, { x: 99.5, y: 24.2, t: "HOLD A TO BOUNCE HIGHER" }, { x: 116.5, y: 24.6, t: "SEESAW" }, { x: 135, y: 21.4, t: "HOLD A: THE BALLOONS LIFT YOU" }, { x: 180, y: 14.2, t: "THE BANDSTAND" }],
   pram: { x: 37.6 }, sway: [0, 2.5, 2], tree: { x: 121.5, y: 19 }, stone: [174, 186, 24, 27], band: { x: 180.5, y: 24 }, ghost: [[41, 44, 24, 26, 1], [74, 76, 27, 27, 0], [119, 123, 19, 19, 0]], slides: [{ x0: 44.6, y0: 24, x1: 51, y1: 28 }], spins: [{ x: 75.5, y: 27 }], seesaws: [{ x: 116.5 }],
@@ -682,7 +684,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  var par=0;c.save();c.translate(par,0);if(office)for(var bi=Math.floor((x0-par)/5)-1;bi<(x1-par)/5+1;bi++)[MH-2,9].forEach(function(base,st){var bx=bi*5+1.2+((bi*13+st*7)%3)*.5,wx=bx+par;if(wx<1||wx>MW-3)return;if(st===1&&!(solid(Math.floor(wx),9)&&solid(Math.floor(wx+2),9)))return;if(st===0&&!(solid(Math.floor(wx),MH-2)&&solid(Math.floor(wx+2),MH-2)))return;var z=zoneAt(wx+1,base-1);if(wx<z.x0+.4||wx+3.6>z.x1)return;backdrop(bx,base,z.kinds[(bi*7+st*3+700)%z.kinds.length],z.tones,shop?'shop-decor':null)});c.restore();
  // strip lights along each ceiling
  if(office)for(x=Math.floor(x0/6)*6+2;x<x1;x+=6){c.fillStyle='#fff8dc';c.strokeStyle='#d9c594';c.lineWidth=.05;rr(x,.25,2.2,.2,.08);c.fill();c.stroke();if(solid(x+1,10)&&!solid(x+1,11)){rr(x,11.12,2.2,.2,.08);c.fill();c.stroke()}}
- for(x=Math.floor(x0/9)*9+3;x<x1;x+=9)[1.4,MH-9.4].forEach(function(wy0,k){if(shop){if(k===0&&!solid(x+1,1)&&!solid(x+1,3)){var sd2=ART['shop-decor'],si2=sd2.items[5],sm2=IMG['shop-decor'];if(sm2.naturalWidth){var sw2=2.3,sh3=sw2*si2.h/si2.w;c.drawImage(sm2,si2.x,sd2.H-si2.h,si2.w,si2.h,x+.3,.25,sw2,sh3)}}return}if(!zoneAt(x+1.5,wy0+1).win)return;if(solid(x+1,Math.floor(wy0+1))||solid(x+1,Math.floor(wy0+3.4))||solid(x+1,Math.floor(wy0-.6)))return;
+ for(x=Math.floor(x0/9)*9+3;x<x1;x+=9)[1.4,MH-9.4].forEach(function(wy0,k){if(shop){if(L.laneY)return;if(k===0&&!solid(x+1,1)&&!solid(x+1,3)){var sd2=ART['shop-decor'],si2=sd2.items[5],sm2=IMG['shop-decor'];if(sm2.naturalWidth){var sw2=2.3,sh3=sw2*si2.h/si2.w;c.drawImage(sm2,si2.x,sd2.H-si2.h,si2.w,si2.h,x+.3,.25,sw2,sh3)}}return}if(!zoneAt(x+1.5,wy0+1).win)return;if(solid(x+1,Math.floor(wy0+1))||solid(x+1,Math.floor(wy0+3.4))||solid(x+1,Math.floor(wy0-.6)))return;
   c.fillStyle='#8fd3f4';rr(x,wy0,3,3.2,.12);c.fill();ink();c.fillStyle='#fff';c.beginPath();c.ellipse(x+.9+((x*7+k*3)%5)*.2,wy0+.9,.5,.2,0,0,6.2832);c.ellipse(x+1.9,wy0+1.7,.6,.22,0,0,6.2832);c.fill();c.fillStyle=INK;c.fillRect(x+1.46,wy0,.08,3.2);c.fillRect(x,wy0+1.56,3,.08);
   if(!solid(x+6,Math.floor(wy0+1))&&!solid(x+6,Math.floor(wy0+2.4))&&(Math.floor(x/9)+k)%5!==2){poster(x+6,wy0+.3,Math.floor(x/9)*2+k)}
   else if(!solid(x+6,Math.floor(wy0+1))){c.fillStyle='#fff';c.beginPath();c.arc(x+6,wy0+1,.42,0,6.2832);c.fill();ink();c.beginPath();c.moveTo(x+6,wy0+1);c.lineTo(x+6,wy0+.75);c.moveTo(x+6,wy0+1);c.lineTo(x+6.18,wy0+1.1);ink(.06)}});
@@ -693,6 +695,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   for(var pi=0;pi<LY.length-1;pi++){var Y=LY[pi+1];if(Y+4.4<camY||Y+1>camY+VIEW+1)continue;var open=(L.links||[]).filter(function(q){return !q.down&&q.a===pi&&q.b===pi+1});
    for(var bx3=s0;bx3+1.1<=s1+.05;bx3+=1.1){if(bx3+1.1<x0||bx3>x1)continue;if(open.some(function(q){return bx3+1.1>q.x0+.1&&bx3<q.x1-.1}))continue;var cell=Math.floor((bx3-s0)/3.3),off=(bx3-s0)-cell*3.3,it2=sdc.items[[0,1,0,6,1,3][(cell+pi*2)%6]];c.fillStyle='rgba(27,27,42,.16)';c.fillRect(bx3,Y+4.35,1.11,.28);
     if(sim.naturalWidth)c.drawImage(sim,it2.x+it2.w*off/3.3,sdc.H-it2.h,it2.w/3,it2.h,bx3,Y+1,1.11,3.4)}}
+  (L.aisleSigns||[]).forEach(function(pr,ai){var top=(ai<LY.length-1?LY[ai]-6:LY[ai]-5.1)+.08;if(top+2<camY||top>camY+VIEW)return;for(var sx4=6+((ai%2)*6.5);sx4<s1-3;sx4+=13){if(sx4+4<x0||sx4>x1)continue;c.strokeStyle=INK;c.lineWidth=.05;c.beginPath();c.moveTo(sx4+.5,top-.5);c.lineTo(sx4+.5,top);c.moveTo(sx4+3.3,top-.5);c.lineTo(sx4+3.3,top);c.stroke();c.fillStyle='#1f5fbf';rr(sx4,top,3.8,1.25,.12);c.fill();ink(.07);c.fillStyle=YEL;c.beginPath();c.arc(sx4+.62,top+.62,.44,0,6.2832);c.fill();ink(.05);c.fillStyle=INK;c.font='900 .56px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(String(ai+1),sx4+.62,top+.65);c.fillStyle='#fff';c.font='800 .25px Montserrat,system-ui,sans-serif';c.textAlign='left';pr.forEach(function(t3,ti){c.fillText(t3,sx4+1.25,top+.3+ti*.33)})}});
   if(S.mode==='play'&&!calm&&(S.canUp||S.canDn)&&P.ground){var bo=Math.sin(T*6)*.08;c.fillStyle=YEL;c.strokeStyle=INK;c.lineWidth=.07;if(S.canUp){var ay=P.y-2.5;c.beginPath();c.moveTo(P.x,ay-.35+bo);c.lineTo(P.x+.3,ay+bo);c.lineTo(P.x-.3,ay+bo);c.closePath();c.fill();c.stroke()}if(S.canDn){var ay2=P.y+.5;c.beginPath();c.moveTo(P.x,ay2+.35-bo);c.lineTo(P.x+.3,ay2-bo);c.lineTo(P.x-.3,ay2-bo);c.closePath();c.fill();c.stroke()}}}
  (L.signs||[]).forEach(function(sg){c.font='800 .34px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';var w=c.measureText(sg.t).width+.5;c.fillStyle=YEL;rr(sg.x-w/2,sg.y-.3,w,.6,.1);c.fill();ink(.07);c.fillStyle=INK;c.fillText(sg.t,sg.x,sg.y+.02)});
  // gaps in the floor are a dark stairwell
@@ -745,6 +748,9 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  fx.forEach(function(q){c.globalAlpha=Math.min(1,q.life/.25)*.85;c.fillStyle='#fff';c.beginPath();c.arc(q.x,q.y,q.r*(1.6-q.life*1.5),0,6.2832);c.fill();c.globalAlpha=1});
  pops.forEach(function(q){var a=q.life/.6,r=(1-a)*(q.big?1.5:.8);c.globalAlpha=a;c.strokeStyle=YEL;c.lineWidth=q.big?.14:.08;c.beginPath();c.arc(q.x,q.y,.3+r,0,6.2832);c.stroke();if(!q.big){c.fillStyle=INK;c.font='800 .4px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('+',q.x,q.y-.5-(1-a)*.8)}c.globalAlpha=1});
 
+ if(L.gary&&L.gary.x>x0-3&&L.gary.x<x1+3){var gq=L.gary,gn=Math.abs(P.x-gq.x)<4.5&&Math.abs(P.y-gq.y)<3,gb2=calm?0:(gn?Math.abs(Math.sin(T*9))*.1:Math.sin(T*1.5)*.03);sprite('nemesis',3,gq.x+(P.x<gq.x?.25:-.25),gq.y-.95-gb2-(gn?.12:0),P.x<gq.x,1/PPT);
+  c.fillStyle='#c79a5b';rr(gq.x-.85,gq.y-1.05,1.05,1.05,.06);c.fill();ink(.07);rr(gq.x+.05,gq.y-.8,.85,.8,.06);c.fill();ink(.07);c.fillStyle='#e6c88f';c.fillRect(gq.x-.42,gq.y-1.05,.2,1.05);c.fillRect(gq.x+.38,gq.y-.8,.18,.8);
+  if(gn&&!S.garySeen&&S.mode==='play'){S.garySeen=true;sfx('laugh');say(pick(['Alright, Hoodini? Off somewhere?','Leaving already? Classic Hoodini.','Don’t mind me. Just watching.']),gq.x,gq.y-2.9)}}
  if(L.pram&&L.pram.x>x0-3&&L.pram.x<x1+3){var pd=ART['park-decor'],pi=pd.items[8],pim=IMG['park-decor'];if(pim.naturalWidth){var ph2=1.75,pw2=ph2*pi.w/pi.h;c.drawImage(pim,pi.x+1,pd.H-pi.h,pi.w-2,pi.h,L.pram.x-pw2/2,MH-2+.04-ph2,pw2,ph2);if(S.pramBaby)babyPic(L.pram.x-.12,MH-2-.95,.62)}}
  people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
  if(L.roll&&S.rollW&&S.mode==='play'){var rl=Math.max(0,(L.roll-S.rollT)/1.8),bx2=cam+vw/2,by3=camY+1.9;c.fillStyle='#e0303a';rr(bx2-3.1,by3-.38,6.2,.76,.16);c.fill();ink(.08);c.fillStyle='#fff';c.font='800 .36px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ROLL CALL: HOOD UP!',bx2,by3-.02);c.fillStyle=YEL;c.fillRect(bx2-2.9,by3+.24,5.8*rl,.08)}
