@@ -190,9 +190,7 @@ three gags due out, so visitors can vote (Barry: "we're creating the illusion of
 **Votes:** the site keeps counts in KV `shop:votes` as `{ "<the three ids joined with +>": { "<id>": count } }`.
 They're never shown on the site. The app could show them to Barry if he wants.
 
-**Discount for voters:** after voting, people are shown a 5% code (placeholder `VOTED5`; Barry to name it). It
-needs creating in Stripe as a promotion code (5% off, one use per customer, 30 days) before launch, with Barry's OK,
-and checkout needs to accept promotion codes.
+**Discount for voters:** (updated 25 Nov) the site now makes a one-off Stripe promotion code per voter itself (single use, 30 days, £25 minimum, monthly cap). Nothing needed from the app.
 
 ## Added 22 Nov: Etsy reviews on the site (later, not urgent)
 

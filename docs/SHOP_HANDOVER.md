@@ -90,7 +90,7 @@ R2 `site/` (copies in `shop/assets/site/`).
   `docs/shop/STEALTH_GAME_BRIEF.md`, on its own preview), bookshelf (paper escape rooms), noticeboard (newsletter).
 - `/look-busy`, `/excuses` (Barry's 40 excuses), `/spot` (Barry's paintings, `SPOT`; five a game; `?all=1` plays
   all), `/vote` (next three scheduled gags; see the app note for `shop:upcoming`, the `shop:votes` tally and the
-  `VOTED5` code, which needs creating in Stripe before launch).
+  one-off reward codes, see Reward codes below).
 - Shop list: 24 at a time; the dots window is "Show more", "Retreat" goes back up to the tabs.
 
 ### UK printing pilot: `shop/uk/make_pilot.py`
@@ -134,7 +134,7 @@ R2 `site/` (copies in `shop/assets/site/`).
 - Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
   records the code). Unlock codes in KV `doris:codes`; a cookie `ih_doris` keeps the device unlocked; the code works
   on other devices via "Already bought it?". Locked pages don't contain Parts Two and Three. Preview test code:
-  PREVIEW-DORIS. Shop checkout now accepts promotion codes (VOTED5, HOODINI5 to be created in Stripe at launch).
+  PREVIEW-DORIS. Shop checkout accepts promotion codes (the one-off reward codes).
 
 ### Launch day checklist (planned Mon 30 Nov)
 1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.
