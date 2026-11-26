@@ -7564,6 +7564,13 @@ async function shopKeys(request, env) {
     if (pt.length < 40 || /\s/.test(pt)) return json({ error: "That doesn't look like a Printify token (it's a long code with no spaces)." }, 400);
     await env.SECRETS.put("printify_token", pt); saved.push("Printify");
   }
+  const ml = str(d.mailerlite_key);
+  if (ml) {
+    if (ml.length < 30 || /\s/.test(ml)) return json({ error: "That doesn't look like a MailerLite API key (it's a very long code with no spaces)." }, 400);
+    await env.SECRETS.put("mailerlite_key", ml); saved.push("MailerLite");
+    const st = await mlCheck(env).catch((e) => ({ ok: false, error: String(e.message || e) }));
+    if (!st.ok) return json({ ok: true, saved, warning: "Saved, but MailerLite didn't accept it: " + st.error });
+  }
   if (!saved.length) return json({ error: "Nothing to save." }, 400);
   return json({ ok: true, saved });
 }
@@ -7588,7 +7595,7 @@ async function shopOrderSend(request, env) {
 
 async function ordersPage(env) {
   const orders = (await env.PENDING.get("shop:orders", "json")) || [];
-  const last4 = async (k) => { const v = env.SECRETS && (await env.SECRETS.get(k)); return v ? "saved ✓ (…" + esc(v.slice(-4)) + ", " + (/_live_/.test(v) ? "LIVE" : /_test_/.test(v) ? "test" : "") + ")" : "not saved yet"; };
+  const last4 = async (k) => { const v = env.SECRETS && (await env.SECRETS.get(k)); return v ? "saved ✓ (…" + esc(v.slice(-4)) + (/_live_/.test(v) ? ", LIVE" : /_test_/.test(v) ? ", test" : "") + ")" : "not saved yet"; };
   const stripeState = await last4("stripe_secret_key");
   const pState = env.SECRETS && (await env.SECRETS.get("printify_token")) ? "saved ✓" : "not saved yet";
   const gbp = (p) => (p == null ? "" : "£" + (p / 100).toFixed(2));
@@ -7619,14 +7626,16 @@ ${await shopCatalogCard(env)}
 <textarea id="sk" rows="2" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="sk_test_… (or sk_live_… when going live)"></textarea>
 <label style="margin-top:12px;display:block"><b>Printify API token</b> <span class="small">${pState}</span></label>
 <textarea id="pt" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="Printify token (a long code)"></textarea>
+<label style="margin-top:12px;display:block"><b>MailerLite API key</b> <span class="small">${await last4("mailerlite_key")}</span></label>
+<textarea id="mlk" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="MailerLite API key (a very long code)"></textarea>
 <button id="savekeys" class="btn-main" type="button">Save keys</button>
 <p id="keymsg" class="small"></p></div>
 <script>
 document.getElementById('savekeys').addEventListener('click', async function(){
   var m=document.getElementById('keymsg'); m.textContent='Saving…';
-  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.replace(/\\s+/g,''),printify_token:document.getElementById('pt').value.replace(/\\s+/g,'')})});
-  document.getElementById('sk').value='';document.getElementById('pt').value='';
-  var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'; setTimeout(function(){location.reload()},900)} else m.textContent=o.error||'Could not save.';
+  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.replace(/\\s+/g,''),printify_token:document.getElementById('pt').value.replace(/\\s+/g,''),mailerlite_key:document.getElementById('mlk').value.replace(/\\s+/g,'')})});
+  document.getElementById('sk').value='';document.getElementById('pt').value='';document.getElementById('mlk').value='';
+  var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'+(o.warning?' '+o.warning:''); if(!o.warning)setTimeout(function(){location.reload()},900)} else m.textContent=o.error||'Could not save.';
 });
 document.getElementById('sccheck').addEventListener('click', async function(){
   var m=document.getElementById('scmsg'), b=this; b.disabled=true; m.textContent='Checking Core, Etsy and Printify (about half a minute)…';
@@ -8354,4 +8363,31 @@ async function imgFetchTick(env) {
   for (const x of batch) { try { const u = new URL(x.url); if (u.hostname !== "i.pinimg.com") continue;
     const r = await fetch(u.href); if (r.ok) await env.PHOTOS.put("tmp/" + String(x.key).replace(/[^A-Za-z0-9_-]/g, "") + ".jpg", r.body, { httpMetadata: { contentType: "image/jpeg" } }); } catch (e) {} }
   await env.PENDING.put("img-fetch", JSON.stringify(L));
+}
+
+// ---------- Newsletter (MailerLite), step 1: connection check (Barry, 26 Nov) ----------
+// The key is saved write-only in SECRETS ("mailerlite_key") from the Orders page. The check reads the account's
+// subscribers and forms and finds out whether the plan lets the app send its own designed (HTML) email, by making a
+// draft campaign and deleting it again. Nothing is ever sent from here. Result in KV "ml-status".
+const ML_API = "https://connect.mailerlite.com/api";
+async function mlFetch(env, path, method = "GET", body) {
+  const key = env.SECRETS && (await env.SECRETS.get("mailerlite_key")); if (!key) throw new Error("No MailerLite key saved yet.");
+  const r = await fetch(ML_API + path, { method, headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", Accept: "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
+  return { status: r.status, ok: r.ok, j, t: t.slice(0, 600) };
+}
+async function mlCheck(env) {
+  const st = { at: Date.now() };
+  const subs = await mlFetch(env, "/subscribers?limit=1000&filter[status]=active");
+  if (subs.status === 401 || subs.status === 403) throw new Error("the key was refused (" + subs.status + ")");
+  st.subscribers = subs.j && Array.isArray(subs.j.data) ? subs.j.data.length : null;
+  const forms = await mlFetch(env, "/forms/embedded?limit=25");
+  st.forms = forms.j && Array.isArray(forms.j.data) ? forms.j.data.map((f) => ({ id: f.id, name: f.name, subscribers: f.conversions_count != null ? f.conversions_count : f.subscribers_count })) : [];
+  // Can the app send its own HTML email on this plan? A draft campaign is made and deleted; nothing is sent.
+  const c = await mlFetch(env, "/campaigns", "POST", { name: "App connection check (safe to delete)", type: "regular",
+    emails: [{ subject: "Connection check", from_name: "Introvert Here", from: "hello@introverthere.com", content: "<html><body><p>Connection check. Not sent.</p></body></html>" }] });
+  st.html = c.ok ? "yes" : "no"; st.htmlMsg = c.ok ? "" : ((c.j && (c.j.message || JSON.stringify(c.j.errors || {}))) || c.t).slice(0, 400);
+  if (c.ok && c.j && c.j.data && c.j.data.id) await mlFetch(env, "/campaigns/" + c.j.data.id, "DELETE").catch(() => {});
+  st.ok = true; await env.PENDING.put("ml-status", JSON.stringify(st));
+  return st;
 }
