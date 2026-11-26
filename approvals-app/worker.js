@@ -8465,36 +8465,42 @@ async function nlDraft(env) {
   return d;
 }
 
-// The email itself: on brand (black, cream, Escape Room yellow), short, plain tables so every mail app shows it right.
+// The email itself, styled like the website (Barry, 26 Nov): dark concrete, dark panels, cream text, Escape Room yellow.
+// Plain tables and inline styles so mail apps show it right; the design tiles sit two across and stack on phones.
 function nlHtml(d, src, preview) {
   const e = (s) => esc(String(s || ""));
-  const paras = (t) => String(t || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p style="margin:0 0 14px;font:16px/1.55 Arial,Helvetica,sans-serif;color:#1b1b1b">${e(p).replace(/\n/g, "<br>")}</p>`).join("");
-  const head = (t) => `<h2 style="margin:28px 0 8px;font:800 20px/1.2 Montserrat,Arial,sans-serif;color:#0b0b0a;letter-spacing:.02em;text-transform:uppercase">${e(t)}</h2>`;
+  const Y = "#fad00c", TX = "#f2f0ea", MU = "#c4c0b6", LN = "#3b3a35", PN = "#161614", BG = "#121211";
+  const F = "Montserrat,Arial,Helvetica,sans-serif";
+  const paras = (t, c) => String(t || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p style="margin:0 0 14px;font:16px/1.6 Arial,Helvetica,sans-serif;color:${c || TX}">${e(p).replace(/\n/g, "<br>")}</p>`).join("");
+  const head = (t) => `<h2 style="margin:30px 0 10px;font:900 21px/1.2 ${F};color:${Y};letter-spacing:.06em;text-transform:uppercase">${e(t)}</h2>`;
   const byId = {}; [...src.first, ...src.exclusives].forEach((x) => { byId[x.id] = x; });
   const soonBy = {}; src.soon.forEach((x) => { soonBy[x.id] = x; });
-  const money = (p) => (p && p < 1e9 ? "from £" + (p / 100).toFixed(2) : "");
-  const tiles = (d.first || []).map((id) => byId[id]).filter(Boolean).map((x) => `<tr><td style="padding:10px 0;border-top:1px solid #e3dccb">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
-    ${x.img ? `<td width="110" valign="top" style="padding-right:14px"><a href="${e(x.url)}"><img src="${e(x.img)}" width="110" alt="${e(x.title)}" style="display:block;width:110px;border-radius:8px;border:0"></a></td>` : ""}
-    <td valign="top"><div style="font:800 17px/1.25 Montserrat,Arial,sans-serif;color:#0b0b0a">${e(x.title)}</div>
-    <div style="margin:4px 0 6px;font:italic 14px/1.4 Arial,sans-serif;color:#555">${e(x.line)}</div>
-    <div style="font:13px Arial,sans-serif;color:#555">${e(x.coll)} · ${e(x.kinds)}${money(x.from) ? " · " + money(x.from) : ""}</div>
-    <a href="${e(x.url)}" style="display:inline-block;margin-top:8px;padding:8px 14px;background:#fad00c;color:#0b0b0a;border-radius:6px;font:800 13px Montserrat,Arial,sans-serif;text-decoration:none">Have a look</a></td></tr></table></td></tr>`).join("");
-  const soonRows = (d.soon || []).map((id) => soonBy[id]).filter(Boolean).map((x) => `<li style="margin:0 0 10px;font:15px/1.45 Arial,sans-serif;color:#1b1b1b"><b>${e(x.title)}</b> <span style="color:#777">(${e(x.coll)})</span><br><i style="color:#555">${e(x.line)}</i></li>`).join("");
+  const money = (p) => (p && p < 1e9 ? "From £" + (p / 100).toFixed(2) : "");
+  const big = (u) => String(u || "").replace(/t\.jpg/, ".jpg");
+  const tile = (x) => `<div style="display:inline-block;vertical-align:top;width:100%;max-width:262px;margin:0 6px 14px">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${PN};border:1px solid ${LN};border-radius:10px;overflow:hidden">
+    ${x.img ? `<tr><td><a href="${e(x.url)}"><img src="${e(big(x.img))}" width="262" alt="${e(x.title)}" style="display:block;width:100%;height:auto;border:0"></a></td></tr>` : ""}
+    <tr><td style="padding:14px 14px 16px;text-align:left">
+    <div style="font:800 17px/1.25 ${F};color:${TX}">${e(x.title)}</div>
+    <div style="margin:6px 0 8px;font:italic 13px/1.45 Arial,sans-serif;color:${MU}">${e(x.line)}</div>
+    <div style="font:12px/1.4 Arial,sans-serif;color:${MU}">${e(x.coll)}${money(x.from) ? " · " + money(x.from) : ""}</div>
+    <a href="${e(x.url)}" style="display:inline-block;margin-top:12px;padding:9px 16px;background:${Y};color:#0b0b0a;border-radius:6px;font:800 13px ${F};text-decoration:none">Have a look</a>
+    </td></tr></table></div>`;
+  const tiles = (d.first || []).map((id) => byId[id]).filter(Boolean).map(tile).join("");
+  const soonRows = (d.soon || []).map((id) => soonBy[id]).filter(Boolean).map((x) => `<tr><td style="padding:12px 0;border-top:1px solid ${LN}"><div style="font:800 16px ${F};color:${TX}">${e(x.title)} <span style="font:400 13px Arial,sans-serif;color:${MU}">${e(x.coll)}</span></div><div style="margin-top:4px;font:italic 14px/1.45 Arial,sans-serif;color:${MU}">${e(x.line)}</div></td></tr>`).join("");
   const unsub = preview ? "#" : "{$unsubscribe}";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(d.subject)}</title></head>
-<body style="margin:0;padding:0;background:#efe8d8">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#efe8d8"><tr><td align="center" style="padding:20px 12px">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#fbf8f1;border-radius:12px;overflow:hidden">
-<tr><td style="background:#0b0b0a;padding:22px 24px" align="center"><a href="${NL_SITE}/uk"><img src="${NL_SITE}/logo.png" width="240" alt="Introvert Here" style="display:block;width:240px;max-width:100%;border:0"></a></td></tr>
-<tr><td style="padding:26px 24px 8px">${paras(d.intro)}
-${tiles ? head(d.firstHead) + paras(d.firstText) + `<table role="presentation" cellpadding="0" cellspacing="0" width="100%">${tiles}</table>` : ""}
-${soonRows ? head(d.soonHead) + paras(d.soonText) + `<ul style="padding-left:18px;margin:0 0 6px">${soonRows}</ul>` : ""}
-${d.xmas && d.xmasText ? `<div style="margin:24px 0 6px;padding:14px 16px;background:#fff6c2;border-left:5px solid #fad00c;border-radius:6px;font:15px/1.5 Arial,sans-serif;color:#1b1b1b">${e(d.xmasText)}</div>` : ""}
-<div style="margin-top:24px">${paras(d.outro)}</div>
-<p style="margin:10px 0 22px"><a href="${NL_SITE}/uk" style="display:inline-block;padding:11px 18px;background:#0b0b0a;color:#fad00c;border-radius:6px;font:800 14px Montserrat,Arial,sans-serif;text-decoration:none">Visit the shop</a></p>
-</td></tr>
-<tr><td style="padding:16px 24px 22px;background:#f3eee2;font:12px/1.5 Arial,sans-serif;color:#777">You're getting this because you signed up on our website. Occasional and quiet, as promised.<br><a href="${unsub}" style="color:#555">Unsubscribe</a> any time. No hard feelings. Well, a few.</td></tr>
+  const panel = (inner, pad) => `<tr><td style="padding:0 12px 14px"><table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${PN};background:rgba(22,22,20,.92);border:1px solid ${LN};border-radius:12px"><tr><td style="padding:${pad || "24px 22px 10px"}">${inner}</td></tr></table></td></tr>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><meta name="supported-color-schemes" content="dark"><title>${e(d.subject)}</title></head>
+<body style="margin:0;padding:0;background:${BG}">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" bgcolor="${BG}" background="${NL_SITE}/concrete.jpg" style="background:${BG} url(${NL_SITE}/concrete.jpg) center top/1200px auto repeat"><tr><td align="center" style="padding:18px 6px">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px">
+<tr><td align="center" style="padding:18px 12px 22px"><a href="${NL_SITE}/uk"><img src="${NL_SITE}/logo.png" width="260" alt="Introvert Here" style="display:block;width:260px;max-width:90%;border:0"></a></td></tr>
+${panel(paras(d.intro))}
+${tiles ? panel(head(d.firstHead) + paras(d.firstText, MU), "6px 22px 4px") + `<tr><td align="center" style="padding:0 0 4px;font-size:0">${tiles}</td></tr>` : ""}
+${soonRows ? panel(head(d.soonHead) + paras(d.soonText, MU) + `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom:12px">${soonRows}</table>`, "6px 22px 6px") : ""}
+${d.xmas && d.xmasText ? `<tr><td style="padding:0 12px 14px"><table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:${PN};border:2px solid ${Y};border-radius:12px"><tr><td style="padding:16px 20px;font:15px/1.55 Arial,sans-serif;color:${TX}"><b style="font:900 13px ${F};color:${Y};letter-spacing:.1em;text-transform:uppercase">Christmas</b><br>${e(d.xmasText)}</td></tr></table></td></tr>` : ""}
+${panel(paras(d.outro) + `<p style="margin:6px 0 16px"><a href="${NL_SITE}/uk" style="display:inline-block;padding:12px 20px;background:${Y};color:#0b0b0a;border-radius:6px;font:800 14px ${F};text-decoration:none">Visit the shop</a></p>`)}
+<tr><td style="padding:6px 22px 26px;font:12px/1.6 Arial,sans-serif;color:${MU};text-align:center">You're getting this because you signed up on our website. Occasional and quiet, as promised.<br><a href="${unsub}" style="color:${TX}">Unsubscribe</a> any time. No hard feelings. Well, a few.</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
