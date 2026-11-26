@@ -678,7 +678,7 @@ body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!impor
 .sp .tp a{justify-self:end;color:#f6efe0;opacity:.85}.sp .tm{font-variant-numeric:tabular-nums;color:#fad00c;font-weight:800}
 .sp .br{margin:0;text-align:center;font-weight:700;font-size:clamp(14px,2vh,18px);line-height:1.25;max-width:560px;text-wrap:balance}
 .sp .fw{flex:1;min-height:0;width:100%;display:flex;justify-content:center;align-items:center;container-type:size}
-.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(4px,.9cqh,12px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:3px;box-shadow:0 0 0 1px #2a1808,0 0 0 2px #b08a48,0 10px 26px rgba(0,0,0,.5);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}
+.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(4px,.9cqh,12px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:3px;box-shadow:0 0 0 1px #2a1808,0 0 0 2px #b08a48,0 10px 26px rgba(0,0,0,.5);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}.sp .fr.wide{width:min(100cqw,150cqh);aspect-ratio:3/2}
 .sp .fr>img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .sp .miss{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;color:#fff;font:800 20px/26px Montserrat,sans-serif;text-align:center;text-shadow:0 1px 4px #000;animation:spmiss 1s forwards}
 @keyframes spmiss{0%{opacity:1;transform:scale(1.3)}100%{opacity:0;transform:scale(.8)}}
@@ -1884,10 +1884,40 @@ const SPOT = [
     brief: "Someone came to the masked ball thinking a mask would be enough. Find them.", spot: [89.4, 28.5, 3], also: [[89.2, 32.4, 3]],
     found: "Found. Four fingers and one eye. The curtain is doing all the work.", clue: "A clue, since you asked. Some people want a mask. Some want a curtain.", clueAt: [88, 31, 22],
     zones: [[[0, 0, 22, 22], "A statue. Ignoring everyone since 1650."], [[30, 27, 17, 8], "A harpsichord. Far too loud to hide near."], [[30, 5, 34, 20], "The balcony. Everyone up there wants to be seen."], [[66, 0, 34, 14], "Curtain. Keep looking. Lower."]],
-    wrong: ["No. That one’s laughing behind a mask.", "Also laughing.", "No.", "It’s a masked ball. The masks aren’t helping anyone hide.", "Colder.", "No.", "That one’s on their fifth dance.", "Not them either."] },
+    wrong: ["No. That one’s laughing behind a mask.", "Also laughing.", "No.", "It’s a masked ball. The masks aren’t helping anyone hide.", "Colder.", "No.", "That one’s on their fifth dance.", "Not them either."] },  // six more (Barry, 26 Nov); the tapestry is landscape (wide: true gets a 3:2 frame)
+  { img: "treehouse", lv: 1, alt: "A folk-art painting of a snowy village on market day, with a brass band, a sleigh, a snowman and a treehouse in a big old tree.",
+    brief: "Someone’s village is having a winter parade. Find them.", spot: [18.3, 9.6, 6],
+    found: "Found. Up the tree, ladder coming up. Nobody’s getting in.", clue: "A clue, since you asked. Look up. Further.", clueAt: [16, 12, 24],
+    zones: [[[40, 50, 30, 15], "The brass band. The loudest people in the county."], [[63, 70, 27, 10], "The snowman. Cold, quiet, stays put. Close, but no."], [[78, 55, 22, 10], "A sleigh. Someone’s being taken somewhere. Against their will."], [[75, 5, 22, 13], "The church. Too many people sing in there."]],
+    wrong: ["No. That one’s waving at the band.", "Also waving.", "No.", "It’s a parade. They all came out on purpose.", "Colder.", "No.", "That one’s on their second mince pie.", "Not them either."] },
+  { img: "beach", lv: 1, alt: "An impressionist painting of a crowded Edwardian beach, with bathing huts, striped deckchairs, swimmers and a small rock out in the sea.",
+    brief: "Someone was dragged to the seaside on a bank holiday. Find them.", spot: [84, 18.9, 5],
+    found: "Found. On their own rock. With a book. The tide can do what it likes.", clue: "A clue, since you asked. Further out than you’d think.", clueAt: [80, 20, 24],
+    zones: [[[0, 25, 18, 12], "A bathing hut. Good thinking. Somebody’s changing in it."], [[70, 63, 25, 14], "A sandcastle. Big enough to hide in? Almost."], [[70, 35, 30, 12], "Beach ball. The opposite of what we’re after."], [[20, 33, 30, 25], "Deckchairs. Too close to everybody else."]],
+    wrong: ["No. That one’s paddling.", "Also paddling.", "No.", "It’s a bank holiday. The whole town came.", "Colder.", "No.", "That one’s been talking about the weather for an hour.", "Not them either."] },
+  { img: "auction", lv: 2, alt: "A painting of a crowded Victorian auction room full of antiques, with an auctioneer at his rostrum, vases and a tall grandfather clock.",
+    brief: "Someone came to the auction for one small lamp. Find them.", spot: [79.6, 46.2, 5], also: [[79.6, 52.1, 4]],
+    found: "Found. In the clock. Going “shh”. Lot 47, one careful owner.", clue: "A clue, since you asked. Time to look at the furniture.", clueAt: [78, 48, 22],
+    zones: [[[42, 3, 40, 18], "The auctioneer. Paid to be noticed."], [[0, 70, 55, 25], "Two men carrying a table. They’d notice."], [[32, 54, 22, 14], "A vase. Pretty. Too narrow."], [[70, 12, 20, 6], "That’s a painting. The only quiet thing here."]],
+    wrong: ["No. That one’s bidding.", "Also bidding.", "No.", "It’s an auction. Everybody’s waving their arms.", "Colder.", "No.", "That one’s examining a teapot. Very closely.", "Not them either."] },
+  { img: "store", lv: 3, alt: "An art nouveau painting of a grand department store with a glass dome, a sweeping staircase, hat stands and glove counters.",
+    brief: "Someone only came in for one pair of gloves. Find them.", spot: [85.9, 61.8, 4.5],
+    found: "Found. Crouched by the hats, going “shh”. Their shopping can wait.", clue: "A clue, since you asked. Try millinery.", clueAt: [84, 60, 22],
+    zones: [[[15, 30, 22, 30], "The staircase. Far too public."], [[55, 82, 35, 14], "The glove counter. That’s why they came. Not where they are."], [[0, 66, 20, 15], "Shoes. Someone’s trying on boots. Badly."], [[30, 0, 50, 12], "The dome. Lovely. Empty."]],
+    wrong: ["No. That one’s shopping.", "Also shopping.", "No.", "It’s a department store. Everyone wants help.", "Colder.", "No.", "That one’s asked to see it in another colour.", "Not them either."] },
+  { img: "rain", lv: 4, alt: "A Japanese woodblock print of a busy street in the rain, with umbrellas, market stalls, a bridge and a bookshop doorway.",
+    brief: "It’s raining and the whole town is out anyway. Find the one who isn’t.", spot: [18.1, 26.7, 5],
+    found: "Found. In the bookshop doorway. Reading. Not in a hurry to go anywhere.", clue: "A clue, since you asked. Somewhere dry. With books.", clueAt: [18, 28, 22],
+    zones: [[[0, 52, 22, 20], "A fish stall. Nobody hides behind fish."], [[40, 85, 30, 10], "The bridge. Very exposed."], [[85, 85, 15, 15], "A boat. Good plan. Empty."], [[58, 10, 40, 22], "A crowded shop. The opposite."]],
+    wrong: ["No. That one’s running.", "Also running.", "No.", "It’s raining. They’re all in a hurry.", "Colder.", "No.", "That one’s sharing an umbrella. Brave.", "Not them either."] },
+  { img: "tapestry", lv: 4, wide: true, alt: "A medieval embroidered tapestry of an army on the march, with knights on horseback, archers and soldiers pushing a cart under a striped cloth.",
+    brief: "Someone was told to report for battle. Find them.", spot: [29.8, 72.8, 3],
+    found: "Found. Under the cart cloth, travelling as supplies. History will not record them.", clue: "A clue, since you asked. Check the baggage.", clueAt: [26, 68, 20],
+    zones: [[[18, 15, 25, 30], "The man in charge, pointing. Never hide near someone pointing."], [[45, 25, 25, 25], "Archers. Busy."], [[0, 80, 100, 20], "The border. Someone’s ploughing. Wrong job entirely."], [[83, 18, 10, 12], "The castle. Too far to run."]],
+    wrong: ["No. That one’s charging.", "Also charging.", "No.", "It’s a battle. They all signed up.", "Colder.", "No.", "That one’s on a horse. Very visible.", "Not them either."] },
 ];
 function spotPage() {
-  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
+  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, wide: !!x.wide, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
   return page("Spot the Introvert", `<h1 style="position:absolute;left:-9999px">Spot the Introvert</h1><div class="sp" id="sp">
 <p class="tp"><span id="sc"></span><span class="tm" id="st">0:00.0</span><a href="${HUB.path}">Back to the room</a></p><p class="br" id="sb"></p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
@@ -1914,7 +1944,7 @@ function left(){return T.filter(function(x){return !x.done}).length}
 // screen and its hider is still hiding, and only from when its picture has arrived.
 function stop(){if(run){T[i].t+=Date.now()-t0;run=false}clearTimeout(cl)}
 function go(){if(T[i].done||run)return;t0=Date.now();run=true;clearTimeout(cl);if(!T[i].clue)cl=setTimeout(function(){if(run)$('sq').hidden=false},Math.max(0,20000-T[i].t))}
-function show(k){stop();i=k;var s=S[i],t=T[i];clear();$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
+function show(k){stop();i=k;var s=S[i],t=T[i];clear();fr.classList.toggle('wide',!!s.wide);$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
  $('sn').className='btn'+(t.done&&left()&&i<S.length-1?'':' ghost');$('sq').hidden=true;$('sa').hidden=$('ssh').hidden=left()>0;
  if(t.done)put('ring',s.spot[0],s.spot[1],Math.max(s.spot[2]*2.6,14));else if(t.clue)put('clue',s.clueAt[0],s.clueAt[1],s.clueAt[2]*2);
  $('sm').textContent=t.say||(t.done?s.found:'Tap where they’re hiding.');

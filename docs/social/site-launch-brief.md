@@ -11,7 +11,7 @@ Nothing gets posted without his OK.
   **the Escape Room** (a hub for introverts). Front-page strap: "Everything you need to be left the hell alone."
 - Escape Room contents (all at introverthere.com/uk/escape-room/...): a warning gate ("Abandon hope…"), a cosy room
   you tap around in, **Look Busy** (fake busy phone screen), **the Excuse Generator** (40 absurd excuses, very
-  shareable), **Spot the Introvert** (find the hidden introvert in a painting; 20 paintings in different art styles, 5 a game;
+  shareable), **Spot the Introvert** (find the hidden introvert in a painting; 26 paintings in different art styles, 5 a game;
   has a Share button), **Vote on the next gag** (5% code for voting), **Escape From Aunt Doris** (paper/online escape room, 19 puzzles, Part
   One free, £4.99 to unlock; also a printable booklet for Etsy later, not yet listed).
 - **Hoodini** is the mascot: short, hood up, only his nose showing, hands thrust in his hoodie pocket, hunched. He hides
@@ -47,6 +47,11 @@ The joke: Hoodini reluctantly announcing a website and hoping nobody visits.
 Barry wants one Spot the Introvert painting posted each week (`shop/assets/site/spot-*.jpg`, 20 so far). Post the
 painting with its line (the `brief` in `SPOT` in `shop/worker.js`, e.g. "Someone popped in for one quiet drink. Find
 them.") and a link to introverthere.com/uk/escape-room/spot. Never reveal where they're hiding.
+
+Four pictures Barry made that are too obvious for the game but good as posts on their own (the introvert openly escaping):
+`docs/social/pictures/escape-rowing-boat.jpg` (rowing away from a sea battle with a book), `escape-door.jpg` (stepping
+through a door into a meadow from a crowded street), `escape-barricade.jpg` (strolling off from a revolution with his
+shopping) and `escape-meeting.jpg` (crawling out of a heated public meeting).
 
 ## Artwork you can use
 
