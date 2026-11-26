@@ -42,6 +42,7 @@ export default {
     ctx.waitUntil(shopPhotoTick(env).catch(() => {}));
     ctx.waitUntil(siteBuildTick(env).catch(() => {}));
     ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
+    ctx.waitUntil(mlWatchTick(env).catch(() => {}));
     ctx.waitUntil(siteAheadTick(env).catch(() => {}));
     ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
     ctx.waitUntil(titleTestTick(env).catch(() => {}));
@@ -8383,6 +8384,21 @@ async function mlFetch(env, path, method = "GET", body) {
   const r = await fetch(ML_API + path, { method, headers: { Authorization: "Bearer " + key, "Content-Type": "application/json", Accept: "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
   return { status: r.status, ok: r.ok, j, t: t.slice(0, 600) };
+}
+// Every 15 minutes until the sending domain is verified and the HTML check passes: re-check MailerLite
+// (domain status + the draft-campaign check). Stops by itself once both are good. Nothing is ever sent.
+async function mlWatchTick(env) {
+  const raw = await env.PENDING.get("ml-status"); const prev = raw ? JSON.parse(raw) : null;
+  if (!prev || (prev.html === "yes" && prev.domainOk)) return;
+  if (prev.at && Date.now() - prev.at < 15 * 60 * 1000) return;
+  const st = await mlCheck(env).catch((e) => ({ ok: false, at: Date.now(), error: String(e.message || e) }));
+  const d = await mlFetch(env, "/domains?limit=25").catch(() => null);
+  const list = d && d.j && Array.isArray(d.j.data) ? d.j.data : [];
+  const dom = list.find((x) => String(x.domain || x.name || "").toLowerCase() === "introverthere.com");
+  st.domain = dom ? JSON.stringify(dom).slice(0, 500) : (d ? "status " + d.status + " " + d.t.slice(0, 200) : "no reply");
+  st.domainOk = !!(dom && (dom.is_verified === true || dom.verified === true || /verified|active|authenticated/i.test(String(dom.status || "")) && !/not|un/i.test(String(dom.status || ""))));
+  if (!st.at) st.at = Date.now();
+  await env.PENDING.put("ml-status", JSON.stringify(st));
 }
 async function mlCheck(env) {
   const st = { at: Date.now() };
