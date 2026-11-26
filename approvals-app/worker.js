@@ -206,6 +206,7 @@ export default {
       if (pathname === "/tags" && method === "GET") {
         return authed ? await tagsPage(env) : redirect("/");
       }
+      if (pathname === "/newsletter" && method === "GET") return authed ? await newsletterPage(env) : redirect("/");
       if (pathname === "/gags" && method === "GET") {
         return authed ? await gagsPage(env) : redirect("/");
       }
@@ -255,6 +256,9 @@ export default {
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
+      if (pathname === "/api/nl-save" && method === "POST") { try { return json(await nlSave(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 300) }, 400); } }
+      if (pathname === "/api/nl-fresh" && method === "POST") { await env.PENDING.put("nl-draft", JSON.stringify(nlFresh(await nlSources(env)))); return json({ ok: true }); }
+      if (pathname === "/api/nl-test" && method === "POST") { try { return json(await nlTestSend(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 300) }, 400); } }
       if (pathname === "/api/site-prices" && method === "POST") { try { return json(await sitePricesSave(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 200) }, 400); } }
       if (pathname === "/api/site-build" && method === "POST") { try { return json(await siteBuildQueue(env, (await request.json().catch(() => ({}))).codes)); } catch (e) { return json({ error: String(e.message || e).slice(0, 200) }, 400); } }
       if (pathname === "/api/shop-catalog-check" && method === "POST") { try { await spKick(env); return json(await shopCatalogRun(env, { force: true })); } catch (e) { return json({ ok: false, error: String(e.message || e).slice(0, 200) }, 500); } }
@@ -1108,11 +1112,12 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-cal" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M4 13h24M11 3.5v5M21 3.5v5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="9" y="17" width="5" height="4.5" rx="1.2" fill="currentColor"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
+<symbol id="i-mail" viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="3.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M5.5 9.5l10.5 8 10.5-8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>`;
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/listings", "update", "Listings"]];
-const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/copywatch", "search", "Copy watch"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/copywatch", "search", "Copy watch"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/newsletter", "mail", "Newsletter"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -8409,4 +8414,190 @@ async function mlCheck(env) {
   if (c.ok && c.j && c.j.data && c.j.data.id) await mlFetch(env, "/campaigns/" + c.j.data.id, "DELETE").catch(() => {});
   st.ok = true; await env.PENDING.put("ml-status", JSON.stringify(st));
   return st;
+}
+
+// ───────────────────────── Newsletter workspace (step 2, 26 Nov) ─────────────────────────
+// A page where Barry sees his subscribers, edits a draft newsletter the app writes for him, previews it, and sends a
+// TEST copy to his own address. Nothing ever goes to subscribers from here: that comes later, with his OK every time.
+// The test goes through MailerLite: a group holding only his test address, a campaign for that group, sent at once.
+const NL_SITE = "https://introverthere.com";
+const NL_TEST_GROUP = "App test (Barry only)";
+const nlCollName = { IH: "Introvert Here", SH: "Shhh.", PC: "Passive Collective", OS: "Off The Shelf", IP: "In Person", EX: "Exclusive" };
+const nlLines = (t) => String(t || "").replace(/^[.…\s]+/, "").replace(/\s*\n\s*/g, " ").replace(/\s+/g, " ").trim();
+const nlFmtDay = (iso) => new Date(iso + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+
+// What the newsletter can talk about, straight from the shop's own data.
+async function nlSources(env) {
+  const cat = (await env.PENDING.get("shop:catalog-next", "json")) || { designs: [] };
+  const up = (await env.PENDING.get("shop:upcoming", "json")) || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const first = []; const exclusives = [];
+  (cat.designs || []).forEach((d) => {
+    const gs = Object.values(d.garments || {}); if (!gs.length) return;
+    const g = gs[0]; const img = g.images && g.images[0] ? NL_SITE + (g.images[0].thumb || g.images[0].url) : "";
+    const it = { id: d.id, title: d.title, coll: nlCollName[d.coll] || d.coll, line: nlLines(d.text), url: `${NL_SITE}/uk/p/${d.slug}`, img,
+      from: Math.min(...gs.map((x) => x.priceFrom || 1e9)), kinds: gs.map((x) => x.label).join(", ") };
+    if (gs.every((x) => x.siteOnly)) first.push(it);
+    if (d.coll === "EX") exclusives.push(it);
+  });
+  const soon = up.filter((u) => u.due >= today).slice(0, 6).map((u) => ({ id: u.id, title: u.title, coll: nlCollName[u.coll] || u.coll, line: nlLines(u.text), due: u.due }));
+  return { first, exclusives, soon, xmas: today <= "2026-12-12" ? "2026-12-12" : "" };
+}
+
+function nlFresh(src) {
+  return {
+    subject: "Some new things. No pressure.",
+    intro: "Hello. You signed up, which was brave of you.\n\nHere's what's new at Introvert Here. Read it now, read it later, or let it sit there quietly. We understand.",
+    first: src.first.slice(0, 4).map((x) => x.id), firstHead: "On our website first",
+    firstText: "These are on our own website before they're anywhere else. You're seeing them before most people. Try to act normal.",
+    soon: src.soon.slice(0, 3).map((x) => x.id), soonHead: "Coming soon",
+    soonText: "Already written. Not yet released. Like most of our plans.",
+    xmas: !!src.xmas, xmasText: src.xmas ? `Buying for Christmas? Please order by ${nlFmtDay(src.xmas)} for UK delivery in time. After that, it's a New Year present. Which is still a present.` : "",
+    outro: "That's all. You can go back to whatever you were avoiding.\n\nIntrovert Here",
+    at: Date.now(),
+  };
+}
+
+async function nlDraft(env) {
+  let d = await env.PENDING.get("nl-draft", "json");
+  if (!d) { d = nlFresh(await nlSources(env)); await env.PENDING.put("nl-draft", JSON.stringify(d)); }
+  return d;
+}
+
+// The email itself: on brand (black, cream, Escape Room yellow), short, plain tables so every mail app shows it right.
+function nlHtml(d, src, preview) {
+  const e = (s) => esc(String(s || ""));
+  const paras = (t) => String(t || "").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p style="margin:0 0 14px;font:16px/1.55 Arial,Helvetica,sans-serif;color:#1b1b1b">${e(p).replace(/\n/g, "<br>")}</p>`).join("");
+  const head = (t) => `<h2 style="margin:28px 0 8px;font:800 20px/1.2 Montserrat,Arial,sans-serif;color:#0b0b0a;letter-spacing:.02em;text-transform:uppercase">${e(t)}</h2>`;
+  const byId = {}; [...src.first, ...src.exclusives].forEach((x) => { byId[x.id] = x; });
+  const soonBy = {}; src.soon.forEach((x) => { soonBy[x.id] = x; });
+  const money = (p) => (p && p < 1e9 ? "from £" + (p / 100).toFixed(2) : "");
+  const tiles = (d.first || []).map((id) => byId[id]).filter(Boolean).map((x) => `<tr><td style="padding:10px 0;border-top:1px solid #e3dccb">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+    ${x.img ? `<td width="110" valign="top" style="padding-right:14px"><a href="${e(x.url)}"><img src="${e(x.img)}" width="110" alt="${e(x.title)}" style="display:block;width:110px;border-radius:8px;border:0"></a></td>` : ""}
+    <td valign="top"><div style="font:800 17px/1.25 Montserrat,Arial,sans-serif;color:#0b0b0a">${e(x.title)}</div>
+    <div style="margin:4px 0 6px;font:italic 14px/1.4 Arial,sans-serif;color:#555">${e(x.line)}</div>
+    <div style="font:13px Arial,sans-serif;color:#555">${e(x.coll)} · ${e(x.kinds)}${money(x.from) ? " · " + money(x.from) : ""}</div>
+    <a href="${e(x.url)}" style="display:inline-block;margin-top:8px;padding:8px 14px;background:#fad00c;color:#0b0b0a;border-radius:6px;font:800 13px Montserrat,Arial,sans-serif;text-decoration:none">Have a look</a></td></tr></table></td></tr>`).join("");
+  const soonRows = (d.soon || []).map((id) => soonBy[id]).filter(Boolean).map((x) => `<li style="margin:0 0 10px;font:15px/1.45 Arial,sans-serif;color:#1b1b1b"><b>${e(x.title)}</b> <span style="color:#777">(${e(x.coll)})</span><br><i style="color:#555">${e(x.line)}</i></li>`).join("");
+  const unsub = preview ? "#" : "{$unsubscribe}";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${e(d.subject)}</title></head>
+<body style="margin:0;padding:0;background:#efe8d8">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#efe8d8"><tr><td align="center" style="padding:20px 12px">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:600px;background:#fbf8f1;border-radius:12px;overflow:hidden">
+<tr><td style="background:#0b0b0a;padding:22px 24px" align="center"><a href="${NL_SITE}/uk"><img src="${NL_SITE}/logo.png" width="240" alt="Introvert Here" style="display:block;width:240px;max-width:100%;border:0"></a></td></tr>
+<tr><td style="padding:26px 24px 8px">${paras(d.intro)}
+${tiles ? head(d.firstHead) + paras(d.firstText) + `<table role="presentation" cellpadding="0" cellspacing="0" width="100%">${tiles}</table>` : ""}
+${soonRows ? head(d.soonHead) + paras(d.soonText) + `<ul style="padding-left:18px;margin:0 0 6px">${soonRows}</ul>` : ""}
+${d.xmas && d.xmasText ? `<div style="margin:24px 0 6px;padding:14px 16px;background:#fff6c2;border-left:5px solid #fad00c;border-radius:6px;font:15px/1.5 Arial,sans-serif;color:#1b1b1b">${e(d.xmasText)}</div>` : ""}
+<div style="margin-top:24px">${paras(d.outro)}</div>
+<p style="margin:10px 0 22px"><a href="${NL_SITE}/uk" style="display:inline-block;padding:11px 18px;background:#0b0b0a;color:#fad00c;border-radius:6px;font:800 14px Montserrat,Arial,sans-serif;text-decoration:none">Visit the shop</a></p>
+</td></tr>
+<tr><td style="padding:16px 24px 22px;background:#f3eee2;font:12px/1.5 Arial,sans-serif;color:#777">You're getting this because you signed up at introverthere.com. Occasional and quiet, as promised.<br><a href="${unsub}" style="color:#555">Unsubscribe</a> any time. No hard feelings. Well, a few.</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+async function nlSubs(env, testEmail) {
+  const r = await mlFetch(env, "/subscribers?limit=1000&filter[status]=active");
+  if (!r.ok) throw new Error("MailerLite said " + r.status);
+  const all = (r.j && r.j.data) || []; const t = String(testEmail || "").toLowerCase();
+  const real = all.filter((s) => String(s.email || "").toLowerCase() !== t);
+  const wk = Date.now() - 7 * 864e5;
+  const ts = (s) => Date.parse(String(s.subscribed_at || s.created_at || "").replace(" ", "T") + (/[zZ+]/.test(String(s.subscribed_at || s.created_at || "")) ? "" : "Z"));
+  return { total: real.length, week: real.filter((s) => ts(s) >= wk).length, latest: real.map(ts).filter(Boolean).sort((a, b) => b - a)[0] || 0 };
+}
+
+async function newsletterPage(env) {
+  const src = await nlSources(env); const d = await nlDraft(env);
+  const set = (await env.PENDING.get("nl-settings", "json")) || {};
+  const last = await env.PENDING.get("nl-last", "json");
+  let subs = null, subsErr = "";
+  try { subs = await nlSubs(env, set.testEmail); } catch (e) { subsErr = String(e.message || e); }
+  const pick = (list, chosen, name, label) => list.length ? list.map((x) => `<label class="nlp"><input type="checkbox" name="${name}" value="${esc(x.id)}"${chosen.includes(x.id) ? " checked" : ""}><span><b>${esc(x.title)}</b> <span class="small">${esc(x.coll)}${label ? " · " + esc(label(x)) : ""}</span></span></label>`).join("") : '<p class="small">Nothing to show here right now.</p>';
+  const ta = (id, v, rows) => `<textarea id="${id}" rows="${rows || 3}">${esc(v || "")}</textarea>`;
+  return shell(`${brandHeader("Newsletter")}
+<style>.nl textarea,.nl input[type=text],.nl input[type=email]{display:block;width:100%;margin:6px 0 4px;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:15px var(--body)}
+.nl label.f{display:block;margin-top:14px;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.nlp{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nlp input{margin-top:4px;width:20px;height:20px}
+.nlstat{display:flex;gap:12px;flex-wrap:wrap}.nlstat div{flex:1;min-width:120px;padding:12px;border:1.5px solid var(--line);border-radius:12px}.nlstat b{display:block;font:900 30px var(--display)}
+.nl .btn{width:auto;margin:8px 8px 0 0}.nlprev{width:100%;height:900px;border:0;border-radius:12px;background:#efe8d8}</style>
+<div class="nl">
+<div class="card"><div class="nlstat"><div><b>${subs ? subs.total : "?"}</b>subscribers</div><div><b>${subs ? subs.week : "?"}</b>new this week</div><div><b style="font-size:18px;line-height:36px">${last ? esc(when(last.at)) : "Never"}</b>last newsletter</div></div>
+${subsErr ? `<p class="small">Couldn't reach MailerLite: ${esc(subsErr)}</p>` : `<p class="small">People join from the sign-up box on your website. ${subs && subs.latest ? "Newest: " + esc(when(subs.latest)) + "." : ""}</p>`}</div>
+
+<div class="card"><h2 style="margin:0 0 4px;font:800 18px var(--display)">Next newsletter (draft)</h2>
+<p class="small">I've written this from what's in the shop. Change any words you like, tick what to include, then tap <b>Save</b>. Nothing is sent to subscribers from this page.</p>
+<label class="f">Subject line</label><input type="text" id="nlSubject" value="${esc(d.subject)}">
+<label class="f">Opening</label>${ta("nlIntro", d.intro, 5)}
+<label class="f">Section 1 heading</label><input type="text" id="nlFirstHead" value="${esc(d.firstHead)}">
+${ta("nlFirstText", d.firstText, 3)}
+<div>${pick(src.first, d.first || [], "first", (x) => x.kinds)}</div>
+<label class="f">Section 2 heading</label><input type="text" id="nlSoonHead" value="${esc(d.soonHead)}">
+${ta("nlSoonText", d.soonText, 2)}
+<div>${pick(src.soon, d.soon || [], "soon", (x) => "on Etsy " + nlFmtDay(x.due))}</div>
+<label class="f">Christmas note</label><label class="nlp"><input type="checkbox" id="nlXmas"${d.xmas ? " checked" : ""}><span>Include it</span></label>${ta("nlXmasText", d.xmasText, 3)}
+<label class="f">Sign-off</label>${ta("nlOutro", d.outro, 3)}
+<button class="btn" type="button" id="nlSave">Save</button><button class="btn" type="button" id="nlFresh">Start a fresh draft</button></div>
+
+<div class="card"><h2 style="margin:0 0 4px;font:800 18px var(--display)">Send a test to yourself</h2>
+<p class="small">Sends this draft to your own email only, so you can see how it really looks. Subscribers get nothing.</p>
+<label class="f">Your email</label><input type="email" id="nlTo" value="${esc(set.testEmail || "")}" placeholder="you@example.com">
+<button class="btn" type="button" id="nlTest">Send me a test</button><div class="small" id="nlTestMsg">${set.lastTest ? "Last test sent " + esc(when(set.lastTest)) + "." : ""}</div></div>
+
+<div class="card"><h2 style="margin:0 0 8px;font:800 18px var(--display)">Preview</h2><p class="small">How it looks after your last Save.</p>
+<iframe class="nlprev" id="nlPrev" srcdoc="${esc(nlHtml(d, src, true))}"></iframe></div>
+</div>
+<script>
+(function () {
+  function v(id) { return document.getElementById(id).value; }
+  function ticks(n) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + n + '"]:checked'), function (x) { return x.value; }); }
+  function body() { return { subject: v("nlSubject"), intro: v("nlIntro"), firstHead: v("nlFirstHead"), firstText: v("nlFirstText"), first: ticks("first"),
+    soonHead: v("nlSoonHead"), soonText: v("nlSoonText"), soon: ticks("soon"), xmas: document.getElementById("nlXmas").checked, xmasText: v("nlXmasText"), outro: v("nlOutro") }; }
+  function post(u, b) { return fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(function (r) { return r.json(); }); }
+  document.getElementById("nlSave").onclick = function () { post("/api/nl-save", body()).then(function (j) { if (j.error) return toast(j.error); document.getElementById("nlPrev").srcdoc = j.html; toast("Saved"); }); };
+  document.getElementById("nlFresh").onclick = function () { if (!confirm("Throw away your changes and start a fresh draft?")) return; post("/api/nl-fresh", {}).then(function () { location.reload(); }); };
+  document.getElementById("nlTest").onclick = function () {
+    var b = this, m = document.getElementById("nlTestMsg"); b.disabled = true; m.textContent = "Saving and sending…";
+    post("/api/nl-save", body()).then(function (j) { if (j.error) throw new Error(j.error); document.getElementById("nlPrev").srcdoc = j.html; return post("/api/nl-test", { email: v("nlTo") }); })
+      .then(function (j) { b.disabled = false; m.textContent = j.error ? "Not sent: " + j.error : "Sent to " + j.to + ". It usually arrives within a few minutes (check your spam folder the first time)."; })
+      .catch(function (e) { b.disabled = false; m.textContent = "Not sent: " + e.message; });
+  };
+})();
+</script>`);
+}
+
+async function nlSave(env, b) {
+  const d = await nlDraft(env); const s = (x, n) => String(x == null ? "" : x).slice(0, n);
+  const ids = (a) => (Array.isArray(a) ? a : []).map((x) => s(x, 20)).slice(0, 12);
+  Object.assign(d, { subject: s(b.subject, 150).trim() || d.subject, intro: s(b.intro, 3000), firstHead: s(b.firstHead, 80), firstText: s(b.firstText, 1000), first: ids(b.first),
+    soonHead: s(b.soonHead, 80), soonText: s(b.soonText, 1000), soon: ids(b.soon), xmas: !!b.xmas, xmasText: s(b.xmasText, 600), outro: s(b.outro, 1500), at: Date.now() });
+  await env.PENDING.put("nl-draft", JSON.stringify(d));
+  return { ok: true, html: nlHtml(d, await nlSources(env), true) };
+}
+
+async function nlTestSend(env, b) {
+  const to = String(b.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) throw new Error("That email doesn't look right.");
+  const set = (await env.PENDING.get("nl-settings", "json")) || {};
+  if (set.lastTest && Date.now() - set.lastTest < 60 * 1000) throw new Error("Give it a minute between tests.");
+  const d = await nlDraft(env); const src = await nlSources(env);
+  // The test group holds only Barry's test address.
+  let gid = set.groupId;
+  if (!gid) {
+    const g = await mlFetch(env, "/groups?limit=100&filter[name]=" + encodeURIComponent(NL_TEST_GROUP));
+    const hit = g.j && Array.isArray(g.j.data) ? g.j.data.find((x) => x.name === NL_TEST_GROUP) : null;
+    if (hit) gid = hit.id; else { const c = await mlFetch(env, "/groups", "POST", { name: NL_TEST_GROUP }); if (!c.ok) throw new Error("couldn't make the test group (" + c.status + ")"); gid = c.j.data.id; }
+  }
+  if (set.testEmail && set.testEmail !== to) { // old test address leaves the test group
+    const old = await mlFetch(env, "/subscribers/" + encodeURIComponent(set.testEmail)); if (old.ok && old.j && old.j.data) await mlFetch(env, `/subscribers/${old.j.data.id}/groups/${gid}`, "DELETE").catch(() => {});
+  }
+  const sub = await mlFetch(env, "/subscribers", "POST", { email: to, groups: [String(gid)] });
+  if (!sub.ok) throw new Error("couldn't add your address to the test group (" + sub.status + ")");
+  const c = await mlFetch(env, "/campaigns", "POST", { name: "TEST " + new Date().toISOString().slice(0, 16).replace("T", " ") + ": " + d.subject.slice(0, 60), type: "regular", groups: [String(gid)],
+    emails: [{ subject: "[TEST] " + d.subject, from_name: "Introvert Here", from: "hello@introverthere.com", content: nlHtml(d, src, false) }] });
+  if (!c.ok || !c.j || !c.j.data) throw new Error(((c.j && (c.j.message || JSON.stringify(c.j.errors || {}))) || c.t).slice(0, 300));
+  const sc = await mlFetch(env, `/campaigns/${c.j.data.id}/schedule`, "POST", { delivery: "instant" });
+  if (!sc.ok) throw new Error("MailerLite wouldn't send it: " + ((sc.j && (sc.j.message || JSON.stringify(sc.j.errors || {}))) || sc.t).slice(0, 300));
+  Object.assign(set, { testEmail: to, groupId: String(gid), lastTest: Date.now() }); await env.PENDING.put("nl-settings", JSON.stringify(set));
+  return { ok: true, to };
 }
