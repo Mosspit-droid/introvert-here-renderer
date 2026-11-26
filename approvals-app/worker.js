@@ -8420,8 +8420,8 @@ async function mlCheck(env) {
 // A page where Barry sees his subscribers, edits a draft newsletter the app writes for him, previews it, and sends a
 // TEST copy to his own address. Nothing ever goes to subscribers from here: that comes later, with his OK every time.
 // The test goes through MailerLite: a group holding only his test address, a campaign for that group, sent at once.
-// The shop runs at its workers.dev address until introverthere.com is attached to it (shop thread). Switch this then.
-const NL_SITE = "https://introvert-here-shop.mosspit.workers.dev";
+// The up-to-date shop is the preview worker until introverthere.com is attached (shop thread). Switch this then.
+const NL_SITE = "https://introvert-here-shop-preview.mosspit.workers.dev";
 const NL_TEST_GROUP = "App test (Barry only)";
 const nlCollName = { IH: "Introvert Here", SH: "Shhh.", PC: "Passive Collective", OS: "Off The Shelf", IP: "In Person", EX: "Exclusive" };
 const nlLines = (t) => String(t || "").replace(/^[.…\s]+/, "").replace(/\s*\n\s*/g, " ").replace(/\s+/g, " ").trim();
