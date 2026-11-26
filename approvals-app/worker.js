@@ -8420,7 +8420,8 @@ async function mlCheck(env) {
 // A page where Barry sees his subscribers, edits a draft newsletter the app writes for him, previews it, and sends a
 // TEST copy to his own address. Nothing ever goes to subscribers from here: that comes later, with his OK every time.
 // The test goes through MailerLite: a group holding only his test address, a campaign for that group, sent at once.
-const NL_SITE = "https://introverthere.com";
+// The shop runs at its workers.dev address until introverthere.com is attached to it (shop thread). Switch this then.
+const NL_SITE = "https://introvert-here-shop.mosspit.workers.dev";
 const NL_TEST_GROUP = "App test (Barry only)";
 const nlCollName = { IH: "Introvert Here", SH: "Shhh.", PC: "Passive Collective", OS: "Off The Shelf", IP: "In Person", EX: "Exclusive" };
 const nlLines = (t) => String(t || "").replace(/^[.…\s]+/, "").replace(/\s*\n\s*/g, " ").replace(/\s+/g, " ").trim();
@@ -8493,7 +8494,7 @@ ${d.xmas && d.xmasText ? `<div style="margin:24px 0 6px;padding:14px 16px;backgr
 <div style="margin-top:24px">${paras(d.outro)}</div>
 <p style="margin:10px 0 22px"><a href="${NL_SITE}/uk" style="display:inline-block;padding:11px 18px;background:#0b0b0a;color:#fad00c;border-radius:6px;font:800 14px Montserrat,Arial,sans-serif;text-decoration:none">Visit the shop</a></p>
 </td></tr>
-<tr><td style="padding:16px 24px 22px;background:#f3eee2;font:12px/1.5 Arial,sans-serif;color:#777">You're getting this because you signed up at introverthere.com. Occasional and quiet, as promised.<br><a href="${unsub}" style="color:#555">Unsubscribe</a> any time. No hard feelings. Well, a few.</td></tr>
+<tr><td style="padding:16px 24px 22px;background:#f3eee2;font:12px/1.5 Arial,sans-serif;color:#777">You're getting this because you signed up on our website. Occasional and quiet, as promised.<br><a href="${unsub}" style="color:#555">Unsubscribe</a> any time. No hard feelings. Well, a few.</td></tr>
 </table></td></tr></table></body></html>`;
 }
 
