@@ -7897,21 +7897,29 @@ async function shopCatalogCard(env) {
   const S = (await env.PENDING.get(SC.state, "json")) || {};
   const c = S.batchAt ? await env.PENDING.get(SC.cat, "json") : null, probs = (c && c.problems) || [];
   const line = !S.batchAt ? "Not checked yet." : `<b>${S.designs || 0}</b> designs (${S.garments || 0} garments) in the shop · last checked ${esc(when(S.batchAt))}${S.changedAt ? " · last changed " + esc(when(S.changedAt)) : ""}`;
+  // Garments by name rather than code (Barry, 26 Nov): "Ignorance Is Bliss hoodie".
+  const stems = {}; (((await env.PENDING.get("gags", "json")) || {}).sched || []).forEach((g) => { stems[g.id] = g.s; });
+  ((c && c.designs) || []).forEach((d) => { stems[d.id] = stems[d.id] || d.title; });
+  const nm = (code) => { const m = /^([A-Z]{2}-\d{5})-(.+)$/.exec(String(code || "")); return m && stems[m[1]] ? stems[m[1]] + " " + ({ "T-SHIRT": "T-shirt", "LONG-SLEEVE": "long sleeve", SWEATSHIRT: "sweatshirt", HOODIE: "hoodie" }[m[2]] || m[2].toLowerCase()) : String(code || ""); };
+  const named = (t) => String(t || "").replace(/[A-Z]{2}-\d{5}-(?:T-SHIRT|LONG-SLEEVE|SWEATSHIRT|HOODIE)/g, (x) => nm(x));
+  const V = (await env.PENDING.get(SV.own, "json")) || {}, vAll = Object.keys(S.vids || {}).length, vDone = Object.values(V).filter((x) => x.at).length;
+  const vLast = Object.entries(V).filter(([, x]) => x.at).sort((a, b) => b[1].at - a[1].at)[0];
   return `<h2>Shop catalogue</h2>
 <div class="card" style="max-width:560px">
-<p class="small">The shop follows Etsy by itself: new listings, price changes and deactivated gags reach it within a few hours. In Person isn't in the shop yet.</p>
+<p class="small">The shop follows Etsy by itself: new listings, price changes and listings you switch off reach it within a few hours, along with their photos and videos.</p>
 <div>${line}</div>
 ${S.waiting ? `<div class="small">${S.waiting} new garment${S.waiting === 1 ? "" : "s"} still being added.</div>` : ""}
 ${S.etsyOnly ? `<div class="small">${S.etsyOnly} garment${S.etsyOnly === 1 ? " is" : "s are"} showing Etsy's photos only: the full Canva set hasn't been stored yet.</div>` : ""}
 ${S.error ? `<div class="status bad">Last check failed: ${esc(S.error)}</div>` : ""}
 ${await (async () => { const B = await env.PENDING.get(SB, "json"); if (!B) return "";
   const ok = (B.log || []).filter((x) => x.ok).length, bad = (B.log || []).filter((x) => !x.ok).slice(0, 3);
-  return `<div class="small" style="margin-top:6px">Built for the site ahead of Etsy: ${ok} garment${ok === 1 ? "" : "s"}${B.cur ? " · building " + esc(B.cur.code) + " now" : ""}${(B.queue || []).length ? " · " + B.queue.length + " waiting" : ""}.</div>` +
-    bad.map((x) => `<div class="status bad">${esc(x.code)} wasn't built for the site: ${esc(x.msg || "")}</div>`).join(""); })()}
+  return `<div class="small" style="margin-top:6px">Built for the site ahead of Etsy: ${ok} garment${ok === 1 ? "" : "s"}${B.cur ? " · building " + esc(nm(B.cur.code)) + " now" : ""}${(B.queue || []).length ? " · " + B.queue.length + " waiting" : ""}.</div>` +
+    bad.map((x) => `<div class="status bad">${esc(nm(x.code))} wasn't built for the site: ${esc(x.msg || "")}</div>`).join(""); })()}
 ${S.keyBad ? `<div class="status bad">Printify refused the saved Printify key. The shop uses it to place orders, so save a new one under Shop keys below (Printify: My account › Connections › API tokens).</div>` : ""}
 ${await (async () => { const Q = (await env.PENDING.get(SP.q, "json")) || {}, L = Q.log || [], last = L[0];
-  return `<div class="small" style="margin-top:6px">Photos: ${Q.cur ? "saving " + esc(Q.cur.code) + " now" + ((Q.queue || []).length ? ", " + Q.queue.length + " more waiting" : "") : (Q.queue || []).length ? Q.queue.length + " garment(s) waiting" : "all saved"}${last ? " · last: " + esc(last.code) + (last.err ? " failed (" + esc(last.err) + ")" : " ✓ " + esc(when(last.at))) : ""}. New and regenerated mockups are copied to the site by themselves.</div>`; })()}
-${probs.length ? `<div class="status wait">${probs.map(esc).join("<br>")}</div>` : ""}
+  return `<div class="small" style="margin-top:6px">Photos: ${Q.cur ? "saving " + esc(nm(Q.cur.code)) + " now" + ((Q.queue || []).length ? ", " + Q.queue.length + " more waiting" : "") : (Q.queue || []).length ? Q.queue.length + " garment(s) waiting" : "all saved"}${last ? " · last: " + esc(nm(last.code)) + (last.err ? " failed (" + esc(last.err) + ")" : " ✓ " + esc(when(last.at))) : ""}. New and regenerated mockups are copied to the site by themselves.</div>`; })()}
+<div class="small" style="margin-top:6px">Videos: ${vAll ? (vDone >= vAll ? "all " + vAll + " on the site" : vDone + " of " + vAll + " on the site, the rest copying") : vDone + " on the site"}${vLast ? " · last: " + esc(nm(vLast[0])) + " " + esc(when(vLast[1].at * 1000)) : ""}. Each approved video is copied to the site by itself.</div>
+${probs.length ? `<div class="status wait">${probs.map((x) => esc(named(x))).join("<br>")}</div>` : ""}
 <button id="sccheck" class="btn-main" type="button" style="margin-top:10px">Check now</button>
 <p id="scmsg" class="small"></p></div>`;
 }
