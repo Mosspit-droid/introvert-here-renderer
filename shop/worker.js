@@ -2134,7 +2134,7 @@ function thanksPage() {
 }
 
 function legalPage(which) {
-  const ADDRESS = "Bay B52, Unit 66 Queens Court Trading Estate, Greets Green Road, West Bromwich, West Midlands, B70 9EQ";
+  const ADDRESS = "Bay B52, Unit 66 Queens Court Trading Estate, Greets Green Road, West Bromwich, West Midlands, B70 9EQ";   // mail address service (Barry, 27 Nov)
   const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
