@@ -896,7 +896,7 @@ function googleFeed(cat, origin) {
 // cut-offs, so they allow a week's printing and Royal Mail's last posting days for UK-printed garments, and longer for
 // long sleeves, which are printed abroad. Change them here. The notice shows across the site from XMAS.from (on the
 // preview always), and after the last date says it's too late. It disappears after Christmas Day.
-const XMAS = { from: "2026-12-01", uk: "2026-12-12", abroad: "2026-12-05", end: "2026-12-25" };
+const XMAS = { from: "2026-11-27", uk: "2026-12-12", abroad: "2026-12-05", end: "2026-12-25" };
 const XMAS_FOR = [   // picked by Barry's gag codes; anything not in the catalogue is skipped. A draft for Barry.
   ["For the colleague who’d rather be on mute", ["PC-00001", "PC-00004", "PC-00003", "PC-00002", "PC-00005"]],
   ["For the friend who always cancels", ["IH-00010", "IH-00012", "IH-00014", "IH-00011", "IH-00003"]],
