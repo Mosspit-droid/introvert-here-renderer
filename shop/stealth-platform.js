@@ -144,7 +144,7 @@ const STREET_ZONES = [
 // standing still cannot see you at all, and the walker only catches you if he walks into you. The busker, the runner and the cyclist carry on as normal. The pavement is slippery (Barry, 24 Nov).
 const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
-  signs: [{ x: 33, y: 13.2, t: "WAIT FOR THE BUS" }, { x: 33, y: 13.9, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
+  signs: [{ x: 39.5, y: 12.5, t: "WAIT FOR THE BUS" }, { x: 39.5, y: 13.2, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
   movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
   lanes: [{ x0: 76, x1: 85, every: 4.2 }, { x0: 195, x1: 203, every: 3.6 }],
   lines: { P: ["Is it? It IS you!", "Fancy seeing you here.", "You haven’t changed a bit."], W: ["Have you got two minutes for the donkeys?", "Just a quick survey.", "Can I stop you there?"], T: ["Any requests?", "This next one’s my own.", "Sing along!"], C: ["It’s ME! From SCHOOL!", "We MUST catch up!", "Come here, stranger!"], G: ["He’s just being friendly!", "He likes you!"], bike: ["On your LEFT!", "Ding ding!"], pit: ["You stepped into the road. The driver wanted a word."] } };
