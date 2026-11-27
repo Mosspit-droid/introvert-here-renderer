@@ -98,6 +98,8 @@ All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) a
 ## Batch log
 - **27 Nov: launch-week batch sent to the Social page** (KV social-pack, week "Launch week (28 Nov)"): launch post Sat 28 Nov 10:00 (`launch-live-v1`), Meet Hoodini Sun 29 Nov 10:00 (`meet-hoodini-v1`), this week's excuse Wed 2 Dec 18:30 (`excuse-eels-v1`, excuse "THE EELS NEED UNTANGLING.", Barry's pick, replacing the trousers one), gag reel Fri 4 Dec 18:30 (`gag-sigh-v1`). All seven channels. The launch and Hoodini posts are noted "approve only once the site is live" (the launch depends on the business address verification). Builders: `social/launch/02-launch-door.html`, `mock/excuse_render.js`, `gag_reel.js`. Excuses come from the 100 in `shop/worker.js` EXCUSES on branch ccr-2e2fbc93 (#17 eels used; #50 trousers spare).
 
+- **27 Nov: Hoodini short #1, "Too close."** (desert epic homage: a speck on the horizon slowly becomes Hoodini on his camel head-on; close-up, he cinches his hood shut; "Too close."; logo + URL card). Stills via fal `nano-banana/edit` (Barry's drawing as reference; `social/desert/*.png`); clips via Seedance: approach = start `far-still.png` + END frame `head-on-0.png` (the end frame stopped him gaining a face; without it the model drew a boy's face), gag = `close-still.png`. Widescreen master `social/desert/too-close-wide.mp4` (Etsy shop video / YouTube), vertical with cinema bars on the Social page, Sun 6 Dec 10:00. Spend ~$1.30.
+
 ## Standing order from Barry
 Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
 
