@@ -100,6 +100,8 @@ All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) a
 
 - **27 Nov: Hoodini short #1, "Too close."** (desert epic homage: a speck on the horizon slowly becomes Hoodini on his camel head-on; close-up, he cinches his hood shut; "Too close."; logo + URL card). Stills via fal `nano-banana/edit` (Barry's drawing as reference; `social/desert/*.png`); clips via Seedance: approach = start `far-still.png` + END frame `head-on-0.png` (the end frame stopped him gaining a face; without it the model drew a boy's face), gag = `close-still.png`. Widescreen master `social/desert/too-close-wide.mp4` (Etsy shop video / YouTube), vertical with cinema bars on the Social page, Sun 6 Dec 10:00. Spend ~$1.30.
 
+- **27 Nov: "Too close." rejected by Barry** (side-on opening, cut to close-up, drawstrings weird, eye-dots appeared). **Replaced by "I'll wait."** (Barry's concept): one continuous shot on a flat desert (one line, blue above, yellow below; drawn by me, `flat-desert-wide.png`); a dot on the horizon becomes Hoodini on his camel head-on (Seedance, start `appr-start.png` + end `appr-end.png` on my desert); the camera drifts right to reveal a traveller drinking at a well (game-character style, `well-man2-0-green.png`, animated on green, keyed); speech bubble "I'll wait."; logo + URL card. Script `social/desert/compose_wait.py`. Widescreen `ill-wait-wide.mp4`, vertical cinema bars on the Social page, Sun 6 Dec 10:00. Barry's game characters (`brand-refs/game-characters/`) are the style guide for any new character.
+
 ## Standing order from Barry
 Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
 
