@@ -1,3 +1,5 @@
+> **Not for social media** (Barry, 24 Nov): these were a joke for the Etsy About page. Don't use them in posts. The mascot is **Hoodini** (`brand-logos/mascot/`).
+
 # The Introvert Here team (character sheets)
 
 Reference images: `docs/social/team/` (16:9 with captions baked in; no caption-free originals exist, so captions are removed with Canva Magic Eraser and scenes extended with Magic Expand).

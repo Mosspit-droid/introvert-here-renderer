@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;font-family:Montserrat,sans-serif;color:#f2f0ea}
+.bg{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#121211 url(concrete.jpg) center top/1800px auto repeat}
+.logo{position:absolute;left:90px;top:300px;width:560px}
+.frame{position:absolute;left:90px;right:90px;top:640px;background:#fad00c;border-radius:30px;padding:16px 16px 52px}
+.in{background:#1c1c1a;border-radius:20px;padding:60px 54px 70px}
+.lab{font-weight:800;font-size:42px;letter-spacing:.14em;color:#fad00c;margin-bottom:34px}
+.ex{font-weight:800;font-size:88px;line-height:1.08;text-transform:uppercase}
+.dots{position:absolute;right:46px;bottom:12px;background:#1c1c1a;border-radius:16px;padding:6px 16px;display:flex;gap:18px}
+.dots i{width:16px;height:16px;border-radius:50%;background:#fad00c;display:block}
+.yw{position:absolute;left:90px;font-size:46px;color:#d8d4ca}
+</style></head><body><div class="bg"></div><img class="logo" src="logo-wide.png">
+<div class="frame" id="f"><div class="in"><div class="lab">THIS WEEK'S EXCUSE:</div><div class="ex" id="ex"></div></div><div class="dots"><i></i><i></i><i></i></div></div>
+<div class="yw" id="yw">You're welcome.</div>
+<script>
+document.getElementById('ex').textContent=new URLSearchParams(location.search).get('text')||"THE LLAMA’S BRIDESMAIDS HAVE PULLED OUT.";
+document.fonts.ready.then(()=>{document.getElementById('yw').style.top=(document.getElementById('f').getBoundingClientRect().bottom+60)+'px';document.title='ready'});
+</script></body></html>

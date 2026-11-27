@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{overflow:hidden;font-family:Montserrat,sans-serif;color:#f2f0ea;background:transparent}
+.stage{position:relative;width:var(--W);height:var(--H);overflow:hidden;
+  background:linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)),#121211 url(concrete.jpg) center/cover}
+.vig{position:absolute;inset:0;background:radial-gradient(ellipse 75% 70% at 50% 45%,transparent 40%,rgba(0,0,0,.45))}
+/* avatar: Hoodini head-and-shoulders in a yellow ring */
+.av .ring{position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 var(--rw) #fad00c}
+.av img{position:absolute;left:50%;top:10%;height:135%;transform:translateX(-46%)}
+/* banners */
+.bn .logo{position:absolute;left:var(--lx);top:var(--ly);width:var(--lw)}
+.bn .line{position:absolute;line-height:1.2;left:var(--lx);top:var(--ty);font-weight:600;font-size:var(--fs);letter-spacing:.01em;color:#f2f0ea;text-shadow:0 2px 12px rgba(0,0,0,.4)}
+.bn .url{position:absolute;left:var(--lx);top:var(--uy);font-weight:600;font-size:calc(var(--fs)*.7);color:#fad00c;letter-spacing:.04em}
+.bn .hood{position:absolute;right:var(--hx);top:var(--hy);height:var(--hh)}
+.safe{position:absolute;border:3px dashed rgba(255,0,0,.0)}
+</style></head><body>
+<div class="stage" id="s"></div>
+<script>
+const q=new URLSearchParams(location.search);
+const kind=q.get('kind'), W=+q.get('w'), H=+q.get('h');
+const r=document.documentElement.style; r.setProperty('--W',W+'px'); r.setProperty('--H',H+'px');
+const s=document.getElementById('s');
+if(kind==='avatar'){
+  s.classList.add('av'); s.style.borderRadius='0';
+  r.setProperty('--rw',Math.round(W*0.035)+'px');
+  s.innerHTML='<div class="vig"></div><img src="hoodini-full.png"><div class="ring"></div>';
+}else{
+  s.classList.add('bn');
+  // safe zone: content kept inside the centre band each platform always shows
+  const sw=+q.get('sw')||W, sh=+q.get('sh')||H;
+  const x0=(W-sw)/2, y0=(H-sh)/2;
+  const lw=Math.min(sw*0.48, sh*2.2);
+  r.setProperty('--lw',lw+'px'); r.setProperty('--lx',(x0+sw*0.06)+'px');
+  const fs=lw*0.072; r.setProperty('--fs',fs+'px');
+  const block=lw*0.148+fs*0.9+fs*2.4+fs*1.6;
+  const ly=y0+(sh-block)/2-fs*0.3;
+  r.setProperty('--ly',ly+'px'); r.setProperty('--ty',(ly+lw*0.148+fs*0.9)+'px'); r.setProperty('--uy',(ly+lw*0.148+fs*3.7)+'px');
+  r.setProperty('--hh',(sh*0.86)+'px'); r.setProperty('--hy',(y0+sh*0.07)+'px'); r.setProperty('--hx',(x0+sw*0.09)+'px');
+  s.innerHTML='<div class="vig"></div><img class="logo" src="logo-wide.png"><div class="line">Everything you need to be<br>left the hell alone.</div><div class="url">INTROVERTHERE.COM</div><img class="hood" src="hoodini-full.png">';
+}
+document.fonts.ready.then(()=>document.title='ready');
+</script></body></html>

@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600&display=swap" rel="stylesheet">
+<style>*{margin:0;padding:0}html,body{width:1080px;height:1920px;overflow:hidden;background:#0a0a09;font-family:Montserrat,sans-serif}
+.back{position:absolute;inset:0;background:radial-gradient(ellipse 70% 40% at 45% 55%,#1c1b19,#0a0a09 70%)}
+.floor{position:absolute;left:0;right:0;top:1097px;bottom:0;background:linear-gradient(#141311,#0b0b0a)}
+.cone{position:absolute;left:476px;top:-60px;width:640px;height:1640px;transform:translateX(-50%);
+ background:linear-gradient(180deg,rgba(255,246,220,.26),rgba(255,246,220,.12) 80%,rgba(255,246,220,.05));
+ clip-path:polygon(41% 0,59% 0,100% 100%,0 100%);filter:blur(5px)}
+.pool{position:absolute;left:476px;top:1566px;width:640px;height:170px;transform:translate(-50%,-50%);
+ background:radial-gradient(ellipse at center,rgba(255,246,220,.55),rgba(255,246,220,.18) 55%,transparent 72%)}
+.logo{position:absolute;left:50%;top:240px;width:560px;transform:translateX(-50%)}
+.url{position:absolute;left:0;right:0;top:370px;text-align:center;color:#f2f0ea;font-weight:600;font-size:44px}
+body.off .cone,body.off .pool{display:none}body.off .back{filter:brightness(.8)}
+body:not(.brand) .logo,body:not(.brand) .url{display:none}
+body.nocone .cone{display:none}body.black .back,body.black .floor{display:none}body.black{background:#000}body.coneonly>*:not(.cone){display:none}body.coneonly,html:has(body.coneonly){background:transparent}
+body.brandonly>*:not(.logo):not(.url){display:none}body.brandonly,html:has(body.brandonly){background:transparent}
+</style></head><body><div class="back"></div><div class="floor"></div><div class="cone"></div><div class="pool"></div>
+<img class="logo" src="assets/logo-wide.png"><div class="url">introverthere.com</div>
+<script>document.body.className=new URLSearchParams(location.search).get('c')||''</script></body></html>

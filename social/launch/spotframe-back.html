@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><style>*{margin:0;padding:0}
+html,body{width:720px;height:1280px;overflow:hidden;background:#0b0b0a}
+.s{position:absolute;inset:0;background:#0a0a09}
+.f{position:absolute;left:0;right:0;top:760px;height:520px;background:linear-gradient(#121110,#0a0a09)}
+.cone{position:absolute;left:50%;top:-40px;width:600px;height:1070px;transform:translateX(-50%);
+ background:linear-gradient(180deg,rgba(255,246,220,.30),rgba(255,246,220,.14) 75%,rgba(255,246,220,.05));
+ clip-path:polygon(42% 0,58% 0,100% 100%,0 100%);filter:blur(4px)}
+.pool{position:absolute;left:50%;top:1010px;width:600px;height:130px;transform:translate(-50%,-50%);
+ background:radial-gradient(ellipse at center,rgba(255,246,220,.55),rgba(255,246,220,.18) 55%,transparent 72%)}
+img{position:absolute;top:470px;height:270px;filter:brightness(.38)}
+</style></head><body><div class="s"></div><div class="f"></div><div class="cone"></div><div class="pool"></div>
+<img id="h" src="assets/hoodini-full.png"></body>
+<script>document.getElementById('h').style.left=(new URLSearchParams(location.search).get('x')||'-120')+'px'</script></html>
