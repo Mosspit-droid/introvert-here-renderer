@@ -120,7 +120,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/newsletter") return html(newsletterPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/stealth/tally") return await stealthTally(request, env, url);   // anonymous test scores: only where a STEALTH_TALLY store is attached (the stealth preview)
-      if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url, { html: PRESENTS_HTML(), js: PRESENTS_JS }, !!env.STEALTH_TALLY); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
+      if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url, { html: PRESENTS_HTML(), js: PRESENTS_JS }, !!env.STEALTH_TALLY, isPreview(env)); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
       if (path === HUB.path + "/aunt-doris") {
         // preview only: a link with ?unlock=PREVIEW-DORIS opens the whole game straight away, for testers
@@ -1978,7 +1978,7 @@ setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})()
 // sits, f = where its label goes (l/r = starts at the dot and runs left/right-anchored, b = below the dot).
 // A thing with "soon" isn't built yet and answers with that line instead of going anywhere.
 const ROOM = [
-  { name: "Stealth game", href: HUB.path + "/stealth",
+  { name: "Hoodini: The OK Escape", href: HUB.path + "/stealth",
     wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
   { name: "Paper escape rooms", href: HUB.path + "/aunt-doris",
     wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
