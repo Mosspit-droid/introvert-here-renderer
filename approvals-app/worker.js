@@ -43,6 +43,7 @@ export default {
     ctx.waitUntil(siteBuildTick(env).catch(() => {}));
     ctx.waitUntil(coreSettingsTick(env).catch(() => {}));
     ctx.waitUntil(mlWatchTick(env).catch(() => {}));
+    ctx.waitUntil(socStatusTick(env).catch(() => {}));
     ctx.waitUntil(siteAheadTick(env).catch(() => {}));
     ctx.waitUntil(pendingTagSaves(env).catch(() => {}));
     ctx.waitUntil(titleTestTick(env).catch(() => {}));
@@ -73,6 +74,9 @@ export default {
       if (pathname === "/api/alert" && method === "POST") return await alert(request, env, ctx, url);
       if (pathname === "/api/lock" && method === "POST") return await lockOp(request, env);
       if (pathname === "/api/site-built" && method === "POST") return await siteBuilt(request, env);
+      if (pathname === "/api/social-pack" && method === "POST") return await socPackIn(request, env);
+      if (pathname === "/api/social-media" && method === "POST") return await socMediaIn(request, env, url);
+      if (pathname.startsWith("/sm/") && (method === "GET" || method === "HEAD")) return await socMediaOut(request, env, pathname.slice(4));
       if (pathname === "/api/tool-result" && method === "POST") {   // results from Make helper scenarios whose own outputs don't come back (Pinterest tool, 25 Nov)
         if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
         const d = await readBody(request), ref = str(d.ref).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60); if (!ref) return json({ error: "no ref" }, 400);
@@ -207,6 +211,7 @@ export default {
         return authed ? await tagsPage(env) : redirect("/");
       }
       if (pathname === "/newsletter" && method === "GET") return authed ? await newsletterPage(env) : redirect("/");
+      if (pathname === "/social" && method === "GET") return authed ? await socialPage(env) : redirect("/");
       if (pathname === "/gags" && method === "GET") {
         return authed ? await gagsPage(env) : redirect("/");
       }
@@ -256,6 +261,8 @@ export default {
       if (pathname === "/api/spell" && method === "POST") return await spell(request, env);
       if (pathname === "/api/pricing-save" && method === "POST") return await pricingSave(request, env);
       if (pathname === "/api/shop-keys" && method === "POST") return await shopKeys(request, env);
+      if (pathname === "/api/social-approve" && method === "POST") { try { const d = await request.json().catch(() => ({})); return json(await socApprove(env, String(d.id || ""), d)); } catch (e) { return json({ error: String(e.message || e).slice(0, 400) }, 400); } }
+      if (pathname === "/api/social-action" && method === "POST") { try { return json(await socAction(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 400) }, 400); } }
       if (pathname === "/api/nl-save" && method === "POST") { try { return json(await nlSave(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 300) }, 400); } }
       if (pathname === "/api/nl-fresh" && method === "POST") { await env.PENDING.put("nl-draft", JSON.stringify(nlFresh(await nlSources(env)))); return json({ ok: true }); }
       if (pathname === "/api/nl-test" && method === "POST") { try { return json(await nlTestSend(env, await request.json().catch(() => ({})))); } catch (e) { return json({ error: String(e.message || e).slice(0, 300) }, 400); } }
@@ -1112,12 +1119,13 @@ const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="
 <symbol id="i-cal" viewBox="0 0 32 32"><rect x="4" y="6" width="24" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M4 13h24M11 3.5v5M21 3.5v5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="9" y="17" width="5" height="4.5" rx="1.2" fill="currentColor"/></symbol>
 <symbol id="i-check" viewBox="0 0 32 32"><path d="M7 16.5l6 6L25 10" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 <symbol id="i-person" viewBox="0 0 32 32"><circle cx="16" cy="6" r="4" fill="currentColor"/><rect x="11.5" y="11.5" width="9" height="11" rx="3" fill="currentColor"/><rect x="11.5" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/><rect x="16.7" y="18" width="3.8" height="12" rx="1.9" fill="currentColor"/></symbol>
+<symbol id="i-megaphone" viewBox="0 0 32 32"><path d="M5 13v6h4l11 6V7L9 13H5z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M24 12.5a5 5 0 0 1 0 7M10 19.5l2 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></symbol>
 <symbol id="i-mail" viewBox="0 0 32 32"><rect x="4" y="7" width="24" height="18" rx="3.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M5.5 9.5l10.5 8 10.5-8" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 </defs></svg>`;
 const icon = (id, cls = "") => `<svg${cls ? ` class="${cls}"` : ""}><use href="#i-${id}"/></svg>`;
 
 const NAV_TABS = [["/", "home", "Home"], ["/approvals", "approve", "Approve"], ["/gags", "gags", "Gags"], ["/listings", "update", "Listings"]];
-const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/copywatch", "search", "Copy watch"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/newsletter", "mail", "Newsletter"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
+const NAV_MORE = [["/today", "home", "Today"], ["/calendar", "cal", "Calendar"], ["/health", "check", "Weekly check"], ["/settings", "tools", "Settings"], ["/reviews", "stats", "Reviews"], ["/quiet", "search", "Quiet listings"], ["/copywatch", "search", "Copy watch"], ["/todo", "todo", "To-do"], ["/tags", "tags", "Tags"], ["/orders", "orders", "Orders"], ["/newsletter", "mail", "Newsletter"], ["/social", "megaphone", "Social"], ["/stats", "stats", "Stats"], ["/credits", "credits", "Credits"], ["/check", "check", "Check for problems"], ["/links", "links", "Links"], ["/alerts", "bell", "Alerts"]];
 
 function shell(body, manifestUrl = "/manifest.webmanifest") {
   const tabs = NAV_TABS.map(([href, ic, label]) => `<a href="${href}" data-tab="${href}">${icon(ic)}${label}</a>`).join("");
@@ -8636,4 +8644,233 @@ async function pzCheck(env) {
   const st = { ok: true, at: Date.now(), channels: list.map((c) => ({ id: c.id, name: c.name || c.profile || "", platform: c.identifier || c.providerIdentifier || c.provider || "", disabled: !!c.disabled })) };
   await env.PENDING.put("pz-status", JSON.stringify(st));
   return st;
+}
+
+// ───────────────────────── 📣 Social page (27 Nov) ─────────────────────────
+// The social thread builds a weekly pack of posts and sends it here (POST /api/social-pack, media first through
+// POST /api/social-media). Barry sees one card per post and taps Approve, Change or Drop. Nothing reaches Postiz until
+// he approves; then the app uploads the media to Postiz and schedules the post on the ticked channels.
+// Postiz allows about 30 API calls an hour: an approval costs one call per new media file plus one for the post.
+const SOC_KEY = "social-pack";
+const APP_ORIGIN = "https://mosspit-approvals.mosspit.workers.dev";
+const SOC_PIN_BOARD = "1125477831819161089";   // Pinterest board "Introvert Here — Funny Gifts"
+const SOC_CH = [   // order = order on the card; ids from Postiz (also in docs/social/launch-campaign.md)
+  { k: "tiktok", name: "TikTok", id: "cmwvyz7e30p73qd07a6hhawkr", type: "tiktok-business", max: 2200, needsMedia: true },
+  { k: "instagram", name: "Instagram", id: "cmwvvxzek0nu0qd07bkxjfxsn", type: "instagram", max: 2200, needsMedia: true },
+  { k: "pinterest", name: "Pinterest", id: "cmwvvzbiu0nuaqd07hl0hqkxa", type: "pinterest", max: 500, needsMedia: true },
+  { k: "facebook", name: "Facebook", id: "cmwvw4ft40nrvpj07pe8pc2rb", type: "facebook", max: 63206 },
+  { k: "youtube", name: "YouTube", id: "cmwvzpo9p0o5go307sej7ky97", type: "youtube", max: 5000, needsVideo: true },
+  { k: "threads", name: "Threads", id: "cmwvx4iz60og1qd0755ntk11j", type: "threads", max: 500 },
+  { k: "bluesky", name: "Bluesky", id: "cmww075070pt5qd07tw588omf", type: "bluesky", max: 300 },
+];
+const socIsVideo = (n) => /\.(mp4|mov|webm)$/i.test(String(n || ""));
+const socMediaName = (n) => String(n || "").replace(/[^A-Za-z0-9._-]/g, "").slice(0, 120);
+const socTrim = (t, max) => { t = String(t || "").trim(); if (t.length <= max) return t; const cut = t.slice(0, max - 1); const i = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("\n")); return (i > max * 0.5 ? cut.slice(0, i + 1) : cut.replace(/\s+\S*$/, "") + "…").trim(); };
+const ukLocal = (iso) => { try { const d = new Date(iso); const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`; } catch (e) { return ""; } };
+function ukToIso(local) {   // "2026-11-28T19:30" in UK time → ISO
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(local || "")); if (!m) return "";
+  let t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  for (let i = 0; i < 2; i++) { const back = ukLocal(new Date(t).toISOString()); const [d, h] = back.split("T"); const [y, mo, da] = d.split("-").map(Number); const [hh, mi] = h.split(":").map(Number); t += Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - Date.UTC(y, mo - 1, da, hh, mi); }
+  return new Date(t).toISOString();
+}
+
+async function socPack(env) { return (await env.PENDING.get(SOC_KEY, "json")) || { posts: [] }; }
+
+// From the social thread: save a media file (raw body) to R2 social/<name>; served publicly at /sm/<name> so Postiz can fetch it.
+async function socMediaIn(request, env, url) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const name = socMediaName(url.searchParams.get("name")); if (!name || !/\.(mp4|mov|webm|jpg|jpeg|png|gif)$/i.test(name)) return json({ error: "name must end .mp4/.mov/.webm/.jpg/.png/.gif" }, 400);
+  const type = request.headers.get("Content-Type") || (socIsVideo(name) ? "video/mp4" : /\.png$/i.test(name) ? "image/png" : "image/jpeg");
+  await env.PHOTOS.put("social/" + name, request.body, { httpMetadata: { contentType: type } });
+  return json({ ok: true, url: APP_ORIGIN + "/sm/" + name });
+}
+async function socMediaOut(request, env, name) {
+  name = socMediaName(name); const key = "social/" + name;
+  const rg = /bytes=(\d+)-(\d*)/.exec(request.headers.get("Range") || "");
+  if (rg) { const head = await env.PHOTOS.head(key); if (!head) return new Response("", { status: 404 }); const s = +rg[1], e = rg[2] ? Math.min(+rg[2], head.size - 1) : head.size - 1;
+    const o = await env.PHOTOS.get(key, { range: { offset: s, length: e - s + 1 } }); return new Response(o.body, { status: 206, headers: { "Content-Type": head.httpMetadata?.contentType || "application/octet-stream", "Content-Range": `bytes ${s}-${e}/${head.size}`, "Accept-Ranges": "bytes" } }); }
+  const o = await env.PHOTOS.get(key); if (!o) return new Response("", { status: 404 });
+  return new Response(o.body, { headers: { "Content-Type": o.httpMetadata?.contentType || "application/octet-stream", "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=86400" } });
+}
+
+// From the social thread: add or replace posts. Posts already scheduled or posted are left alone.
+// Each post: { id, title, caption, platforms:["tiktok",...], at:"2026-11-28T19:30" (UK) or ISO, media:["name.mp4"],
+//   cover:"name.jpg" (picture for Pinterest/YouTube videos), link, ytTitle, pinTitle, ai:true/false, notes }
+async function socPackIn(request, env) {
+  if (!checkSecret(request, env)) return json({ error: "bad secret" }, 403);
+  const d = await request.json().catch(() => null); if (!d || !Array.isArray(d.posts)) return json({ error: "posts[] needed" }, 400);
+  const pack = await socPack(env); const byId = {}; pack.posts.forEach((p) => { byId[p.id] = p; });
+  let added = 0, kept = 0;
+  for (const x of d.posts) {
+    const id = String(x.id || "").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60); if (!id) continue;
+    const old = byId[id]; if (old && ["scheduled", "posted"].includes(old.status)) { kept++; continue; }
+    const at = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(x.at || "")) ? ukToIso(x.at) : (Date.parse(x.at) ? new Date(x.at).toISOString() : "");
+    const p = { id, title: String(x.title || id).slice(0, 120), caption: String(x.caption || "").slice(0, 5000), platforms: (x.platforms || []).filter((k) => SOC_CH.some((c) => c.k === k)),
+      at, media: (x.media || []).map(socMediaName).filter(Boolean).slice(0, 10), cover: socMediaName(x.cover), link: String(x.link || "").slice(0, 300), ytTitle: String(x.ytTitle || "").slice(0, 100),
+      pinTitle: String(x.pinTitle || "").slice(0, 100), ai: !!x.ai, notes: String(x.notes || "").slice(0, 600), status: "pending", added: Date.now() };
+    if (old) Object.assign(old, p); else pack.posts.push(p); added++;
+  }
+  if (d.week) pack.week = String(d.week).slice(0, 60);
+  pack.posts.sort((a, b) => String(a.at).localeCompare(String(b.at)));
+  pack.at = Date.now(); await env.PENDING.put(SOC_KEY, JSON.stringify(pack));
+  return json({ ok: true, added, kept, total: pack.posts.length });
+}
+
+async function socUpload(env, name, cache) {
+  if (cache[name]) return cache[name];
+  const r = await pzFetch(env, "/upload-from-url", "POST", { url: APP_ORIGIN + "/sm/" + name });
+  if (!r.ok || !r.j || !r.j.id) throw new Error("Postiz wouldn't take " + name + " (" + r.status + " " + ((r.j && (r.j.msg || r.j.message)) || r.t).toString().slice(0, 160) + ")");
+  cache[name] = { id: r.j.id, path: r.j.path }; return cache[name];
+}
+
+function socSettings(c, p, isVid) {
+  const t = (s, n) => String(s || "").slice(0, n);
+  switch (c.k) {
+    case "tiktok": return { __type: c.type, title: t(p.title, 90), privacy_level: "PUBLIC_TO_EVERYONE", duet: false, stitch: false, comment: true, autoAddMusic: "no", brand_content_toggle: false, brand_organic_toggle: false, content_posting_method: "DIRECT_POST", ...(isVid && p.ai ? { video_made_with_ai: true } : {}) };
+    case "instagram": return { __type: c.type, post_type: "post", ...(p.ai ? { made_with_ai: true } : {}) };
+    case "pinterest": return { __type: c.type, board: SOC_PIN_BOARD, title: t(p.pinTitle || p.title, 100), ...(p.link ? { link: p.link } : {}) };
+    case "facebook": return { __type: c.type, post_type: "post", ...(isVid ? { title: t(p.title, 100) } : {}), ...(!isVid && p.ai ? { made_with_ai: true } : {}) };
+    case "youtube": return { __type: c.type, title: t(p.ytTitle || p.title, 100), type: "public", selfDeclaredMadeForKids: "no" };
+    case "threads": return { __type: c.type, ...(p.ai ? { made_with_ai: true } : {}) };
+    default: return { __type: c.type };
+  }
+}
+
+// Why a channel can't take this post (or "" if it can).
+function socBlock(c, p) {
+  const vid = p.media.some(socIsVideo);
+  if (c.needsMedia && !p.media.length) return "needs a picture or video";
+  if (c.needsVideo && !vid) return "only takes videos";
+  if (c.k === "pinterest" && vid && !p.cover) return "needs a cover picture for a video";
+  if (c.k === "bluesky" && p.media.filter((m) => !socIsVideo(m)).length > 4) return "takes at most 4 pictures";
+  return "";
+}
+
+async function socApprove(env, id, edits) {
+  const pack = await socPack(env); const p = pack.posts.find((x) => x.id === id); if (!p) throw new Error("That post isn't in the pack any more.");
+  if (["scheduled", "posted"].includes(p.status)) return { ok: true, already: true, post: p };
+  if (edits) { if (typeof edits.caption === "string") p.caption = edits.caption.slice(0, 5000); if (Array.isArray(edits.platforms)) p.platforms = edits.platforms.filter((k) => SOC_CH.some((c) => c.k === k)); if (edits.at) { const iso = ukToIso(edits.at); if (iso) p.at = iso; } }
+  if (!p.at || Date.parse(p.at) < Date.now() + 5 * 60 * 1000) throw new Error("Pick a time at least 5 minutes from now.");
+  const chans = SOC_CH.filter((c) => p.platforms.includes(c.k)); if (!chans.length) throw new Error("Tick at least one channel.");
+  const blocked = chans.map((c) => [c, socBlock(c, p)]).filter((x) => x[1]); if (blocked.length) throw new Error(blocked.map(([c, why]) => c.name + " " + why).join("; ") + ". Untick it or ask for a new version.");
+  const cache = (await env.PENDING.get("social-media-cache", "json")) || {};
+  const media = []; for (const m of p.media) media.push(await socUpload(env, m, cache));
+  const cover = p.cover ? await socUpload(env, p.cover, cache) : null;
+  await env.PENDING.put("social-media-cache", JSON.stringify(cache));
+  const vid = p.media.some(socIsVideo);
+  const posts = chans.map((c) => {
+    let img = media;
+    if (c.k === "pinterest" && vid) img = [media.find((m, i) => socIsVideo(p.media[i])), cover].filter(Boolean);
+    if (c.k === "youtube") img = [media.find((m, i) => socIsVideo(p.media[i]))].filter(Boolean);
+    const s = socSettings(c, p, vid); if (c.k === "youtube" && cover) s.thumbnail = cover;
+    return { integration: { id: c.id }, value: [{ content: socTrim(p.caption, c.max), image: img }], settings: s };
+  });
+  const r = await pzFetch(env, "/posts", "POST", { type: "schedule", shortLink: false, date: p.at, tags: [], posts });
+  if (!r.ok) { p.status = "failed"; p.error = ((r.j && (r.j.msg || r.j.message || JSON.stringify(r.j))) || r.t).toString().slice(0, 400); await env.PENDING.put(SOC_KEY, JSON.stringify(pack)); throw new Error("Postiz said no: " + p.error); }
+  const out = Array.isArray(r.j) ? r.j : (r.j && (r.j.posts || [r.j])) || [];
+  p.pz = out.map((x) => ({ id: x.postId || x.id, ch: x.integration || x.integrationId || "", group: x.group || "" })).filter((x) => x.id);
+  p.status = "scheduled"; p.approvedAt = Date.now(); p.error = "";
+  await env.PENDING.put(SOC_KEY, JSON.stringify(pack));
+  return { ok: true, post: p };
+}
+
+async function socAction(env, d) {
+  const pack = await socPack(env); const p = pack.posts.find((x) => x.id === String(d.id)); if (!p) throw new Error("That post isn't in the pack any more.");
+  if (d.action === "save") { if (["scheduled", "posted"].includes(p.status)) throw new Error("Already scheduled. Cancel it first to change it.");
+    if (typeof d.caption === "string") p.caption = d.caption.slice(0, 5000); if (Array.isArray(d.platforms)) p.platforms = d.platforms.filter((k) => SOC_CH.some((c) => c.k === k)); if (d.at) { const iso = ukToIso(d.at); if (iso) p.at = iso; } }
+  else if (d.action === "change") { p.status = "change"; p.note = String(d.note || "").slice(0, 1000); }
+  else if (d.action === "drop") { if (p.status === "scheduled") throw new Error("It's scheduled. Tap Cancel first."); p.status = "dropped"; }
+  else if (d.action === "restore") { if (["dropped", "change", "failed", "cancelled"].includes(p.status)) p.status = "pending"; }
+  else if (d.action === "cancel") {
+    if (p.status !== "scheduled") throw new Error("It isn't scheduled.");
+    const groups = [...new Set((p.pz || []).map((x) => x.group).filter(Boolean))];
+    if (groups.length) for (const g of groups) await pzFetch(env, "/posts/group/" + encodeURIComponent(g), "DELETE");
+    else for (const x of p.pz || []) await pzFetch(env, "/posts/" + encodeURIComponent(x.id), "DELETE");
+    p.status = "cancelled"; p.pz = [];
+  } else throw new Error("Unknown action.");
+  await env.PENDING.put(SOC_KEY, JSON.stringify(pack));
+  return { ok: true, post: p };
+}
+
+// Every 3 hours: ask Postiz how the scheduled posts went (posted, or failed and why).
+async function socStatusTick(env) {
+  // Self-test hook (for Claude, set by writing KV "social-selftest" = {id}): approve that post, then take it back out.
+  const stt = await env.PENDING.get("social-selftest", "json");
+  if (stt && stt.id) { await env.PENDING.delete("social-selftest"); const res = { at: Date.now() };
+    try { res.approve = await socApprove(env, stt.id); if (stt.cancel !== false) res.cancel = await socAction(env, { id: stt.id, action: "cancel" }); } catch (e) { res.error = String(e.message || e); }
+    await env.PENDING.put("social-selftest-result", JSON.stringify(res)); }
+  const pack = await env.PENDING.get(SOC_KEY, "json"); if (!pack) return;
+  const live = pack.posts.filter((p) => p.status === "scheduled" && Date.parse(p.at) < Date.now()); if (!live.length) return;
+  if (pack.checked && Date.now() - pack.checked < 3 * 3600 * 1000) return;
+  const from = new Date(Math.min(...live.map((p) => Date.parse(p.at))) - 864e5).toISOString(), to = new Date(Date.now() + 864e5).toISOString();
+  const r = await pzFetch(env, `/posts?startDate=${encodeURIComponent(from)}&endDate=${encodeURIComponent(to)}`).catch(() => null);
+  pack.checked = Date.now();
+  const list = r && r.ok ? (Array.isArray(r.j) ? r.j : (r.j && r.j.posts) || []) : [];
+  const byId = {}; list.forEach((x) => { byId[x.id] = x; });
+  for (const p of live) {
+    const st = (p.pz || []).map((x) => byId[x.id]).filter(Boolean); if (!st.length) continue;
+    const bad = st.filter((x) => /error/i.test(String(x.state || x.status || "")) || x.error);
+    const done = st.filter((x) => /publish/i.test(String(x.state || x.status || "")));
+    if (bad.length) { p.status = "failed"; p.error = bad.map((x) => (x.integration && (x.integration.providerIdentifier || x.integration.name)) + ": " + String(x.error || x.state)).join("; ").slice(0, 400); }
+    else if (done.length === st.length) p.status = "posted";
+  }
+  pack.posts = pack.posts.filter((p) => !(["posted", "dropped", "cancelled"].includes(p.status) && Date.parse(p.at) < Date.now() - 21 * 864e5));
+  await env.PENDING.put(SOC_KEY, JSON.stringify(pack));
+}
+
+async function socialPage(env) {
+  const pack = await socPack(env); const pz = await env.PENDING.get("pz-status", "json");
+  const label = { pending: "Waiting for you", scheduled: "Scheduled", posted: "Posted", failed: "Failed", change: "Changes asked for", dropped: "Dropped", cancelled: "Cancelled" };
+  const colour = { pending: "#fad00c", scheduled: "#7fc38a", posted: "#7fc38a", failed: "#e0705a", change: "#e0b36a", dropped: "#777", cancelled: "#777" };
+  const media = (p) => p.media.map((m) => socIsVideo(m) ? `<video src="/sm/${esc(m)}" controls playsinline preload="metadata"${p.cover ? ` poster="/sm/${esc(p.cover)}"` : ""}></video>` : `<img src="/sm/${esc(m)}" alt="" loading="lazy">`).join("") || '<div class="small">(Text only)</div>';
+  const cards = pack.posts.filter((p) => p.status !== "dropped" || Date.parse(p.at) > Date.now() - 7 * 864e5).map((p) => {
+    const locked = ["scheduled", "posted"].includes(p.status);
+    const ticks = SOC_CH.map((c) => { const why = socBlock(c, p); return `<label class="sch${why ? " no" : ""}" title="${esc(why)}"><input type="checkbox" value="${c.k}"${p.platforms.includes(c.k) && !why ? " checked" : ""}${why || locked ? " disabled" : ""}>${c.name}</label>`; }).join("");
+    const long = SOC_CH.filter((c) => p.platforms.includes(c.k) && p.caption.length > c.max).map((c) => c.name + " (" + c.max + ")");
+    return `<div class="card soc" data-id="${esc(p.id)}" data-status="${p.status}">
+  <div class="sohd"><b>${esc(p.title)}</b><span class="sost" style="color:${colour[p.status] || "#ccc"}">${label[p.status] || esc(p.status)}</span></div>
+  <div class="somed">${media(p)}</div>
+  ${p.notes ? `<p class="small">${esc(p.notes)}</p>` : ""}
+  <label class="f">Caption</label><textarea class="socap" rows="5"${locked ? " disabled" : ""}>${esc(p.caption)}</textarea>
+  ${long.length ? `<p class="small">Too long for ${esc(long.join(", "))}: those get a shortened version.</p>` : ""}
+  <label class="f">Channels</label><div class="schs">${ticks}</div>
+  <label class="f">When (UK time)</label><input type="datetime-local" class="soat" value="${esc(ukLocal(p.at))}"${locked ? " disabled" : ""}>
+  ${p.status === "change" && p.note ? `<p class="small">Your note: ${esc(p.note)}</p>` : ""}${p.error ? `<p class="small" style="color:#e0705a">${esc(p.error)}</p>` : ""}
+  <div class="sobtn">${locked ? (p.status === "scheduled" ? `<button class="btn" data-act="cancel">Cancel</button>` : "") :
+    ["dropped", "change", "failed", "cancelled"].includes(p.status) ? `<button class="btn" data-act="restore">Put back</button>` :
+    `<button class="btn ok" data-act="approve">Approve</button><button class="btn" data-act="change">Change</button><button class="btn" data-act="drop">Drop</button>`}</div></div>`; }).join("");
+  const waiting = pack.posts.filter((p) => p.status === "pending").length;
+  return shell(`${brandHeader("Social")}
+<style>.soc{margin-bottom:14px}.sohd{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}.sohd b{font:800 17px var(--display)}.sost{font:800 12px var(--display);letter-spacing:.1em;text-transform:uppercase}
+.somed{display:flex;gap:8px;overflow-x:auto;margin:10px 0}.somed img,.somed video{max-height:420px;max-width:100%;border-radius:10px;background:#000}
+.soc textarea,.soc input[type=datetime-local]{display:block;width:100%;margin:6px 0;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--field);color:var(--text);font:15px var(--body)}
+.soc label.f{display:block;margin-top:12px;font:800 12px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.schs{display:flex;flex-wrap:wrap;gap:6px 14px}.sch{display:flex;gap:6px;align-items:center;font:15px var(--body)}.sch input{width:20px;height:20px}.sch.no{opacity:.45}
+.sobtn .btn{width:auto;margin:10px 8px 0 0}.sobtn .ok{background:#fad00c;color:#0b0b0a;border-color:#fad00c}</style>
+<p class="small">${pack.week ? esc(pack.week) + ". " : ""}${waiting ? `<b>${waiting} post${waiting === 1 ? "" : "s"} waiting for you.</b> ` : ""}Approve schedules a post in Postiz for the ticked channels. Nothing goes out until you approve. Change sends it back with your note; Drop leaves it out.${pz ? ` Postiz: ${pz.channels.length} channels connected.` : " Postiz isn't connected yet (key on the Orders page)."}</p>
+${waiting > 1 ? `<button class="btn" type="button" id="soAll" style="width:auto;margin-bottom:12px">Approve all ${waiting}</button>` : ""}
+${cards || `<div class="allclear">${icon("check")}<span><b>No posts yet</b>This week's batch appears here once it's ready.</span></div>`}
+<script>
+(function () {
+  function post(u, b) { return fetch(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }).then(function (r) { return r.json(); }); }
+  function read(c) { return { id: c.dataset.id, caption: c.querySelector(".socap").value, at: c.querySelector(".soat").value,
+    platforms: Array.prototype.map.call(c.querySelectorAll(".schs input:checked"), function (x) { return x.value; }) }; }
+  function done(j) { if (j.error) { toast(j.error, true); return false; } return true; }
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]"); if (!b) return; var c = b.closest(".soc"), a = b.dataset.act, d = read(c);
+    if (a === "change") { var n = prompt("What should change?"); if (n === null) return; d.note = n; }
+    if (a === "drop" && !confirm("Leave this post out?")) return;
+    if (a === "cancel" && !confirm("Take this post back out of Postiz? It won't go out.")) return;
+    b.disabled = true; b.textContent = a === "approve" ? "Scheduling…" : "…";
+    var u = a === "approve" ? "/api/social-approve" : "/api/social-action"; d.action = a;
+    post(u, d).then(function (j) { if (done(j)) { toast(a === "approve" ? "Scheduled" : "Done"); setTimeout(function () { location.reload(); }, 600); } else { b.disabled = false; b.textContent = a.charAt(0).toUpperCase() + a.slice(1); } });
+  });
+  var all = document.getElementById("soAll"); if (all) all.onclick = function () {
+    if (!confirm("Schedule every post that's waiting, with the captions, channels and times shown?")) return; all.disabled = true;
+    var cs = Array.prototype.filter.call(document.querySelectorAll(".soc"), function (c) { return c.dataset.status === "pending"; }), i = 0, bad = 0;
+    (function next() { if (i >= cs.length) { toast(bad ? bad + " couldn't be scheduled (see each card)" : "All scheduled"); setTimeout(function () { location.reload(); }, 900); return; }
+      all.textContent = "Scheduling " + (i + 1) + " of " + cs.length + "…"; var d = read(cs[i++]); post("/api/social-approve", d).then(function (j) { if (j.error) bad++; next(); }); })();
+  };
+})();
+</script>`);
 }
