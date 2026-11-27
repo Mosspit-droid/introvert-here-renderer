@@ -974,7 +974,7 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .quickbar .nm{display:block;font:800 16px var(--display);letter-spacing:.08em;text-transform:uppercase}
 .quickbar .st{display:block;font-size:13px;margin-top:3px;color:#2b2a27}
 .quickbar .qgo{margin-left:auto;font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;padding:10px 16px;border-radius:99px;background:#141413;color:var(--accent)}
-@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"cal gags" "stats list" "appr soc" "ord news" "cred tags" "set links"}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"cal gags" "stats soc" "appr list" "ord news" "cred tags" "set links"}
   /* Phone (Barry, 14 Nov): the tiles he uses most sit in the right-hand column, under his right thumb. */
   .tiles [data-tile="/gags"]{grid-area:gags}.tiles [data-tile="/listings"]{grid-area:list}.tiles [data-tile="/tags"]{grid-area:tags}
   .tiles [data-tile="/calendar"]{grid-area:cal}.tiles [data-tile="/stats"]{grid-area:stats}.tiles [data-tile="/approvals"]{grid-area:appr}
@@ -2040,13 +2040,13 @@ ${todayStrip}
 <a class="quickbar" href="/gags?now=1"><span class="ic">${icon("gags")}</span><span><span class="nm">List a gag now</span><span class="st">Write it and it's built straight away, outside the weekly schedule. It comes to Approvals before it goes live.</span></span><span class="qgo">Start ›</span></a>
 <div class="tiles">
   ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
-  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true)}
-  ${tile("/social", "megaphone", "Social", socWaiting ? `<b>${socWaiting} post${socWaiting === 1 ? "" : "s"}</b> waiting for you` : socNext ? "Next post " + esc(socNext) : "This week's posts to approve", true)}
-  ${tile("/newsletter", "mail", "Newsletter", nlSubs != null ? `<b>${nlSubs}</b> subscriber${nlSubs === 1 ? "" : "s"} · draft and test` : "Draft, preview and test", true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
+  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true)}
+  ${tile("/social", "megaphone", "Social", socWaiting ? `<b>${socWaiting} post${socWaiting === 1 ? "" : "s"}</b> waiting for you` : socNext ? "Next post " + esc(socNext) : "This week's posts to approve", true)}
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
+  ${tile("/newsletter", "mail", "Newsletter", nlSubs != null ? `<b>${nlSubs}</b> subscriber${nlSubs === 1 ? "" : "s"} · draft and test` : "Draft, preview and test", true)}
   ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved", true)}
   ${tile("/credits", "credits", "Credits", credits && credits.used ? `<b>${Math.round(credits.used).toLocaleString("en-GB")}</b>${credits.limit ? " of " + Math.round(credits.limit).toLocaleString("en-GB") : ""} Make credits` : "Make credits used")}
   ${tile("/links", "links", "Links", "Key addresses")}
