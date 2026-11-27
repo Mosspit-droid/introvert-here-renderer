@@ -90,7 +90,7 @@ R2 `site/` (copies in `shop/assets/site/`).
   `docs/shop/STEALTH_GAME_BRIEF.md`, on its own preview), bookshelf (paper escape rooms), noticeboard (newsletter).
 - `/look-busy`, `/excuses` (Barry's 40 excuses), `/spot` (Barry's paintings, `SPOT`; five a game; `?all=1` plays
   all), `/vote` (next three scheduled gags; see the app note for `shop:upcoming`, the `shop:votes` tally and the
-  `VOTED5` code, which needs creating in Stripe before launch).
+  one-off reward codes, see Reward codes below).
 - Shop list: 24 at a time; the dots window is "Show more", "Retreat" goes back up to the tabs.
 
 ### UK printing pilot: `shop/uk/make_pilot.py`
@@ -124,8 +124,41 @@ R2 `site/` (copies in `shop/assets/site/`).
 - The app now stores In Person photos itself, including Barry's `_BLANK` Canva pages as `b<NN>.jpg`.
 
 ### The Hoodini hunt (22 Nov)
-- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one); all 7 shows the code **HOODINI5** (5% off). Like
-  VOTED5, it must be created in Stripe as a promotion code before launch, and checkout must accept promotion codes.
+- Hoodini hides in 7 places (see `huntJs` in `shop/worker.js`; on the preview `?hoodini=all` shows every one).
+- Reward codes (25 Nov, `rewardCode`): finding all 7 Hoodinis or voting makes a one-off Stripe promotion code
+  (HOODINI-XXXXXX / VOTED-XXXXXX) on the 5% coupon IH5OFF (created automatically): single use, 30 days, minimum
+  spend £25, max 50 a month per kind, one per internet address per month. Codes never appear in page source.
+  Counts in KV `reward:<kind>:<YYYY-MM>`. The preview shows a sample code instead.
+
+### Newsletter (25 Nov)
+- Escape Room noticeboard pin "Minimal contact" opens /uk/escape-room/newsletter: Barry's MailerLite form (account
+  2825119, form jF2XBx; double opt-in), repainted in site colours. After MailerLite's thank-you shows, the page fetches a
+  one-off HELLO-XXXXXX code (reward kind `hello`: 5%, £25 minimum, 30 days, one use, first order only, 50 a month).
+  Privacy notice covers the newsletter and MailerLite.
+
+### Aunt Doris: pay to unlock (23 Nov)
+- Part One free; then £4.99 (Stripe Checkout, metadata product=doris; the webhook skips it as a clothing order and
+  records the code). Unlock codes in KV `doris:codes`; a cookie `ih_doris` keeps the device unlocked; the code works
+  on other devices via "Already bought it?". Locked pages don't contain anything after Part One. Preview test code:
+  PREVIEW-DORIS, or the one-tap tester link `/uk/escape-room/aunt-doris?unlock=PREVIEW-DORIS` (preview only). The clock
+  pauses on the paywall.
+- 25 Nov: grown from 13 to 19 puzzles after a 21-minute test run. New Part Three (10 to 15: washing-up, loo queue,
+  Gareth's speech, kids' room, smokers, taxi app); the old Part Three is Part Four (16 to 19). Harder: Sam's text
+  (shift grows along each word), back gate (6 digits: HOME + minutes till the bus), front door (DO NOT DISTURB GO AWAY,
+  with GO AWAY picked up in the middle of the kit). The booklet PDF needs remaking before the Etsy listing. Shop checkout accepts promotion codes (the one-off reward codes).
+
+### Launch day checklist (planned Mon 30 Nov)
+1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.
+2. Barry: put the Stripe webhook's signing secret into the shop worker's `STRIPE_WEBHOOK_SECRET`; save the live
+   secret key in the app's Orders page.
+3. Nothing to create for discounts: reward codes are made in Stripe on demand (see below).
+4. Me: `catalog()` reads `shop:catalog-next` for the real shop too; deploy the real shop (`shop/wrangler.toml`,
+   AUTO_SEND=yes) from this branch. Copy KV `shop:preview:*` assets the real shop needs (logo-xmas.png, icon.png) to `shop:*`.
+5. Together: a real test order (refund it), a real Aunt Doris unlock (refund it).
+6. Barry: Google Merchant Center (free listings), feed `https://introverthere.com/google-products.xml`.
+Final check 24 Nov: 197 pages crawled, no broken links; 77 pages checked on phone and desktop with no script
+errors, missing files or sideways scrolling; checkout tested against Stripe test mode (prices, promotion codes, In
+Person returns note).
 
 ### Stripe
 - Only tested in **test mode**: one test order on record (`test-not-sent`). Live keys not yet saved.

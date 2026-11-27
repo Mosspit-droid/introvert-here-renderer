@@ -88,7 +88,10 @@ async function route(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
-      if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);   // works on the preview too (its own tally)
+      if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);
+      if (path === "/api/reward" && request.method === "POST") return await rewardApi(request, env);   // the Hoodini hunt
+      if (path === "/api/doris-code" && request.method === "POST") return await dorisCodeApi(request, env);   // works on the preview too
+      if (path === "/api/doris-checkout" && request.method === "POST") return await dorisCheckout(env, url);   // explains itself on the preview   // works on the preview too (its own tally)
       if (isPreview(env) && path.startsWith("/api/")) return json({ error: "This is the preview copy of the shop, so checkout is switched off." }, 403);
       if (isPreview(env) && path === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
       if (path === "/api/stripe-webhook" && request.method === "POST") return await stripeWebhook(request, env, ctx);
@@ -114,11 +117,22 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/gate") return html(gatePage());
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
       if (path === HUB.path + "/excuses") return html(excusesPage());
+      if (path === HUB.path + "/newsletter") return html(newsletterPage());
       if (path === HUB.path + "/spot") return html(spotPage());
       if (path === HUB.path + "/stealth/tally") return await stealthTally(request, env, url);   // anonymous test scores: only where a STEALTH_TALLY store is attached (the stealth preview)
       if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url, { html: PRESENTS_HTML(), js: PRESENTS_JS }, !!env.STEALTH_TALLY); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
-      if (path === HUB.path + "/aunt-doris") return html(dorisPage(await catalog(env)));
+      if (path === HUB.path + "/aunt-doris") {
+        // preview only: a link with ?unlock=PREVIEW-DORIS opens the whole game straight away, for testers
+        const u = isPreview(env) && url.searchParams.get("unlock");
+        if (u && (await dorisUnlocked(env, u))) {
+          const r = html(dorisPage(await catalog(env), false, true));
+          const h = new Headers(r.headers); h.append("Set-Cookie", dorisCookie(dorisNorm(u), request.url.startsWith("https:")));
+          return new Response(r.body, { status: r.status, headers: h });
+        }
+        return html(dorisPage(await catalog(env), false, await dorisUnlocked(env, cookie(request, "ih_doris"))));
+      }
+      if (path === HUB.path + "/aunt-doris/unlocked") return await dorisThanks(env, url);
       if (path === HUB.path + "/aunt-doris/print" && isPreview(env)) return html(dorisPage(null, true));   // preview only: it's the paid booklet
       if (path === HUB.path + "/aunt-doris/check" || path === "/doris") return html(dorisCheckPage());
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
@@ -146,6 +160,19 @@ async function route(request, env, ctx) {
       if (pp) {
         const obj = env.PHOTOS ? await env.PHOTOS.get("p/" + pp[1] + "/" + pp[2] + ".jpg") : null;
         return obj ? new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
+      }
+      const vp = /^\/v\/([A-Z]{2}-\d{5}-[A-Z-]+)\.(mp4|jpg)$/.exec(path);   // product videos and their posters, copied from Etsy by the app
+      if (vp && env.PHOTOS) {
+        const key = "v/" + vp[1] + "." + vp[2], type = vp[2] === "mp4" ? "video/mp4" : "image/jpeg";
+        const rg = /bytes=(\d+)-(\d*)/.exec(request.headers.get("Range") || "");
+        if (rg && vp[2] === "mp4") {
+          const head = await env.PHOTOS.head(key); if (!head) return new Response("", { status: 404 });
+          const start = +rg[1], end = rg[2] ? Math.min(+rg[2], head.size - 1) : head.size - 1;
+          const obj = await env.PHOTOS.get(key, { range: { offset: start, length: end - start + 1 } });
+          return new Response(obj.body, { status: 206, headers: { "Content-Type": type, "Content-Range": `bytes ${start}-${end}/${head.size}`, "Content-Length": String(end - start + 1), "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable" } });
+        }
+        const obj = await env.PHOTOS.get(key);
+        return obj ? new Response(obj.body, { headers: { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable", ETag: obj.httpEtag } }) : new Response("", { status: 404 });
       }
       const sp = /^\/s\/([a-z0-9-]+)\.(jpg|png)$/.exec(path);   // site pictures (door scenes, the mascot...), from R2 site/
       if (sp) {
@@ -238,6 +265,7 @@ async function checkout(request, env, url) {
     "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]": "10",
     "metadata[shop]": "IH-UK",
     "payment_intent_data[metadata][shop]": "IH-UK",
+    allow_promotion_codes: "true",   // the one-off reward codes (rewardCode: Hoodini hunt, vote page)
   });
   if (Object.keys(form).some((k) => k.endsWith("[metadata][personal]"))) form["custom_text[submit][message]"] = "Personalised items can’t be returned for a change of mind. Faulty, damaged or misnamed items are always put right, and the rest of your order can be returned as normal.";
   if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "The shop isn't connected to Stripe yet (the Stripe key hasn't been saved in the approvals app)." }, 503);
@@ -280,6 +308,7 @@ async function stripeWebhook(request, env, ctx) {
   if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") return json({ ignored: event.type });
   const s = event.data.object;
   if (s.payment_status !== "paid") return json({ waiting: s.payment_status });
+  if ((s.metadata || {}).product === "doris") { await dorisIssue(env, s.id, !!s.livemode); return json({ game: true }); }   // not a clothing order
   const key = "shop:order:" + s.id;
   if (await env.PENDING.get(key)) return json({ duplicate: true });
   await env.PENDING.put(key, JSON.stringify({ status: "processing", at: Date.now() }));
@@ -398,7 +427,11 @@ nav.top .basket-link{opacity:1;letter-spacing:.02em;text-transform:none}
 .door:hover .fi>img.pic{transform:scale(1.045)}.door:hover .go{gap:16px;background:#fff}
 .door.wide{aspect-ratio:21/9;max-height:46vh;margin-top:clamp(14px,2.4vw,26px)}.door.wide .fi>img.pic{object-position:50% var(--fy,30%)}
 .strip{margin:clamp(40px,6vw,80px) 0 0}
-.pret{border-left:3px solid #4a8fe7;padding-left:10px}.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
+.pret{border-left:3px solid #4a8fe7;padding-left:10px}.nbadge{position:absolute;z-index:2;top:calc(var(--ft) + 8px);left:calc(var(--ft) + 8px);display:flex;flex-direction:column;align-items:center;width:clamp(58px,34%,84px);overflow:hidden;border-radius:7px;background:#4a8fe7;box-shadow:0 3px 10px rgba(0,0,0,.45);transform:rotate(-6deg);font-family:Montserrat,sans-serif;line-height:1;text-align:center;pointer-events:none}
+.nbadge b{display:block;padding:4px 0 0;color:#fff;font-size:clamp(11px,2.6cqw,15px);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.nbadge i{display:block;padding:1px 0 3px;color:#fff;font-size:clamp(6px,1.3cqw,8px);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.08em}
+.nbadge em{display:block;width:100%;margin-bottom:5px;padding:4px 0;background:#fff;color:#1d1d1b;font-style:normal;font-size:clamp(10px,2.4cqw,14px);font-weight:800;letter-spacing:.04em;font-family:'Comic Sans MS','Marker Felt','Segoe Print',cursive}
+.tile{container-type:inline-size}
+.rev{margin:8px 0 4px;font-size:15px;line-height:1.4}.rev span{color:#f6c445;letter-spacing:2px;margin-right:4px}.rev small{color:var(--muted);white-space:nowrap}
 .xn{margin:14px 0 0;padding:10px 14px;border-radius:10px;background:#5b1316;border:1px solid #a7322d;color:#f6efe0;font-size:14px;line-height:1.4;text-align:center}.xn b{color:#fff}.xn a{color:#f6d06b;white-space:nowrap}
 .xgift{display:flex;flex-direction:column;gap:4px;margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#5b1316,#2a3d24);border:1px solid #a7322d;color:#f6efe0;text-decoration:none}.xgift b{font-size:clamp(20px,3vw,26px);text-transform:uppercase;letter-spacing:.02em}.xgift span{color:#e9d9a0}.strip:last-of-type{margin-bottom:clamp(40px,6vw,80px)}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
@@ -452,7 +485,7 @@ h2{font-size:22px;margin:28px 0 8px;text-transform:uppercase;letter-spacing:.04e
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .design{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;margin:20px 0 40px}.design>div{min-width:0}
 .main-img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7%;border:4px solid #f2f0ea;background:#000;box-shadow:0 10px 30px rgba(0,0,0,.5)}
-.thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding:2px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:14px;cursor:pointer;opacity:.75;border:2px solid rgba(242,240,234,.45)}
+.thumbs{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding:2px}.thumbs img{width:64px;height:64px;object-fit:cover;border-radius:14px;cursor:pointer;opacity:.75;border:2px solid rgba(242,240,234,.45)}.vthumb{position:relative;display:inline-block;flex:none;line-height:0}.vthumb b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}#mainv[hidden],#main[hidden]{display:none}
 .thumbs img.on{opacity:1;border-color:#f2f0ea;border-width:3px}
 .gag{white-space:pre-line;font-weight:700;font-size:18px;letter-spacing:.03em;margin:10px 0 16px}
 .label{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:16px 0 6px}
@@ -585,12 +618,14 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .talk .opts{display:flex;flex-direction:column;gap:8px;margin:12px 0}.talk .opts button{text-align:left;font-weight:600}
 .talk .me{background:#24231f;border-radius:14px 14px 4px 14px;padding:10px 14px;margin:8px 0 8px auto;max-width:80%;text-align:right}
 .magnets{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;background:#e9e6df;border-radius:12px;padding:18px 10px;margin:12px 0}.magnets span{display:flex;gap:3px}.magnets i{font:800 26px/1 Montserrat,sans-serif;font-style:normal;padding:4px 6px;border-radius:5px;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:12px 0}.card{position:relative;background:#f3efe7;color:#2a2410;border-radius:4px;padding:26px 12px 12px;font-size:14px;line-height:1.45;box-shadow:0 3px 8px rgba(0,0,0,.3)}.card b{position:absolute;top:6px;right:9px;color:#a7322d;font-size:15px}
 .note-y{background:#f6e27a;color:#2a2410;padding:10px 12px;border-radius:3px;transform:rotate(-1.5deg);max-width:300px;margin:8px auto;font-weight:600;box-shadow:0 4px 10px rgba(0,0,0,.3)}
 .playlist{background:#141412;border-radius:12px;padding:6px 0;margin:12px 0}.playlist div{display:flex;gap:12px;padding:9px 14px;border-bottom:1px solid #2a2925}.playlist div:last-child{border:0}.playlist b{color:var(--muted);width:18px;font-variant-numeric:tabular-nums}.playlist em{font-style:normal;color:var(--muted);font-size:13px;white-space:nowrap}.playlist b.pl{width:26px;height:26px;border-radius:50%;background:#fad00c;color:#141412;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none}.playlist div{align-items:center}
 .rounds{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}.rounds td,.rounds th{border:1px solid #3b3a35;padding:7px 8px;text-align:left}.rounds th{color:var(--muted);font-weight:700}
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.photos figure{margin:0;background:#f2efe6;color:#2a2622;border-radius:3px;padding:7px 7px 9px;box-shadow:0 3px 8px rgba(0,0,0,.35);font-size:12px;line-height:1.3}.photos figure:nth-child(odd){transform:rotate(-1.5deg)}.photos figure:nth-child(even){transform:rotate(1.2deg)}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#8b8172;color:#f2efe6;font-size:22px;margin-bottom:6px}.photos small{display:block;color:#6d665c;margin-top:3px}@media(max-width:520px){.photos{grid-template-columns:repeat(2,1fr)}}
 .kit{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kit span{background:#24231f;border:1px solid #3b3a35;border-radius:999px;padding:6px 12px;font-size:14px}
 .dzpic{display:block;width:100%;height:auto;border-radius:10px;margin:6px 0 16px}
+.dzhave{margin:18px auto 0;max-width:420px;text-align:center}.dzhave summary{cursor:pointer;color:var(--muted);font-size:14px}.dzhave form{display:flex;gap:8px;margin-top:10px}.dzhave input{flex:1;min-width:0;padding:11px 12px;border-radius:8px;border:1px solid var(--line);background:#141412;color:var(--text);font:700 17px Montserrat,sans-serif;letter-spacing:.14em;text-transform:uppercase;text-align:center}.dzhave .btn{margin:0}
 .dzi{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4vmin;background:#0e0d0c;transition:opacity .7s}.dzi.bye{opacity:0;pointer-events:none}
 .dzil{position:relative;width:min(78vw,560px);opacity:0;transition:opacity .9s}.dzi.on .dzil{opacity:1}.dzil img{display:block;width:100%;height:auto}
 .dzil i{position:absolute;top:58%;height:18%;width:2.2%;background:#0e0d0c;transition:opacity .25s}.dzil i:nth-of-type(1){left:88.07%}.dzil i:nth-of-type(2){left:90.35%}.dzil i:nth-of-type(3){left:92.62%}.dzil i.off{opacity:0}
@@ -602,6 +637,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .dmf{width:86px;height:86px;flex:none;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-radius:8px;background:#2f2d28}
 .dmf img{display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}.dm[data-lv="0"] .dmf img{max-height:46%}.dm[data-lv="1"] .dmf img{max-height:66%}.dm[data-lv="2"] .dmf img{max-height:86%}.dm[data-lv="3"] .dmf img{max-height:none;width:118%;max-width:none;margin-bottom:-10%}
 .dml{margin:0;font-size:14px;font-weight:600;line-height:1.35}.dm[data-lv="2"]{background:#33201e}.dm[data-lv="3"]{background:#4a1518}
+.hug.kitd .in{text-align:left;width:min(440px,100%);max-height:86vh;overflow:auto;background:#1d1a17;border:2px solid #fad00c;border-radius:12px;padding:18px}.kitd h2{margin:0 0 10px}.kitd ol{margin:0 0 14px;padding-left:22px}.kitd li{margin:0 0 10px}.kitd li b{color:#fad00c}.kitd .none{color:#b8b0a3}
 .hug{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(24,5,7,.95)}.hug[hidden]{display:none}
 .hug .in{max-width:420px;text-align:center}.hugpic{width:min(60vw,250px);margin:0 auto}.hugpic img{display:block;width:100%;height:auto;max-height:52vh;object-fit:contain;animation:hugsq 1.1s ease-in-out infinite;transform-origin:50% 90%}
 .hug .ttl{font-size:clamp(60px,16vw,110px);margin:4px 0 8px}@keyframes hugsq{0%,100%{transform:scale(1)}50%{transform:scale(1.06,.96)}}
@@ -637,7 +673,7 @@ body.gate main{flex:1;min-height:0;width:100%;max-width:1560px;box-sizing:border
 .vgrid.done .vc .btn{display:none}.vc .mine-tag{display:none;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#fad00c}.vgrid.done .vc.mine .mine-tag{display:block}
 .vthanks{display:none;max-width:560px;margin:8px auto 40px;text-align:center}.vthanks.on{display:block}
 .vthanks h2{margin:0 0 6px}.vcode{display:inline-flex;align-items:center;gap:10px;margin:14px 0 6px;padding:10px 12px 10px 18px;border:2px dashed #fad00c;border-radius:12px;font:800 22px/1 Montserrat,sans-serif;letter-spacing:.12em}
-.vcode .btn{margin:0;padding:8px 14px;font-size:13px;letter-spacing:0}
+.vcode[hidden]{display:none}.vcode .btn{margin:0;padding:8px 14px;font-size:13px;letter-spacing:0}
 /* Spot the Introvert: a painting in a frame, with someone hiding in it. The painting gets nearly all of the screen
    (Barry, 21 Nov: "just too small"); everything else is two thin strips above it and two below. */
 body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!important}
@@ -646,7 +682,7 @@ body.spot main{max-width:none;padding:0;margin:0}.sp [hidden]{display:none!impor
 .sp .tp a{justify-self:end;color:#f6efe0;opacity:.85}.sp .tm{font-variant-numeric:tabular-nums;color:#fad00c;font-weight:800}
 .sp .br{margin:0;text-align:center;font-weight:700;font-size:clamp(14px,2vh,18px);line-height:1.25;max-width:560px;text-wrap:balance}
 .sp .fw{flex:1;min-height:0;width:100%;display:flex;justify-content:center;align-items:center;container-type:size}
-.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(4px,.9cqh,12px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:3px;box-shadow:0 0 0 1px #2a1808,0 0 0 2px #b08a48,0 10px 26px rgba(0,0,0,.5);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}
+.sp .fr{position:relative;box-sizing:border-box;width:min(100cqw,66.6cqh);aspect-ratio:2/3;border:clamp(4px,.9cqh,12px) solid #6a421f;border-color:#8a5a2c #5e3817 #4a2b10 #7a4d24;border-radius:3px;box-shadow:0 0 0 1px #2a1808,0 0 0 2px #b08a48,0 10px 26px rgba(0,0,0,.5);overflow:hidden;cursor:crosshair;touch-action:manipulation;user-select:none}.sp .fr.wide{width:min(100cqw,150cqh);aspect-ratio:3/2}
 .sp .fr>img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .sp .miss{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;pointer-events:none;color:#fff;font:800 20px/26px Montserrat,sans-serif;text-align:center;text-shadow:0 1px 4px #000;animation:spmiss 1s forwards}
 @keyframes spmiss{0%{opacity:1;transform:scale(1.3)}100%{opacity:0;transform:scale(.8)}}
@@ -696,19 +732,23 @@ body.room main{max-width:none;padding:0;margin:0}
 `;
 // ---------------- The Hoodini hunt (Barry, 22 Nov) ----------------
 // Hoodini (the mascot) hides in seven places. Most only turn up about one page in six, peek out for four seconds and
-// duck away; tap him to find him. All seven earns a 5% code (HOODINI5: create it in Stripe before launch). No hint
-// anywhere that the hunt exists. Progress is kept on the visitor's device.
+// duck away; tap him to find him. All seven earns a one-off 5% code (rewardCode). No hint
+// anywhere that the hunt exists. Progress is kept on the visitor's device. The reward is a one-off code (see rewardCode).
 //   1 tile: a product tile in the shop        2 footer: over the footer, on long pages
 //   3 room: behind the curtain in the Escape Room   4 basket: the empty basket's Hoodini, tapped
 //   5 lost: the page-not-found Hoodini, tapped     6 night: asleep on the front page, 10pm to 6am
 //   7 excuse: after the 10th excuse in the Excuse Generator
-const huntJs = () => `(function(){var K='ih_hood',N=7,CODE='HOODINI5',S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
+const huntJs = () => `(function(){var K='ih_hood',N=7,S;try{S=JSON.parse(localStorage.getItem(K)||'{}')}catch(_){S={}}S.f=S.f||[];
 function save(){try{localStorage.setItem(K,JSON.stringify(S))}catch(_){}}
 function toast(t){var d=document.createElement('div');d.className='hoodt';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.classList.add('on')},20);setTimeout(function(){d.classList.remove('on');setTimeout(function(){d.remove()},400)},3200)}
-function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+CODE+'</b> <button class="btn ghost" type="button">Copy</button></p><p><button class="btn" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
- var bs=m.querySelectorAll('button');bs[0].onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(CODE).then(function(){bs[0].textContent='Copied'})};bs[1].onclick=function(){m.remove()}}
+function reward(){var m=document.createElement('div');m.className='hoodm';m.innerHTML='<div><img src="/s/mascot-head-sticker.png?v=1" alt=""><h2>You found him.</h2><p>He’s not happy about it.</p><div class="hoodr"><p>Getting your reward…</p></div><p><button class="btn hoodx" type="button">Leave him alone</button></p></div>';document.body.appendChild(m);
+ m.querySelector('.hoodx').onclick=function(){m.remove()};var box=m.querySelector('.hoodr');
+ function show(o){if(o&&o.code){S.code=o.code;save();box.innerHTML='<p>Here’s 5% off anything in the shop:</p><p class="hoodc"><b>'+o.code+'</b> <button class="btn ghost" type="button">Copy</button></p><p class="note">Yours alone: one use, on orders of £25 or more, for 30 days.'+(o.sample?' (Preview copy: a real code is made on the live site.)':'')+'</p>';var c=box.querySelector('button');c.onclick=function(){if(navigator.clipboard)navigator.clipboard.writeText(o.code).then(function(){c.textContent='Copied'})}}
+  else box.innerHTML=o&&o.full?'<p>He’s hiding properly this month: all the codes have gone. Try again next month.</p>':'<p>He slipped away before we could get your code. Try tapping him again later.</p>'}
+ if(S.code){show({code:S.code});return}
+ fetch('/api/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'hoodini'})}).then(function(r){return r.json()}).then(function(o){if(!o.code)S.shown=0,save();show(o)}).catch(function(){S.shown=0;save();show(null)})}
 function found(id,el){if(el){el.classList.remove('out');el.classList.add('gone')}if(S.f.indexOf(id)<0){S.f.push(id);save()}var n=S.f.length;
- if(n>=N){if(!S.shown){S.shown=1;save();reward()}else toast('He’s had enough. Your code: '+CODE)}else toast('You found Hoodini. '+n+' of '+N+'.')}
+ if(n>=N){if(!S.shown){S.shown=1;save();reward()}else toast(S.code?'He’s had enough. Your code: '+S.code:'He’s had enough.')}else toast('You found Hoodini. '+n+' of '+N+'.')}
 function peek(id,parent,css,dir,now){if(!parent)return;var b=document.createElement('span');b.className='hoodb hb-'+dir;b.style.cssText=css;b.innerHTML='<img src="/s/mascot-head-sticker.png?v=1" alt="">';parent.appendChild(b);
  b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();found(id,b)});
  var go=function(){setTimeout(function(){if(b.classList.contains('gone'))return;b.classList.add('out');setTimeout(function(){b.classList.remove('out')},4000)},now?200:1200)};
@@ -815,7 +855,9 @@ function mixedItems(cat, list, types) {
 function tileHtml({ d, t }) {
   const g = d.garments[t], img = g.tile || (g.images[0] || {}).thumb || "";
   const varies = g.variants.some((v) => v.price !== g.priceFrom);
-  return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}"><img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
+  // In Person tiles carry a name-badge sticker (Barry, 24 Nov): the "Hello, my name is" kind, in the range's blue.
+  const badge = g.personal ? `<span class="nbadge" aria-label="Personalised with your name"><b>Hello</b><i>my name is</i><em>YOU</em></span>` : "";
+  return `<a class="tile" style="--fc:${FRAME[d.coll] || FRAME.IH}" href="/uk/p/${productSlug(d, t)}">${badge}<img loading="lazy" src="${esc(img)}" alt="${esc(d.title + " " + g.label)}"><div class="cap"><div><b>${esc(d.title)}</b><span>${esc(g.label)}</span><span>${varies ? "from " : ""}${money(g.priceFrom)}</span></div><img class="rl" loading="lazy" src="/logo-${d.coll}.png?v=${ASSET_V}" alt="${esc((COLLECTIONS[d.coll] || {}).name || "")}"></div></a>`;
 }
 
 // ---------------- Google Shopping product feed (/google-products.xml) ----------------
@@ -961,6 +1003,32 @@ const BUSY = {
   chat: ["Are you free?", "Quick one", "It can’t wait", "Did you see my email?", "The one about my message", "Calling you now", "Actually, can you call me", "URGENT", "Ignore that", "No, don’t ignore that"],
   sync: ["Syncing 4,812 items", "Reconciling the figures", "Uploading the big file", "Verifying the verification", "Backing up the backup"],
 };
+// The noticeboard (Barry, 25 Nov): the MailerLite sign-up form (form jF2XBx). MailerLite's own script draws the form
+// into the div; it needs the account number from MailerLite's embed code (Forms > the form > Embed > JavaScript snippet).
+const ML_ACCOUNT = "2825119";
+const ML_FORM = "jF2XBx";
+function newsletterPage() {
+  // MailerLite draws its form white; these rules repaint it in the Escape Room's colours (dark, cream text, yellow button).
+  const mlCss = `<style>#nlf #nlf2 .ml-embedded,#nlf #nlf2 .ml-embedded *{font-family:Montserrat,sans-serif!important}
+#nlf #nlf2 .ml-embedded .ml-form-embedContainer,#nlf #nlf2 .ml-embedded .ml-form-embedWrapper,#nlf #nlf2 .ml-embedded .ml-form-embedBody,#nlf #nlf2 .ml-embedded .ml-form-successBody,#nlf #nlf2 .ml-embedded .ml-form-align-center,#nlf #nlf2 .ml-embedded form{background:transparent!important;background-color:transparent!important;border:0!important;box-shadow:none!important;width:100%!important;max-width:100%!important}
+#nlf #nlf2 .ml-embedded .ml-form-embedBody,#nlf #nlf2 .ml-embedded .ml-form-successBody{padding:6px 0 0!important}
+#nlf #nlf2 .ml-embedded h4,#nlf #nlf2 .ml-embedded p,#nlf #nlf2 .ml-embedded span,#nlf #nlf2 .ml-embedded label,#nlf #nlf2 .ml-embedded li{color:#f6efe0!important}
+#nlf #nlf2 .ml-embedded .ml-form-embedPermissions p,#nlf #nlf2 .ml-embedded .ml-form-embedPermissions span,#nlf #nlf2 .ml-embedded .ml-form-recaptcha + p{color:#b8b0a3!important;font-size:12px!important}
+#nlf #nlf2 .ml-embedded input[type=email],#nlf #nlf2 .ml-embedded input[type=text]{background:#141412!important;background-color:#141412!important;color:#f6efe0!important;border:2px solid #f6efe0!important;border-radius:10px!important;font-size:16px!important;padding:12px 14px!important;height:auto!important;box-shadow:none!important}
+#nlf #nlf2 .ml-embedded input::placeholder{color:#9b9488!important}
+#nlf #nlf2 .ml-embedded button,#nlf #nlf2 .ml-embedded .primary{background:#fad00c!important;background-color:#fad00c!important;color:#141412!important;border:0!important;border-radius:10px!important;font-weight:800!important;font-size:16px!important;padding:12px 18px!important;height:auto!important;box-shadow:none!important}
+#nlf #nlf2 .ml-embedded button:hover{background:#ffe04a!important}</style>`;
+  const form = ML_ACCOUNT ? `${mlCss}<div class="ml-embedded" data-form="${ML_FORM}"></div>` : `<p class="note">The sign-up form is being pinned up. Come back soon.</p>`;
+  return page("Minimal Contact", `<div class="nlb" id="nlf"><section class="box" id="nlf2"><h1>Minimal contact</h1>${form}
+<div class="hello" id="hello" hidden><p class="step">Your 5% off</p><p class="vcode" style="margin:6px 0"><span id="hcode"></span></p><p class="note" id="hnote">Use it at checkout on your first order of £25 or more, within 30 days. One use.</p></div>
+<p class="note">We only email people who sign up. See our <a href="/privacy">privacy notice</a>.</p></section><p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`,
+    { nav: "hub", desc: "Minimal contact: the Introvert Here newsletter. Occasional, quiet, and easy to leave.", script: ML_ACCOUNT ? `(function(w,d,e,u,f,l,n){w[f]=w[f]||function(){(w[f].q=w[f].q||[]).push(arguments)},l=d.createElement(e),l.async=1,l.src=u,n=d.getElementsByTagName(e)[0],n.parentNode.insertBefore(l,n)})(window,document,'script','https://assets.mailerlite.com/js/universal.js','ml');ml('account','${ML_ACCOUNT}');
+// the 5% the form promises (Barry, 25 Nov): once MailerLite shows its "thanks" message, fetch a one-off code (first order only)
+(function(){var K='ih_hello',box=document.getElementById('hello');function show(o){if(!o||!o.code){if(o&&o.full){document.getElementById('hcode').textContent='All gone this month';document.getElementById('hnote').textContent='We’ve given out this month’s codes. Your newsletter will have the next offer.';box.hidden=false}return}document.getElementById('hcode').textContent=o.code;if(o.sample)document.getElementById('hnote').textContent='Preview copy: real codes start on launch day.';box.hidden=false}
+ var prev=null;try{prev=JSON.parse(localStorage.getItem(K)||'null')}catch(_){}if(prev)show(prev);var asked=!!prev;
+ var t=setInterval(function(){var ok=document.querySelector('.ml-embedded .ml-form-successBody');if(!ok||asked||!ok.offsetParent)return;asked=true;clearInterval(t);
+  fetch('/api/reward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'hello'})}).then(function(r){return r.json()}).then(function(o){if(o.code){try{localStorage.setItem(K,JSON.stringify({code:o.code,sample:o.sample}))}catch(_){}}show(o)}).catch(function(){})},600)})();` : "" });
+}
 function lookBusyPage() {
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Look Busy | ${SHOP_NAME}</title><meta name="description" content="A very important screen for your phone. Nobody interrupts a person with 3 unread messages from Work."><link rel="icon" href="/icon.png">
@@ -1033,48 +1101,108 @@ show(Math.floor(Math.random()*order.length));
 }
 
 // The Excuse Generator: one tap, one completely absurd reason not to go.
-// Barry's own (21 Nov). His rule: they must be absolutely absurd.
+// Barry's own (25 Nov, replacing his first 40). His rule: they must be absolutely absurd.
 const EXCUSES = [
-  "MY UNCLE’S HATCHING.",
   "I’M DEFROSTING THE VICAR.",
-  "THE WARDROBE’S IN LABOUR.",
-  "I’VE PROMISED TO WAX THE OCTOPUS.",
   "MY NAN’S GOT INTO THE WALLS AGAIN.",
   "THE BADGER’S ASKED ME TO BE HIS ALIBI.",
-  "I’M TEACHING THE LOFT TO SWIM.",
   "THE PRAWNS HAVE CALLED AN EMERGENCY MEETING.",
   "MY SCARECROW NEEDS A LIFT TO WORK.",
   "I’M EXPECTING A CEASEFIRE FROM THE GEESE.",
-  "THE FRIDGE HAS PICKED ME FOR JURY DUTY.",
-  "I’M REHEARSING MY GRANDFATHER’S NEXT BIRTH.",
   "THE SQUID CAN’T FASTEN HER BRA.",
   "I’VE DOUBLE-BOOKED THE EXORCIST.",
   "MY SHADOW’S HAVING ITS WISDOM TEETH OUT.",
-  "I’M TAKING THE LAWN FOR ITS MOT.",
   "THE FERRET’S RENEWING HIS VOWS.",
   "I’M THE DESIGNATED DRIVER FOR A SWARM OF BEES.",
-  "THE BISCUIT TIN’S DEMANDING A PATERNITY TEST.",
-  "I CAN’T LEAVE WHILE THE CEILING’S STILL MARINATING.",
+  "MY CLONE’S DEMANDING A PATERNITY TEST.",
+  "I CAN’T LEAVE WHILE THE PUFFER FISH’S STILL MARINATING.",
   "I’M CREOSOTING THE HAMSTER.",
   "MY GRAN’S BEEN RECALLED.",
   "THE LLAMA’S BRIDESMAIDS HAVE PULLED OUT.",
-  "I’M WAITING FOR THE PLUMBER TO BLEED THE GIRAFFE.",
-  "THE SHED’S GONE BROODY.",
   "I’VE GOT TO PICK MY DAD UP FROM THE TAXIDERMIST.",
   "THE EELS NEED UNTANGLING.",
   "I’M GRAVY BOAT CAPTAIN THIS WEEK.",
-  "MY KNEES HAVE FILED FOR SEPARATE CUSTODY.",
+  "MY ELBOWS HAVE FILED FOR SEPARATE CUSTODY.",
   "THE TORTOISE HAS LOCKED HERSELF OUT.",
   "I’M CHAPERONING THE MOTH TO A LAMPSHADE.",
-  "MY AUNT’S COME BACK AS A TOASTER.",
+  "MY AUNT’S COME BACK AS A GERBIL.",
   "THE GOLDFISH HAS BEEN SELECTED FOR A LINE-UP.",
-  "I’M LETTING THE EXORCIST READ THE METER.",
   "THE PENGUIN’S TROUSERS NEED TAKING UP.",
   "I’M WAITING FOR MY SKELETON TO COOL.",
-  "THE CUSTARD’S GOT MY PASSPORT.",
-  "I’VE AGREED TO WITNESS THE BADGER’S WILL.",
-  "MY OTHER GRAN’S STILL IN THE AIR FRYER.",
   "THE CARPET FITTER WON’T WORK WHILE THE FLOOR’S AWAKE.",
+  "I’M COLLECTING MY UNCLE’S ASHES FROM THE DISCO.",
+  "THE WALRUS NEEDS SOMEONE TO HOLD THE LADDER.",
+  "MY REFLECTION’S REFUSING TO COME HOME.",
+  "I’M PINNING NAME LABELS ONTO THE WASPS.",
+  "THE OSTRICH HAS SWALLOWED THE BABYSITTER.",
+  "I’VE GOT TO TURN MY GRAN HALFWAY THROUGH.",
+  "I’M WAITING FOR THE ANAESTHETIST TO DO THE HEDGE.",
+  "MY GHOST’S GOT SOMETHING STUCK IN HIS ZIP.",
+  "THE HIPPO NEEDS HELP GETTING OUT OF HER WEDDING DRESS.",
+  "I’M WAITING FOR THE COUNCIL TO EMPTY MY UNCLE.",
+  "MY SKELETON’S LOCKED ITSELF IN THE CAR.",
+  "I’M HOLDING THE TORCH WHILE THE MOLES REWIRE.",
+  "THE SWAN’S ANKLE TAG NEEDS CHARGING.",
+  "MY GRAN’S STUCK ON THE SPIN CYCLE.",
+  "THE WARDROBE WON’T GIVE MY HUSBAND BACK.",
+  "I’M HELPING THE CENTIPEDE BREAK IN HIS NEW SHOES.",
+  "MY GRAN’S TRACKING COLLAR SAYS SHE’S IN COLOMBIA.",
+  "I’M WAITING FOR THE LOCKSMITH TO OPEN THE CABBAGE.",
+  "I’VE GLUED MYSELF TO THE WRONG PROTEST.",
+  "THE BAT’S DENTURES HAVE FALLEN BEHIND THE FREEZER.",
+  "I’M HANDING MY ACCOUNTANT OVER TO HIS NEW OWNERS.",
+  "THE GARDEN GNOME’S BARRICADED HIMSELF IN THE SHED.",
+  "I’VE GOT TO SIGN FOR A HORSE.",
+  "MY TROUSERS ARE BEING QUESTIONED SEPARATELY.",
+  "THE WOODLICE NEED ME TO REACH SOMETHING.",
+  "THE TOOTH FAIRY’S ASKED ME TO IDENTIFY SOME REMAINS.",
+  "I’M WAITING FOR THE BAILIFFS TO FINISH WITH THE TRAMPOLINE.",
+  "MY LAWN’S FAILED ITS BACKGROUND CHECK.",
+  "THE FUNERAL DIRECTOR’S LOST MY LOYALTY CARD.",
+  "I’M SUPERVISING A PRISONER EXCHANGE BETWEEN THE HEDGES.",
+  "THE BOUNCY CASTLE’S STILL GOT MY DENTIST IN IT.",
+  "I’M WAITING FOR THE TREE SURGEON TO SCRUB IN.",
+  "THE HOMING PIGEON’S PUT ME DOWN AS NEXT OF KIN.",
+  "MY NAN’S BEEN CLAMPED.",
+  "I’M WAITING FOR THE NEGOTIATOR TO TALK THE SOUFFLÉ DOWN.",
+  "THE ALPACA NEEDS ME TO WORK THE SHREDDER.",
+  "I’VE GOT TO TAKE THE WITNESS PROTECTION PEOPLE OFF SPEAKERPHONE.",
+  "I’M HOLDING THE FUNNEL WHILE MY DAD MOULTS.",
+  "MY DECOY’S STARTING TO SUSPECT.",
+  "I’M WAITING FOR THE COBBLER TO REMOVE MY ANKLE MONITOR.",
+  "THE RACCOON NEEDS A SECOND SIGNATURE ON THE CHEQUE.",
+  "I’M WAITING FOR MY BROTHER TO FINISH PUPATING.",
+  "THE AUCTIONEER’S ALREADY STARTED ON MY HUSBAND.",
+  "I’VE GOT TO RETURN THE RENTAL OWL.",
+  "I’M WAITING FOR THE GAS MAN TO RELIGHT THE DRAGON.",
+  "THE WASHING MACHINE’S REJECTED MY BLOOD TYPE.",
+  "I’M PUTTING THE LITTLE SOCKS ON THE CHAIR LEGS.",
+  "THE GOAT WON’T SIGN UNTIL HIS SOLICITOR GETS HERE.",
+  "I’M WAITING FOR THE NOTARY TO CERTIFY MY TAIL.",
+  "MY GRAN’S LOST HER PLACE IN THE CONGA.",
+  "I’M TAKING THE LEOPARD TO HAVE HIS SPOTS REALIGNED.",
+  "I’VE GOT TO HELP THE BURGLAR WITH HIS TWO-FACTOR AUTHENTICATION.",
+  "I’M WAITING FOR THE STUNT DOUBLE TO FINISH MY BATH.",
+  "THE HEDGEHOG’S CAUGHT HIS CARDIGAN ON HIMSELF.",
+  "I’M WAITING FOR THE PARROT TO FINISH MY VICTIM IMPACT STATEMENT.",
+  "THE CAMEL’S GOT HIS HUMP CAUGHT IN THE CAT FLAP.",
+  "I’VE GOT TO COLLECT MY TEETH FROM LOST PROPERTY.",
+  "THE ESTATE AGENT’S SHOWING SOMEONE ROUND MY TORTOISE.",
+  "MY KIDNAPPER’S WORKING FROM HOME.",
+  "I’M HOLDING THE BAG WHILE THE SQUIRREL REVERSES.",
+  "THE PIANO TUNER’S FOUND A NEST.",
+  "THE CROCODILE NEEDS ME TO UNZIP HIM.",
+  "I’M WAITING FOR THE COURIER TO SCAN MY GRAN.",
+  "THE DEER’S ANTLERS ARE STILL IN THE DISHWASHER.",
+  "I’M WITNESSING THE SNAIL’S ATTEMPT AT A THREE-POINT TURN.",
+  "I’VE GOT TO KEEP THE DRAUGHT EXCLUDER SEDATED.",
+  "THE PEACOCK NEEDS HELP FOLDING HIMSELF INTO THE TAXI.",
+  "MY REPLACEMENT’S ARRIVED WITHOUT INSTRUCTIONS.",
+  "I’VE GOT TO FETCH THE EMERGENCY STILTS.",
+  "I’M KEEPING THE DRAWBRIDGE UP WHILE THE DUCKS REVERSE.",
+  "MY KNEECAPS HAVE BEEN SENT TO DIFFERENT SORTING OFFICES.",
+  "I’VE GOT TO PEEL THE PROTECTIVE FILM OFF MY STEPFATHER.",
+  "THE OSTRICH WON’T LET ME CHANGE THE DUVET.",
 ];
 function excusesPage() {
   return page("The Excuse Generator", `<p class="label" style="margin-top:26px">${esc(HUB.name)} · Interaction distractions</p><h1 style="margin-top:4px">The Excuse Generator</h1>
@@ -1158,15 +1286,20 @@ function gatePage() {
 [].forEach.call(document.querySelectorAll('#enter,#express'),function(a){a.addEventListener('click',function(){try{localStorage.setItem('ih_gate','1')}catch(e){}})});` });
 }
 // ---------------- Escape From Aunt Doris (the full paper escape room) ----------------
-// Barry's title (21 Nov); made bigger (13 puzzles) for selling at £4.99. Aunt Doris (your cousin Gareth's mum) stalks you through Gareth's housewarming; what she
+// Barry's title (21 Nov); made bigger (13 puzzles, then 19 on 25 Nov) for selling at £4.99. Aunt Doris (your cousin Gareth's mum) stalks you through Gareth's housewarming; what she
 // wants is a hug. Every wrong answer brings her a step closer; the fourth is a hug (and 5 minutes on your time).
-// Thirteen puzzles in three parts, about 35 to 50 minutes; Part One (1 to 3) is to be free. Puzzles 1 to 12 each add
-// something to your kit; their first letters spell the code for your own front door at the end: DO NOT DISTURB. Progress is saved on the player's device. Doris is Barry's (brand-logos/doris/, R2 site/doris-N.png):
+// Nineteen puzzles in four parts, about 45 to 60 minutes; Part One (1 to 3) is free. Part Three (10 to 15) was added on
+// 25 Nov after a 21-minute test run. Puzzles 1 to 18 each add something to your kit; their first letters, in the order
+// you get them, read DO NOT DIST / GO AWAY / URB: the front door code is DO NOT DISTURB GO AWAY (the sign's two sides). Progress is saved on the player's device. Doris is Barry's (brand-logos/doris/, R2 site/doris-N.png):
 // frames 1 to 4 as she gets closer, doris-hug.png (her crushing the mascot) on the hug screen. The title
 // is his (brand-logos/aunt-doris/, R2 site/doris-title.png). All wording is a draft for Barry.
 const DZ_COATS = [["#a7322d", 1, 2, 14], ["#4d7a3a", 1, 4, 27], ["#26355c", 0, 5, 31], ["#8c8c88", 1, 3, 42], ["#26355c", 1, 4, 53], ["#111111", 1, 1, 66], ["#26355c", 1, 6, 75], ["#8c8c88", 1, 4, 89]];
 const DZ_PHOTOS = [["Elf costume, howling", "Christmas, aged 2"], ["Paddling pool, giggling", "Summer, aged 3"], ["Sheep in the nativity, sobbing", "Christmas, aged 4"], ["The bowl haircut, scowling", "Spring, aged 4"],
   ["In a little suit at a wedding, in floods of tears", "Summer, aged 3"], ["Pirate at a party, grinning", "Summer, aged 4"], ["Sailor suit at the seaside, wailing", "Summer, aged 4"], ["Pumpkin costume, wailing", "Autumn, aged 4"]];
+// Gareth's cue cards (puzzle 12), shown in this jumbled order; the corner numbers in story order read 416253.
+const DZ_CARDS = [[2, "instead. A special thank you to Gran, who is ninety-four and was still the last one on the dance floor at"], [3, "… hang on, where’ve they gone? Has anyone seen them? Never mind. Raise your glasses! Cheers!"],
+  [4, "Thank you all for coming. When Jo and I first saw this house, the estate agent said it was “full of"], [6, "without Dad, who put up every shelf, and Mum, who told him where every shelf should have gone"],
+  [1, "character”. That turned out to mean the boiler. And the damp. And the man next door, who still hasn’t given us our football back. But we’ve made it a home, and we couldn’t have done it"], [5, "Dave’s wedding. And finally, my cousin, who is"]];
 const DZ_KEYS = [["1", ""], ["2", "ABC"], ["3", "DEF"], ["4", "GHI"], ["5", "JKL"], ["6", "MNO"], ["7", "PQRS"], ["8", "TUV"], ["9", "WXYZ"], ["*", ""], ["0", ""], ["#", ""]];
 // Sharing a result (Barry, 22 Nov): the phone's own share sheet where there is one, otherwise copy to the clipboard.
 const SHARE_JS = `function ihShare(text,url,btn,short){var full=text+' '+url;function done(m){var o=btn.textContent;btn.textContent=m;setTimeout(function(){btn.textContent=o},2200)}
@@ -1179,15 +1312,15 @@ function gameTee(cat, ids, line) {
 // ---- The printable edition (Barry, 22 Nov): the same story and puzzles laid out for paper, at /aunt-doris/print, saved
 // as a PDF by shop/doris-print/make.mjs. Answers are checked online at /doris (the checker below), which also gives
 // hints, reveals what each puzzle adds to your kit, and brings Doris closer on wrong answers.
-function dzTalk() { return new Function(DZ_TALK_JS + ";return TALK")(); }
-function dzTalkPrint() {
-  return `<p>Get out of the conversation without giving her anything. For each thing she says, pick a reply. Your answer is the four letters of your replies, in order.</p>` +
-    dzTalk().map(([line, opts], k) => `<div class="txt" style="background:#3a1416"><small>Aunt Doris</small>${esc(line)}</div><ol class="abc" type="A">${opts.map((o) => `<li>${esc(o[0])}</li>`).join("")}</ol>`).join("");
+function dzTalk(v = "TALK") { return new Function(DZ_TALK_JS + ";return " + v)(); }
+function dzTalkPrint(v = "TALK", who = "Aunt Doris", intro = "Get out of the conversation without giving her anything.") {
+  return `<p>${intro} For each thing ${v === "TALK" ? "she says" : "they say"}, pick a reply. Your answer is the four letters of your replies, in order.</p>` +
+    dzTalk(v).map(([line, opts], k) => `<div class="txt" style="background:#3a1416"><small>${who}</small>${esc(line)}</div><ol class="abc" type="A">${opts.map((o) => `<li>${esc(o[0])}</li>`).join("")}</ol>`).join("");
 }
 function dzPrintDoc(steps) {
   const body = steps.filter((x) => !/data-end/.test(x)).map((x) => x.replace(/ hidden>/g, ">").replace(/<p><button class="btn go"[^]*?<\/p>/g, "").replace(/<p class="note" id="resume"[^]*?<\/p>/, "").replace(/<p class="note">Your progress is saved on this device\.<\/p>/, "")).join("")
-    .replace('<div class="kit" id="kitlist"></div>', `<ol class="kitw">${Array.from({ length: 12 }, () => "<li></li>").join("")}</ol>`);
-  const how = `<section class="box pz how"><h2>How to play</h2><p>Thirteen puzzles stand between you and your sofa. Solve them in order. Each answer is checked online:</p><p class="big">introverthere.com/doris</p>
+    .replace('<div class="kit" id="kitlist"></div>', `<ol class="kitw">${Array.from({ length: 18 }, () => "<li></li>").join("")}</ol>`);
+  const how = `<section class="box pz how"><h2>How to play</h2><p>Nineteen puzzles stand between you and your sofa. Solve them in order. Each answer is checked online:</p><p class="big">introverthere.com/doris</p>
 <p>Pick the puzzle, type your answer. If you’re right, you’ll be told what you’ve added to your kit. <b>Write it down</b>, along with anything else it tells you: there’s a space on the last page, and you’ll need it.</p>
 <p>Get one wrong and Aunt Doris takes a step closer. Get the same puzzle wrong four times and she hugs you. You’ve been warned.</p><p>Stuck? The checker has hints. The second one gives you the answer, so only press it if you mean it.</p>
 <p class="small">You’ll need: a pen, this booklet, a phone, and somewhere nobody will talk to you.</p></section>`;
@@ -1201,6 +1334,7 @@ function dzPrintDoc(steps) {
 .clues{padding-left:18px}.clues li{margin:5px 0}.coats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.coats svg{width:100%;background:#f3efe7;border:1px solid #d8d1c4;border-radius:8px}
 .txt{background:#efe9df;border-radius:10px;padding:9px 12px;margin:8px 0;max-width:150mm}.txt[style]{background:#f6dcdc!important}.txt small{display:block;color:#7a6f63;font-size:8.5pt}
 .abc{margin:4px 0 12px 22px}.abc li{margin:3px 0}.magnets{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;background:#e9e6df;border-radius:10px;padding:14px;margin:10px 0}.magnets span{display:flex;gap:3px}.magnets i{font:800 20pt/1 Montserrat;font-style:normal;padding:3px 6px;border-radius:4px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.card{position:relative;border:1px solid #bdb4a5;border-radius:4px;padding:18px 9px 9px;font-size:10pt}.card b{position:absolute;top:4px;right:7px;color:#a7322d}
 .note-y{background:#f6e27a;padding:9px 12px;max-width:95mm;margin:8px auto;transform:rotate(-1.5deg);font-weight:600}
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.photos figure{margin:0;border:1px solid #cfc7b8;border-radius:3px;padding:6px;font-size:9pt}.photos b{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#bdb4a5;color:#fff;font-size:18pt;margin-bottom:4px}.photos small{display:block;color:#7a6f63}
 .playlist{border:1px solid #cfc7b8;border-radius:8px;margin:10px 0}.playlist div{display:flex;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid #e3ddd1}.playlist div:last-child{border:0}.playlist em{font-style:normal;color:#6b6258;font-size:9.5pt}.playlist b.pl{width:22px;height:22px;border-radius:50%;background:#e1aa3b;display:flex;align-items:center;justify-content:center;font-size:9pt}
@@ -1214,7 +1348,7 @@ function dzPrintDoc(steps) {
 }
 // The answer checker for the printed booklet (introverthere.com/doris).
 function dorisCheckPage() {
-  const opts = Array.from({ length: 13 }, (_, k) => `<option value="${k + 1}">Puzzle ${k + 1}</option>`).join("");
+  const opts = Array.from({ length: DZ_N }, (_, k) => `<option value="${k + 1}">Puzzle ${k + 1}</option>`).join("");
   return page("Escape From Aunt Doris: check your answer", `<div class="dz"><h1 class="tlogo" style="max-width:420px"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
 <section class="box pz" data-n="0"><p class="step">The printed edition · check your answer</p>
 <div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>
@@ -1227,6 +1361,9 @@ ${DZ_TALK_JS}
 P[2].a=new RegExp('^'+TALK.map(function(n){return 'ABC'[n[1].findIndex(function(o){return o[1]})]}).join('')+'$');
 P[2].no=['That gave her something to work with. Try again.','She’s still talking. Check your replies.','No. Give her nothing. Shorter is better.'];
 P[2].h=['Pick the replies that give her nothing to talk about: no topics, no questions, no days of the week.','The answer: '+TALK.map(function(n){return 'ABC'[n[1].findIndex(function(o){return o[1]})]}).join('')+'.'];
+var K2=TALK2.map(function(n){return 'ABC'[n[1].findIndex(function(o){return o[1]})]}).join('');P[14].a=new RegExp('^'+K2+'$');
+P[14].no=['That only made them more interested. Try again.','Another smoker wanders over. Check your replies.','No. Short answers make smokers curious. Bore them.'];
+P[14].h=['Silence and short answers make smokers curious. Pick the reply that would bore anyone to tears.','The answer: '+K2+'.'];
 var $=function(q){return document.querySelector(q)},lv={},tries={},used={};
 var DL=['Aunt Doris is at the far end of the room.','“Coo-ee!” She’s spotted you.','She’s weaving through the guests towards you.','Arms open. One more wrong move.'];
 function n(){return $('#pn').value}
@@ -1234,7 +1371,7 @@ function meter(){var l=lv[n()]||0;$('.dm').dataset.lv=l;$('.dm img').src='/s/dor
 function reset(){$('.say').textContent='';$('.got').classList.remove('on');$('.got').innerHTML='';$('.hints').innerHTML='';$('.hint').hidden=false;$('.hint').textContent='Hint, please';$('.hint').classList.remove('give');$('.lock').classList.remove('open');$('#pa').value='';meter()}
 $('#pn').addEventListener('change',reset);
 $('form').addEventListener('submit',function(e){e.preventDefault();var k=n(),p=P[k],v=String($('#pa').value).toUpperCase().replace(/[^A-Z0-9]/g,'');if(!v)return;
- if(p.a.test(v)){$('.lock').classList.add('open');$('.say').textContent='Correct.';var g=$('.got');g.innerHTML=p.got?'<b>Add to your kit: '+p.got[1]+'</b><br>'+p.got[2]:(k==='13'?'<b>You’re home.</b><br>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB.<br><br>And then your phone buzzes. Aunt Doris: “Lovely to see you Hoodini!! Same time at Christmas? xx”':'Click. It opens. On to the next.');g.classList.add('on')}
+ if(p.a.test(v)){$('.lock').classList.add('open');$('.say').textContent='Correct.';var g=$('.got');g.innerHTML=p.got?'<b>Add to your kit: '+p.got[1]+'</b><br>'+p.got[2]:(k==='${DZ_N}'?'<b>You’re home.</b><br>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. On the back, facing you: GO AWAY.<br><br>And then your phone buzzes. Aunt Doris: “Lovely to see you Hoodini!! Same time at Christmas? xx”':'Click. It opens. On to the next.');g.classList.add('on')}
  else{var l=$('.lock');l.classList.remove('no');void l.offsetWidth;l.classList.add('no');tries[k]=(tries[k]||0);$('.say').textContent=p.no[tries[k]++%p.no.length];var x=(lv[k]||0)+1;if(x>=4){x=0;$('#hug').hidden=false}lv[k]=x;meter()}});
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
 $('.hint').addEventListener('click',function(){var k=n(),p=P[k],u=$('.hints').children.length;if(u<p.h.length){var q=document.createElement('p'),last=u===p.h.length-1,t=p.h[u];q.textContent=last&&!/^The answer/.test(t)?'The answer: '+t:t;if(last)q.className='ans';$('.hints').appendChild(q)}if($('.hints').children.length>=p.h.length)this.hidden=true;else{this.textContent='Just tell me the answer';this.classList.add('give')}});
@@ -1251,16 +1388,27 @@ const DZ_P_JS = String.raw`var P={
 5:{a:/^59$/,got:['T','Tupperware','Teas done, every one right. Gareth’s partner presses a tub of leftovers into your hands as thanks. You slip out of the kitchen with it.'],no:['Gran sends hers back. “I said sweeteners.”','Uncle Mike looks at his tea, then at his belly, then at you.','No. Two numbers: sugars first, then sweeteners.'],h:['Work out everyone’s number first, then sort them into sugars and sweeteners. Gran’s number is everyone else’s added up.','Doris 2, Gareth 2, Dave 1, Mike 2, Gran 7. Mike and Gran have sweeteners: 9. Sugars: 5. Type 59.']},
 6:{a:/LEAVEMEALONE/,got:['D','Distraction','“LEAVE ME ALONE!” Doris shrieks it at the top of her voice, delighted to have got one. Every head turns to her. Not one turns to you.'],no:['No. Uncle Mike does the whole thing again, slower.','Doris shouts “Bananas!” for no reason. Wrong, but so are you.','Not quite. Each mime is one word, and the ear tug means “sounds like”.'],h:['Word one is what falls from a tree. Word two is easy. Word three sounds like something you borrow and pay back.','A leaf falling: LEAVE. Pointing at himself: ME. Sounds like “a loan”: ALONE. LEAVE ME ALONE.']},
 7:{a:/DORIS/,got:['I','Invisibility','Click. You’re tucked in behind Aunt Doris’s perm, the one place in the house she’ll never look. The photo will go on her mantelpiece. You won’t be in it.'],no:['Click. There you are, in the middle, mid-blink. Doris wants a copy.','Click. They weren’t standing at the back. Your whole head is showing.','No. Work out who will actually be standing at the back when the timer goes.'],h:['Mike and Gran are sitting, and Gareth will be kneeling at the front once he’s run back from the timer.','That leaves Dave and Doris standing. In heels, Doris is taller. Stand behind Aunt Doris.']},
-8:{a:/^BOILER$/,got:['S','Story','Your cover story: a leaking boiler. Nobody has ever questioned a boiler.'],no:['That’s not what it says. Sam would be disappointed.','No. Work out how far the letters have moved first.','Not quite. Sam always signs off.'],h:['Sam signs every message. Compare the letters of the signature with SAM.','S became V: every letter is three places along. Move each one back three: SAY THE BOILER IS LEAKING.']},
+8:{a:/^BOILER$/,got:['S','Story','Your cover story: a leaking boiler. Nobody has ever questioned a boiler.'],no:['That’s not what it says. Sam would be disappointed.','No. Work out how far each letter has moved first. They don’t all move the same.','Not quite. Compare SAMMY with what Sam’s phone made of it.'],h:['Compare SAMMY with TCPQD, letter by letter. How far has each one moved? Look at the two Ms: they come out different.','In each word the first letter moves 1 place, the second 2, the third 3, and so on. Move them back: SAY THE BOILER IS LEAKING.']},
 9:{a:/LOO|WINDOW|TOILET|BATHROOM|WC|LAV/,got:['T','Toilet window','The downstairs loo window. Small, but so are your social ambitions.'],no:['Someone’s guarding that one. They’ve seen you.','Too risky. Somebody would want a chat.','No. Think about who’s standing where.'],h:['Gareth has the kitchen door, Dave the garden, Mike the garage.','Doris is at the front door saying goodbye to everyone. That leaves the downstairs loo window.']},
-10:{a:/^(1017|1017PM)$/,got:['U','Unwatched hall','10:17: “Hold Me Closer, Auntie”. Everyone pairs off. Nobody is watching the hall.'],no:['That’s the conga. Somebody grabs your waist.','No. Shuffle is on: go by the play order, not the list.','Not quite. Add up the songs that play before it.'],h:['The slow song is the one with by far the lowest bpm. Shuffle is on, so use the yellow numbers, not the list.','Plays 1 to 5 are Small Talk, Gareth’s, the Conga, the Ukulele and Shots: 4 + 3 + 5 + 2 + 3 = 17 minutes. It starts at 10:17.']},
-11:{a:/^(1019|19|1019PM)$/,got:['R','Run','10:19. Nobody in the hall. You run. Quietly.'],no:['Gareth walks straight into you. “Off already?”','Doris rounds the corner. You freeze. She doesn’t see you. This time.','No. List who is in the hall each minute while the slow song plays.'],h:['The slow song starts at 10:17 and lasts 4 minutes, so it plays from 10:17 to 10:21. List who is in the hall each minute.','Gareth 10:18 and 10:21, Doris 10:17 and 10:21, Dave 10:20, Pat 10:20. That leaves 10:19.']},
-12:{a:/^4663$/,got:['B','Back gate','The gate clicks open. At the end of the road, the night bus is just pulling in.'],no:['The gate stays shut. The dog next door starts barking.','Beep. Wrong. Very loud beep.','No. Check your pockets. Then the letters on the keypad.'],h:['It’s the word Doris underlined on the back of the photo you took.','HOME: H is 4, O is 6, M is 6, E is 3. The code is 4663.']},
-13:{a:/^DONOTDISTURB$/,no:['The door stays locked. You’re so close you can smell the teabags.','No. Look at your kit.','Not quite. Take the first letter of each thing, in order.'],h:['Take the first letter of each thing in your kit, in order.','DO NOT DISTURB.']}};`;
+16:{a:/^(1017|1017PM)$/,got:['U','Unwatched hall','10:17: “Hold Me Closer, Auntie”. Everyone pairs off. Nobody is watching the hall.'],no:['That’s the conga. Somebody grabs your waist.','No. Shuffle is on: go by the play order, not the list.','Not quite. Add up the songs that play before it.'],h:['The slow song is the one with by far the lowest bpm. Shuffle is on, so use the yellow numbers, not the list.','Plays 1 to 5 are Small Talk, Gareth’s, the Conga, the Ukulele and Shots: 4 + 3 + 5 + 2 + 3 = 17 minutes. It starts at 10:17.']},
+17:{a:/^(1019|19|1019PM)$/,got:['R','Run','10:19. Nobody in the hall. You run. Quietly.'],no:['Gareth walks straight into you. “Off already?”','Doris rounds the corner. You freeze. She doesn’t see you. This time.','No. List who is in the hall each minute while the slow song plays.'],h:['The slow song starts at 10:17 and lasts 4 minutes, so it plays from 10:17 to 10:21. List who is in the hall each minute.','Gareth 10:18 and 10:21, Doris 10:17 and 10:21, Dave 10:20, Pat 10:20. That leaves 10:19.']},
+18:{a:/^466343$/,got:['B','Back gate','The gate clicks open. At the end of the road, the night bus is just pulling in.'],no:['The gate stays shut. The dog next door starts barking.','Beep. Wrong. Very loud beep.','No. Four digits from your pocket, two from your bus.'],h:['The first four digits are the word Doris underlined on the back of the photo you took, typed on the keypad. The last two: your night bus leaves at 11:04, and it’s 10:21.','HOME is 4663. From 10:21 to 11:04 is 43 minutes. The code is 466343.']},
+19:{a:/^(DONOTDISTURBGOAWAY|GOAWAYDONOTDISTURB)$/,no:['The door stays locked. You’re so close you can smell the teabags.','No. Look at your kit again. Both sides of the sign.','Not quite. The front of the sign first, then the back.'],h:['Take the first letter of each thing in your kit. A short phrase has been dropped into the middle of a longer one: lift it out and put it on the end.','DO NOT DISTURB, then GO AWAY: DONOTDISTURBGOAWAY.']},
+10:{a:/^GMCPT$/,got:['G','Gloves','Jo lets you go, and you leave with the rubber gloves still on. No fingerprints on anything from now on.'],no:['Doris, through the hatch: “Not like THAT!”','The water’s gone grey. Jo makes you start again.','No. Take Doris’s rules one at a time.'],h:['Glasses go first. Mugs and cutlery stay together, mugs first. Now where can the plates go, if not straight after the glasses?','Glasses, mugs, cutlery, plates, tin: GMCPT.']},
+11:{a:/^(935|0935|2135|935PM)$/,got:['O','Out of order sign','On a hook behind the loo door: the sign Gareth made when the flush broke. OUT OF ORDER. You take it. Later tonight, this loo needs to be very, very empty.'],no:['Someone’s rattling the handle. You’re not in yet.','You knock. “Occupied!” says Uncle Mike, and turns a page.','No. Work out the order first. Not everyone is ahead of you.'],h:['Alfie is in front of everyone except Gran, so the order starts Gran, Alfie. Mike and Dave have to stay together, and you can’t be last.','Gran, Alfie, you, Mike, Dave. Gran takes 8 minutes, Alfie 4 plus 3 for his hands: 15 minutes. You’re in at 9:35.']},
+12:{a:/^416253$/,got:['A','Applause','He reaches “Cheers!”, the room bursts into applause, and under cover of the noise nobody hears you crawl out from behind the sofa.'],no:['Gareth squints at the card. “That doesn’t follow.” He starts looking for you.','Doris: “Gareth, you’ve muddled it, love.” Everyone looks round. Duck.','No. Each card finishes the sentence the last one started.'],h:['Only one card starts with a capital letter: it goes first. Each card ends mid-sentence, and only one card finishes it.','The order is “Thank you”, “character”, “without Dad”, “instead”, “Dave’s wedding”, “hang on”. Their corner numbers: 416253.']},
+13:{a:/^865$/,got:['W','Walkie-talkie','Under the dressing-up clothes: a walkie-talkie, switched on. The other one is clipped to Doris’s handbag. Poppy put it there. Every word Doris says, you’ll hear.'],no:['The padlock doesn’t budge. Footsteps on the stairs.','Click. Nothing. “Coo-ee? Is someone up there?”','No. Read Poppy’s note again. Count carefully.'],h:['Count carefully: a starfish has arms, not legs. There are two socks, with two eyes on each. A wheelbarrow has one wheel.','Legs: 2 + 4 + 2 = 8. Eyes: 1 + 4 + 1 = 6. Wheels: 3 + 1 + 1 = 5. The code is 865.']},
+14:{got:['A','Alibi','Kev and Shelley go back inside and tell everyone you’ve been out in the garden all night, “boring the life out of us”. When Doris asks, that’s where you are.']},
+15:{a:/^27$/,got:['Y','“Your taxi’s here”','The app finds you. Nearest driver: 94 minutes away. Price: £86. Night bus it is. But the app has a button that plays its “Your taxi’s here” alert. Hold up your phone, look sorry, and you can leave any conversation instantly.'],no:['“No address found.” The app suggests a car park in Wolverhampton.','That’s next door. The app sends a driver who already hates you.','No. Doris doesn’t tell the truth about everything.'],h:['Doris says the house number is her age backwards. Gran knows her real age.','Doris is really 72, so the house is number 27: it starts with a 2 and it’s on the odd side.']}};`;
 const DZ_TALK_JS = String.raw`var TALK=[["Coo-ee! There you are, Hoodini! Still on your own, are you?",[["Mm.",1,"Doris pauses. She isn’t used to “Mm.”"],["Yes, and honestly I’m very happy.",0,"Happy? On your own? Oh, you poor thing. My neighbour’s son is single, you know. He collects lighthouses..."],["Is that a new cardigan, Doris?",0,"Ooh, do you like it? Marks and Spencer. Well. Let me tell you about the queue..."]]],
  ["And how’s work? Still doing that... computer thing?",[["Actually it’s really interesting, I’ve just started a new project—",0,"Ooh, a project! Tell me everything. Start from the beginning. Don’t leave anything out."],["What do you mean, “that computer thing”?",0,"Well, you know. Typing. Our Kevin does typing. Have I told you about our Kevin?"],["It’s fine.",1,"“Fine,” says Doris, slowly. Her eyes narrow. She’s regrouping."]]],
  ["You should come to my Zumba class! Thursday nights!",[["Maybe.",0,"Lovely! I’ll put you down. Bring a towel. And a friend. Do you have friends?"],["I’ve got a bad knee.",1,"“Oh, say no more!” Doris looks at your knee with deep sympathy. She takes a step back."],["I’d love to, but Thursdays are tricky.",0,"Wednesdays, then! There’s a Wednesday class! Silver Steppers!"]]],
- ["Well, I’d better find Gareth. Lovely to—",[["Oh, before you go, Doris...",0,"She turns back. Oh no. Oh no, she’s turned back."],["Lovely to see you too!",1,"And she’s gone. You exhale for the first time in four minutes."],["Doris, can I ask you something?",0,"“Of course, love!” She settles in. She’s cancelled all her plans. For you."]]]];`;
+ ["Well, I’d better find Gareth. Lovely to—",[["Oh, before you go, Doris...",0,"She turns back. Oh no. Oh no, she’s turned back."],["Lovely to see you too!",1,"And she’s gone. You exhale for the first time in four minutes."],["Doris, can I ask you something?",0,"“Of course, love!” She settles in. She’s cancelled all her plans. For you."]]]];
+var TALK2=[["Alright? Don’t see you out here usually. Escaping, are you?",[["Mm.",0,"“Mm,” says Kev. “Ooh, a mystery! Here, Shell, we’ve got a mystery one.” Two more smokers drift over."],["Just getting some air. I’ve been reading about air quality, actually. There’s a new monitoring scheme for postcodes...",1,"Kev’s eyes glaze over. He takes a long drag and looks at the sky."],["Yes. Please don’t tell Doris.",0,"Kev’s face lights up. “Oh, we won’t tell Doris,” he says, loud enough for Doris to hear."]]],
+ ["So what do you do with yourself, then?",[["This and that.",0,"“This and that! Sounds dodgy. Go on, what’s “that”?”"],["I’m in compliance. Mainly the reconciliation of quarterly ledgers. Would you like me to walk you through the process?",1,"“No,” says Kev, quickly. He turns slightly away."],["I’d rather not say.",0,"Now he has to know. Everyone has to know. A small crowd has formed."]]],
+ ["You coming down the pub after? We always go to the Feathers.",[["I can’t, I’ve got an early start.",0,"“Early start! On a Sunday? What for?”"],["No.",0,"“No?” Kev is delighted. “Why not? One drink. Shell, tell them.”"],["Maybe. Has the Feathers still got that fuse box by the gents? I’ve got a lot of thoughts about fuse boxes.",1,"Kev decides he isn’t going to the Feathers after all. Not if you are."]]],
+ ["Here, have you heard about Shelley’s divorce?",[["Is it long? I should say, I collect bus timetables. Mostly the 1990s. I can tell you about those after.",1,"Shelley, who was about to start, stubs out her cigarette and goes inside. Kev follows. You’re alone in the garden."],["No, what happened?",0,"Shelley settles in. It’s a story in eleven parts. You are on part one."],["Mm.",0,"“Mm? MM? She’s been through hell!” Now Shelley’s upset, and Kev wants an apology. A long one."]]]];`;
+const DZ_N = 19;
 // "Introvert Here... presents" title card, for any of the site's games (Barry, 23 Nov). Put ${PRESENTS_HTML()} at the
 // top of the page body and ${PRESENTS_JS} in its script, then call ihPresents(key, skip): key names the game (the card
 // shows once per visit per key), skip=true leaves it out (e.g. when carrying on a saved game). The logo fades in without
@@ -1275,12 +1423,65 @@ const PRESENTS_JS = `function ihPresents(key,skip){var o=document.getElementById
  [0,1,2].forEach(function(n){setTimeout(function(){dots[n].classList.add('off')},2900+n*450)});
  setTimeout(end,5000)}`;
 
-function dorisPage(cat, print) {
+// ---------------- Escape From Aunt Doris: pay to unlock (Barry, 23 Nov) ----------------
+// Part One is free. After it the game asks £4.99 to unlock the rest (Stripe Checkout, no delivery). On payment the
+// buyer gets an unlock code, kept in a cookie on that device and shown to them for use on others ("Already bought it?").
+// Without a valid code the page doesn't contain Parts Two and Three at all. Codes live in KV doris:codes
+// ({ code: { s: session id, at, live } }). DORIS_PRICE is in pence. On the preview, PREVIEW-DORIS unlocks it for testing.
+const DORIS_PRICE = 499;
+function dorisCodeFor(sessionId) { let h = 2166136261; for (const c of sessionId + "|doris") { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } let h2 = h ^ 0x9e3779b9; for (const c of sessionId) { h2 ^= c.charCodeAt(0); h2 = Math.imul(h2, 2246822519) >>> 0; }
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let out = ""; for (const n of [h, h2]) for (let i = 0; i < 4; i++) out += A[(n >>> (i * 8)) % 32]; return out.slice(0, 4) + "-" + out.slice(4); }
+async function dorisCodes(env) { return (await env.PENDING.get("doris:codes", "json")) || {}; }
+async function dorisIssue(env, sessionId, live) {
+  const code = dorisCodeFor(sessionId), all = await dorisCodes(env);
+  if (!all[code]) { all[code] = { s: sessionId, at: Date.now(), live }; await env.PENDING.put("doris:codes", JSON.stringify(all)); }
+  return code;
+}
+const dorisNorm = (c) => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^(.{4})(.{4})$/, "$1-$2");
+async function dorisUnlocked(env, code) {
+  code = dorisNorm(code); if (!code) return false;
+  if (isPreview(env) && code === "PREVIEWDORIS") return true;
+  return !!(await dorisCodes(env))[code];
+}
+const dorisCookie = (code, secure = true) => `ih_doris=${encodeURIComponent(code)}; Path=/; Max-Age=63072000; SameSite=Lax${secure ? "; Secure" : ""}`;
+async function dorisCodeApi(request, env) {
+  let b = {}; try { b = await request.json(); } catch (_) {}
+  const code = dorisNorm(b.code);
+  if (!(await dorisUnlocked(env, code))) return json({ ok: false, error: "That code doesn’t work. Check it and try again." }, 400);
+  return new Response(JSON.stringify({ ok: true }), { headers: { "Content-Type": "application/json", "Set-Cookie": dorisCookie(code, request.url.startsWith("https:")) } });
+}
+async function dorisCheckout(env, url) {
+  if (isPreview(env)) return json({ error: "This is the preview copy, so payments are switched off. Use the code PREVIEW-DORIS to test." }, 403);
+  if (!(await getSecret(env, "stripe_secret_key"))) return json({ error: "Payments aren’t switched on yet. Please try again soon." }, 503);
+  const form = {
+    mode: "payment", locale: "en-GB", allow_promotion_codes: "true",
+    "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "gbp", "line_items[0][price_data][unit_amount]": String(DORIS_PRICE),
+    "line_items[0][price_data][product_data][name]": "Escape From Aunt Doris: the full game",
+    "line_items[0][price_data][product_data][description]": "The whole game, on this device and any other with your unlock code.",
+    "metadata[product]": "doris", "payment_intent_data[metadata][product]": "doris",
+    success_url: `${url.origin}${HUB.path}/aunt-doris/unlocked?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${url.origin}${HUB.path}/aunt-doris`,
+  };
+  try { const s = await stripe(env, "POST", "/checkout/sessions", form); return json({ url: s.url }); }
+  catch (e) { console.error("doris checkout", e); return json({ error: "Sorry, payment is unavailable right now." }, 502); }
+}
+async function dorisThanks(env, url) {
+  const id = url.searchParams.get("session_id") || "";
+  let s = null; try { if (/^cs_/.test(id)) s = await stripe(env, "GET", "/checkout/sessions/" + id); } catch (_) {}
+  if (!s || s.payment_status !== "paid" || (s.metadata || {}).product !== "doris") return html(page("Escape From Aunt Doris", mascotMsg("peek", "Hmm.", "We couldn’t confirm that payment. If you were charged, email admin@mosspit.org and we’ll sort it.", HUB.path + "/aunt-doris", "Back to the game"), { nav: "hub", noindex: true }));
+  const code = await dorisIssue(env, s.id, !!s.livemode);
+  return html(page("Unlocked", `<div class="dz"><section class="box pz chap"><h1 class="tlogo" style="max-width:420px"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
+<h2 style="font-family:Montserrat;color:#f6efe0;font-size:24px;text-transform:uppercase">Unlocked. Thank you.</h2><p>The whole game is open on this device.</p>
+<p>Playing on another phone or computer? Use this code:</p><p class="vcode" style="justify-content:center;margin:6px auto 4px"><span>${esc(code)}</span></p><p class="note">Keep it somewhere. We’ve also emailed your receipt.</p>
+<p><a class="btn" href="${HUB.path}/aunt-doris?go=1">Carry on escaping</a></p></section></div>`, { nav: "hub", noindex: true }), 200, { "Set-Cookie": dorisCookie(code) });
+}
+
+function dorisPage(cat, print, full) {
   const lock = print ? (ph) => `<p class="ans"><b>Your answer</b><span></span></p>` : (ph, num) => `<div class="lock">${PARTY_LOCK}<form><input name="a" autocomplete="off" autocapitalize="characters" ${num ? 'inputmode="numeric"' : ""} placeholder="${ph}" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>`;
   const meter = print ? "" : `<div class="dm" data-lv="0"><div class="dmf"><img src="/s/doris-1.png?v=1" alt="Aunt Doris"></div><p class="dml">Aunt Doris is at the far end of the room.</p></div>`;
   const tail = print ? `<p class="chk">Check your answer at <b>introverthere.com/doris</b></p>` : `<p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p><p class="next"><button class="btn go" type="button">Carry on</button></p>`;
   const chap = (pt, title, body) => `<section class="box pz chap" hidden><p class="pt">${pt}</p><h2>${title}</h2>${body}<p><button class="btn go" type="button">Carry on</button></p></section>`;
-  const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of 13 · ${title}</p>${meter}<h2>${h}</h2>${body}${tail}</section>`;
+  const pz = (n, title, h, body) => `<section class="box pz" data-n="${n}" hidden><p class="step">${n} of ${DZ_N} · ${title}</p>${meter}<h2>${h}</h2>${body}${tail}</section>`;
   const mag = (w, cols) => `<span>${[...w].map((c, i) => `<i style="background:${cols[i % cols.length]};color:#fff">${c}</i>`).join("")}</span>`;
   const steps = [
     `<section class="box pz chap" data-intro><h1 class="tlogo"><img src="/s/doris-title.png?v=1" alt="Introvert Here: Escape From Aunt Doris" width="1200" height="662"></h1>
@@ -1291,7 +1492,7 @@ function dorisPage(cat, print) {
     pz(1, "The coat pile", "Find your coat.", `<p>Every coat in the house is heaped on the spare bed. Yours is in there somewhere.</p>
 <ul class="clues"><li>It has a hood. (Hoods are for hiding in.)</li><li>It isn’t green.</li><li>It has more buttons than the red one.</li><li>It isn’t grey. Grey coats belong to Aunt Doris. Never touch Aunt Doris’s coats.</li><li>Its tag number is under 60.</li></ul>
 <div class="coats">${DZ_COATS.map(partyCoat).join("")}</div>${lock("Tag number", 1)}`),
-    `<section class="box pz talk" data-n="2" hidden><p class="step">2 of 13 · Cornered</p>${meter}<h2>She’s found you.</h2><p>You turn round with your coat and there she is, between you and the door. Her arms are already starting to open.</p>${print ? dzTalkPrint() : `<div id="tk"></div>`}${tail}</section>`,
+    `<section class="box pz talk" data-n="2" hidden><p class="step">2 of ${DZ_N} · Cornered</p>${meter}<h2>She’s found you.</h2><p>You turn round with your coat and there she is, between you and the door. Her arms are already starting to open.</p>${print ? dzTalkPrint() : `<div class="tk"></div>`}${tail}</section>`,
     pz(3, "The dead phone", "Charge your phone.", `<p>Your phone is on 2%. Gareth’s chargers live in a kitchen drawer with a three-digit lock, and there’s a note stuck to it:</p>
 <div class="note-y">Charger drawer! Code’s on the fridge. Sorry, the kids keep moving the letters. G x</div><p>The fridge:</p>
 <div class="magnets">${mag("ENO", ["#c3161c", "#2a62c9", "#e1aa3b"])}${mag("XSI", ["#3f8a3a", "#c3161c", "#2a62c9"])}${mag("NNIE", ["#e1aa3b", "#3f8a3a", "#c3161c", "#2a62c9"])}</div>${lock("Drawer code", 1)}`),
@@ -1311,36 +1512,66 @@ function dorisPage(cat, print) {
 <div class="txt" style="background:#3a1416"><small>Aunt Doris</small>Autumn! Tree! Falling over! Paying the milkman!</div><p>What’s the phrase?</p>${lock("The phrase", 0)}`),
     pz(7, "The group photo", "Stay out of the picture.", `<p>“Family photo! Everyone in the garden!” Gareth is setting up his phone on a wall. The only way to stay out of it is to stand directly behind somebody tall enough to hide you.</p>
 <ul class="clues"><li>Uncle Mike is the tallest of them all, but he’s done his back in, so he’s sitting on a chair at the front.</li><li>Gran is in a chair at the front too.</li><li>Cousin Dave is taller than Aunt Doris, and shorter than Gareth.</li><li>Doris has her heels on tonight, which make her two inches taller than Dave.</li><li>Even in heels, she’s shorter than Gareth.</li><li>Gareth sets a ten-second timer, then runs round and kneels at the front, next to Gran.</li></ul><p>Who do you stand behind?</p>${lock("Their name", 0)}`),
-    pz(8, "Sam’s text", "Get your story straight.", `<p>Your phone buzzes. It’s Sam, the only friend who gets it, with your excuse for leaving. Sam’s phone has a fault: every letter comes out shifted along the alphabet by the same number of places. Sam has never fixed it. Sam signs every message.</p>
-<div class="txt"><small>Sam</small>VDB WKH ERLOHU LV OHDNLQJ<br>— VDP</div><p>What’s broken at your house tonight? (One word.)</p>${lock("One word", 0)}`),
+    pz(8, "Sam’s text", "Get your story straight.", `<p>Your phone buzzes. It’s Sam, the only friend who gets it, with your excuse for leaving. Sam’s phone has a fault: it shifts letters along the alphabet, and the further into a word it gets, the worse it is. Sam has never fixed it. Sam signs every message, and when it’s urgent, signs it SAMMY.</p>
+<div class="txt"><small>Sam</small>TCB UJH CQLPJX JU MGDONTN<br>— TCPQD</div><p>What’s broken at your house tonight? (One word.)</p>${lock("One word", 0)}`),
     pz(9, "The exits", "Choose your way out.", `<p>There are five ways out: the front door, the kitchen door, the garden door, the garage, and the window in the downstairs loo. Four of them are guarded:</p>
 <ul class="clues"><li><b>Gareth</b> hasn’t left his sourdough starter all night. It lives by the kitchen door.</li><li><b>Cousin Dave</b> is doing calf stretches for his marathon, somewhere he can feel grass under his feet.</li><li><b>Uncle Mike</b> is standing next to his new car, waiting for someone to ask about it.</li><li><b>Aunt Doris</b> has positioned herself where she can catch everyone on their way out, and she would never, ever stand near a toilet.</li></ul><p>Which way do you go?</p>${lock("Your exit", 0)}`),
-    pz(10, "The playlist", "Wait for the slow one.", `<p>When the slow song comes on, everyone pairs off in the living room and nobody watches the hall. Gareth’s speaker is showing tonight’s playlist, A to Z. Shuffle is on: the number on the right of each song is the order it will actually play in. The first song started at exactly 10:00.</p>
+    chap("Part three", "Deeper in the house", `<p class="coo">The loo window it is. One problem: it’s only nine o’clock, and this party is nowhere near over.</p><p>Until the house goes quiet: keep moving, keep out of sight, keep your mouth shut.</p>`),
+    pz(10, "The washing-up", "Do it her way.", `<p>You duck into the kitchen. Bad move. Gareth’s partner Jo hands you a pair of rubber gloves and points at the sink. Five lots of washing-up, one sink of water. Then Doris’s head appears through the serving hatch.</p>
+<div class="txt" style="background:#3a1416"><small>Aunt Doris, through the hatch</small>Not like that! There’s a proper way! Glasses first, while the water’s clean. Cutlery straight after the mugs, so the spoons can soak. The roasting tin goes in after the plates, never before, it ruins the water. And don’t do the plates straight after the glasses, they’ll go all greasy.</div>
+<p>On the side: the roasting <b>T</b>in, <b>P</b>lates, <b>G</b>lasses, <b>C</b>utlery and <b>M</b>ugs. In what order do you wash them? (Type the first letters.)</p>${lock("Five letters", 0)}`),
+    pz(11, "The loo queue", "Get in the loo.", `<p>Your way out is the window in the downstairs loo. So is everyone else’s way in. There’s a queue, and Gran goes in at exactly 9:20.</p>
+<ul class="clues"><li>Alfie (five, desperate) is in front of everyone except Gran.</li><li>Cousin Dave is right behind Uncle Mike. They’re talking about Dave’s splits.</li><li>You’re not at the back. Somebody let you in, sadly.</li></ul>
+<table class="rounds"><tr><th>Who</th><th>How long they take</th></tr><tr><td>Gran</td><td>8 minutes</td></tr><tr><td>Alfie</td><td>4 minutes, then Jo makes him wash his hands for another 3, singing</td></tr><tr><td>Uncle Mike</td><td>6 minutes (he takes the paper)</td></tr><tr><td>Cousin Dave</td><td>2 minutes (he times it)</td></tr></table>
+<p>What time do you get in? (Type it like 9:30.)</p>${lock("Time", 0)}`),
+    pz(12, "Gareth’s speech", "Put the speech in order.", `<p>Gareth taps a glass. Speech. You dive behind the sofa. Gareth drops his cue cards, and they slide under the sofa, right to you. “Can someone pass those back? In order, please!” If they come out wrong, he’ll come round to look for them. And find you.</p>
+<div class="cards">${DZ_CARDS.map(([n, t]) => `<div class="card"><b>${n}</b>${t}</div>`).join("")}</div>
+<p>What order do they go in? (Type the corner numbers.)</p>${lock("Six numbers", 1)}`),
+    pz(13, "The kids’ room", "Hide in the toy box.", `<p>You slip upstairs into the kids’ room. Then, from the landing: “Coo-ee? Hoodini? Are you up here, love?” The only thing big enough to hide in is the toy box, and Poppy has put a padlock on it. Taped to the lid, in crayon:</p>
+<div class="note-y">SEKRET CODE. 1st number = how many LEGS on the top shelf. 2nd number = how many EYES on the middle shelf. 3rd number = how many WHEELS on the bottom shelf. From Poppy (6)</div>
+<ul class="clues"><li><b>Top shelf:</b> a teddy bear, a rocking horse, a toy penguin and a starfish.</li><li><b>Middle shelf:</b> a pirate with an eyepatch, a pair of socks with two googly eyes on each sock, an owl that’s lost one of its button eyes, and a bouncy ball.</li><li><b>Bottom shelf:</b> a tricycle, a wheelbarrow and a unicycle.</li></ul>${lock("3-digit code", 1)}`),
+    `<section class="box pz talk" data-n="14" data-who="Kev" data-no="That only made them more interested. Another smoker wanders over." hidden><p class="step">14 of ${DZ_N} · The smokers</p>${meter}<h2>Bore them.</h2><p>Doris has gone back down. You slip out of the back door for one breath of air. The smokers are out here: Uncle Mike’s mate Kev and Shelley from next door. They turn, as one.</p><p>Careful. Short answers won’t work out here. Smokers love a mystery.</p>${print ? dzTalkPrint("TALK2", "Kev", "Get away from the smokers.") : `<div class="tk"></div>`}${tail}</section>`,
+    pz(15, "The taxi app", "Book your way out.", `<p>Back in the kitchen, you open the taxi app. It wants Gareth’s address, and you’ve no idea what number it is. You’ve only been here once. Tonight.</p>
+<ul class="clues"><li>A card on the fridge: “Welcome to number 2_!” Someone’s spilt wine on the second digit.</li><li>Gareth’s text from last week: “We’re on the odd side of Larkspur Close.”</li></ul>
+<div class="txt" style="background:#3a1416"><small>Aunt Doris, to someone by the kettle</small>Isn’t it lovely? And the house number’s my age backwards! Sixty-two, I am. Well. Sixty-two and a bit.</div>
+<div class="txt"><small>Gran, from her chair</small>She’s ten years older than she says. I should know. I was there.</div><p>What number is Gareth’s house?</p>${lock("House number", 1)}`),
+    chap("Part four", "Don’t look behind you", `<p class="coo">She’s checked the garden. She’s checked the loo queue. She is now checking the coats. She will notice one is missing.</p><p>Time to go.</p>`),
+    pz(16, "The playlist", "Wait for the slow one.", `<p>When the slow song comes on, everyone pairs off in the living room and nobody watches the hall. Gareth’s speaker is showing tonight’s playlist, A to Z. Shuffle is on: the number on the right of each song is the order it will actually play in. The first song started at exactly 10:00.</p>
 <div class="playlist"><div><span style="flex:1">Grab Your Partner, Don’t Grab Me</span><em>3:00</em><em>120 bpm</em><b class="pl">7</b></div><div><span style="flex:1">Hold Me Closer, Auntie</span><em>4:00</em><em>64 bpm</em><b class="pl">6</b></div><div><span style="flex:1">Let’s All Go Round Gareth’s</span><em>3:00</em><em>118 bpm</em><b class="pl">2</b></div><div><span style="flex:1">Nobody Leaves This Party</span><em>4:00</em><em>126 bpm</em><b class="pl">8</b></div><div><span style="flex:1">Oh No, It’s the Conga</span><em>5:00</em><em>132 bpm</em><b class="pl">3</b></div><div><span style="flex:1">Shots! Shots! Shots! (Doris Remix)</span><em>3:00</em><em>128 bpm</em><b class="pl">5</b></div><div><span style="flex:1">Small Talk (Extended Mix)</span><em>4:00</em><em>124 bpm</em><b class="pl">1</b></div><div><span style="flex:1">Who Brought the Ukulele?</span><em>2:00</em><em>140 bpm</em><b class="pl">4</b></div></div><p>What time does the slow song start? (Type it like 10:30.)</p>${lock("Time", 0)}`),
-    chap("Part three", "Don’t look behind you", `<p class="coo">She’s checked the garden. She’s checked the loo queue. She is now checking the coats. She will notice one is missing.</p><p>Time to go.</p>`),
-    pz(11, "The hallway", "Time your run.", `<p>To reach the loo window you have to cross the hall, and four people keep walking through it, exactly on these minutes:</p>
+    pz(17, "The hallway", "Time your run.", `<p>To reach the loo window you have to cross the hall, and four people keep walking through it, exactly on these minutes:</p>
 <table class="rounds"><tr><th>Who</th><th>Walks through the hall at</th></tr><tr><td>Gareth</td><td>10:00, then every 3 minutes</td></tr><tr><td>Aunt Doris</td><td>10:01, then every 4 minutes</td></tr><tr><td>Cousin Dave</td><td>10:00, then every 5 minutes</td></tr><tr><td>Pat, Gran’s carer</td><td>10:02, then every 6 minutes</td></tr></table>
 <p>You need a minute while the slow song is playing when none of them is in the hall. You know when it starts. The playlist says how long it lasts.</p><p>What time do you go? (Type it like 10:30.)</p>${lock("Time", 0)}`),
-    pz(12, "The back gate", "Crack the gate code.", `<p>You’re out of the window and into the garden. The back gate has a keypad. Your phone buzzes:</p>
-<div class="txt"><small>Sam</small>Gate code is the word on the back of something in your pocket. Four letters. Type it on the keypad.</div>
-<div class="keys" aria-hidden="true">${DZ_KEYS.map(([n, l]) => `<b>${n}<small>${l || "&nbsp;"}</small></b>`).join("")}</div>${lock("4-digit code", 1)}`),
-    pz(13, "Your front door", "One last code.", `<p>The night bus drops you at the end of your road. Your street. Your door. Your own keypad.</p><p>You set this code years ago. It’s the sign you’d hang on your whole life, if you could. And tonight, you’ve been collecting it all along.</p>
+    pz(18, "The back gate", "Crack the gate code.", `<p>You’re out of the loo window and into the garden. It’s 10:21. The back gate has a keypad, and a new sticker from Jo: SIX DIGITS NOW. Your phone buzzes:</p>
+<div class="txt"><small>Sam</small>Gate code is the word on the back of something in your pocket, typed on the keypad. Jo’s added two digits on the end: how many minutes you’ve got left till your bus.</div>
+<div class="txt" style="background:#3a1416"><small>The walkie-talkie, crackling</small>Has anyone seen Hoodini’s coat?</div>
+<div class="keys" aria-hidden="true">${DZ_KEYS.map(([n, l]) => `<b>${n}<small>${l || "&nbsp;"}</small></b>`).join("")}</div>${lock("6-digit code", 1)}`),
+    pz(19, "Your front door", "One last code.", `<p>The night bus drops you at the end of your road. Your street. Your door. Your own keypad.</p><p>You set this code years ago. It’s the sign you’d hang on your whole life, if you could, both sides of it: the front first, then the back. And tonight, you’ve been collecting it all along. Though somewhere along the way, you picked up the back halfway through the front.</p>
 <p>Your kit, in the order you got it:</p><div class="kit" id="kitlist"></div>${lock("Your code", 0)}`),
-    `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><img class="dzpic" src="/s/doris-home.jpg?v=1" alt="Hoodini home at last, slumped against his front door, a Do Not Disturb sign on the handle and a mug of tea steaming by the lamp." width="1672" height="941" loading="lazy"><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. Nobody knows you’ve gone.</p><p id="won"></p>
+    `<section class="box pz sting" data-end hidden><p class="pt step">The end</p><h2>You’re home.</h2><img class="dzpic" src="/s/doris-home.jpg?v=1" alt="Hoodini home at last, slumped against his front door, a Do Not Disturb sign on the handle and a mug of tea steaming by the lamp." width="1672" height="941" loading="lazy"><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. On the back, facing you: GO AWAY. Nobody knows you’ve gone.</p><p id="won"></p>
 <p>And then your phone buzzes.</p><div class="txt"><small>Aunt Doris</small>Lovely to see you Hoodini!! Same time at Christmas? xx</div><h2 class="ttl" style="font-size:clamp(34px,8vw,54px)">She’ll be back.</h2>
 <p style="text-align:center"><button class="btn" type="button" id="share">Share your escape</button></p>
 ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH-00014"], "Survived Doris? Dress for the next one.")}
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn ghost" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
-  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div>`;
+  const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div><div class="hug kitd" id="kitd" hidden role="dialog" aria-label="Your kit"><div class="in"><h2>Your kit</h2><div id="kitl"></div><p style="text-align:center;margin:0"><button class="btn" type="button" id="kitok">Back to it</button></p></div></div>`;
   if (print) return dzPrintDoc(steps);
+  if (!full) {   // Part One only, then the paywall where Part Two would begin
+    const k = steps.findIndex((x) => x.includes(">Part two<"));
+    const pay = `<section class="box pz chap" data-pay hidden><p class="pt">End of Part One</p><h2>She’s still out there</h2>
+<p class="coo">Doris has the photo album out. Your coat’s on, your phone’s charged, and you’re nowhere near the door.</p>
+<p>Sixteen more puzzles, in three more parts, stand between you and your sofa: the photo album, the tea round, charades, the washing-up, the loo queue, Gareth’s speech, the kids’ room, the smokers, the slow dance, the back gate and your own front door.</p>
+<p style="font-size:20px;font-weight:800;margin:14px 0 4px">Unlock the rest: £${(DORIS_PRICE / 100).toFixed(2)}</p><p class="note" style="margin-top:0">One payment. Yours to keep, on any device.</p>
+<p><button class="btn" type="button" id="dzbuy">Unlock the rest</button></p><p class="say" id="dzbm"></p>
+<details class="dzhave"><summary>Already bought it? Enter your code</summary><form id="dzcf"><input id="dzci" autocomplete="off" autocapitalize="characters" placeholder="XXXX-XXXX" aria-label="Your unlock code"><button class="btn ghost" type="submit">Unlock</button></form><p class="say" id="dzcm"></p></details></section>`;
+    steps.splice(k, steps.length - k - 1, pay);
+  }
   // "Introvert Here... presents" (Barry, 23 Nov): a five-second title card, like a film studio's. The logo fades in
   // without its dots, "presents" fades in, then the three dots appear one by one, then it fades into the game. Tap to skip; skipped for
   // anyone whose device asks for less motion, and shown once per visit.
   const intro = PRESENTS_HTML();
   return page("Escape From Aunt Doris", `${intro}<div class="dz">${steps.join("")}${hug}<p class="note"><a href="${HUB.path}">← Back to the room</a></p></div>`, { nav: "hub", font: "Creepster", desc: "Escape From Aunt Doris: a spoof horror escape room for people who'd rather be at home.", script: `
 (function(){var $=function(q,r){return (r||document).querySelector(q)},$$=function(q,r){return [].slice.call((r||document).querySelectorAll(q))};
-var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0;
+var S=$$('.pz'),cur=0,st={at:0,ms:0,hints:0,done:{}},t0=0,N=${DZ_N};
 // answers (letters and digits only), what each puzzle leaves you with, wrong-answer lines, and two hints each
 ${DZ_P_JS}
 // Aunt Doris walks towards you: each wrong answer is a step closer; the fourth is a hug. Hints are free.
@@ -1349,24 +1580,30 @@ function setLv(m,lv){m.dataset.lv=lv;$('img',m).src='/s/doris-'+(lv+1)+'.png?v=1
 [1,2,3,4,'hug'].forEach(function(k){new Image().src='/s/doris-'+k+'.png?v=1'});
 function closer(s){var m=$('.dm',s);if(!m)return;var lv=+m.dataset.lv+1;if(lv>=4){lv=0;tick();st.ms+=300000;st.hugs=(st.hugs||0)+1;save();$('#hug').hidden=false;$('#hugok').focus()}setLv(m,lv)}
 $('#hugok').addEventListener('click',function(){$('#hug').hidden=true});
+// "Your kit" (Barry, 25 Nov): everything collected so far, with what each one said, so clues like the bus time can be looked up again.
+function kitOpen(){var ks=Object.keys(P).map(Number).filter(function(k){return st.done[k]&&P[k].got}).sort(function(a,b){return a-b});
+ var l=$('#kitl');l.innerHTML='';if(!ks.length){l.innerHTML='<p class="none">Nothing yet. Your pockets are empty.</p>'}else{var ol=document.createElement('ol');ks.forEach(function(k){var li=document.createElement('li'),b=document.createElement('b');b.textContent=P[k].got[1];li.appendChild(b);li.appendChild(document.createElement('br'));li.appendChild(document.createTextNode(P[k].got[2]));ol.appendChild(li)});l.appendChild(ol)}
+ $('#kitd').hidden=false;$('#kitd .in').scrollTop=0;$('#kitok').focus({preventScroll:true})}
+$('#kitok').addEventListener('click',function(){$('#kitd').hidden=true});
 function save(){try{localStorage.setItem('ih_doris',JSON.stringify(st))}catch(_){}}
 function load(){try{return JSON.parse(localStorage.getItem('ih_doris')||'null')}catch(_){return null}}
 function fmt(ms){var m=Math.floor(ms/60000),s=Math.round(ms/1000)%60;return m+' min '+s+' sec'}
 function tick(){if(t0){st.ms+=Date.now()-t0;t0=Date.now()}}
-function show(i){tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();var dm=$('.dm',s);if(dm)setLv(dm,0);
- if(s.dataset.n==='2'&&!st.done['2'])talkStart();if(s.dataset.n==='13')$('#kitlist').innerHTML=['1','2','3','4','5','6','7','8','9','10','11','12'].map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
+function show(i){i=Math.max(0,Math.min(i,S.length-1));tick();cur=i;st.at=i;st.max=Math.max(st.max||0,i);save();S.forEach(function(s,k){s.hidden=k!==i});var s=S[i];var fw=$('.bnav .fw',s);if(fw)fw.hidden=i>=st.max;if(s.dataset.n&&st.done[s.dataset.n]&&!s.dataset.r)looksSolved(s);var bk=$('.bnav .bk',s);if(bk)bk.hidden=i<=1;if(i>0&&!t0)t0=Date.now();if(s.hasAttribute('data-pay'))t0=0;var dm=$('.dm',s);if(dm)setLv(dm,0);
+ if(s.classList.contains('talk')&&!st.done[s.dataset.n])talkStart(s);if(s.dataset.n===String(N))$('#kitlist').innerHTML=Object.keys(P).map(Number).filter(function(k){return k<N}).sort(function(a,b){return a-b}).map(function(k){return '<span>'+P[k].got[1]+'</span>'}).join('');
  if(s.hasAttribute('data-end')){st.fin=1;save();$('#won').textContent='Time: '+fmt(st.ms)+'. Hints used: '+st.hints+'. Hugs: '+(st.hugs||0)+'.';t0=0}
  window.scrollTo(0,Math.max(0,s.getBoundingClientRect().top+scrollY-90));var inp=$('input',s);if(inp)setTimeout(function(){inp.focus({preventScroll:true})},300)}
 function looksSolved(s){var n=s.dataset.n,p=P[n];s.dataset.r=1;$('.say',s).textContent='';var l=$('.lock',s);if(l)l.classList.add('open');$('.hintp',s).hidden=true;
  if(p.got){var g=$('.got',s);g.innerHTML='<b>Added to your kit: '+p.got[1]+'</b><br>'+p.got[2];g.classList.add('on')}else $('.say',s).textContent='Click. It opens.';
- if(n!=='13')$('.next',s).classList.add('on')}
-function solved(s){var n=s.dataset.n;st.done[n]=1;save();looksSolved(s);if(n==='13')setTimeout(function(){show(cur+1)},900)}
+ if(n!==String(N))$('.next',s).classList.add('on')}
+function solved(s){var n=s.dataset.n;st.done[n]=1;save();looksSolved(s);if(n===String(N))setTimeout(function(){show(cur+1)},900)}
 // Back and Forward (Barry, 21 Nov): every screen after the first can go back, so earlier clues can be looked at again.
 // Forward returns to the furthest screen reached. Solved puzzles show as solved when revisited.
-S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';s.insertBefore(nav,s.firstChild);
+S.forEach(function(s,k){if(!k||s.hasAttribute('data-end'))return;var nav=document.createElement('p');nav.className='bnav';nav.innerHTML='<button class="btn ghost bk" type="button">← Back</button><button class="btn ghost kb" type="button">Your kit</button><button class="btn ghost fw" type="button" hidden>Forward →</button>';$('.kb',nav).addEventListener('click',kitOpen);s.insertBefore(nav,s.firstChild);
  $('.bk',nav).addEventListener('click',function(){show(Math.max(1,cur-1))});$('.fw',nav).addEventListener('click',function(){show(st.max)})});
 $$('.go').forEach(function(b){b.addEventListener('click',function(){if(b.id==='start')fresh();show(cur+1)})});
-var prev=load();if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#carry').addEventListener('click',function(){st=prev;show(prev.at)})}
+var prev=load(),go=false;try{go=/[?&]go=1/.test(location.search)||sessionStorage.getItem('ih_doris_go');sessionStorage.removeItem('ih_doris_go')}catch(_){}
+if(prev&&prev.at>0&&!prev.fin){$('#resume').hidden=false;$('#carry').addEventListener('click',function(){st=prev;show(prev.at)})}
 // a fresh game: forget progress and put every puzzle back as it was
 function fresh(){st={at:0,ms:0,hints:0,done:{},max:0};t0=0;S.forEach(function(x){delete x.dataset.r;var l=$('.lock',x);if(l)l.classList.remove('open','no');var g=$('.got',x);if(g){g.classList.remove('on');g.innerHTML=''}var nx=$('.next',x);if(nx)nx.classList.remove('on');var hp=$('.hintp',x);if(hp)hp.hidden=false;var hs=$('.hints',x);if(hs)hs.innerHTML='';var hb=$('.hint',x);if(hb){hb.hidden=false;hb.textContent='Hint, please';hb.classList.remove('give')}var inp=$('input',x);if(inp)inp.value='';var sy=$('.say',x);if(sy)sy.textContent=''});save()}
 $('#again').addEventListener('click',function(){fresh();show(0)});
@@ -1379,14 +1616,17 @@ S.forEach(function(s){var n=s.dataset.n;if(!n)return;var p=P[n],tries=0;
  $('.hint',s).addEventListener('click',function(){var used=$('.hints',s).children.length;if(used<p.h.length){var q=document.createElement('p'),last=used===p.h.length-1;q.textContent=(last?'The answer: ':'')+p.h[used++];if(last)q.className='ans';$('.hints',s).appendChild(q);st.hints++;save()}if(used>=p.h.length)this.hidden=true;else{this.textContent='Just tell me the answer';this.classList.add('give')}})});
 // puzzle 2: the conversation. The right reply gives her nothing; any other reply keeps her going.
 ${DZ_TALK_JS}
-var tk=0;function talkStart(){if(st.done['2']){return}tk=0;$('#tk').innerHTML='';talkNode()}
-function talkNode(){var box=$('#tk'),node=TALK[tk],d=document.createElement('div');d.className='d';d.innerHTML='<small>Aunt Doris</small>';d.appendChild(document.createTextNode(node[0]));box.appendChild(d);
+var TALKS={2:TALK,14:TALK2},tk={};function talkStart(s){var n=s.dataset.n;if(st.done[n])return;tk[n]=0;$('.tk',s).innerHTML='';talkNode(s)}
+function talkNode(s){var n=s.dataset.n,T=TALKS[n],who=s.dataset.who||'Aunt Doris',box=$('.tk',s),node=T[tk[n]],d=document.createElement('div');d.className='d';d.innerHTML='<small>'+who+'</small>';d.appendChild(document.createTextNode(node[0]));box.appendChild(d);
  var o=document.createElement('div');o.className='opts';node[1].forEach(function(r){var b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent=r[0];b.addEventListener('click',function(){
-  o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>Aunt Doris</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
-  if(r[1]){tk++;if(tk<TALK.length)setTimeout(talkNode,500);else solved(box.closest('.pz'))}else{var say=$('.say',box.closest('.pz'));say.textContent='That gave her something to work with. She edges closer.';closer(box.closest('.pz'));setTimeout(function(){box.innerHTML='';say.textContent='';tk=0;talkNode()},2200)}});o.appendChild(b)});box.appendChild(o)}
-addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);show(0);
+  o.remove();var me=document.createElement('div');me.className='me';me.textContent=r[0];box.appendChild(me);var back=document.createElement('div');back.className='d';back.innerHTML='<small>'+who+'</small>';back.appendChild(document.createTextNode(r[2]));box.appendChild(back);
+  if(r[1]){tk[n]++;if(tk[n]<T.length)setTimeout(function(){talkNode(s)},500);else solved(s)}else{var say=$('.say',s);say.textContent=s.dataset.no||'That gave her something to work with. She edges closer.';closer(s);setTimeout(function(){box.innerHTML='';say.textContent='';tk[n]=0;talkNode(s)},2200)}});o.appendChild(b)});box.appendChild(o)}
+addEventListener('pagehide',function(){tick();save()});setInterval(function(){tick();save()},5000);if(go&&prev&&prev.at>0&&!prev.fin){st=prev;show(prev.at)}else show(0);
 ${PRESENTS_JS}
-ihPresents('dorisgame',st.at>0)})();` });
+ihPresents('dorisgame',st.at>0||!!go);
+var buy=$('#dzbuy');if(buy){buy.addEventListener('click',function(){buy.disabled=true;buy.textContent='Opening secure checkout…';tick();save();
+ fetch('/api/doris-checkout',{method:'POST'}).then(function(r){return r.json()}).then(function(o){if(o.url){location.href=o.url;return}$('#dzbm').textContent=o.error||'Sorry, payment is unavailable right now.';buy.disabled=false;buy.textContent='Unlock the rest'}).catch(function(){$('#dzbm').textContent='Sorry, payment is unavailable right now.';buy.disabled=false;buy.textContent='Unlock the rest'})});
+ $('#dzcf').addEventListener('submit',function(e){e.preventDefault();var c=$('#dzci').value;fetch('/api/doris-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:c})}).then(function(r){return r.json()}).then(function(o){if(o.ok){tick();save();try{sessionStorage.setItem('ih_doris_go','1')}catch(_){}location.reload()}else $('#dzcm').textContent=o.error}).catch(function(){$('#dzcm').textContent='Couldn’t check that just now. Try again.'})})}})();` });
 }
 
 // ---------------- Escape the Party (a sample paper escape room) ----------------
@@ -1457,7 +1697,6 @@ $('#go').addEventListener('click',function(){t0=Date.now();show(1)});
 // Where the gags come from: KV shop:upcoming, which the app is to keep current from Core (see the app thread's note).
 // Until it does, VOTE_FALLBACK is a copy of the next three from Core's GAGS_TABLE (read 21 Nov), skipping In Person
 // and Exclusive, which have no regular schedule.
-const VOTE_CODE = "VOTED5";
 const VOTE_FALLBACK = [
   { id: "IH-00119", coll: "IH", title: "Karaoke", due: "2026-11-23", text: "... OH GOD.\n\nWHY'D IT HAVE\nTO BE KARAOKE?" },
   { id: "IH-00017", coll: "IH", title: "I Do Overthink", due: "2026-11-30", text: "... I DO OVERTHINK.\n\nBEATS WHAT\nYOU DO." },
@@ -1470,6 +1709,36 @@ async function upcoming(env) {
   list = (Array.isArray(list) && list.length ? list : VOTE_FALLBACK).filter((g) => !g.due || g.due > today);
   return (list.length >= 2 ? list : VOTE_FALLBACK).slice(0, 3);
 }
+// ---------------- Reward codes (Barry, 25 Nov) ----------------
+// Finding all seven Hoodinis, or voting, earns 5% off. Each person gets their own code, made in Stripe at that moment:
+// single use, expires after 30 days, minimum spend £25, at most REWARD_CAP a month per kind, and one per kind per
+// month from the same internet address. The code isn't in any page, so it can't be read from the source.
+// The 5% coupon is created once in Stripe (id IH5OFF). On the preview no code is made: it shows a sample.
+const REWARD_CAP = 50, REWARD_MIN = 2500, REWARD_DAYS = 30;
+const REWARD_PREFIX = { hoodini: "HOODINI", vote: "VOTED", hello: "HELLO" };   // hello: newsletter sign-up, first order only
+async function rewardCode(request, env, kind) {
+  if (!REWARD_PREFIX[kind]) return { error: "bad kind" };
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789", rnd = crypto.getRandomValues(new Uint8Array(6));
+  const code = REWARD_PREFIX[kind] + "-" + [...rnd].map((n) => A[n % 32]).join("");
+  if (isPreview(env) || !(await getSecret(env, "stripe_secret_key"))) return { code: REWARD_PREFIX[kind] + "-SAMPLE", sample: true };
+  const month = new Date().toISOString().slice(0, 7), ip = request.headers.get("CF-Connecting-IP") || "";
+  const ck = `reward:${kind}:${month}`, count = (await env.PENDING.get(ck, "json")) || { n: 0, ips: {} };
+  const ipk = ip ? String(Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(ip + "|ih")))).slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("")) : "";
+  if (ipk && count.ips[ipk]) return { code: count.ips[ipk], again: true };
+  if (count.n >= REWARD_CAP) return { full: true };
+  try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
+  const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
+  try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
+  catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
+  count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
+  return { code };
+}
+async function rewardApi(request, env) {
+  let b = {}; try { b = await request.json(); } catch (_) {}
+  try { return json(await rewardCode(request, env, b.kind)); } catch (e) { console.error("reward", e); return json({ error: true }, 502); }
+}
+
 async function castVote(request, env) {
   let b = {}; try { b = await request.json(); } catch (_) {}
   const list = await upcoming(env), round = list.map((g) => g.id).join("+");
@@ -1477,7 +1746,8 @@ async function castVote(request, env) {
   const key = isPreview(env) ? "shop:votes-preview" : "shop:votes", all = (await env.PENDING.get(key, "json")) || {};
   const r = (all[round] = all[round] || {}); r[b.id] = (r[b.id] || 0) + 1;
   await env.PENDING.put(key, JSON.stringify(all));
-  return json({ ok: true, code: VOTE_CODE });
+  let rw = {}; try { rw = await rewardCode(request, env, "vote"); } catch (e) { console.error("vote reward", e); }
+  return json({ ok: true, ...rw });
 }
 function votePage(list) {
   const round = list.map((g) => g.id).join("+");
@@ -1490,7 +1760,7 @@ function votePage(list) {
 <p class="muted lead vlead" style="margin-top:8px">Three new designs are on their way. Pick the one you want first. Voting is anonymous. Obviously.</p>
 <div class="vgrid" id="vg">${list.map(card).join("")}</div>
 <div class="vthanks" id="vt" role="status" aria-live="polite"><h2>Your vote’s in.</h2><p class="muted">We’ll let you know what’s next. As a thank you, here’s 5% off anything in the shop:</p>
-<div class="vcode"><span id="vcode">${VOTE_CODE}</span><button class="btn ghost" id="vcopy" type="button">Copy</button></div><p class="note" id="vnote">One use per customer. Expires 30 days after you vote.</p></div>
+<div class="vcode"><span id="vcode">…</span><button class="btn ghost" id="vcopy" type="button">Copy</button></div><p class="note" id="vnote">Your own code: one use, on orders of £25 or more, for 30 days.</p></div>
 <p class="note"><a href="${HUB.path}">← Back to the room</a></p>`, { nav: "hub", desc: "Vote on the next Introvert Here design.", script: `
 (function(){var R=${JSON.stringify(round)},g=document.getElementById('vg'),calm=false;try{calm=matchMedia('(prefers-reduced-motion:reduce)').matches}catch(_){}
 // the text is laid out like the videos: the size at which 12 capital Ws fill the text box exactly
@@ -1500,10 +1770,11 @@ function fit(){var m=document.createElement('span');m.style.cssText='position:ab
 function type(c){var ch=c.querySelectorAll('.ch');if(calm){[].forEach.call(ch,function(x){x.classList.add('on')});return}var i=0;(function t(){if(i<ch.length){ch[i++].classList.add('on');setTimeout(t,42)}})()}
 var cards=g.querySelectorAll('.vc');if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){io.unobserve(e.target);setTimeout(function(){type(e.target)},250)}})},{threshold:.5});[].forEach.call(cards,function(c){io.observe(c)})}else[].forEach.call(cards,type);
 function done(id){g.classList.add('done');[].forEach.call(g.querySelectorAll('.ch'),function(x){x.classList.add('on')});[].forEach.call(cards,function(c){c.classList.toggle('mine',c.dataset.id===id)});document.getElementById('vt').classList.add('on')}
-var prev=null;try{prev=JSON.parse(localStorage.getItem('ih_vote')||'null')}catch(_){}if(prev&&prev.round===R)done(prev.id);
+function showCode(o){var c=document.getElementById('vcode'),n=document.getElementById('vnote');if(o&&o.code){c.textContent=o.code;if(o.sample)n.textContent='Preview copy: a real code is made on the live site.'}else{document.querySelector('#vt .vcode').hidden=true;n.textContent=o&&o.full?'We’ve given out all this month’s codes. Thanks for voting anyway.':'Thanks for voting.'}}
+var prev=null;try{prev=JSON.parse(localStorage.getItem('ih_vote')||'null')}catch(_){}if(prev&&prev.round===R){done(prev.id);showCode(prev.reward)}
 g.addEventListener('click',function(e){var b=e.target.closest('[data-vote]');if(!b||g.classList.contains('done'))return;var id=b.dataset.vote;
  try{localStorage.setItem('ih_vote',JSON.stringify({round:R,id:id,at:Date.now()}))}catch(_){}done(id);
- fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).catch(function(){});
+ fetch('/api/vote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id})}).then(function(r){return r.json()}).then(function(o){showCode(o);try{localStorage.setItem('ih_vote',JSON.stringify({round:R,id:id,at:Date.now(),reward:o.code?{code:o.code,sample:o.sample}:{full:o.full}}))}catch(_){}}).catch(function(){showCode(null)});
  document.getElementById('vt').scrollIntoView({behavior:calm?'auto':'smooth',block:'center'})});
 document.getElementById('vcopy').addEventListener('click',function(){var c=document.getElementById('vcode').textContent,n=document.getElementById('vnote');if(navigator.clipboard)navigator.clipboard.writeText(c).then(function(){n.textContent='Copied. Use it at checkout.'},function(){})})})();` });
 }
@@ -1567,10 +1838,90 @@ const SPOT = [
     brief: "Someone agreed to “a quick coffee”. Find them.", spot: [32.9, 47.3, 3.5],
     found: "Found. One shoe. That parasol is taken.", clue: "A clue, since you asked. One of the parasols isn’t open.", clueAt: [33, 38, 22],
     zones: [[[27, 19, 9, 27], "A parasol. Closed. On a day like this."], [[88, 20, 7, 6], "That’s a boat. Good plan, wrong person."], [[37, 16, 48, 9], "Open parasols hide nobody. Think it through."], [[0, 0, 22, 13], "That’s the awning."]],
-    wrong: ["No. They’re having a lovely chat.", "Also chatting.", "Chatting.", "It’s a café. Chatting is the whole idea.", "Colder.", "No.", "That one’s ordered a second coffee. Staying.", "Not them either."] },
+    wrong: ["No. They’re having a lovely chat.", "Also chatting.", "Chatting.", "It’s a café. Chatting is the whole idea.", "Colder.", "No.", "That one’s ordered a second coffee. Staying.", "Not them either."] },  // ten more (Barry, 26 Nov): a different art style each
+  { img: "rococo", lv: 1, alt: "A rococo painting of a pink and gold garden party at a palace, with dancers, a fountain and a tall clipped hedge.",
+    brief: "Someone was told it’s a garden party. Nobody mentioned the dancing. Find them.", spot: [86.7, 29.6, 4],
+    found: "Found. A face in the hedge. The gardener is going to be furious.", clue: "A clue, since you asked. That hedge is unusually alert.", clueAt: [84, 30, 22],
+    zones: [[[4, 20, 26, 15], "A fountain. Cherubs. No introverts."], [[5, 38, 18, 13], "A lute. People who hide don’t bring a lute."], [[66, 0, 34, 18], "The palace. Far too many windows."], [[42, 77, 40, 12], "Tea and grapes. Not a hiding place."]],
+    wrong: ["No. That one’s mid-curtsey.", "Also curtseying.", "No.", "It’s a garden party. They all wore pink on purpose.", "Colder.", "No.", "That one’s been laughing for an hour.", "Not them either."] },
+  { img: "cubist", lv: 1, alt: "A cubist painting of a crowded Paris café terrace, with a guitarist, wine and coffee.",
+    brief: "Someone just wanted a coffee on their own. In Paris. Find them.", spot: [32.7, 30.9, 4],
+    found: "Found. One eye over the paper. They’ve read that page eleven times.", clue: "A clue, since you asked. Nobody reads a newspaper that hard.", clueAt: [33, 34, 22],
+    zones: [[[38, 0, 18, 16], "A guitarist. The exact opposite."], [[72, 0, 28, 15], "That’s a church on a hill. Too far."], [[60, 28, 22, 12], "Wine. Tempting, but no."], [[0, 0, 30, 14], "The awning. Stripy. Empty."]],
+    wrong: ["No. That one’s laughing.", "Also laughing.", "Laughing.", "It’s a café in Paris. Everyone’s being very French about it.", "Colder.", "No.", "That one’s been here since breakfast. Talking.", "Not them either."] },
+  { img: "tavern", lv: 1, alt: "A painting of a crowded old tavern with a fiddler, a card game, a sleeping dog and a big barrel in the middle of the room.",
+    brief: "Someone popped in for one quiet drink. Find them.", spot: [58.8, 35.7, 4],
+    found: "Found. Two eyes and a thumb. The barrel is theirs now.", clue: "A clue, since you asked. Not every barrel is full of ale.", clueAt: [58, 36, 22],
+    zones: [[[0, 4, 22, 15], "A fiddler. The loudest person here."], [[45, 13, 20, 14], "The fire. Warm. Far too sociable."], [[80, 72, 20, 13], "The dog. Asleep. Living the dream."], [[69, 23, 13, 10], "That barrel’s on tap. Different barrel."]],
+    wrong: ["No. That one’s mid-song.", "Also singing.", "No. Loud, though.", "It’s a tavern. They all came for the noise.", "Colder.", "No.", "That one’s winning at cards. Staying.", "Not them either."] },
+  { img: "rome", lv: 1, alt: "A Roman wall painting of a feast on couches in a courtyard, with musicians, a fig tree and a huge clay pot.",
+    brief: "Someone was promised a quiet supper. Then the emperor’s cousin heard. Find them.", spot: [82, 40.9, 4],
+    found: "Found. Two eyes over the rim. That pot is spoken for.", clue: "A clue, since you asked. One of the pots has a lid. And eyes.", clueAt: [80, 44, 22],
+    zones: [[[0, 22, 12, 15], "A lyre. Music. People."], [[26, 25, 14, 10], "A fountain. Splashy. Very public."], [[60, 0, 40, 18], "A fig tree. Leafy, but you’d fall out."], [[59, 49, 12, 10], "Too small. They tried."]],
+    wrong: ["No. That one’s lying down to eat. Committed.", "Also reclining.", "No.", "It’s a Roman feast. They’ll be here for days.", "Colder.", "No.", "That one’s on the grapes.", "Not them either."] },
+  { img: "banquet", lv: 2, alt: "A painting in the style of an illuminated manuscript of a medieval banquet in a great hall, with minstrels, a long embroidered tablecloth and a dog.",
+    brief: "Someone was summoned to the banquet. By the king. Find them.", spot: [20.3, 61.4, 4],
+    found: "Found. The dog found them first, to be fair.", clue: "A clue, since you asked. Follow the dog.", clueAt: [26, 62, 22],
+    zones: [[[38, 19, 36, 10], "The minstrels. Paid to be noticed."], [[6, 15, 15, 17], "A tapestry of a deer. Also hiding, in a way."], [[28, 58, 17, 8], "That’s the dog. Good boy. Warm, though."], [[5, 46, 55, 15], "It’s a tablecloth. A long one. Goes all the way to the floor."]],
+    wrong: ["No. That one’s mid-toast.", "Also toasting.", "No. Loud, though.", "It’s a banquet. They all came for the pie.", "Colder.", "No.", "That one’s on their fourth goblet.", "Not them either."] },
+  { img: "liner", lv: 3, alt: "An art deco painting of a glamorous ball on an ocean liner, with a jazz band, a sweeping staircase and a gold-and-navy folding screen.",
+    brief: "Someone booked a quiet crossing. Then came the ball. Find them.", spot: [23.9, 36.1, 3.5], also: [[24.4, 41, 3]],
+    found: "Found. Half a face behind the screen. They’re not coming out till New York.", clue: "A clue, since you asked. Screens fold. Gaps happen.", clueAt: [24, 39, 22],
+    zones: [[[75, 18, 25, 13], "The band. Paid to be seen."], [[37, 16, 34, 9], "Portholes. Tempting. You wouldn’t fit."], [[30, 0, 50, 12], "The chandelier. Nobody’s up there."], [[7, 23, 29, 31], "A folding screen. Look closer."]],
+    wrong: ["No. That one’s doing the Charleston.", "Also dancing.", "No.", "Everyone on this ship came to be looked at.", "Colder.", "No.", "That one’s on their third cocktail.", "Not them either."] },
+  { img: "platform", lv: 3, alt: "A painting of a busy Victorian railway platform with families greeting each other, a steam train and a luggage trolley piled with cases and a tartan blanket.",
+    brief: "Someone’s whole family has come to meet them off the train. All of them. Find them.", spot: [33.2, 47.2, 4],
+    found: "Found. Under the blanket, travelling as luggage.", clue: "A clue, since you asked. Check the luggage trolley.", clueAt: [30, 46, 22],
+    zones: [[[24, 10, 14, 11], "The station clock. Everyone’s late."], [[70, 15, 30, 33], "The train. They’ve just got off it. Shame."], [[70, 84, 28, 16], "The dog. Delighted to see everyone. Suspicious."], [[52, 28, 18, 28], "They’re hugging. Wrong person entirely."]],
+    wrong: ["No. That one’s waving.", "Also waving.", "No.", "It’s a reunion. They’re all going to hug someone.", "Colder.", "No.", "That one’s brought flowers.", "Not them either."] },
+  { img: "egypt", lv: 4, alt: "An Egyptian-style wall painting of a banquet in three rows, with lotus columns, musicians and dancers.",
+    brief: "Someone was invited to the pharaoh’s party. Attendance was not optional. Find them.", spot: [38.6, 43.6, 3.5], also: [[37.8, 51.7, 3]],
+    found: "Found. One eye and four fingers. They’ve been there since the last dynasty.", clue: "A clue, since you asked. Columns are thicker than they look.", clueAt: [38, 47, 22],
+    zones: [[[33, 63, 32, 14], "Dancers. The opposite of hiding."], [[0, 66, 13, 18], "A harp. Nobody hides behind a harp. Too many gaps."], [[30, 92, 40, 7], "Ducks. Unbothered."], [[89, 36, 11, 26], "Another column. Good thinking. Wrong column."]],
+    wrong: ["No. That one’s having a lovely time.", "Also having a lovely time.", "No.", "It’s a feast. Everyone’s facing sideways and loving it.", "Colder.", "No.", "That one’s on the figs.", "Not them either."] },
+  { img: "persia", lv: 4, alt: "A painting in the style of a Persian miniature of a terraced garden party, with a patterned carpet hung over a balcony, musicians and a fountain.",
+    brief: "Someone was told it’s a small garden party. It has three floors. Find them.", spot: [84.7, 34, 3.5], also: [[83.2, 36.7, 3]],
+    found: "Found. One eye. They’re holding that carpet very still.", clue: "A clue, since you asked. Somebody’s hung a carpet out. Or hidden behind it.", clueAt: [80, 30, 22],
+    zones: [[[25, 80, 36, 12], "A fountain. Wet, loud and very public."], [[13, 84, 10, 12], "A peacock. Showing off. Not our type."], [[38, 51, 32, 14], "The band. They want an audience."], [[56, 19, 25, 19], "It’s a carpet. A very nice one. Look round the edges."]],
+    wrong: ["No. That one’s mid-poem.", "Also reciting.", "No.", "It’s a garden party. They’re all thrilled to be here.", "Colder.", "No.", "That one’s had six pomegranates.", "Not them either."] },
+  { img: "masque", lv: 5, alt: "A baroque painting of a masked ball in a marble palace, with dancers, a harpsichord and a heavy red velvet curtain.",
+    brief: "Someone came to the masked ball thinking a mask would be enough. Find them.", spot: [89.4, 28.5, 3], also: [[89.2, 32.4, 3]],
+    found: "Found. Four fingers and one eye. The curtain is doing all the work.", clue: "A clue, since you asked. Some people want a mask. Some want a curtain.", clueAt: [88, 31, 22],
+    zones: [[[0, 0, 22, 22], "A statue. Ignoring everyone since 1650."], [[30, 27, 17, 8], "A harpsichord. Far too loud to hide near."], [[30, 5, 34, 20], "The balcony. Everyone up there wants to be seen."], [[66, 0, 34, 14], "Curtain. Keep looking. Lower."]],
+    wrong: ["No. That one’s laughing behind a mask.", "Also laughing.", "No.", "It’s a masked ball. The masks aren’t helping anyone hide.", "Colder.", "No.", "That one’s on their fifth dance.", "Not them either."] },  // six more (Barry, 26 Nov); the tapestry is landscape (wide: true gets a 3:2 frame)
+  { img: "treehouse", lv: 1, alt: "A folk-art painting of a snowy village on market day, with a brass band, a sleigh, a snowman and a treehouse in a big old tree.",
+    brief: "Someone’s village is having a winter parade. Find them.", spot: [18.3, 9.6, 6],
+    found: "Found. Up the tree, ladder coming up. Nobody’s getting in.", clue: "A clue, since you asked. Look up. Further.", clueAt: [16, 12, 24],
+    zones: [[[40, 50, 30, 15], "The brass band. The loudest people in the county."], [[63, 70, 27, 10], "The snowman. Cold, quiet, stays put. Close, but no."], [[78, 55, 22, 10], "A sleigh. Someone’s being taken somewhere. Against their will."], [[75, 5, 22, 13], "The church. Too many people sing in there."]],
+    wrong: ["No. That one’s waving at the band.", "Also waving.", "No.", "It’s a parade. They all came out on purpose.", "Colder.", "No.", "That one’s on their second mince pie.", "Not them either."] },
+  { img: "beach", lv: 1, alt: "An impressionist painting of a crowded Edwardian beach, with bathing huts, striped deckchairs, swimmers and a small rock out in the sea.",
+    brief: "Someone was dragged to the seaside on a bank holiday. Find them.", spot: [84, 18.9, 5],
+    found: "Found. On their own rock. With a book. The tide can do what it likes.", clue: "A clue, since you asked. Further out than you’d think.", clueAt: [80, 20, 24],
+    zones: [[[0, 25, 18, 12], "A bathing hut. Good thinking. Somebody’s changing in it."], [[70, 63, 25, 14], "A sandcastle. Big enough to hide in? Almost."], [[70, 35, 30, 12], "Beach ball. The opposite of what we’re after."], [[20, 33, 30, 25], "Deckchairs. Too close to everybody else."]],
+    wrong: ["No. That one’s paddling.", "Also paddling.", "No.", "It’s a bank holiday. The whole town came.", "Colder.", "No.", "That one’s been talking about the weather for an hour.", "Not them either."] },
+  { img: "auction", lv: 2, alt: "A painting of a crowded Victorian auction room full of antiques, with an auctioneer at his rostrum, vases and a tall grandfather clock.",
+    brief: "Someone came to the auction for one small lamp. Find them.", spot: [79.6, 46.2, 5], also: [[79.6, 52.1, 4]],
+    found: "Found. In the clock. Going “shh”. Lot 47, one careful owner.", clue: "A clue, since you asked. Time to look at the furniture.", clueAt: [78, 48, 22],
+    zones: [[[42, 3, 40, 18], "The auctioneer. Paid to be noticed."], [[0, 70, 55, 25], "Two men carrying a table. They’d notice."], [[32, 54, 22, 14], "A vase. Pretty. Too narrow."], [[70, 12, 20, 6], "That’s a painting. The only quiet thing here."]],
+    wrong: ["No. That one’s bidding.", "Also bidding.", "No.", "It’s an auction. Everybody’s waving their arms.", "Colder.", "No.", "That one’s examining a teapot. Very closely.", "Not them either."] },
+  { img: "store", lv: 3, alt: "An art nouveau painting of a grand department store with a glass dome, a sweeping staircase, hat stands and glove counters.",
+    brief: "Someone only came in for one pair of gloves. Find them.", spot: [85.9, 61.8, 4.5],
+    found: "Found. Crouched by the hats, going “shh”. Their shopping can wait.", clue: "A clue, since you asked. Try millinery.", clueAt: [84, 60, 22],
+    zones: [[[15, 30, 22, 30], "The staircase. Far too public."], [[55, 82, 35, 14], "The glove counter. That’s why they came. Not where they are."], [[0, 66, 20, 15], "Shoes. Someone’s trying on boots. Badly."], [[30, 0, 50, 12], "The dome. Lovely. Empty."]],
+    wrong: ["No. That one’s shopping.", "Also shopping.", "No.", "It’s a department store. Everyone wants help.", "Colder.", "No.", "That one’s asked to see it in another colour.", "Not them either."] },
+  { img: "rain", lv: 4, alt: "A Japanese woodblock print of a busy street in the rain, with umbrellas, market stalls, a bridge and a bookshop doorway.",
+    brief: "It’s raining and the whole town is out anyway. Find the one who isn’t.", spot: [18.1, 26.7, 5],
+    found: "Found. In the bookshop doorway. Reading. Not in a hurry to go anywhere.", clue: "A clue, since you asked. Somewhere dry. With books.", clueAt: [18, 28, 22],
+    zones: [[[0, 52, 22, 20], "A fish stall. Nobody hides behind fish."], [[40, 85, 30, 10], "The bridge. Very exposed."], [[85, 85, 15, 15], "A boat. Good plan. Empty."], [[58, 10, 40, 22], "A crowded shop. The opposite."]],
+    wrong: ["No. That one’s running.", "Also running.", "No.", "It’s raining. They’re all in a hurry.", "Colder.", "No.", "That one’s sharing an umbrella. Brave.", "Not them either."] },
+  { img: "tapestry", lv: 4, wide: true, alt: "A medieval embroidered tapestry of an army on the march, with knights on horseback, archers and soldiers pushing a cart under a striped cloth.",
+    brief: "Someone was told to report for battle. Find them.", spot: [29.8, 72.8, 3],
+    found: "Found. Under the cart cloth, travelling as supplies. History will not record them.", clue: "A clue, since you asked. Check the baggage.", clueAt: [26, 68, 20],
+    zones: [[[18, 15, 25, 30], "The man in charge, pointing. Never hide near someone pointing."], [[45, 25, 25, 25], "Archers. Busy."], [[0, 80, 100, 20], "The border. Someone’s ploughing. Wrong job entirely."], [[83, 18, 10, 12], "The castle. Too far to run."]],
+    wrong: ["No. That one’s charging.", "Also charging.", "No.", "It’s a battle. They all signed up.", "Colder.", "No.", "That one’s on a horse. Very visible.", "Not them either."] },
 ];
 function spotPage() {
-  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
+  const data = SPOT.map((x) => ({ src: `/s/spot-${x.img}.jpg?v=1`, alt: x.alt, brief: x.brief, lv: x.lv, wide: !!x.wide, spot: x.spot, also: x.also || [], found: x.found, clue: x.clue, clueAt: x.clueAt, zones: x.zones, wrong: x.wrong }));
   return page("Spot the Introvert", `<h1 style="position:absolute;left:-9999px">Spot the Introvert</h1><div class="sp" id="sp">
 <p class="tp"><span id="sc"></span><span class="tm" id="st">0:00.0</span><a href="${HUB.path}">Back to the room</a></p><p class="br" id="sb"></p>
 <div class="fw"><div class="fr" id="sf"><img id="si" alt="" draggable="false"></div></div>
@@ -1597,7 +1948,7 @@ function left(){return T.filter(function(x){return !x.done}).length}
 // screen and its hider is still hiding, and only from when its picture has arrived.
 function stop(){if(run){T[i].t+=Date.now()-t0;run=false}clearTimeout(cl)}
 function go(){if(T[i].done||run)return;t0=Date.now();run=true;clearTimeout(cl);if(!T[i].clue)cl=setTimeout(function(){if(run)$('sq').hidden=false},Math.max(0,20000-T[i].t))}
-function show(k){stop();i=k;var s=S[i],t=T[i];clear();$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
+function show(k){stop();i=k;var s=S[i],t=T[i];clear();fr.classList.toggle('wide',!!s.wide);$('sb').textContent=s.brief;$('sc').textContent=(i+1)+' of '+S.length;$('sp0').disabled=i===0;$('sn').disabled=i===S.length-1;
  $('sn').className='btn'+(t.done&&left()&&i<S.length-1?'':' ghost');$('sq').hidden=true;$('sa').hidden=$('ssh').hidden=left()>0;
  if(t.done)put('ring',s.spot[0],s.spot[1],Math.max(s.spot[2]*2.6,14));else if(t.clue)put('clue',s.clueAt[0],s.clueAt[1],s.clueAt[2]*2);
  $('sm').textContent=t.say||(t.done?s.found:'Tap where they’re hiding.');
@@ -1637,7 +1988,7 @@ const ROOM = [
     wide: { r: [[41, 46.5, 7.6, 11.5]], d: [44.8, 52.5] }, tall: { r: [[34, 49.6, 13.8, 6.8]], d: [41, 53.2] } },
   { name: "Excuse Generator", href: HUB.path + "/excuses",
     wide: { r: [[49.3, 53.5, 6.4, 9.5]], d: [52.4, 58.1], f: "b" }, tall: { r: [[50.5, 52.6, 10.5, 6]], d: [55.9, 55.6], f: "b" } },
-  { name: "Newsletter", soon: "Nothing pinned up yet. The newsletter is coming. Come back later.",
+  { name: "Minimal contact", href: HUB.path + "/newsletter",
     wide: { r: [[66.5, 16.5, 7.2, 26.5]], d: [70.1, 22] }, tall: { r: [[41, 23, 13.5, 11.8]], d: [47.7, 28.5], f: "r" } },
   { name: "The shop", href: "/uk/shop",
     wide: { r: [[74.4, 21, 9.6, 35.5]], d: [79, 44], f: "b" }, tall: { r: [[85, 24.5, 13, 16.5]], d: [91.5, 32], f: "rb" } },
@@ -1702,7 +2053,7 @@ function $(i){return document.getElementById(i)}function money(p){return '£'+(p
 function G(){return D.garments[st.g]}
 function colours(){var seen={},out=[];G().variants.forEach(function(v){if(!seen[v.colour]){seen[v.colour]=1;out.push(v)}});return out}
 function sizes(){return G().variants.filter(function(v){return v.colour===st.colour})}
-function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};return (c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen))}
+function pics(){var g=G(),c=st.colour,m=(g.mockups||[]).filter(function(x){return x.colour===c}),own=g.images.filter(function(i){return i.colour===c}),any=g.images.filter(function(i){return !i.colour});var sg=g.sizeGuide?[{url:g.sizeGuide,thumb:g.sizeGuide,alt:'Size guide'}]:[];var gen=function(i){return /_(AGM|RANGE|BRAND|PROMO)$/.test(String(i.alt||'').toUpperCase())};var v=g.video?[{video:g.video.url,thumb:g.video.poster||((own[0]||{}).thumb)||g.tile,alt:'Video'}]:[];return v.concat((c===g.mainColour?own.concat(m):m.concat(own)).concat(any.filter(function(i){return !gen(i)}),sg,any.filter(gen)))}
 function variant(){return G().variants.find(function(v){return v.colour===st.colour&&v.size===st.size})}
 function render(){var g=G();
  var cs=colours();if(!cs.some(function(v){return v.colour===st.colour}))st.colour=g.mainColour||cs[0].colour;
@@ -1714,13 +2065,14 @@ function render(){var g=G();
  var ps=pics();if(st.img>=ps.length)st.img=0;var cur=ps[st.img]||{},nm=st.name.trim(),lv=P&&nm&&cur.live?cur.live:null;
  // A photo with a "live" spot shows the buyer's own name: the same photo without its gag text, with the text drawn on top.
  var ov=$('live');if(lv){ov.style.cssText='left:'+lv.x+'%;top:'+lv.y+'%;width:'+lv.w+'%;'+(lv.h?'height:'+lv.h+'%;':'')+'font-size:'+lv.s+'cqw;'+(lv.r?'transform:rotate('+lv.r+'deg);':'')+'display:block';ov.textContent=P.text.replace('[NAME]',nm)}else ov.style.display='none';
+ var mv=$('mainv');if(cur.video){$('main').hidden=true;mv.hidden=false;if(mv.getAttribute('src')!==cur.video){mv.src=cur.video;mv.poster=cur.thumb||''}mv.play().catch(function(){})}else{mv.hidden=true;mv.pause();$('main').hidden=false}
  $('main').src=(lv?cur.base:cur.url)||'';$('main').alt=D.title+(ps[st.img]&&ps[st.img].colour?' in '+ps[st.img].colour:'');
- $('thumbs').innerHTML=ps.map(function(im,i){return '<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
+ $('thumbs').innerHTML=ps.map(function(im,i){return im.video?'<span class="vthumb'+(i===st.img?' on':'')+'"><img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="Video"><b aria-hidden="true">▶</b></span>':'<img src="'+im.thumb+'" class="'+(i===st.img?'on':'')+'" data-i="'+i+'" alt="">'}).join('');
  $('count').textContent=ps.length>1?(st.img+1)+' / '+ps.length:'';$('prev').style.display=$('next').style.display=ps.length>1?'':'none';
  var on=$('thumbs').querySelector('.on');if(on&&$('thumbs').scrollWidth>$('thumbs').clientWidth)$('thumbs').scrollLeft=on.offsetLeft-$('thumbs').offsetLeft-($('thumbs').clientWidth-on.offsetWidth)/2;
  $('sg').style.display=g.sizeGuide?'':'none';$('sg').href=g.sizeGuide||'#';$('features').textContent=g.features||'';if($('etsy'))$('etsy').href=g.etsyUrl;}
 document.addEventListener('click',function(e){var t=e.target;
- if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
+ if(t.dataset.c){if(st.colour!==t.dataset.c)st.img=G().video?1:0;st.colour=t.dataset.c;render()}if(t.dataset.s){st.size=t.dataset.s;render()}if(t.dataset.i){st.img=+t.dataset.i;render()}});
 // Left/right arrows, a swipe, or the keyboard's arrow keys step through the photos.
 function step(d){var n=pics().length;if(n<2)return;st.img=(st.img+d+n)%n;render()}
 $('prev').addEventListener('click',function(){step(-1)});$('next').addEventListener('click',function(){step(1)});
@@ -1737,7 +2089,7 @@ $('add').addEventListener('click',function(){var v=variant(),g=G();if(!v)return;
  B.set(b);$('added').style.display='block';});
 (function(){try{var q=new URLSearchParams(location.search),c=q.get('colour'),z=q.get('size');if(c&&G().variants.some(function(v){return v.colour===c})){st.colour=c;if(z&&G().variants.some(function(v){return v.colour===c&&v.size===z}))st.size=z}}catch(_){}})();
 render();`;
-  return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
+  return page(name, `<div class="design"><div><div class="stagefr"><div class="stage"><img id="main" class="main-img" alt="${esc(name)}"><video id="mainv" class="main-img" muted loop playsinline preload="none" hidden></video><div id="live" class="live" aria-hidden="true"></div><button id="prev" class="nav prev" type="button" aria-label="Previous photo">‹</button><button id="next" class="nav next" type="button" aria-label="Next photo">›</button><div id="count" class="count"></div></div></div><div id="thumbs" class="thumbs"></div></div>
 <div><p class="label">${esc(coll.name)} · ${esc(g0.label)}</p><h1 style="margin-top:4px">${esc(d.title)}</h1>
 <div class="gag">${esc(d.text)}</div>
 <div class="label">Colour: <span id="cname"></span></div><div id="colours" class="chips"></div>
@@ -1798,7 +2150,8 @@ function legalPage(which) {
 <p><b>Personalised items (In Person):</b> these are printed with the name you give us, so they can't be returned or refunded for a change of mind. If one arrives faulty, damaged, or with a name different from the one you typed, the faulty-item promise above applies in full. Other items in the same order keep the change-of-mind right above.</p>
 <p><b>Return address:</b> Introvert Here returns, ${ADDRESS}. Please email us first so we know to expect it.</p>`],
     privacy: ["Privacy", `<p>We collect only what we need to take payment and deliver your order: your name, email, phone number and delivery address. Payment is handled by Stripe; we never see your card details. Your delivery details are passed to our print partner (Printify) to make and post your order.</p>
-<p>We keep order records for as long as the law requires for accounts. We don't sell your data, send marketing without asking, or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
+<p>We keep order records for as long as the law requires for accounts. We don't sell your data or use advertising cookies. This site stores your chosen country and basket on your own device only.</p>
+<p>Newsletter: we send an occasional newsletter, only to people who sign up for it on our website. Your email address is held by our email provider, MailerLite, for that purpose alone. Every email has an unsubscribe link, and you can unsubscribe any time; or email us and we'll take you off.</p>
 <p>Controller: Mosspit Studios, ${ADDRESS}. Questions or requests: ${EMAIL}. You can also complain to the Information Commissioner's Office (ico.org.uk).</p>`],
     contact: ["Contact", `<p>Email: ${EMAIL}</p><p>Post: Mosspit Studios, ${ADDRESS}</p><p>We reply as soon as we can, usually within two working days. In writing. Obviously.</p>`],
   };
