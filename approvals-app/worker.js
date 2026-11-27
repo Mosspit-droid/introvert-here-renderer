@@ -7577,6 +7577,14 @@ async function shopKeys(request, env) {
     const st = await mlCheck(env).catch((e) => ({ ok: false, error: String(e.message || e) }));
     if (!st.ok) return json({ ok: true, saved, warning: "Saved, but MailerLite didn't accept it: " + st.error });
   }
+  const pz = str(d.postiz_key);
+  if (pz) {
+    if (pz.length < 20 || /\s/.test(pz)) return json({ error: "That doesn't look like a Postiz API key (a long code with no spaces)." }, 400);
+    await env.SECRETS.put("postiz_key", pz); saved.push("Postiz");
+    const st = await pzCheck(env).catch((e) => ({ ok: false, error: String(e.message || e) }));
+    if (!st.ok) return json({ ok: true, saved, warning: "Saved, but Postiz didn't accept it: " + st.error });
+    return json({ ok: true, saved, note: "Postiz connected: " + st.channels.length + " channel" + (st.channels.length === 1 ? "" : "s") + " (" + st.channels.map((c) => c.name + " on " + c.platform).join(", ") + ")." });
+  }
   if (!saved.length) return json({ error: "Nothing to save." }, 400);
   return json({ ok: true, saved });
 }
@@ -7634,14 +7642,16 @@ ${await shopCatalogCard(env)}
 <textarea id="pt" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="Printify token (a long code)"></textarea>
 <label style="margin-top:12px;display:block"><b>MailerLite API key</b> <span class="small">${await last4("mailerlite_key")}</span></label>
 <textarea id="mlk" rows="4" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="MailerLite API key (a very long code)"></textarea>
+<label style="margin-top:12px;display:block"><b>Postiz API key</b> <span class="small">${await last4("postiz_key")}</span></label>
+<textarea id="pzk" rows="2" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" class="keybox" placeholder="Postiz API key (from Postiz: Settings, Developers, Public API)"></textarea>
 <button id="savekeys" class="btn-main" type="button">Save keys</button>
 <p id="keymsg" class="small"></p></div>
 <script>
 document.getElementById('savekeys').addEventListener('click', async function(){
   var m=document.getElementById('keymsg'); m.textContent='Saving…';
-  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.replace(/\\s+/g,''),printify_token:document.getElementById('pt').value.replace(/\\s+/g,''),mailerlite_key:document.getElementById('mlk').value.replace(/\\s+/g,'')})});
-  document.getElementById('sk').value='';document.getElementById('pt').value='';document.getElementById('mlk').value='';
-  var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'+(o.warning?' '+o.warning:''); if(!o.warning)setTimeout(function(){location.reload()},900)} else m.textContent=o.error||'Could not save.';
+  var r=await fetch('/api/shop-keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({stripe_secret_key:document.getElementById('sk').value.replace(/\\s+/g,''),printify_token:document.getElementById('pt').value.replace(/\\s+/g,''),mailerlite_key:document.getElementById('mlk').value.replace(/\\s+/g,''),postiz_key:document.getElementById('pzk').value.replace(/\\s+/g,'')})});
+  document.getElementById('sk').value='';document.getElementById('pt').value='';document.getElementById('mlk').value='';document.getElementById('pzk').value='';
+  var o=await r.json().catch(function(){return{}}); if(r.ok){m.textContent='Saved: '+o.saved.join(' and ')+'.'+(o.warning?' '+o.warning:'')+(o.note?' '+o.note:''); if(!o.warning)setTimeout(function(){location.reload()},o.note?6000:900)} else m.textContent=o.error||'Could not save.';
 });
 document.getElementById('sccheck').addEventListener('click', async function(){
   var m=document.getElementById('scmsg'), b=this; b.disabled=true; m.textContent='Checking Core, Etsy and Printify (about half a minute)…';
@@ -8607,4 +8617,23 @@ async function nlTestSend(env, b) {
   if (!sc.ok) throw new Error("MailerLite wouldn't send it: " + ((sc.j && (sc.j.message || JSON.stringify(sc.j.errors || {}))) || sc.t).slice(0, 300));
   Object.assign(set, { testEmail: to, groupId: String(gid), lastTest: Date.now() }); await env.PENDING.put("nl-settings", JSON.stringify(set));
   return { ok: true, to };
+}
+
+// ───────────────────────── Postiz (social scheduling), 27 Nov ─────────────────────────
+// Key saved write-only in SECRETS ("postiz_key") from the Orders page. The check only reads the connected channels.
+// Postiz allows about 30 API calls an hour, so the app calls it sparingly. Result in KV "pz-status".
+const PZ_API = "https://api.postiz.com/public/v1";
+async function pzFetch(env, path, method = "GET", body) {
+  const key = env.SECRETS && (await env.SECRETS.get("postiz_key")); if (!key) throw new Error("No Postiz key saved yet.");
+  const r = await fetch(PZ_API + path, { method, headers: { Authorization: key, "Content-Type": "application/json", Accept: "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
+  return { status: r.status, ok: r.ok, j, t: t.slice(0, 600) };
+}
+async function pzCheck(env) {
+  const r = await pzFetch(env, "/integrations");
+  if (!r.ok) throw new Error("the key was refused (" + r.status + ")");
+  const list = Array.isArray(r.j) ? r.j : (r.j && (r.j.integrations || r.j.data)) || [];
+  const st = { ok: true, at: Date.now(), channels: list.map((c) => ({ id: c.id, name: c.name || c.profile || "", platform: c.identifier || c.providerIdentifier || c.provider || "", disabled: !!c.disabled })) };
+  await env.PENDING.put("pz-status", JSON.stringify(st));
+  return st;
 }
