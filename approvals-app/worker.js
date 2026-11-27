@@ -974,11 +974,12 @@ input[type=password]{width:100%;min-height:52px;padding:0 14px;font:17px var(--b
 .quickbar .nm{display:block;font:800 16px var(--display);letter-spacing:.08em;text-transform:uppercase}
 .quickbar .st{display:block;font-size:13px;margin-top:3px;color:#2b2a27}
 .quickbar .qgo{margin-left:auto;font:800 13px var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;padding:10px 16px;border-radius:99px;background:#141413;color:var(--accent)}
-@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"cal gags" "stats gags" "appr list" "ord list" "cred tags" "set links"}
+@media (max-width:560px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"cal gags" "stats list" "appr soc" "ord news" "cred tags" "set links"}
   /* Phone (Barry, 14 Nov): the tiles he uses most sit in the right-hand column, under his right thumb. */
   .tiles [data-tile="/gags"]{grid-area:gags}.tiles [data-tile="/listings"]{grid-area:list}.tiles [data-tile="/tags"]{grid-area:tags}
   .tiles [data-tile="/calendar"]{grid-area:cal}.tiles [data-tile="/stats"]{grid-area:stats}.tiles [data-tile="/approvals"]{grid-area:appr}
   .tiles [data-tile="/orders"]{grid-area:ord}.tiles [data-tile="/credits"]{grid-area:cred}.tiles [data-tile="/settings"]{grid-area:set}.tiles [data-tile="/links"]{grid-area:links}
+  .tiles [data-tile="/social"]{grid-area:soc}.tiles [data-tile="/newsletter"]{grid-area:news}
   .tiles [data-tile="/settings"].primary:not(.hot){background:var(--card);border-color:rgba(242,240,235,.5)}.tiles [data-tile="/settings"] .dots{display:none}
   .tiles [data-tile="/links"]:not(.hot){background:#3a3a36;border-color:rgba(242,240,235,.7)}}
 .tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px;min-height:150px;border-radius:var(--r);border:2px solid rgba(242,240,235,.5);background:var(--card);color:var(--text);text-decoration:none;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:border-color .15s,transform .15s}
@@ -1916,6 +1917,11 @@ async function dashboardPage(env) {
   const needSig = (n, s) => n + "|" + String(s).replace(/<[^>]*>/g, "");
   const need = (cls, n, t, s, href) => !n || dismissed[t] === needSig(n, s) ? "" : `<a class="need ${cls}" href="${href}"><span class="big">${n}</span><span><span class="t">${t}</span><span class="s">${s}</span></span><button type="button" class="nread" data-k="${esc(t)}" data-sig="${esc(needSig(n, s))}">Read</button></a>`;
   // A tile turns red while its area needs attention, with the count as a badge (Barry, 14 Nov).
+  const socP = ((await env.PENDING.get(SOC_KEY, "json")) || { posts: [] }).posts;
+  const socWaiting = socP.filter((p) => p.status === "pending").length;
+  const socUp = socP.filter((p) => p.status === "scheduled" && Date.parse(p.at) > Date.now()).sort((a, b) => String(a.at).localeCompare(String(b.at)))[0];
+  const socNext = socUp ? new Date(socUp.at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "";
+  const mls = await env.PENDING.get("ml-status", "json"); const nlSubs = mls && typeof mls.subscribers === "number" ? mls.subscribers : null;
   const tile = (href, ic, nm, st, primary, tall) => { const n = (typeof HOT === "object" && HOT[href]) || 0;
     return `<a class="tile${primary ? " primary" : ""}${tall ? " tall" : ""}${n ? " hot" : ""}" href="${href}" data-tile="${href}"><span class="ic">${icon(ic)}</span><span class="nm">${nm}</span><span class="st">${st}</span>${n ? `<span class="hotb">${n === true ? "!" : n}</span>` : primary ? '<span class="dots"><i></i><i></i><i></i></span>' : ""}</a>`; };
   const todayMs = Date.parse(((daily && daily.today) || new Date().toISOString().slice(0, 10)) + "T00:00:00Z");
@@ -2033,10 +2039,12 @@ ${todayStrip}
 <h2>Studio</h2>
 <a class="quickbar" href="/gags?now=1"><span class="ic">${icon("gags")}</span><span><span class="nm">List a gag now</span><span class="st">Write it and it's built straight away, outside the weekly schedule. It comes to Approvals before it goes live.</span></span><span class="qgo">Start ›</span></a>
 <div class="tiles">
-  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true, true)}
+  ${tile("/gags", "gags", "Gags", `<b>${gags && gags.all ? gags.all.length : "—"}</b> written${next ? " · next release " + esc(dayName(next.date)) : ""} · write, edit and check`, true)}
+  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true)}
+  ${tile("/social", "megaphone", "Social", socWaiting ? `<b>${socWaiting} post${socWaiting === 1 ? "" : "s"}</b> waiting for you` : socNext ? "Next post " + esc(socNext) : "This week's posts to approve", true)}
+  ${tile("/newsletter", "mail", "Newsletter", nlSubs != null ? `<b>${nlSubs}</b> subscriber${nlSubs === 1 ? "" : "s"} · draft and test` : "Draft, preview and test", true)}
   ${tile("/calendar", "cal", "Calendar", next ? "Next release " + esc(dayName(next.date)) + " · sales dates and seasons" : "Releases, sales dates and seasons")}
   ${tile("/stats", "stats", "Stats", `<b>${views.toLocaleString("en-GB")}</b> listing views`)}
-  ${tile("/listings", "update", "Listings", `<b>${liveListings || "—"}</b> live · photos, titles, tags, prices, shipping`, true, true)}
   ${tile("/approvals", "approve", "Approvals", pending.length ? `<b>${pending.length} video${pending.length === 1 ? "" : "s"}</b> waiting · approve to go live and post` : "Nothing waiting · new videos appear here")}
   ${tile("/orders", "orders", "Orders", `<b>${toSend.length}</b> to send · ${(orders || []).length} in total`)}
   ${tile("/tags", "tags", "Tags", tagsToApprove ? `<b>${tagsToApprove}</b> to approve` : "All approved", true)}
@@ -8412,7 +8420,13 @@ async function mlFetch(env, path, method = "GET", body) {
 // check. Stops by itself once it passes. Nothing is ever sent.
 async function mlWatchTick(env) {
   const raw = await env.PENDING.get("ml-status"); const prev = raw ? JSON.parse(raw) : null;
-  if (!prev || prev.html === "yes") return;
+  if (prev && prev.html === "yes") {
+    if (Date.now() - (prev.subsAt || prev.at || 0) < 6 * 3600 * 1000) return;
+    const set = (await env.PENDING.get("nl-settings", "json")) || {};
+    try { const n = await nlSubs(env, set.testEmail); prev.subscribers = n.total; } catch (e) {}
+    prev.subsAt = Date.now(); await env.PENDING.put("ml-status", JSON.stringify(prev)); return;
+  }
+  if (!prev) return;
   if (prev.at && Date.now() - prev.at < 15 * 60 * 1000) return;
   const st = await mlCheck(env).catch((e) => ({ ok: false, at: Date.now(), error: String(e.message || e) }));
   if (!st.at) st.at = Date.now();
@@ -8537,7 +8551,7 @@ async function newsletterPage(env) {
   const set = (await env.PENDING.get("nl-settings", "json")) || {};
   const last = await env.PENDING.get("nl-last", "json");
   let subs = null, subsErr = "";
-  try { subs = await nlSubs(env, set.testEmail); } catch (e) { subsErr = String(e.message || e); }
+  try { subs = await nlSubs(env, set.testEmail); const ms = (await env.PENDING.get("ml-status", "json")) || {}; if (ms.subscribers !== subs.total) { ms.subscribers = subs.total; ms.subsAt = Date.now(); await env.PENDING.put("ml-status", JSON.stringify(ms)); } } catch (e) { subsErr = String(e.message || e); }
   const pick = (list, chosen, name, label) => list.length ? list.map((x) => `<label class="nlp"><input type="checkbox" name="${name}" value="${esc(x.id)}"${chosen.includes(x.id) ? " checked" : ""}><span><b>${esc(x.title)}</b> <span class="small">${esc(x.coll)}${label ? " · " + esc(label(x)) : ""}</span></span></label>`).join("") : '<p class="small">Nothing to show here right now.</p>';
   const ta = (id, v, rows) => `<textarea id="${id}" rows="${rows || 3}">${esc(v || "")}</textarea>`;
   return shell(`${brandHeader("Newsletter")}
