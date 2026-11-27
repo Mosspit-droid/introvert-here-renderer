@@ -92,6 +92,9 @@ All seven channels have the Hoodini avatar (`social/profiles/avatar-1080.png`) a
 - **Still to do:** (1) the site thread embeds the form on the Newsletter noticeboard (embed code from the form's Actions menu) and updates the privacy page; (2) a welcome email automation with the 5% code; (3) create that code in Stripe; (4) a business postal address for the email footer before the first send.
 - Excuse cards use Barry's hundred new excuses in the repo, not the old ChatGPT ones.
 
+## How batches reach Barry (from 27 Nov)
+**Every weekly batch goes to the app's 📣 Social page, never straight into Postiz from chat.** Spec: `docs/social/APP_SOCIAL_PAGE_FOR_SOCIAL_THREAD.md` on main. In short: media goes to R2 bucket `introvert-here-shop-photos` under key `social/<name>` (served at `https://mosspit-approvals.mosspit.workers.dev/sm/<name>`); posts go to KV `1c5342ad32504af1abd1da52c342f3ce` key `social-pack` (read it first, keep `scheduled`/`posted` posts, merge the rest). Barry approves there and the app schedules via Postiz. Next run, read his answers from the same key (`change` → rebuild using `note`). Pinterest videos need a `cover`; AI clips set `"ai": true`.
+
 ## Standing order from Barry
 Never suggest wrapping up, stopping for the day or leaving things for later unless Barry says so. Keep going while he's working.
 
