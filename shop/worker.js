@@ -1975,7 +1975,7 @@ setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})()
 // sits, f = where its label goes (l/r = starts at the dot and runs left/right-anchored, b = below the dot).
 // A thing with "soon" isn't built yet and answers with that line instead of going anywhere.
 const ROOM = [
-  { name: "Stealth game", soon: "The console isn’t plugged in yet. The stealth game is on its way. Come back later.",
+  { name: "Platform game", soon: "The console isn’t plugged in yet. The platform game is on its way. Come back later.",
     wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
   { name: "Paper escape rooms", href: HUB.path + "/aunt-doris",
     wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
