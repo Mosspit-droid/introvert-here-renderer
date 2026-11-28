@@ -21,15 +21,16 @@ Because somewhere in this house is Gareth's mum. Aunt Doris.
 ESCAPE FROM AUNT DORIS is a printable escape room for one person and a pen. Nineteen puzzles stand between you and your sofa: a coat pile, a conversation you must survive, a dead phone, a family photo album, a tea round, charades, a coded text, a guarded house, the washing-up, the loo queue, a speech, a toy box, the smokers, a taxi app, a playlist, a hallway and two locked doors.
 
 HOW IT WORKS
-1. Print the booklet (25 A4 pages).
-2. Solve each puzzle on paper.
-3. Check your answers on your phone at introverthere.com/doris.
-4. Every wrong answer brings Aunt Doris a step closer. Four wrong answers on the same puzzle and she hugs you.
-5. Stuck? The checker has hints. The second one tells you the answer, so only press it if you mean it.
+No website. No app. No phone. Just the booklet and a pen.
+1. Print the booklet (44 A4 pages).
+2. Start at entry 1. The booklet is shuffled, gamebook-style: every answer tells you where to turn next.
+3. Look your answer up in the Answer index at the back. Right answers carry on the story. Wrong ones bring Aunt Doris a step closer.
+4. Tick a box on your Doris meter for every wrong answer. Four on one puzzle and she hugs you.
+5. Stuck? The hints are at the back, printed upside down, so you can't read one by accident.
 
 WHAT YOU GET
-• A printable A4 PDF: cover, how to play, 19 puzzles, and a page to collect your kit for the final code
-• Online answer checking, hints and Aunt Doris, free, on any phone
+• A 44-page A4 PDF: cover, how to play, your Doris meter and kit page, 19 puzzles, the Answer index and hints
+• Completely screen-free: no website or phone needed, ever
 • About 45 to 60 minutes of not talking to anyone
 
 GOOD TO KNOW
@@ -63,11 +64,17 @@ From Introvert Here: everything you need to be left the hell alone.
 - File: Escape-From-Aunt-Doris.pdf (kept out of this public repository)
 - Pictures: etsy-1.jpg (cover), etsy-2.jpg (pages), etsy-3.jpg (how it works); made from the booklet
 
+## Screen-free edition (Barry, 28 Nov)
+
+- Etsy gets the screen-free gamebook edition (`/aunt-doris/paper`, `dzPaperDoc` in worker.js; PDF via
+  `node shop/doris-print/make.mjs <base> out.pdf paper`). The site keeps the online game. The PDF stays out of this
+  public repository.
+
 ## Etsy rules (Barry, 28 Nov)
 
-- No links or web addresses to the shop in the listing or its pictures (Etsy doesn't allow sending buyers off Etsy to
-  buy elsewhere). The only address is introverthere.com/doris, the answer checker the booklet needs, which is a bare page:
-  no menu, basket, footer links or Hoodini hunt (`barePage` in shop/worker.js).
+- No links or web addresses in the listing, its pictures or the booklet (Etsy doesn't allow sending buyers off Etsy to
+  buy elsewhere). The screen-free edition needs none. (/doris is also now a bare page with no shop links, for the
+  site's own printable edition.)
 - Pictures: booklet on the mahogany table, inside pages, how it works, title, AGM, plain Find Your Range (not the
   Escape Room strip version, which is for the site and social).
 
@@ -75,4 +82,4 @@ From Introvert Here: everything you need to be left the hell alone.
 
 - 28 Nov: PDF (25 pages, 19 puzzles) and Etsy pictures remade for the 19-puzzle game (kept out of this public repository, like the PDF).
 
-- Done: pay-to-unlock is live (28 Nov) and introverthere.com/doris is live, so the listing can go up.
+- Price still to be decided after the second test.

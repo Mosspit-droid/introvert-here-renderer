@@ -135,6 +135,7 @@ async function route(request, env, ctx) {
       }
       if (path === HUB.path + "/aunt-doris/unlocked") return await dorisThanks(env, url);
       if (path === HUB.path + "/aunt-doris/print" && isPreview(env)) return html(dorisPage(null, true));   // preview only: it's the paid booklet
+      if (path === HUB.path + "/aunt-doris/paper" && isPreview(env)) return html(dorisPage(null, "paper"));   // preview only: the screen-free Etsy edition
       if (path === HUB.path + "/aunt-doris/check" || path === "/doris") return html(dorisCheckPage());
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
@@ -1440,13 +1441,14 @@ function dzTalkPrint(v = "TALK", who = "Aunt Doris", intro = "Get out of the con
   return `<p>${intro} For each thing ${v === "TALK" ? "she says" : "they say"}, pick a reply. Your answer is the four letters of your replies, in order.</p>` +
     dzTalk(v).map(([line, opts], k) => `<div class="txt" style="background:#3a1416"><small>${who}</small>${esc(line)}</div><ol class="abc" type="A">${opts.map((o) => `<li>${esc(o[0])}</li>`).join("")}</ol>`).join("");
 }
-function dzPrintDoc(steps) {
+function dzPrintDoc(steps, opt = {}) {
   const body = steps.filter((x) => !/data-end/.test(x)).map((x) => x.replace(/ hidden>/g, ">").replace(/<p><button class="btn go"[^]*?<\/p>/g, "").replace(/<p class="note" id="resume"[^]*?<\/p>/, "").replace(/<p class="note">Your progress is saved on this device\.<\/p>/, "")).join("")
     .replace('<div class="kit" id="kitlist"></div>', `<ol class="kitw">${Array.from({ length: 18 }, () => "<li></li>").join("")}</ol>`);
-  const how = `<section class="box pz how"><h2>How to play</h2><p>Nineteen puzzles stand between you and your sofa. Solve them in order. Each answer is checked online:</p><p class="big">introverthere.com/doris</p>
+  let how = `<section class="box pz how"><h2>How to play</h2><p>Nineteen puzzles stand between you and your sofa. Solve them in order. Each answer is checked online:</p><p class="big">introverthere.com/doris</p>
 <p>Pick the puzzle, type your answer. If you’re right, you’ll be told what you’ve added to your kit. <b>Write it down</b>, along with anything else it tells you: there’s a space on the last page, and you’ll need it.</p>
 <p>Get one wrong and Aunt Doris takes a step closer. Get the same puzzle wrong four times and she hugs you. You’ve been warned.</p><p>Stuck? The checker has hints. The second one gives you the answer, so only press it if you mean it.</p>
 <p class="small">You’ll need: a pen, this booklet, a phone, and somewhere nobody will talk to you.</p></section>`;
+  if (opt.how) how = opt.how;
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>Escape From Aunt Doris | Introvert Here</title><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Creepster&display=swap" rel="stylesheet"><style>
 @page{size:A4;margin:16mm 15mm}*{box-sizing:border-box}body{margin:0;font:400 11.5pt/1.5 Montserrat,sans-serif;color:#1d1a17;background:#fff}
@@ -1467,8 +1469,108 @@ function dzPrintDoc(steps) {
 .kitw{columns:2;margin:6px 0 12px 20px}.kitw li{height:9mm;border-bottom:1px solid #9a9184;margin:0 10mm 4px 0}
 .how .big{font-size:20pt;font-weight:800;text-align:center;margin:8mm 0}.how{padding-top:10mm}.small{font-size:9.5pt;color:#6b6258}
 .foot{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:8pt;color:#9a9184}
+${opt.css || ""}
 </style></head><body>${body.replace(/(<section class="box pz chap" data-intro>[^]*?<\/section>)/, (m) => m.replace('src="/s/doris-title.png?v=1"', 'src="/s/doris-title-light.png?v=1"') + how)}<div class="foot">Escape From Aunt Doris · © Introvert Here (Mosspit Studios) · For your own use</div></body></html>`;
 }
+// ---- The screen-free edition for Etsy (Barry, 28 Nov): no website, no phone. It works like a gamebook: the booklet is
+// numbered in entries, shuffled, starting at entry 1. Each puzzle's answer is looked up in the Answer index at the back,
+// which sends you to the right entry (your kit item, then the next puzzle) or to Aunt Doris (tick a box on the Doris
+// meter; four ticks on one puzzle and she hugs you). Hints are at the back, upside down. Saved as a PDF from
+// /aunt-doris/paper (preview only) by shop/doris-print/make.mjs.
+const DZ_PAPER_ANSWERS = {
+  1: ["53", ["14", "27", "31", "42", "66", "75", "89"]],
+  2: ["ACBB", ["ABCA", "BACC", "ACBA", "CCBB", "AABB", "BCBB"]],
+  3: ["169", ["196", "619", "691", "916", "961"]],
+  4: ["7", ["1", "2", "3", "4", "5", "6", "8"]],
+  5: ["59", ["95", "68", "77", "57", "145"]],
+  6: ["LEAVE ME ALONE", ["AUTUMN LEAVES", "LEAF ME ALONE", "LEAVE ME A LOAN", "FALL FOR ME", "LEAVE IT OUT"]],
+  7: ["DORIS", ["DAVE", "GARETH", "MIKE", "GRAN"]],
+  8: ["BOILER", ["FRIDGE", "WINDOW", "TOILET", "HEATER", "ROOF"]],
+  9: ["LOO WINDOW", ["FRONT DOOR", "KITCHEN DOOR", "GARDEN DOOR", "GARAGE"]],
+  10: ["GMCPT", ["GPMCT", "GMCTP", "MGCPT", "GCMPT", "GMPCT"]],
+  11: ["9:35", ["9:27", "9:28", "9:32", "9:39", "9:41"]],
+  12: ["416253", ["412653", "456213", "426153", "415263", "246153"]],
+  13: ["865", ["845", "855", "866", "864", "965"]],
+  14: ["BBCA", ["AACB", "BACA", "CBCA", "BBCC", "ABCA"]],
+  15: ["27", ["21", "23", "26", "29", "72"]],
+  16: ["10:17", ["10:13", "10:19", "10:20", "10:21", "10:24"]],
+  17: ["10:19", ["10:17", "10:18", "10:20", "10:21"]],
+  18: ["466343", ["4663", "466304", "466317", "466321", "466344"]],
+  19: ["DO NOT DISTURB GO AWAY", ["DO NOT DISTURB", "GO AWAY", "GO AWAY DO NOT DISTURB", "DO NOT GO AWAY"]],
+};
+const DZ_PAPER_DORIS = ["“Coo-ee!” She’s spotted you across the room.", "She’s weaving through the guests towards you, arms already opening.",
+  "“There you are!” She’s stopped to tell someone about her hip. You have seconds.", "A waft of hairspray. She’s close.",
+  "She’s asking Gareth where you’ve got to. Gareth points.", "“Hoo-diii-niii!” Every head in the room turns. Including hers.",
+  "She’s put her sherry down. That’s never a good sign.", "She’s redone her lipstick. For the kissing."];
+function dzPaperDoc(steps) {
+  const P = new Function(DZ_P_JS + ";return P")();
+  const intro = steps[0], puzzles = {}, chaps = [];
+  let lastN = 0;
+  for (const h of steps.slice(1)) {
+    const m = /data-n="(\d+)"/.exec(h);
+    if (m) { puzzles[m[1]] = h; lastN = +m[1]; }
+    else if (/class="box pz chap"/.test(h)) chaps.push({ after: lastN, html: h });
+  }
+  // entries: Part one is 1; everything else is shuffled (always the same shuffle, so the PDF is repeatable)
+  const keys = [];
+  for (let n = 1; n <= DZ_N; n++) { keys.push("p" + n); if (n < DZ_N) keys.push("r" + n); }
+  chaps.forEach((c, i) => { if (i) keys.push("c" + i); });
+  DZ_PAPER_DORIS.forEach((_, i) => keys.push("d" + i));
+  keys.push("hug", "end");
+  let seed = 1123; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const order = keys.map((k) => [rnd(), k]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const no = { c0: 1 }; order.forEach((k, i) => { no[k] = i + 2; });
+  const nextAfter = (n) => { const ci = chaps.findIndex((c) => c.after === n); return ci >= 0 ? "c" + ci : "p" + (n + 1); };
+  const turn = (k) => `<p class="turn">Turn to <b>${no[k]}</b>.</p>`;
+  const entry = (k, cls, inner) => `<section class="ent ${cls}"><div class="eno">${no[k]}</div>${inner}</section>`;
+  const E = {};
+  chaps.forEach((c, i) => { E["c" + i] = entry("c" + i, "short chapent", c.html.replace("</section>", turn("p" + (c.after + 1)) + "</section>")); });
+  for (let n = 1; n <= DZ_N; n++) {
+    E["p" + n] = entry("p" + n, "full", puzzles[n].replace(/<p class="chk">[^]*?<\/p>/, `<p class="chk">Find your answer under <b>Puzzle ${n}</b> in the Answer index at the back. It tells you where to turn. If your answer isn’t there, it’s wrong.</p>`)
+      .replace('<div class="kit" id="kitlist"></div>', `<p><b>Your kit is on the Doris meter page, at the front.</b></p>`));
+    if (n < DZ_N) { const g = P[n].got;
+      E["r" + n] = entry("r" + n, "short", `<p class="pt">Puzzle ${n}: correct</p><h3>Added to your kit: ${esc(g[1])}</h3><p>${esc(g[2])}</p><p class="small">Write <b>${esc(g[1])}</b> on line ${n} of your kit.</p>${turn(nextAfter(n))}`); }
+  }
+  DZ_PAPER_DORIS.forEach((line, i) => { E["d" + i] = entry("d" + i, "short doris", `<p class="pt">Wrong</p><p class="dz-line">${line}</p><p>Tick one box for this puzzle on your Doris meter. If that was the fourth tick, turn to <b>${no.hug}</b>. If not, go back and try again.</p>`); });
+  E.hug = entry("hug", "full", `<section class="box pz chap"><h2>Hug.</h2><img class="hugimg" src="/s/doris-hug.png?v=1" alt=""><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p><b>Add five minutes to your time.</b> Rub out the ticks for this puzzle, then go back and try again.</p></section>`);
+  E.end = entry("end", "full", `<section class="box pz chap"><h2>You’re home.</h2><img class="dzpic" src="/s/doris-home.jpg?v=1" alt=""><p>Door locked. Kettle on. Hood up. On the handle, the sign goes up: DO NOT DISTURB. On the back, facing you: GO AWAY. Nobody knows you’ve gone.</p>
+<p>Write down the time. Take away your start time, add five minutes for every hug. That’s your escape.</p><p>And then your phone buzzes.</p><div class="txt" style="background:#f6dcdc"><small>Aunt Doris</small>Lovely to see you Hoodini!! Same time at Christmas? xx</div><p style="font-family:Creepster,Montserrat;font-size:34pt;color:#c3161c;margin-top:8mm">She’ll be back.</p></section>`);
+  const ents = [E.c0, ...order.map((k) => E[k])];
+  // the Answer index: every puzzle's likely answers, in order, each with where to turn
+  let di = 0;
+  const idx = Object.entries(DZ_PAPER_ANSWERS).map(([n, [right, wrong]]) => {
+    const rows = [[right, n == DZ_N ? "end" : "r" + n], ...wrong.map((w) => [w, "d" + (di++ % DZ_PAPER_DORIS.length)])]
+      .sort((a, b) => a[0].localeCompare(b[0], "en", { numeric: true }));
+    return `<div class="ix"><b>Puzzle ${n}</b>${rows.map(([a, k]) => `<span>${esc(a)} <i>→ ${no[k]}</i></span>`).join("")}</div>`;
+  }).join("");
+  const index = `<section class="box pz backsec"><h2>Answer index</h2><p class="small">Find the puzzle, find your answer, turn to that entry. If your answer isn’t listed, it’s wrong: tick a box on your Doris meter and try again.</p><div class="ixs">${idx}</div></section>`;
+  const hint2 = { 2: "Mm. It’s fine. I’ve got a bad knee. Lovely to see you too: ACBB.", 14: "BBCA." };
+  const hintRows = Array.from({ length: DZ_N }, (_, i) => { const n = i + 1, h = P[n].h || ["Silence and short answers make smokers curious. Pick the reply that would bore anyone to tears.", ""];
+    return `<div class="hn"><b>Puzzle ${n}</b><p>1. ${esc(h[0])}</p><p>2. The answer: ${esc(hint2[n] || h[1])}</p></div>`; });
+  const hints = [0, 7, 14].map((a) => `<section class="box pz backsec"><div class="upside"><h2>Hints</h2><p class="small">Only read the second hint if you mean it.</p>${hintRows.slice(a, a + 7).join("")}</div></section>`).join("");
+  const meter = `<section class="box pz meter"><h2>Your Doris meter and kit</h2><p class="small">A wrong answer: tick a box for that puzzle. The fourth tick is a hug (turn to <b>${no.hug}</b>). Right answers: write what you got on that line of your kit.</p>
+<div class="mk"><table class="dzm"><tr><th>Puzzle</th><th colspan="4">Doris</th></tr>${Array.from({ length: DZ_N }, (_, i) => `<tr><td>${i + 1}</td><td>☐</td><td>☐</td><td>☐</td><td>☐ <small>hug</small></td></tr>`).join("")}</table>
+<div><p><b>Your kit</b></p><ol class="kitw">${Array.from({ length: DZ_N - 1 }, () => "<li></li>").join("")}</ol><p class="small">Start time ________ &nbsp; Finish time ________</p></div></div></section>`;
+  const how = `<section class="box pz how"><h2>How to play</h2><p>Nineteen puzzles stand between you and your sofa. No website, no app, no phone. Just this booklet and a pen.</p>
+<p><b>The booklet is numbered in entries, not pages, and they’re shuffled.</b> Each entry tells you where to go next. Start at <b>entry 1</b>.</p>
+<p><b>Solved a puzzle?</b> Find your answer under that puzzle in the Answer index at the back. It tells you which entry to turn to. If your answer isn’t listed, it’s wrong.</p>
+<p><b>Right answers</b> carry on the story and add something to your kit. Write it down on the next page: you’ll need it.</p>
+<p><b>Wrong answers</b> bring Aunt Doris a step closer. Tick a box for that puzzle on the Doris meter. Four ticks on one puzzle and she hugs you. You’ve been warned.</p>
+<p><b>Stuck?</b> The hints at the back are printed upside down, so you don’t read one by accident. The second hint for each puzzle gives you the answer.</p>
+<p class="small">You’ll need: this booklet, a pen, a clock, and somewhere nobody will talk to you. Write down the time, then turn to entry 1.</p></section>${meter}`;
+  const css = `.ent{break-inside:avoid}.ent.full{break-before:page;break-after:page}.ent .pz{break-before:auto!important}
+.ent.short{margin:0 0 7mm;padding:5mm 6mm 3mm;border:1px solid #d8d1c4;border-radius:6px}.ent.short h3{font-size:12pt;margin:2px 0 6px}
+.eno{float:right;margin:0 0 3mm 5mm;font:800 20pt Montserrat;color:#a7322d;border:2px solid #a7322d;border-radius:8px;padding:1px 9px;background:#fff}
+.ent.short .eno{font-size:15pt}.ent{position:static}
+.chapent .chap{padding-top:2mm;text-align:left}.chapent .chap h2{font-size:24pt}.turn{font-size:13pt;margin:6px 0 2px}.turn b{color:#a7322d}
+.doris{background:#fbf1f1}.dz-line{font-style:italic;color:#6b4a1f}.hugimg{display:block;margin:6mm auto;max-width:70mm;height:auto}
+.ent.full .chap{padding-top:20mm}.backsec{break-before:page}.ixs{columns:2;column-gap:10mm}.ix{break-inside:avoid;margin:0 0 5mm}.ix b{display:block;color:#a7322d;font-size:10pt}
+.ix span{display:block;font-size:9.5pt;line-height:1.5}.ix i{font-style:normal;font-weight:800}.upside{transform:rotate(180deg)}.hn{margin:0 0 4mm;font-size:9.5pt}.hn p{margin:1px 0}
+.mk{display:grid;grid-template-columns:1fr 1fr;gap:10mm}.dzm{border-collapse:collapse;font-size:9.5pt}.dzm td,.dzm th{border:1px solid #bdb4a5;padding:2px 7px;text-align:center}.meter .kitw{columns:1;margin-left:18px}.meter .kitw li{height:7mm;margin:0}`;
+  const body = [intro, ...ents];
+  return dzPrintDoc(body, { how, css }).replace("</body>", index + hints + "</body>").replace('<div class="foot">', '<div class="foot">');
+}
+
 // The answer checker for the printed booklet (introverthere.com/doris).
 function dorisCheckPage() {
   const opts = Array.from({ length: DZ_N }, (_, k) => `<option value="${k + 1}">Puzzle ${k + 1}</option>`).join("");
@@ -1677,6 +1779,7 @@ ${gameTee(cat || { designs: [], garmentOrder: [] }, ["IH-00012", "IH-00010", "IH
 <p style="text-align:center"><button class="btn ghost" type="button" id="again">Play again</button> <a class="btn ghost" href="${HUB.path}">Back to the room</a></p></section>`,
   ];
   const hug = `<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris, eyes shut and beaming, crushing you in a hug, your feet off the ground"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you! You’ve lost weight! Have you met anyone?”</p><p>Five minutes later, she lets go.</p><p class="note">+5 minutes on your time</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div><div class="hug kitd" id="kitd" hidden role="dialog" aria-label="Your kit"><div class="in"><h2>Your kit</h2><div id="kitl"></div><p style="text-align:center;margin:0"><button class="btn" type="button" id="kitok">Back to it</button></p></div></div>`;
+  if (print === "paper") return dzPaperDoc(steps);
   if (print) return dzPrintDoc(steps);
   if (!full) {   // Part One only, then the paywall where Part Two would begin
     const k = steps.findIndex((x) => x.includes(">Part two<"));
