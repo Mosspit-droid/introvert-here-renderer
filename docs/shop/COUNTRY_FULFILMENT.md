@@ -87,3 +87,14 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
 - Only hoodies print front and back; sweatshirts are front only now. Check the hoodie back-print cost on the first
   real product.
 - Payment provider still open (Stripe live key blocked by its verification; PayPal is the fallback).
+
+## US products made (28 Nov 2026)
+
+- Printers changed after a size-by-size check: Stakes has Black tees only in 4XL/5XL, so **tees and sweatshirts are
+  on Fulfill Engine (217)**; **hoodies on Stakes (52)** (front + back); **long sleeves use the existing Choice
+  products** (no new ones). Costs S–XL: tee $12.20, sweatshirt $20.35, hoodie $27.81 (front + back).
+- Prices: tee $29.99, long sleeve $34.99, sweatshirt $44.99, hoodie **$59.99**; 2XL/3XL +$4/+$7 (tee, long sleeve),
+  +$6/+$10 (sweatshirt, hoodie).
+- 105 Printify products, unpublished, titled "<design> <garment> (US)". Map of design code → garment → Printify id:
+  `docs/shop/us-printify-products.json`. Artwork placement re-fitted to each printer's print area (fit.py logic:
+  same physical width as the UK print, capped to the new area, same distance from the top).
