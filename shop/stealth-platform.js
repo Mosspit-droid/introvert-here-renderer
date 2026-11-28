@@ -207,14 +207,14 @@ const PARTY = { name: "The House Party", out: "the house party", theme: "party",
 // Level 5, the supermarket (Barry, 25 Nov, second go). Five aisles on ONE floor, drawn front to back: you see your own aisle and
 // the one behind it. Change aisle with the stick (up = further back, down = towards the front) at the open end of the shelving or at
 // a gap in it (links, below). The open ends alternate, so you zig-zag; one thing off the shopping list (g) is in each aisle, and the
-// self-service checkout will not serve you without all five. The back aisle runs straight into a one-way queue lane that comes forward to the tills.
+// self-service checkout will not serve you without all five. The back aisle runs straight on to the tills and the self-service checkout.
 // R shoppers who nip round the ends too.  The lanes are rows of the map 7 apart (laneY is where feet stand).
 function supermarket() {
   const W = 78, H = 41, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
   box(0, W - 1, 39, 40, "#"); box(0, 0, 0, 40, "#"); box(W - 1, W - 1, 0, 40, "#"); [32, 25, 18, 11].forEach((y) => row(1, W - 2, y, "#"));
   const A = 38, B = 31, C = 24, D = 17, E = 10;   // the row people stand in, in aisles 1 (front) to 5 (back)
-  box(55, 55, 12, 38, "#"); box(62, 62, 5, 31, "#");   // the queue lane is roped off from aisles 1 to 4; aisle 5 runs straight into it (Barry, 25 Nov: no doubling back)
+  box(55, 55, 12, 38, "#");   // aisles 1 to 4 are roped off at the right; aisle 5 runs straight on to the checkouts in the back corner (Barry, 28 Nov: no drop down to the tills)
   // Aisle 1, bread: in at the left, out at the right. Someone you know, a slow trolley.
   put(3, A, "S"); put(14, A, "P"); put(20, A, "R"); put(34, A, "R"); put(41, A, "P"); put(46, A, "g");
   // Aisle 2, tins: in at the right, out at the left. Two trolleys and an old school friend.
@@ -223,28 +223,28 @@ function supermarket() {
   put(4, C, "K"); put(11, C, "P"); put(16, C, "R"); put(22, C, "R"); put(27, C, "H"); put(42, C, "R"); row(31, 35, C, "P"); put(46, C, "g");
   // Aisle 4, coffee: in at the right, out at the left. Trolleys and another old friend.
   put(52, D, "K"); put(44, D, "R"); put(40, D, "w"); put(28, D, "C"); put(20, D, "w"); put(14, D, "R"); put(9, D, "g"); put(35, D, "P"); put(47, D, "P");
-  // Aisle 5, milk, at the back as always: in at the left, the milk near the far end, and straight on into the queue.
+  // Aisle 5, milk, at the back as always: in at the left, the milk near the far end, and straight on to the checkouts.
   put(4, E, "K"); put(12, E, "P"); put(18, E, "R"); put(24, E, "R"); put(31, E, "P"); put(38, E, "R"); put(44, E, "P"); put(48, E, "g");
   put(30, B - 2, "N"); put(42, D - 2, "N"); put(20, E - 2, "N");   // the three Do Not Disturb signs, at jump height
-  // The front of the shop: headphones where the queue lets you out, two chatty tills, then the self-service checkout
-  put(58, A, "H"); put(65, A, "T"); put(69, A, "T"); put(74, A, "D");
+  // Straight on from the milk: headphones, two chatty tills, then the self-service checkout
+  put(58, E, "H"); put(65, E, "T"); put(69, E, "T"); put(74, E, "D");
   return g.map((r) => r.join(""));
 }
 const SZ = { wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false };
 const SHOP_ZONES = [
   { ...SZ, x0: 0, x1: 78, y0: 33, y1: 39, name: "Aisle 1: Bread" }, { ...SZ, x0: 0, x1: 56, y0: 26, y1: 31, name: "Aisle 2: Tins" }, { ...SZ, x0: 0, x1: 56, y0: 19, y1: 24, name: "Aisle 3: The Reduced Section" },
-  { ...SZ, x0: 0, x1: 56, y0: 12, y1: 17, name: "Aisle 4: Coffee" }, { ...SZ, x0: 0, x1: 56, y0: 0, y1: 10, name: "Aisle 5: Milk. Obviously." }, { ...SZ, x0: 56, x1: 78, y0: 0, y1: 31, name: "The Queue" },
+  { ...SZ, x0: 0, x1: 56, y0: 12, y1: 17, name: "Aisle 4: Coffee" }, { ...SZ, x0: 0, x1: 56, y0: 0, y1: 10, name: "Aisle 5: Milk. Obviously." }, { ...SZ, x0: 56, x1: 78, y0: 0, y1: 10, name: "The Checkouts" },
 ];
-const SHOP_LINKS = [{ a: 0, b: 1, x0: 49.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.5 }, { a: 2, b: 3, x0: 49.5, x1: 54.9 }, { a: 3, b: 4, x0: 1, x1: 7.5 },
-  { a: 0, b: 1, x0: 23, x1: 27, gap: true }, { a: 1, b: 2, x0: 37, x1: 41, gap: true }, { a: 2, b: 3, x0: 15, x1: 19, gap: true }, { a: 3, b: 4, x0: 33, x1: 37, gap: true },
-  { a: 4, b: 3, x0: 56, x1: 61, down: true }, { a: 3, b: 2, x0: 56, x1: 61, down: true }, { a: 2, b: 1, x0: 56, x1: 61, down: true }, { a: 1, b: 0, x0: 56, x1: 61, down: true }];
-const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", view: 13.6, laneY: [39, 32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 55], walk: [3.5, 52.5], list: ["BREAD", "BEANS", "EGGS", "COFFEE", "MILK"],
+// The gaps and open ends sit on whole shelf units (3.3 wide, from x = 1), so no unit is ever cut in half (Barry, 28 Nov: "half a refrigerator")
+const SHOP_LINKS = [{ a: 0, b: 1, x0: 50.5, x1: 54.9 }, { a: 1, b: 2, x0: 1, x1: 7.6 }, { a: 2, b: 3, x0: 50.5, x1: 54.9 }, { a: 3, b: 4, x0: 1, x1: 7.6 },
+  { a: 0, b: 1, x0: 24.1, x1: 27.4, gap: true }, { a: 1, b: 2, x0: 37.3, x1: 40.6, gap: true }, { a: 2, b: 3, x0: 14.2, x1: 17.5, gap: true }, { a: 3, b: 4, x0: 34, x1: 37.3, gap: true }];
+const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", view: 13.6, laneY: [39, 32, 25, 18, 11], links: SHOP_LINKS, shelf: [1, 53.8], walk: [3.5, 52.5], list: ["BREAD", "BEANS", "EGGS", "COFFEE", "MILK"],
   aisleSigns: [["BREAD", "CAKES", "JAM"], ["TINS", "BEANS", "PASTA SAUCE"], ["EGGS", "BISCUITS", "REDUCED"], ["COFFEE", "TEA", "CEREAL"], ["MILK", "CHEESE", "YOGHURT"]],
-  seeds: [[3, 31], [3, 24], [3, 17], [3, 10], [59, 31], [59, 24], [59, 17], [59, 10]],
+  seeds: [[3, 31], [3, 24], [3, 17], [3, 10], [59, 10]],
   lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.4, chaseWind: 1, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, zones: SHOP_ZONES, upstairs: null,
   intro: "Hoodini only needs five things: bread, beans, eggs, coffee and milk. One in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
-  signs: [{ x: 52, y: 34.3, t: "STICK UP: NEXT AISLE" }, { x: 25, y: 34.3, t: "GAP" }, { x: 39, y: 27.3, t: "GAP" }, { x: 33, y: 20.3, t: "REDUCED TO CLEAR" }, { x: 17, y: 20.3, t: "GAP" }, { x: 35, y: 13.3, t: "GAP" }, { x: 59.5, y: 6.4, t: "QUEUE HERE: STICK DOWN" }, { x: 74.5, y: 34.3, t: "SELF-SERVICE" }],
-  props: [{ n: "selfcheck", x: 72.4 }, { n: "selfcheck", x: 76.4 }],
+  signs: [{ x: 52, y: 34.3, t: "STICK UP: NEXT AISLE" }, { x: 25.75, y: 34.3, t: "GAP" }, { x: 38.95, y: 27.3, t: "GAP" }, { x: 33, y: 20.3, t: "REDUCED TO CLEAR" }, { x: 15.85, y: 20.3, t: "GAP" }, { x: 35.65, y: 13.3, t: "GAP" }, { x: 60, y: 6.4, t: "CHECKOUTS" }, { x: 74.5, y: 6.4, t: "SELF-SERVICE" }],
+  props: [{ n: "selfcheck", x: 72.4, y: 11.03 }, { n: "selfcheck", x: 76.4, y: 11.03 }],
   chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? Living the dream.", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
     R: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes.", "Ooh, I’ll just nip round the end."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
   tannoy: ["Cleaner to aisle six. There is no aisle six.", "Would the owner of a navy hoodie please come to customer services.", "Shoppers are reminded that eye contact is optional.", "The reduced section is now open. Form an orderly scrum.", "Could the gentleman hiding behind the tins please stop."],
@@ -497,7 +497,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
   if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='g'){S.list=(S.list||0)+1;sfx('power');var gi=L.laneY.indexOf(Math.round(it.y+.5));info(L.list[gi]+': GOT IT',S.list>=L.list.length?'That is everything. Join the queue at the back, on the right.':(L.list.length-S.list)+' more on the list.');return}
+ items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='g'){S.list=(S.list||0)+1;sfx('power');var gi=L.laneY.indexOf(Math.round(it.y+.5));info(L.list[gi]+': GOT IT',S.list>=L.list.length?'That is everything. The checkouts are at the back, on the right.':(L.list.length-S.list)+' more on the list.');return}
   if(it.k==='e'){S.keys++;S.batt=Math.min(1,S.batt+.004);S.keyPop=.22;sfx('key');fx.push({x:it.x,y:it.y,vx:0,vy:-2.2,life:.3,r:.16});if(S.keys===need()&&need()>0){sfx('power');info('THE WAY OUT IS UNLOCKED','You have '+need()+' keys. There are '+S.keyT+' if you want them all.')}return}sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;S.batt=1;S.glow=.6;info('DO NOT DISTURB','Social battery fully recharged.')}
@@ -756,7 +756,7 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(L.roll&&S.rollW&&S.mode==='play'){var rl=Math.max(0,(L.roll-S.rollT)/1.8),bx2=cam+vw/2,by3=camY+1.9;c.fillStyle='#e0303a';rr(bx2-3.1,by3-.38,6.2,.76,.16);c.fill();ink(.08);c.fillStyle='#fff';c.font='800 .36px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ROLL CALL: HOOD UP!',bx2,by3-.02);c.fillStyle=YEL;c.fillRect(bx2-2.9,by3+.24,5.8*rl,.08)}
  movers.forEach(function(m){if(m.sw)return;if(!m.trolley){thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things');return}
   thing('trolley',m.x-.12,MH-2+.03,2.35,false,'shop-things')});
- (L.props||[]).forEach(function(q){if(q.x>x0-3&&q.x<x1+3)thing(q.n,q.x,MH-2+.03,null,!!q.flip,'shop-things')});
+ (L.props||[]).forEach(function(q){if(q.x>x0-3&&q.x<x1+3)thing(q.n,q.x,q.y!=null?q.y:MH-2+.03,null,!!q.flip,'shop-things')});
  bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;var gx3=b.x1+.4,gy3=MH-2-2.75,lit=due||b.x!==null,fl2=lit&&!calm&&Math.floor(T*5)%2;c.fillStyle=INK;c.fillRect(gx3-.05,gy3,.1,2.75);c.globalAlpha=lit?1:.45;c.fillStyle=fl2?'#fff':YEL;c.beginPath();c.moveTo(gx3,gy3-.72);c.lineTo(gx3+.72,gy3+.5);c.lineTo(gx3-.72,gy3+.5);c.closePath();c.fill();c.strokeStyle='#e0303a';c.lineWidth=.13;c.lineJoin='round';c.stroke();
   c.strokeStyle=INK;c.lineWidth=.055;c.beginPath();c.arc(gx3-.22,gy3+.22,.14,0,6.2832);c.moveTo(gx3+.36,gy3+.22);c.arc(gx3+.22,gy3+.22,.14,0,6.2832);c.moveTo(gx3-.22,gy3+.22);c.lineTo(gx3-.06,gy3-.04);c.lineTo(gx3+.16,gy3-.04);c.lineTo(gx3+.22,gy3+.22);c.moveTo(gx3-.06,gy3-.04);c.lineTo(gx3+.02,gy3+.22);c.lineTo(gx3+.16,gy3-.04);c.moveTo(gx3-.12,gy3-.1);c.lineTo(gx3,gy3-.1);c.moveTo(gx3+.16,gy3-.04);c.lineTo(gx3+.14,gy3-.16);c.lineTo(gx3+.24,gy3-.16);c.stroke();c.globalAlpha=1;
   if(lit&&!S.seenB&&Math.abs(P.x-b.x1)<16&&S.mode==='play'){S.seenB=true;info('CYCLE LANE','The green strip is a cycle lane. When the sign flashes, a cyclist is coming: jump, or step off the green.')}
