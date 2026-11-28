@@ -238,6 +238,16 @@ save("shop-movers", strip([cellh(f, s1, 560, 262, 150, 258, .45) for f in hm[:4]
 # More trolley shoppers (Barry, 25 Nov): the man in the football shirt 0-3, the dad with the toddler 4-7, the lady with the tartan bag 8-11
 hw = figures(key("shop-walkers.png"), 3); assert len(hw) == 12, len(hw)
 save("shop-walkers", strip([cellh(f, 2.1 * PPT / hw[0].shape[0], 560, 262, 150, 258, .45) for f in hw[:4]] + [cellh(f, 2.1 * PPT / hw[4].shape[0], 560, 262, 150, 258, .4) for f in hw[4:8]] + [cellh(f, 1.9 * PPT / hw[8].shape[0], 560, 262, 150, 258, 1) for f in hw[8:]]), w=560, h=262, ax=150, base=258, n=12)
+# More supermarket people (Barry, 28 Nov), so the same faces are not everywhere.
+# shop-people2: four more shoppers standing about, in pairs quiet / talking: gym 0-1, suit 2-3, gran 4-5, student 6-7
+h2 = figures(key("shop-people2.png"), 2); assert len(h2) == 8, len(h2); q2 = [2.05, 2.15, 1.95, 2.1]
+save("shop-people2", strip([cellh(h2[r * 4 + i], q2[i] * PPT / h2[i].shape[0], 440, 290, 170, 286, 1) for i in range(4) for r in range(2)]), w=440, h=290, ax=170, base=286, n=8)
+# shop-walkers2: three more walking shoppers, four frames each: dad with a toddler on his shoulders 0-3, teenager on a phone 4-7, old man with a tartan trolley 8-11
+w2 = figures(key("shop-walkers2.png"), 3); assert len(w2) == 12, len(w2); q3 = [2.68, 2.05, 1.95]
+save("shop-walkers2", strip([cellh(w2[r * 4 + i], q3[r] * PPT / w2[r * 4].shape[0], 560, 330, 200, 326, 1) for r in range(3) for i in range(4)]), w=560, h=330, ax=200, base=326, n=12)
+# shop-staff: the two checkout workers, four poses each (standing, talking, striding, striding and pointing): ponytail 0-3, ginger 4-7
+st_ = figures(key("shop-staff.png"), 2); assert len(st_) == 8, len(st_); q4 = [2.1, 2.3]
+save("shop-staff", strip([cellh(st_[r * 4 + i], q4[r] * PPT / st_[r * 4].shape[0], 560, 290, 200, 286, 1) for r in range(2) for i in range(4)]), w=560, h=290, ax=200, base=286, n=8)
 _, ht_, _, _ = boxes("shop-things.png", [(20, 480, 80, 470), (505, 865, 60, 470), (875, 1385, 5, 470), (1400, 1745, 80, 465), (10, 545, 530, 880), (585, 945, 500, 880), (975, 1260, 500, 880), (1315, 1755, 505, 880)])
 sheet_("shop-things", ht_, [215, 150, 300, 150, 190, 235, 285, 300], ["trolley", "crates", "tins", "wetfloor", "till", "selfcheck", "staff", "exit"])
 # Background: 0 cereal shelves 1 tins and jars 2 fruit and veg stand 3 freezer 4 bakery rack 5 aisle sign 6 chiller 7 magazines 8 baskets 9 offer sign
