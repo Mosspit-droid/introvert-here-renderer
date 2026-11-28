@@ -238,6 +238,15 @@ save("shop-movers", strip([cellh(f, s1, 560, 262, 150, 258, .45) for f in hm[:4]
 # More trolley shoppers (Barry, 25 Nov): the man in the football shirt 0-3, the dad with the toddler 4-7, the lady with the tartan bag 8-11
 hw = figures(key("shop-walkers.png"), 3); assert len(hw) == 12, len(hw)
 save("shop-walkers", strip([cellh(f, 2.1 * PPT / hw[0].shape[0], 560, 262, 150, 258, .45) for f in hw[:4]] + [cellh(f, 2.1 * PPT / hw[4].shape[0], 560, 262, 150, 258, .4) for f in hw[4:8]] + [cellh(f, 1.9 * PPT / hw[8].shape[0], 560, 262, 150, 258, 1) for f in hw[8:]]), w=560, h=262, ax=150, base=258, n=12)
+# More high street people (Barry, 28 Nov): the bus queue and the closing-down-sale shoppers, in pairs quiet / talking, and all eight in the rain
+# street-queue: pensioner 0-1, office worker 2-3, schoolboy 4-5, builder 6-7.  street-sale: bags 0-1, television 2-3, lamp 4-5, rug 6-7.
+# street-rain2: the queue 0-3 then the shoppers 4-7, one pose each, cut at the same scale as their dry selves.
+for nm_, hs_ in (("street-queue", [2.0, 2.1, 1.85, 2.15]), ("street-sale", [2.05, 2.1, 2.05, 2.1])):
+    fq_ = figures(key(nm_ + ".png"), 2); assert len(fq_) == 8, (nm_, len(fq_)); sc_ = [hs_[i] * PPT / fq_[i].shape[0] for i in range(4)]
+    save(nm_, strip([cellh(fq_[r * 4 + i], sc_[i], 440, 290, 170, 286, 1) for i in range(4) for r in range(2)]), w=440, h=290, ax=170, base=286, n=8)
+    if nm_ == "street-queue": scq_ = sc_
+kr_ = key("street-rain2.png"); cutr_ = round(kr_.shape[0] * .493); fr_ = figures(kr_[:cutr_]) + figures(kr_[cutr_:]); assert len(fr_) == 8, len(fr_)   # the two rows nearly touch, so they are split by hand
+save("street-rain2", strip([cellh(fr_[i], (scq_ + sc_)[i], 480, 350, 190, 346, 1) for i in range(8)]), w=480, h=350, ax=190, base=346, n=8)
 # More supermarket people (Barry, 28 Nov), so the same faces are not everywhere.
 # shop-people2: four more shoppers standing about, in pairs quiet / talking: gym 0-1, suit 2-3, gran 4-5, student 6-7
 h2 = figures(key("shop-people2.png"), 2); assert len(h2) == 8, len(h2); q2 = [2.05, 2.15, 1.95, 2.1]
