@@ -170,25 +170,28 @@ function houseParty() {
   // (a conga, and furniture to cross it on), a real staircase up to the first floor with the crying corner sat on it, and the kitchen
   // (the arguing couple either side of the island, the huddle, the tissues at the far end). First floor, going left from the top of
   // the stairs: the queue for the bathroom, the singalong, the dark coat bedroom (a couple who must not be lit up), and the loft
-  // stairs. The loft: the other introverts, then the host calls speeches and it is a dash to the window and the umbrella.
+  // stairs. The loft: the other introverts, then the host calls speeches and it is a dash to the window.
+  // 28 Nov, second go: upstairs is a landing (the queue, and the loft stairs doubling back over the stairwell), then the spare room,
+  // then the dark coat bedroom at the far end, where the umbrella is. So the bedrooms are a there-and-back trip, like the kitchen.
   const W = 120, H = 29, G = 26, F1 = 17, F2 = 8, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
   box(0, W - 1, 27, 28, "#"); box(0, 0, 0, 28, "#"); box(W - 1, W - 1, 0, 28, "#");
   row(15, 93, 0, "#"); box(15, 15, 0, 24, "#"); box(93, 93, 0, 26, "#"); put(93, 7, "."); put(93, 8, ".");
-  box(16, 92, 18, 19, "#"); box(54, 62, 18, 19, "."); box(16, 92, 9, 10, "#"); box(19, 27, 9, 10, "."); box(63, 63, 11, 17, "#");
+  box(16, 92, 18, 19, "#"); box(54, 62, 18, 19, "."); box(16, 92, 9, 10, "#"); box(46, 54, 9, 10, "."); box(63, 63, 11, 17, "#");
+  box(29, 29, 11, 15, "#"); box(41, 41, 11, 15, "#"); put(93, 25, "."); put(93, 26, ".");   // proper rooms upstairs, with doorways; and a back door from the garden so you can go round again
   put(2, G, "S");
   put(26, G, "w"); put(38, G, "A"); put(50, G, "w"); row(28, 29, 25, "="); row(32, 35, 25, "="); row(39, 41, 25, "="); row(45, 46, 25, "=");
   put(56, G, "K"); put(57, 20, "Y"); put(58, 21, "Y");
   put(66, G, "f"); put(71, G, "F"); put(72, G, "F"); row(78, 82, G, "P"); put(85, 24, "N"); put(88, G, "t");
-  put(49, F1, "P"); put(47, F1, "P"); put(44, F1, "K"); put(40, 15, "N"); put(37, F1, "P"); put(33, F1, "T");
-  put(27, F1, "L"); put(24, F1, "^"); put(21, F1, "L");
-  put(62, F2, "F"); put(63, F2, "F"); put(63, F2 - 1, "F"); put(70, F2, "F"); put(77, F2, "F"); put(78, F2, "F"); put(78, F2 - 1, "F"); put(84, 5, "N"); put(89, F2, "u");
+  put(44, F1, "P"); put(43, F1, "P"); put(38, F1, "K"); put(36, 15, "N"); put(35, F1, "P"); put(32, F1, "T");
+  put(27, F1, "L"); put(24, F1, "^"); put(21, F1, "L"); put(18, F1, "u");
+  put(78, F2, "F"); put(79, F2, "F"); put(79, F2 - 1, "F"); put(85, F2, "F"); put(84, 5, "N");
   put(105, G, "P"); put(106, G, "P"); put(114, G, "D");
   // Keys along the real route: over the furniture, up both flights of stairs, a zig-zag down past the house on the umbrella, and the rest along the floors
   const key = (x, y) => { if (g[y][x] === ".") g[y][x] = "e"; };
-  [[28, 23], [30, 22], [31, 22], [34, 23], [37, 22], [38, 22], [40, 23], [43, 22], [44, 22], [45, 23], [61, 24], [60, 23], [56, 19], [55, 18], [21, 14], [23, 12], [25, 10], [27, 8],
+  [[28, 23], [30, 22], [31, 22], [34, 23], [37, 22], [38, 22], [40, 23], [43, 22], [44, 22], [45, 23], [61, 24], [60, 23], [56, 19], [55, 18], [48, 14], [50, 12], [52, 10], [54, 8],
     [96, 11], [98, 12], [100, 13], [102, 14], [100, 16], [98, 17], [96, 18], [98, 20], [100, 21], [102, 22], [100, 24]].forEach((q) => key(q[0], q[1]));
-  const busy = "PWTCGKDSFHNumft=LYA^", free = []; [[G, 4, 92], [F1, 30, 52], [F2, 31, 90], [G, 95, 112]].forEach(([r, a, b]) => { for (let x = a; x <= b; x++) if (g[r][x] === "." && g[r + 1][x] === "#" && ![-1, 0, 1].some((d) => busy.includes(g[r][x + d]))) free.push([x, r]); });
+  const busy = "PWTCGKDSFHNumft=LYA^", free = []; [[G, 4, 92], [F1, 30, 53], [F2, 17, 90], [G, 95, 112]].forEach(([r, a, b]) => { for (let x = a; x <= b; x++) if (g[r][x] === "." && g[r + 1][x] === "#" && ![-1, 0, 1].some((d) => busy.includes(g[r][x + d]))) free.push([x, r]); });
   const have = g.reduce((n, r) => n + r.filter((c) => c === "e").length, 0), need = 100 - have; for (let k = 0; k < need; k++) { const q = free[Math.floor((k + .5) * free.length / need)]; key(q[0], q[1]); }
   return g.map((r) => r.join(""));
 }
@@ -200,18 +203,18 @@ const PARTY_ZONES = [
   { x0: 52, x1: 63, y0: 11, y1: 27, name: "The Stairs", wall: "#f1dcc3", dado: "#dcb48c", rail: "#b98a5a", kinds: [] },
   { x0: 63, x1: 94, y0: 20, y1: 27, name: "The Kitchen", wall: "#e3eedf", dado: "#bcd5b4", rail: "#8fb184", kinds: [5, 6, 8, 7, 5] },
   { x0: 63, x1: 94, y0: 11, y1: 18, name: "The Bathroom", wall: "#d8e8ee", dado: "#b4cfd9", rail: "#86a9b6", kinds: [] },
-  { x0: 43, x1: 52, y0: 11, y1: 18, name: "The Landing", wall: "#f1dcc3", dado: "#dcb48c", rail: "#b98a5a", kinds: [] },
-  { x0: 29, x1: 43, y0: 11, y1: 18, name: "The Spare Room", wall: "#fbe1cf", dado: "#f0b99a", rail: "#cf8a66", kinds: [3, 4] },
+  { x0: 41, x1: 52, y0: 11, y1: 18, name: "The Landing", wall: "#f1dcc3", dado: "#dcb48c", rail: "#b98a5a", kinds: [] },
+  { x0: 29, x1: 41, y0: 11, y1: 18, name: "The Spare Room", wall: "#fbe1cf", dado: "#f0b99a", rail: "#cf8a66", kinds: [3, 4] },
   { x0: 15, x1: 29, y0: 11, y1: 18, name: "The Coat Bedroom", wall: "#e6dcef", dado: "#c9b6dc", rail: "#9f84b8", kinds: [], dark: true },
   { x0: 15, x1: 94, y0: 0, y1: 9, name: "The Loft", wall: "#d9cdb8", dado: "#bfae90", rail: "#96855f", kinds: [9, 10, 11, 9] },
   { ...NIGHT, x0: 94, x1: 120, y0: 0, y1: 27, name: "The Garden", kinds: [12, 14, 13] },
 ];
 const PARTY = { name: "The House Party", out: "the house party", theme: "party", toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, need: 40, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
-  stairs: [{ x0: 63, y0: 27, x1: 54, y1: 18 }, { x0: 19, y0: 18, x1: 28, y1: 9 }],
-  host: { x: 20.5, y: 27 }, argue: { x0: 68.5, x1: 74.5, a: 69.7, b: 73.3, y: 27 }, couple: { x: 23.4, y: 18, x0: 16, x1: 29.2, zone: "The Coat Bedroom" }, loft: { hi: 38, go: 56, hatch: 31.5, win: 92.5, time: 10, y: 9, sit: [40, 45.5, 51] },
+  stairs: [{ x0: 63, y0: 27, x1: 54, y1: 18 }, { x0: 46, y0: 18, x1: 55, y1: 9 }],
+  host: { x: 20.5, y: 27 }, argue: { x0: 68.5, x1: 74.5, a: 69.7, b: 73.3, y: 27 }, couple: { x: 23.4, y: 18, x0: 16, x1: 29.2, zone: "The Coat Bedroom" }, loft: { hi: 57, go: 73, hatch: 55.6, win: 92.5, time: 8, y: 9, sit: [60, 65.5, 70.5] },
   furn: [{ k: "armchair", x0: 28, x1: 29, y: 25 }, { k: "sofa", x0: 32, x1: 35, y: 25 }, { k: "sideboard", x0: 39, x1: 41, y: 25 }, { k: "bookcase", x0: 45, x1: 46, y: 25 }, { k: "island", x0: 71, x1: 72, y: 26 }],
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
-  signs: [{ x: 37, y: 21.3, t: "THE FLOOR IS CONGA" }, { x: 88.5, y: 23.6, t: "TISSUES" }, { x: 89.5, y: 5.2, t: "TAKE THE UMBRELLA" }],
+  signs: [{ x: 37, y: 21.3, t: "THE FLOOR IS CONGA" }],
   lines: { P: ["There you are!", "Have you met everyone?", "We were JUST talking about you."], W: ["Come and dance!", "Get in the circle!", "One more song!"], T: ["Tell him!", "Tell HER!", "You’re on my side, aren’t you?"], C: ["You MADE it!", "You’re not LEAVING?", "Stay for the speeches!", "There’s cake at midnight!"], shield: ["Sorry, just taking this through."], A: ["CONGA!", "Get on the end!", "Da da da da da, HEY!"], reach: ["Have a drink!", "Try this, it’s lethal.", "Hold this a sec."], bite: ["Ooh, is that a sausage roll?", "Don’t mind if I do.", "Are those the mini quiches?"], Y: ["He said he needed SPACE.", "You’re a good listener, aren’t you?", "Sit down. It’s a long story.", "You’re so much better than him. I KNOW."], Yok: ["Thank you. You’re SO lovely."], sulk: ["Hmph.", "FINE.", "Whatever."], couple: ["Oh! Hi! We were just…", "Do you MIND?", "Turn it OFF!"], speech: ["THERE you all are! SPEECHES!", "Speech! Speech!", "Everybody downstairs!"], pit: ["You fell into a conversation about house prices."] } };
 
 // Level 5, the supermarket (Barry, 25 Nov, second go). Five aisles on ONE floor, drawn front to back: you see your own aisle and
@@ -398,7 +401,7 @@ function load(i,quiet){LI=Math.max(0,Math.min(LV.length-1,i));if(!quiet)try{loca
 function menu(){var un=unlocked();$('pgintrop').textContent=L.intro;[['pglv',false],['pglv2',true]].forEach(function(q){var el=$(q[0]);el.textContent='';if(LV.length<2||(q[1]&&un<1))return;
   LV.forEach(function(lv,i){var b=document.createElement('button');b.type='button';b.textContent=(i+1)+'. '+lv.name;b.className=i===LI?'on':'';b.disabled=i>un;b.addEventListener('click',function(){load(i);if(q[1]){$('pgcard').hidden=true;cv.focus()}});el.appendChild(b)})});
  $('pglvh').hidden=un<1}
-function reset(){people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
+function reset(){lit={};people=[];items=[];bubbles=[];says=[];pops=[];var sx=2,sy=8;
  movers=(L.movers||[]).map(function(m){return m.sw?{sw:true,cx:m.x,cy:m.y,amp:m.amp,per:m.per,ph:m.ph||0,w:2,x:m.x,y:m.y}:{x:m.x0,x0:m.x0,x1:m.x1,y:m.y,w:m.w,v:m.speed,wait:1,trolley:!!m.trolley}});bikes=(L.lanes||[]).map(function(l,i){return {x0:l.x0,x1:l.x1,every:l.every,t:i*1.3,x:null}});
  for(var y=0;y<MH;y++)for(var x=0;x<MW;x++){var c=MAP[y].charAt(x);
   if(c==='S'){sx=x;sy=y}else if(c==='a')items.push({k:'a',x:x+.5,x0:x+.5,y:y+.5,got:false,sway:(L.sway||[])[items.filter(function(q){return q.k==='a'}).length]||0})
@@ -419,8 +422,8 @@ function flat(){sfx('lose');nemPic(null);S.flats=(S.flats||0)+1;S.mode='lost';ca
 function info(a,b){S.info={a:a,b:b,t:4}}
 function stairY(st,x){var raw=st.y0+(x-st.x0)*(st.y1-st.y0)/(st.x1-st.x0);return Math.min(st.y0,Math.max(st.y1,raw-.5))}
 function partyStep(dt,unseen){var A=S.act||(S.act={ht:1.2,at:0,ct:0,lt:0}),H=L.host,G2=L.argue,C2=L.couple,F2=L.loft;
- A.ht+=dt;var cyc=A.ht%6.2,turned=cyc>3.5;if(turned&&!A.turned){tone(660,660,.22,'sine',.1);tone(523,523,.34,'sine',.1,.24);say('DING DONG',H.x+2,H.y-3.9)}A.turned=turned;
- if(!S.seenHost&&P.x>9&&P.x<H.x){S.seenHost=true;info('THE HOST','He wants a hug. When the doorbell goes he turns round to answer it. Slip past then.')}
+ A.ht+=dt;var cyc=A.ht%6.2,turned=cyc>3.5;if(turned&&!A.turned){hiss(.3,.25,900);tone(1900,700,.25,'triangle',.07);say('CRASH!',H.x+4.2,H.y-3.6);say(pick(['Not the GOOD glasses!','Who was THAT?','Use a COASTER!']),H.x,H.y-2.8)}A.turned=turned;
+ if(!S.seenHost&&P.x>9&&P.x<H.x){S.seenHost=true;info('THE HOST','He wants a hug. When something smashes in the house he spins round to look. Slip past then.')}
  if(!turned&&!unseen&&Math.abs(P.x-H.x)<1.6&&P.y>H.y-3.9&&P.y<=H.y+.1&&P.inv<=0){say(pick(L.lines.C),H.x,H.y-2.7);hurt('C',P.x<H.x?H.x+1:H.x-1)}
  A.at+=dt;var ac=A.at%6,sulk=ac>3.6;A.sulk=sulk;if(!S.seenArg&&P.x>64&&P.x<G2.x0){S.seenArg=true;info('THE ARGUMENT','Walk between them and they both want you on their side. Wait for the sulk, then go.')}
  if(!sulk){A.sayT=(A.sayT||0)-dt;if(A.sayT<=0&&Math.abs(P.x-(G2.a+G2.b)/2)<13&&Math.abs(P.y-G2.y)<4){A.sayT=.95;A.who=!A.who;say(pick(['It was YOUR mother!','I said SEVEN o’clock!','You ALWAYS do this!','Don’t you DARE!','In front of EVERYONE?','Oh, HERE we go.']),A.who?G2.a:G2.b,G2.y-2.7)}
@@ -428,7 +431,8 @@ function partyStep(dt,unseen){var A=S.act||(S.act={ht:1.2,at:0,ct:0,lt:0}),H=L.h
  else if(!A.wasSulk)say(pick(L.lines.sulk),G2.a,G2.y-2.7);A.wasSulk=sulk;
  var inC=P.x>C2.x0&&P.x<C2.x1&&P.y>C2.y-6.5&&P.y<=C2.y+.1,on=!!lit[C2.zone];if(on&&inC){A.ct-=dt;if(A.ct<=0&&P.inv<=0){say(L.lines.couple[A.cn?1+(A.cn%2):0],C2.x,C2.y-2.8);if(!A.cn)S.batt=Math.max(.02,S.batt-.1);A.cn=(A.cn||0)+1;A.ct=2.8;hurt('P',P.x<C2.x?C2.x+1:C2.x-1)}}else A.ct=.35;
  if(!S.seenCpl&&P.x<34&&P.y>C2.y-6.5&&P.y<=C2.y+.1){S.seenCpl=true;info('THE COAT BEDROOM','Somebody is in there, and they are busy. Do not touch the light switches. Hop over the little red lights.')}
- var inLoft=P.y<=F2.y+.1&&P.x>28&&P.x<93;if(inLoft&&!A.hi&&P.x>F2.hi){A.hi=true;say('…',F2.sit[1],F2.y-2.6);info('THE OTHER INTROVERTS','Three people sat in silence on their phones. They nod. You nod. Nobody speaks. It is lovely.')}
+ if(!S.seenLand&&P.ground&&Math.abs(P.y-C2.y)<.1&&P.x<53&&P.x>41){S.seenLand=true;if(!P.brolly)info('THE LANDING','The loft stairs are right here, but it is a long way down from the loft window. The coats and umbrellas are in the far bedroom.')}
+ var inLoft=P.y<=F2.y+.1&&P.x>16&&P.x<93;if(inLoft&&!A.hi&&P.x>F2.hi){A.hi=true;say('…',F2.sit[1],F2.y-2.6);info('THE OTHER INTROVERTS','Three people sat in silence on their phones. They nod. You nod. Nobody speaks. It is lovely.')}
  if(inLoft&&!A.go&&P.x>F2.go){A.go=true;A.lt=F2.time;sfx('lose');say(L.lines.speech[0],Math.max(F2.hatch,cam+3),F2.y-2.9);info('SPEECHES','The host is rounding everybody up. Get to the window before he gets to you.')}
  if(A.go&&!A.out){if(!inLoft&&(P.x>=93||P.y>F2.y+1.5)){A.out=true;A.lt=0}else{A.lt-=dt;if(A.lt<=0){A.lt=6;say(pick(L.lines.speech),P.x,P.y-2.9);S.batt=Math.max(.02,S.batt-.12);P.inv=0;hurt('C',P.x-1)}}}}
 function bossHome(){people.forEach(function(p){if(p.hx!=null){p.x=p.hx;p.f=p.hf;p.go=0}})}
@@ -744,7 +748,8 @@ function partyDraw(x0,x1){var c=cx,k=1/PPT,A=S.act||{},H=L.host,G2=L.argue,C2=L.
   c.fillStyle='#b9793a';for(i=0;i<n;i++){var tx=st.x0+up*(i+.5),ty=st.y0-i-1;rr(Math.min(tx,tx+up)-.04,ty-.02,1.08,.16,.04);c.fill();ink(.05)}
   c.strokeStyle='#8a5a2b';c.lineWidth=.14;c.lineCap='round';c.beginPath();c.moveTo(st.x0+up*.3,st.y0-1.5);c.lineTo(st.x1,st.y1-1.5);c.stroke();c.lineWidth=.07;for(i=0;i<=n;i+=1.5){var px=st.x0+up*(i+.3),py=Math.min(st.y0,st.y0-i+.2);c.beginPath();c.moveTo(px,py);c.lineTo(px,st.y0-i-1.2);c.stroke()}c.lineCap='butt';
   c.fillStyle='#8a5a2b';rr(st.x0+up*.3-.12,st.y0-1.75,.24,1.75,.06);c.fill();ink(.06);c.beginPath();c.arc(st.x0+up*.3,st.y0-1.85,.18,0,6.2832);c.fill();ink(.06)});
- if(H.x>x0-5&&H.x<x1+5){var dx7=H.x+1.3,op=!!A.turned;c.fillStyle='#8a5a2b';rr(dx7-.1,H.y-3.5,1.8,3.5,.06);c.fill();ink(.08);c.fillStyle=op?'#2b3555':'#c0564a';rr(dx7+.05,H.y-3.35,1.5,3.35,.04);c.fill();ink(.06);if(op){c.fillStyle='#c0564a';c.beginPath();c.moveTo(dx7+1.55,H.y-3.35);c.lineTo(dx7+1.95,H.y-3.1);c.lineTo(dx7+1.95,H.y-.15);c.lineTo(dx7+1.55,H.y);c.closePath();c.fill();ink(.06);sprite('party-people',6,dx7+.8,H.y+.03,true,k*.92)}else{c.fillStyle=YEL;c.beginPath();c.arc(dx7+1.3,H.y-1.6,.09,0,6.2832);c.fill();ink(.04)}
+ for(var kx7=Math.max(1,Math.floor(x0));kx7<x1+1;kx7++)if(tile(kx7,fy-1)==='K'){var ky7=fy-1;c.fillStyle='#f6efe0';rr(kx7-.25,ky7-1.15,1.5,2.17,.06);c.fill();ink(.08);c.strokeStyle=INK;c.lineWidth=.04;c.strokeRect(kx7-.08,ky7-.98,1.16,.9);c.strokeRect(kx7-.08,ky7+.05,1.16,.8);c.fillStyle=YEL;c.beginPath();c.arc(kx7+1.02,ky7,.08,0,6.2832);c.fill();ink(.04);c.fillStyle=INK;rr(kx7-.22,ky7-1.62,1.44,.36,.08);c.fill();c.fillStyle=YEL;c.font='800 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('CUPBOARD',kx7+.5,ky7-1.43);if(S.cp&&S.cp[0]===kx7+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(kx7+.5,ky7-2,.16,0,6.2832);c.fill();ink(.06)}}
+ if(H.x>x0-5&&H.x<x1+5){var op=!!A.turned;
   c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(H.x,H.y,.5,.08,0,0,6.2832);c.fill();sprite('party-host',op?3:1,H.x,H.y+.03-(op||calm?0:Math.abs(Math.sin(T*5))*.05),!op,k)}
  if(G2.b>x0-3&&G2.a<x1+3){var sk=!!A.sulk,tk=Math.floor(T/.32)%2,wa=!sk&&A.who,wb=!sk&&!A.who;[[G2.a,0,wa,sk],[G2.b,2,wb,!sk]].forEach(function(q,qi){var hop=q[2]&&!calm?Math.abs(Math.sin(T*11))*.1:0;c.fillStyle='rgba(27,27,42,.18)';c.beginPath();c.ellipse(q[0],G2.y,.5,.08,0,0,6.2832);c.fill();sprite('party-people',q[1]+(q[2]&&tk?1:0),q[0],G2.y+.03-hop,q[3],k);
    if(q[2]&&!calm){c.strokeStyle='#e0303a';c.lineWidth=.08;c.lineCap='round';var mx=q[0]+(qi?-.75:.75),my=G2.y-2.05;c.beginPath();for(var m=0;m<3;m++){var an=-1+m*.5+(qi?3.1416-(-2+m):0);c.moveTo(mx+Math.cos(an)*.18,my+Math.sin(an)*.18);c.lineTo(mx+Math.cos(an)*.42,my+Math.sin(an)*.42)}c.stroke();c.lineCap='butt'}})}
