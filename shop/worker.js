@@ -222,19 +222,19 @@ async function shopRoute(request, env, url, path, R) {
 // delivery wording (regionify).
 const R_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
 const REGIONS = {
-  us: { key: "us", pre: "/us", c: "US", cur: "usd", sym: "$", ship: "Free US delivery", days: "5–12", min: "5", max: "12", xmas: "2026-12-10", shop: "IH-US", locale: "en", minSpend: "$32",
+  us: { key: "us", pre: "/us", c: "US", cur: "usd", sym: "$", money: "US dollars", ship: "Free US delivery", days: "5–12", min: "5", max: "12", xmas: "2026-12-10", shop: "IH-US", locale: "en", minSpend: "$32",
     product: (d, t) => (US_PRODUCTS[d.id] || {})[t], variants: (d, t) => US_VARIANTS[t], price: (d, t) => US_PRICES[t] },
-  ca: { key: "ca", pre: "/ca", c: "CA", cur: "cad", sym: "CA$", ship: "Free delivery in Canada", days: "6–14", min: "6", max: "14", xmas: "2026-12-08", shop: "IH-CA", locale: "en", minSpend: "CA$45",
+  ca: { key: "ca", pre: "/ca", c: "CA", cur: "cad", sym: "$", money: "Canadian dollars", ship: "Free delivery in Canada", days: "6–14", min: "6", max: "14", xmas: "2026-12-08", shop: "IH-CA", locale: "en", minSpend: "$45",
     product: (d, t) => (CA_PRODUCTS[d.id] || {})[t], variants: (d, t) => CA_VARIANTS[t + "@" + caProvider(d, t)],
     price: (d, t) => (d.coll === "EX" && t === "T-SHIRT" ? CA_PRICES["EX-T-SHIRT"] : CA_PRICES[t]) },
   // Australia: The Print Bar for everything it makes; any colour and size it doesn't make goes through the existing
   // Choice product (fallback). Dark Heather tees are printed in Charcoal there (Barry, 28 Nov: "near enough").
-  au: { key: "au", pre: "/au", c: "AU", cur: "aud", sym: "A$", ship: "Free delivery in Australia", days: "7–15", min: "7", max: "15", xmas: "2026-12-07", shop: "IH-AU", locale: "en", minSpend: "A$50",
+  au: { key: "au", pre: "/au", c: "AU", cur: "aud", sym: "$", money: "Australian dollars", ship: "Free delivery in Australia", days: "7–15", min: "7", max: "15", xmas: "2026-12-07", shop: "IH-AU", locale: "en", minSpend: "$50",
     product: (d, t) => (AU_PRODUCTS[d.id] || {})[t], variants: (d, t) => AU_VARIANTS[t], price: (d, t) => AU_PRICES[t], fallback: true,
     swap: { "T-SHIRT": { "Dark Heather": ["Charcoal", "#36454f"] } } },
   // New Zealand (Barry, 28 Nov): everything through the existing Choice products (cheaper to post to NZ than from
   // Australia, and every colour); no NZ products of its own.
-  nz: { key: "nz", pre: "/nz", c: "NZ", cur: "nzd", sym: "NZ$", ship: "Free delivery in New Zealand", days: "10–20", min: "10", max: "20", xmas: "2026-12-04", shop: "IH-NZ", locale: "en", minSpend: "NZ$55",
+  nz: { key: "nz", pre: "/nz", c: "NZ", cur: "nzd", sym: "$", money: "New Zealand dollars", ship: "Free delivery in New Zealand", days: "10–20", min: "10", max: "20", xmas: "2026-12-04", shop: "IH-NZ", locale: "en", minSpend: "$55",
     product: () => null, variants: () => null, fallback: true,
     price: (d, t) => ({ "T-SHIRT": [5499, 5999, 6399], "LONG-SLEEVE": [5999, 6499, 6899], SWEATSHIRT: [7999, 8799, 9199], HOODIE: [10999, 11799, 12199] })[t] },
 };
@@ -284,6 +284,7 @@ function regionify(h, R) {
     .replace(/'\/api\/checkout'/g, "'/api/checkout?r=" + R.key + "'")
     .replace(/Free UK delivery/g, R.ship).replace(/free UK delivery/g, R.ship.charAt(0).toLowerCase() + R.ship.slice(1))
     .replace(/4–10 working days/g, R.days + " working days")
+    .replace(/(<p class="note">[^<]*?working days)/g, "$1 · Prices in " + R.money)   // plain $ on the page, so say which dollars once
     .replace(/<div class="xn">[^]*?<\/div>/g, (m) => xn || m.replace(/Order by <b>[^<]*<\/b>/, `Order by <b>${xmasDay(R.xmas)}</b>`).replace(/ Long sleeves by <b>[^<]*<\/b> \(they’re printed abroad\)\./, "").replace(/ Long sleeves are now too late\./, ""));
 }
 const caProvider = (d, t) => (t === "T-SHIRT" && d.coll !== "EX" ? 27 : 41);   // Print Geek tees; Duplium for the rest
