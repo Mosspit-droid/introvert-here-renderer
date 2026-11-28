@@ -2200,7 +2200,7 @@ function legalPage(which) {
   const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
-<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. Any US sales tax, where it applies, is shown at checkout. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
+<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. No US sales tax is added. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
 <p>A contract is formed when your payment is accepted and we email your receipt. If we can't fulfil an order we'll refund you in full.</p>
 <p>You can return items within 30 days if you change your mind, except personalised (In Person) items, which are made to your order. Faulty, damaged or wrongly printed items are always put right. See <a href="/returns">Returns</a> for details.</p>
 <p>Nothing in these terms affects your statutory rights.</p>`],
