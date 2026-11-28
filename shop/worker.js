@@ -882,11 +882,13 @@ set:function(b){try{localStorage.setItem('ih_basket',JSON.stringify(b))}catch(e)
 count:function(){var n=B.get().reduce(function(a,i){return a+i.qty},0);var el=document.getElementById('bc');if(el)el.textContent=n}};B.count();`;
 
 function countryPage(guess) {
-  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["AU", "Australia"], ["NZ", "New Zealand"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
+  // Barry, 28 Nov: the countries with their own shop, then one "Everywhere else" that goes straight to Etsy.
+  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["AU", "Australia"], ["NZ", "New Zealand"], ["XX", "Everywhere else"]];
+  if (!opts.some(([c]) => c === guess)) guess = "XX";
   const order = opts.slice().sort((a, b) => (b[0] === guess) - (a[0] === guess));
   return page("Choose your country", `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
-<div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="/country?c=${c}">${n}${i ? "" : " ✓"}</a>`).join("")}</div>
+<div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="${c === "XX" ? ETSY_SHOP + '" rel="noopener' : "/country?c=" + c}">${n}${c === "XX" ? " (on Etsy)" : ""}${i ? "" : " ✓"}</a>`).join("")}</div>
 <p class="centre note">We remember your choice on this device. You can change it at the bottom of any page.</p>`, { noBasket: true });
 }
 
