@@ -5,6 +5,9 @@ Nothing gets posted without his OK.
 
 ## The site
 
+- **Update 28 Nov:** the site launched on 28 Nov, and there's now a **US shop** at introverthere.com/us (dollar prices,
+  printed in the US, free US delivery, order by 10 Dec for Christmas). Fine to mention to US followers.
+
 - **introverthere.com**, launching **Monday 30 November**. Until then the domain isn't live and the only copy is a
   private preview: don't post the preview link.
 - Two halves: **the Shop** (all the Etsy designs, cheaper than Etsy, plus some designs out on the site before Etsy) and
