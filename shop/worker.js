@@ -889,7 +889,8 @@ function countryPage(guess) {
   return page("Choose your country", `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
 <div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="${c === "XX" ? ETSY_SHOP + '" rel="noopener' : "/country?c=" + c}">${n}${c === "XX" ? " (on Etsy)" : ""}${i ? "" : " ✓"}</a>`).join("")}</div>
-<p class="centre note">We remember your choice on this device. You can change it at the bottom of any page.</p>`, { noBasket: true });
+<p class="centre note">We remember your choice on this device. You can change it at the bottom of any page.</p>
+<p class="centre" style="margin-top:22px">Not shopping? <a href="${HUB.path}">Hide in the Escape Room →</a></p>`, { noBasket: true });
 }
 
 function elsewherePage(c) {
