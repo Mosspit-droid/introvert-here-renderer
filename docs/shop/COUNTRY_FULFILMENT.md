@@ -122,3 +122,4 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
   17.87 + 22.79, hoodie 28.03 + 22.79.
 - Prices (AUD, free delivery): tee 49.99, long sleeve 54.99, sweatshirt 74.99, hoodie 99.99; 2XL/3XL +5/+9 (tee,
   long sleeve), +8/+12 (sweatshirt, hoodie). Reward codes: A$50 minimum spend.
+- 140 Australian Printify products made 28 Nov ("<design> <garment> (AU)"); map: docs/shop/au-printify-products.json. Colours/sizes The Print Bar lacks fall back to the existing Choice products per colour and size.
