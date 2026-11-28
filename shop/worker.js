@@ -1516,9 +1516,10 @@ function dzPaperDoc(steps) {
   for (let n = 1; n <= DZ_N; n++) { keys.push("p" + n); if (n < DZ_N) keys.push("r" + n); }
   chaps.forEach((c, i) => { if (i) keys.push("c" + i); });
   DZ_PAPER_DORIS.forEach((_, i) => keys.push("d" + i));
-  keys.push("hug", "end");
+  keys.push("hug");
   let seed = 1123; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const order = keys.map((k) => [rnd(), k]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  order.push("end");   // the ending is always the last entry, as in any gamebook, so flicking through never spoils it
   const no = { c0: 1 }; order.forEach((k, i) => { no[k] = i + 2; });
   const nextAfter = (n) => { const ci = chaps.findIndex((c) => c.after === n); return ci >= 0 ? "c" + ci : "p" + (n + 1); };
   const turn = (k) => `<p class="turn">Turn to <b>${no[k]}</b>.</p>`;
