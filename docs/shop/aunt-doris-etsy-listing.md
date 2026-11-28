@@ -63,6 +63,14 @@ From Introvert Here: everything you need to be left the hell alone.
 - File: Escape-From-Aunt-Doris.pdf (kept out of this public repository)
 - Pictures: etsy-1.jpg (cover), etsy-2.jpg (pages), etsy-3.jpg (how it works); made from the booklet
 
+## Etsy rules (Barry, 28 Nov)
+
+- No links or web addresses to the shop in the listing or its pictures (Etsy doesn't allow sending buyers off Etsy to
+  buy elsewhere). The only address is introverthere.com/doris, the answer checker the booklet needs, which is a bare page:
+  no menu, basket, footer links or Hoodini hunt (`barePage` in shop/worker.js).
+- Pictures: booklet on the mahogany table, inside pages, how it works, title, AGM, plain Find Your Range (not the
+  Escape Room strip version, which is for the site and social).
+
 ## Before posting
 
 - 28 Nov: PDF (25 pages, 19 puzzles) and Etsy pictures remade for the 19-puzzle game (kept out of this public repository, like the PDF).

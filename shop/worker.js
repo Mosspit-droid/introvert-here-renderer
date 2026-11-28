@@ -872,6 +872,7 @@ var h=new Date().getHours();if((P==='/uk'||P==='/uk/')&&(h>=22||h<6)){var st=doc
 })();`;
 
 function page(title, body, opts = {}) {
+  if (opts.bare) return barePage(title, body, opts);
   return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} | ${SHOP_NAME}</title><meta name="description" content="${esc(opts.desc || "Clothing for introverts, quiet people and the reluctantly sociable.")}">
 ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800${opts.font ? "&family=" + opts.font : ""}&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body${opts.body ? ` class="${opts.body}"` : opts.coll && opts.coll !== "IH" ? ` class="r-${opts.coll}" style="--fc:${FRAME[opts.coll] || FRAME.IH}"` : ""}>
@@ -880,6 +881,16 @@ ${opts.noindex ? '<meta name="robots" content="noindex">' : ""}<link rel="icon" 
 <footer><div class="wrap"><a href="/terms">Terms</a><a href="/returns">Returns</a><a href="/privacy">Privacy</a><a href="/contact">Contact</a><a href="/?change=1">Change country</a>
 <p>Introvert Here is a Mosspit Studios brand. Payments are handled securely by Stripe.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
 <script>${BASKET_JS}</script><script>${huntJs()}</script>${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
+}
+// A page with no way into the shop or the rest of the site (Barry, 28 Nov): the answer checker for the printed Aunt Doris
+// booklet, which is sold on Etsy. Etsy doesn't allow listings to send buyers off Etsy to shop elsewhere, so this page
+// has the logo but no menu, no basket, no footer links and no Hoodini hunt.
+function barePage(title, body, opts) {
+  return `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title><meta name="robots" content="noindex"><link rel="icon" href="/icon.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800${opts.font ? "&family=" + opts.font : ""}&display=swap" rel="stylesheet"><style>${STYLE}</style></head><body>
+<main class="wrap" style="padding-top:18px">${body}</main>
+<footer><div class="wrap"><p>Escape From Aunt Doris · © Introvert Here (Mosspit Studios). For your own use.</p>${STAMP ? `<p>Preview copy, updated ${esc(STAMP)}.</p>` : ""}</div></footer>
+${opts.script ? `<script>${opts.script}</script>` : ""}</body></html>`;
 }
 const BASKET_JS = `
 // The Escape Room's warning gate: links marked data-gate go to the room itself, and a first-time visitor is sent
@@ -1467,7 +1478,7 @@ function dorisCheckPage() {
 <p><label>Which puzzle? <select id="pn">${opts}</select></label></p>
 <div class="lock">${PARTY_LOCK}<form><input id="pa" autocomplete="off" autocapitalize="characters" placeholder="Your answer" aria-label="Your answer"><button class="btn" type="submit">Try it</button></form></div>
 <p class="say" role="status" aria-live="polite"></p><div class="got"></div><div class="hints"></div><p style="text-align:center" class="hintp"><button class="btn ghost hint" type="button">Hint, please</button></p></section>
-<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris crushing you in a hug"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you!”</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div></div>`, { nav: "hub", noindex: true, font: "Creepster", script: `
+<div class="hug" id="hug" hidden role="dialog" aria-label="Caught"><div class="in"><div class="hugpic"><img src="/s/doris-hug.png?v=1" alt="Aunt Doris crushing you in a hug"></div><p class="ttl">Hug.</p><p>She holds on. And holds on. “Ooh, it’s so lovely to see you!”</p><p><button class="btn" type="button" id="hugok">Back away slowly</button></p></div></div></div>`, { bare: true, font: "Creepster", script: `
 (function(){${DZ_P_JS}
 ${DZ_TALK_JS}
 P[2].a=new RegExp('^'+TALK.map(function(n){return 'ABC'[n[1].findIndex(function(o){return o[1]})]}).join('')+'$');
