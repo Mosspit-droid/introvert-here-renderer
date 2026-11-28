@@ -101,6 +101,12 @@ for x0, x1 in [(20, 325), (350, 655), (668, 990), (1015, 1308), (1308, 1652), (1
     f = trim_(kh[:, round(x0 * hq):round(x1 * hq)]); im = scaled(f, 300 / (430 * hq)); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[int(a_.shape[0] * .93):].any(axis=0))[0]
     c = Image.new("RGBA", (340, 330), (0, 0, 0, 0)); c.alpha_composite(im, (round(170 - (xs[0] + xs[-1]) / 2), 330 - im.height)); ghs.append(c)
 save("gary-heads", strip(ghs), w=340, h=330, n=6)
+# Hoodini's own faces, for the little circle beside the social battery: fine 0, weary 1, frazzled 2, done 3 (facing left)
+kf = key("hero-faces.png"); fq = kf.shape[1] / 1774; hfs = []
+for x0, x1 in [(30, 445), (470, 875), (880, 1310), (1345, 1745)]:
+    f = trim_(kf[:, round(x0 * fq):round(x1 * fq)]); im = scaled(f, .504 / fq); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[int(a_.shape[0] * .93):].any(axis=0))[0]
+    c = Image.new("RGBA", (340, 330), (0, 0, 0, 0)); c.alpha_composite(im, (round(170 - (xs[0] + xs[-1]) / 2), 330 - im.height)); hfs.append(c)
+save("hero-faces", strip(hfs), w=340, h=330, n=4)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
 # The "Introvert Here... presents" logo for the top of the title page (the site's own file, shrunk)
