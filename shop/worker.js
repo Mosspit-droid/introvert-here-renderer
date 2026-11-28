@@ -104,7 +104,7 @@ async function route(request, env, ctx) {
       if (path === "/api/checkout" && request.method === "POST") return await checkout(request, env, url);
       if (path === "/country") {
         const c = url.searchParams.get("c");
-        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : c === "AU" ? "/au" : c === "NZ" ? "/nz" : "/elsewhere?c=" + encodeURIComponent(c || "");
+        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : c === "AU" ? "/au" : c === "NZ" ? "/nz" : c === "XX" ? ETSY_SHOP : "/elsewhere?c=" + encodeURIComponent(c || "");
         return new Response(null, { status: 302, headers: { Location: dest, "Set-Cookie": `ih_country=${encodeURIComponent(c || "")}; Path=/; Max-Age=31536000; SameSite=Lax; Secure` } });
       }
       if (path === "/") {
@@ -190,8 +190,18 @@ async function route(request, env, ctx) {
 async function shopRoute(request, env, url, path, R) {
   const shopPaths = path === "/uk" || path === "/uk/gifts" || path === "/uk/shop" || path.startsWith("/uk/p/") || path === "/uk/basket" || path === "/uk/thanks";
   if (!shopPaths) return null;
-  const chose = { US: REGIONS.us, CA: REGIONS.ca, AU: REGIONS.au, NZ: REGIONS.nz }[cookie(request, "ih_country")];
-  if (!R && chose && !url.searchParams.has("uk")) return Response.redirect(url.origin + chose.pre + path.slice(3) + url.search, 302);
+  // Which country: the visitor's choice, or else where Cloudflare says they are. Anyone outside the five shops
+  // (Barry, 28 Nov: "Everywhere else") is sent to Etsy: to the same garment's listing where there is one.
+  const cc = cookie(request, "ih_country") || (request.cf && request.cf.country) || "GB";
+  const chose = { US: REGIONS.us, CA: REGIONS.ca, AU: REGIONS.au, NZ: REGIONS.nz }[cc];
+  if (!R && !url.searchParams.has("uk")) {
+    if (chose) return Response.redirect(url.origin + chose.pre + path.slice(3) + url.search, 302);
+    if (cc !== "GB") {
+      let to = ETSY_SHOP;
+      if (path.startsWith("/uk/p/")) { const c = await catalog(env); for (const d of c.designs) for (const t of Object.keys(d.garments)) if (productSlug(d, t) === path.slice(6) && d.garments[t].etsyUrl) to = d.garments[t].etsyUrl; }
+      return Response.redirect(to, 302);
+    }
+  }
   const cat = async () => (R ? regionCatalog(await catalog(env), R) : await catalog(env));
   const out = (body, status) => html(R ? regionify(body, R) : body, status);
       if (path === "/uk") {   // old shop links (/uk?c=PC) still work
@@ -888,7 +898,7 @@ function countryPage(guess) {
   const order = opts.slice().sort((a, b) => (b[0] === guess) - (a[0] === guess));
   return page("Choose your country", `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
-<div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="${c === "XX" ? ETSY_SHOP + '" rel="noopener' : "/country?c=" + c}">${n}${c === "XX" ? " (on Etsy)" : ""}${i ? "" : " ✓"}</a>`).join("")}</div>
+<div class="countries">${order.map(([c, n], i) => `<a class="btn ${i ? "ghost" : ""}" href="/country?c=${c}">${n}${c === "XX" ? " (on Etsy)" : ""}${i ? "" : " ✓"}</a>`).join("")}</div>
 <p class="centre note">We remember your choice on this device. You can change it at the bottom of any page.</p>
 <p class="centre" style="margin-top:22px">Not shopping? <a href="${HUB.path}">Hide in the Escape Room →</a></p>`, { noBasket: true });
 }
