@@ -108,46 +108,55 @@ const LEVEL = { name: "The Office", out: "the office", theme: "office", lost: "H
 // G a dog on a lead (low: hop it)  u umbrella (hold jump in the air to float)   In the street, F is a crate, ^ a shop
 // awning (bounces), K a phone box (checkpoint) and D the park gate. The bus and the cycle lanes are listed, not drawn in.
 function highStreet() {
-  const W = 232, H = 20, G = 17, g = Array.from({ length: H }, () => Array(W).fill("."));
+  // Rebuilt 28 Nov (Barry): flat pavement the whole way with the road along the bottom, no pits, no floating shelves, no concrete
+  // blocks. The shop fronts stand on a grid, one every 6 squares, and every canopy (~, 4 squares up) is a bouncy platform: hop from
+  // one to the next. A bin, a bench or a post box gets you up. Where there is no shop there is no canopy, so the long gaps want a big
+  // bounce (hold A) or the umbrella. A bus takes you past the closing-down-sale crowd; scaffolding makes the low roof by the busker.
+  const W = 232, H = 20, G = 17, C = 14, g = Array.from({ length: H }, () => Array(W).fill("."));
   const put = (x, y, c) => { g[y][x] = c; }, row = (x0, x1, y, c) => { for (let x = x0; x <= x1; x++) put(x, y, c); }, box = (x0, x1, y0, y1, c) => { for (let y = y0; y <= y1; y++) row(x0, x1, y, c); };
-  const pit = (x0, x1) => box(x0, x1, 18, 19, ".");
   box(0, W - 1, 18, 19, "#"); box(0, 0, 0, 19, "#"); box(W - 1, W - 1, 0, 19, "#");
+  const shops = [], shop = (i) => { shops.push(i); row(6 * i + 1, 6 * i + 5, C, "~"); };
   put(2, G, "S");
-  // 1. The bus stop: a charity collector pacing, a crate, a neighbour with a dog, a phone box, then the road (ride the bus)
-  row(5, 7, G, "o"); put(9, G, "w"); put(12, G, "W"); put(16, G, "w"); put(19, G, "F"); put(19, 16, "o");
-  put(23, G, "P"); put(24, G, "G"); put(30, G, "K"); pit(34, 45); row(38, 41, 13, "o");
-  // 2. The market: stall roofs, a busker, an awning up to a note, an old school friend, a cycle lane, then headphones
-  //    and a hen party too tightly packed to hop
-  put(48, G, "K"); row(52, 55, 15, "="); row(53, 54, 14, "o"); put(58, G, "T"); put(62, G, "^"); row(64, 68, 12, "="); put(66, 11, "N"); row(64, 65, 11, "o");
-  put(67, G, "w"); put(69, G, "c"); put(73, G, "C"); row(79, 81, 15, "o"); put(87, G, "H"); row(90, 97, G, "P");
-  // 3. The arcade: a low roof with a busker beyond it (Hood Up), a walker, a gap with a note above it
-  put(101, G, "K"); box(105, 113, 13, 15, "#"); row(107, 110, G, "o"); put(116, G, "T"); put(119, G, "w"); put(123, G, "W"); put(127, G, "w");
-  pit(129, 131); put(132, G, "F"); row(133, 135, 14, "="); put(134, 13, "N"); put(137, G, "m");
-  // 4. The rooftops: an awning up, an umbrella, and three alleys to float across. Each alley has a way back up.
-  put(140, G, "K"); put(143, G, "^"); box(145, 151, 13, G, "#"); put(148, 12, "u");
-  put(154, G, "P"); put(156, G, "^"); row(154, 155, 9, "o"); box(158, 164, 13, G, "#");
-  put(167, G, "P"); put(169, G, "P"); put(171, G, "^"); row(167, 169, 9, "o"); box(172, 178, 13, G, "#"); put(175, 12, "K");
-  put(181, G, "T"); put(184, G, "^"); put(182, 8, "N"); box(185, 191, 13, G, "#"); row(187, 189, 12, "o");
-  // 5. The park gate: a cycle lane, a busker, the gate
-  put(205, G, "c"); row(214, 216, G, "o");   // no old friend here any more: a cyclist, a runner and a busker at once was impossible (Barry, 24 Nov)
-  put(219, G, "T"); put(226, G, "D");
-  return g.map((r) => r.join(""));
+  // 1. The bus stop: a charity collector pacing, a bin up to the canopies, a neighbour with a dog, a phone box, the queue,
+  //    then the closing-down-sale crowd that only the bus (or a shower of rain) gets you past
+  [0, 1, 2, 3, 4, 5].forEach(shop);
+  put(8, G, "w"); put(11, G, "W"); put(15, G, "w"); put(18, G, "F"); put(23, G, "P"); put(24, G, "G"); put(28, G, "K");
+  row(31, 33, G, "P"); row(39, 48, G, "P");
+  // 2. The market: a bench up to the canopies, a busker, an old school friend, headphones, a hen party too tightly packed to hop
+  [9, 10, 11, 12, 14, 15, 16].forEach(shop);
+  put(55, G, "K"); row(57, 58, G, "="); put(61, G, "T"); put(65, 10, "N"); put(67, G, "w"); put(73, G, "C"); put(82, G, "H"); put(84, G, "F"); row(88, 95, G, "P"); put(99, G, "K");
+  // 3. The scaffolding: too low to jump under, with a busker playing along it (Hood Up), or climb over the top. Then walkers and a post box.
+  row(104, 112, 15, "#"); put(108, 13, "N"); put(116, G, "T"); [19, 20, 22].forEach(shop);
+  put(119, G, "w"); put(123, G, "W"); put(127, G, "w"); put(130, G, "F"); put(130, G - 1, "F"); put(135, 10, "N"); put(138, G, "m");
+  // 4. The canopies: an umbrella, and gaps where a shop is missing. People underneath, and a bin back up after each gap.
+  [24, 26, 28, 29, 31].forEach(shop);
+  put(141, G, "K"); put(143, G, "F"); put(147, 11, "u"); put(152, G, "P"); put(153, G, "P"); put(155, G, "F"); put(162, G, "K"); put(164, G, "T"); put(167, G, "F");
+  put(170, G, "w"); put(174, G, "W"); put(178, G, "w"); row(181, 183, G, "P"); put(185, G, "F");
+  // 5. The park gate: a dog walker, a bench, a busker, the gate
+  put(203, G, "P"); put(204, G, "G"); row(210, 211, G, "="); put(219, G, "T"); put(226, G, "D");
+  // Keys where he actually goes: one over each canopy, two in each hop between neighbouring canopies, a line across each long gap, and the rest along the pavement
+  const key = (x, y) => { if (g[y][x] === ".") g[y][x] = "e"; };
+  shops.forEach((i) => { key(6 * i + 3, 11); key(6 * i + 3, 8); if (shops.includes(i + 1)) { } else if (shops.some((k) => k > i && k <= i + 2)) [7, 9, 11].forEach((d) => key(6 * i + d, 8)); });
+  const busy = "PWTCGKDSFHNum=", free = []; for (let x = 4; x < 224; x++) if (g[G][x] === "." && ![-1, 0, 1].some((d) => busy.includes(g[G][x + d])) && g[15][x] !== "#") free.push(x);
+  const have = g.reduce((n, r) => n + r.filter((c) => c === "e").length, 0), need = 100 - have; for (let k = 0; k < need; k++) key(free[Math.floor((k + .5) * free.length / need)], G);
+  return { map: g.map((r) => r.join("")), shops };
 }
+const HS = highStreet();
 const STREET_ZONES = [
   { x0: 0, x1: 46, name: "The Bus Stop", wall: "#bfe6f7", dado: "#e9c9a8", rail: "#b98f66", tones: ["#f3ddc4", "#d9b089", "#b98f66"], kinds: [], win: false },
   { x0: 46, x1: 100, name: "The Market", wall: "#bfe6f7", dado: "#f0d58a", rail: "#c9a03f", tones: ["#f8e8b4", "#e2c15f", "#c9a03f"], kinds: [], win: false },
   { x0: 100, x1: 139, name: "The Arcade", wall: "#bfe6f7", dado: "#d7c3e6", rail: "#9f84b8", tones: ["#e7daf1", "#c2a8d8", "#9f84b8"], kinds: [], win: false },
-  { x0: 139, x1: 193, name: "The Rooftops", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
-  { x0: 193, x1: 232, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
+  { x0: 139, x1: 193, name: "The Canopies", wall: "#a9d8f2", dado: "#d9a08a", rail: "#a8674f", tones: ["#ecc4b3", "#cf8f77", "#a8674f"], kinds: [], win: false },
+  { x0: 193, x1: 232, park: true, name: "The Park Gate", wall: "#bfe6f7", dado: "#b9dba6", rail: "#6fa55a", tones: ["#d6ebc8", "#9fcb87", "#6fa55a"], kinds: [], win: false },
 ];
 // rain: showers that come and go. In the rain the dog walker, the hen party and the clipboard walker put umbrellas up: the ones
 // standing still cannot see you at all, and the walker only catches you if he walks into you. The busker, the runner and the cyclist carry on as normal. The pavement is slippery (Barry, 24 Nov).
-const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: keyed(highStreet()), zones: STREET_ZONES, upstairs: null,
+const STREET = { rain: true, name: "The High Street", out: "the high street", theme: "street", lost: "The high street has claimed another.", talkEvery: 1.8, chaseSpeed: 4.0, walkSpeed: 2.4, need: 40, map: HS.map, shops: HS.shops, zones: STREET_ZONES, upstairs: null,
+  stops: [{ x: 35.5, to: 51.5 }], hall: { x0: 36.4, x1: 53.6, t: "CLOSING DOWN SALE" },
   intro: "Hoodini is out of the office. Home is at the far end of the high street. So is everyone he has ever met.",
-  signs: [{ x: 39.5, y: 12.5, t: "WAIT FOR THE BUS" }, { x: 39.5, y: 13.2, t: "RIDE ON THE ROOF" }, { x: 86.5, y: 14.2, t: "HEADPHONES ON" }, { x: 102.6, y: 14.2, t: "HOOD UP" }, { x: 148, y: 10.6, t: "HOLD A IN THE AIR TO FLOAT" }],
-  movers: [{ x0: 36.3, x1: 43.7, y: 16.12, w: 4.4, speed: 2.4 }],
-  lanes: [{ x0: 76, x1: 85, every: 4.2 }, { x0: 195, x1: 203, every: 3.6 }],
-  lines: { P: ["Is it? It IS you!", "Fancy seeing you here.", "You haven’t changed a bit."], W: ["Have you got two minutes for the donkeys?", "Just a quick survey.", "Can I stop you there?"], T: ["Any requests?", "This next one’s my own.", "Sing along!"], C: ["It’s ME! From SCHOOL!", "We MUST catch up!", "Come here, stranger!"], G: ["He’s just being friendly!", "He likes you!"], bike: ["On your LEFT!", "Ding ding!"], pit: ["You stepped into the road. The driver wanted a word."] } };
+  signs: [{ x: 20.5, y: 9.2, t: "CANOPIES BOUNCE: HOLD A TO GO HIGHER" }, { x: 82.5, y: 15.2, t: "HEADPHONES ON" }, { x: 102.4, y: 14.4, t: "HOOD UP" }, { x: 150.5, y: 7.6, t: "HOLD A IN THE AIR TO FLOAT" }],
+  lanes: [{ x0: 4, x1: 224, every: 24 }],
+  lines: { P: ["Is it? It IS you!", "Fancy seeing you here.", "You haven’t changed a bit."], W: ["Have you got two minutes for the donkeys?", "Just a quick survey.", "Can I stop you there?"], T: ["Any requests?", "This next one’s my own.", "Sing along!"], C: ["It’s ME! From SCHOOL!", "We MUST catch up!", "Come here, stranger!"], G: ["He’s just being friendly!", "He likes you!"], bike: ["On your LEFT!", "Ding ding!"], queue: ["Is this the 42?", "It’s always late, this one.", "Ooh, are you going into town?", "Have you got change for a fiver?", "You’re not pushing in, are you?"], pit: ["You stepped into the road. The driver wanted a word."] } };
 
 // Level 3, the house party: a three-storey house you zigzag up through. Along the hallway, up the stairs, back along
 // the living room, up to the loft, along it and out of the loft window into the garden. 29 squares high.
@@ -495,8 +504,8 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  P.idleT=(S.mode==='play'&&P.ground&&Math.abs(P.vx)<.2&&!P.hood&&!jumpKey()&&!P.slide)?(P.idleT||0)+dt:0;
  if(P.ground&&Math.abs(P.vx)>.5)P.walkT+=dt;if(P.landT>0)P.landT-=dt;if(P.ground&&!wasGround&&P.fell>6)P.landT=.12;if(P.ground&&!wasGround&&P.fell>3){P.sq=-Math.min(1,P.fell/14);sfx('land');puff(P.x,P.y,P.fell>10?7:4,P.fell>10?4:2.4)}P.sq=(P.sq||0)*(1-Math.min(1,dt*9));if(P.ground&&Math.abs(P.vx)>2){P.stepT=(P.stepT||0)+dt*Math.abs(P.vx)/5.6;if(P.stepT>.24){P.stepT=0;sfx('step');if(Math.abs(P.vx)>7)puff(P.x-P.f*.2,P.y,1,1)}}P.fell=P.ground?0:Math.max(P.fell||0,P.vy);
  // an office chair: step or land on it and up you go
- if(P.ground)P.bn=0;var byy=Math.floor(P.y-.01);if(P.vy>=0&&tile(Math.floor(P.x),byy)==='B'&&P.y>=byy+.35){var good=!!jumpKey();P.bn=good?Math.min(2,P.bn+1):0;   // no timing: hold A and each bounce goes higher; let go to settle
-  P.vy=[-18,-26.5,-31.5][P.bn];P.y=byy+.35;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;P.sq=1;sfx('boing');pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
+ if(P.ground){P.bn=0;P.topY=P.y}else P.topY=Math.min(P.topY==null?P.y:P.topY,P.y);var byy=Math.floor(P.y-.01),bt=tile(Math.floor(P.x),byy),cano=bt==='~'&&P.topY<byy+.05&&P.y>=byy+.02;if(P.vy>=0&&((bt==='B'&&P.y>=byy+.35)||cano)){var good=!!jumpKey();P.bn=good?Math.min(2,P.bn+1):0;   // no timing: hold A and each bounce goes higher; let go to settle
+  P.vy=(cano?[-22.5,-27.5,-31.5]:[-18,-26.5,-31.5])[P.bn];P.y=byy+(cano?.02:.35);P.topY=P.y-.1;P.peak=P.y;P.sprung=true;P.ground=false;P.coy=0;jumpQ=0;P.hood=false;P.sq=1;sfx('boing');pops.push({x:P.x,y:P.y,life:.5,big:P.bn>0});if(P.bn===2)say('BOING!',P.x,P.y-2.4)}
  if(!P.slide&&P.ground&&sv>0)(L.slides||[]).forEach(function(sl){if(Math.abs(P.x-sl.x0)<.45&&Math.abs(P.y-sl.y0)<.2)P.slide={s:sl,u:0}});
  if(P.slide){var sl2=P.slide.s;P.slide.v=Math.min(17,(P.slide.v||5)+26*dt);P.slide.u+=dt*P.slide.v/Math.hypot(sl2.x1-sl2.x0,sl2.y1-sl2.y0);var su=Math.min(1,P.slide.u);P.x=sl2.x0+(sl2.x1-sl2.x0)*su;P.y=sl2.y0+(sl2.y1-sl2.y0)*su;P.vy=0;P.vx=0;P.f=1;P.ground=true;if(su>=1){P.slide=null;P.fling=.24;P.vx=13;say('WHEEE!',P.x,P.y-2.4)}}
  var onSpin=false;(L.spins||[]).forEach(function(sp){if(P.ground&&Math.abs(P.x-sp.x)<1.3&&Math.abs(P.y-sp.y)<.2)onSpin=true});if(onSpin){P.spinT+=dt;if(P.spinT>.75){P.spinT=0;P.fling=.95;P.vy=-19;P.sprung=true;P.ground=false;P.y-=.05;say('WHEEE!',P.x,P.y-2.4)}}else P.spinT=0;
@@ -514,7 +523,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  people.forEach(function(q){if(q.k!=='Q'||q.happy||Math.abs(P.x-q.x)>.95)return;
   if(P.balloons){q.happy=true;P.balloons=false;P.inv=Math.max(P.inv,1.5);S.rollT=Math.min(S.rollT||0,L.roll-5);pops.push({x:q.x,y:q.y-1,life:.6,big:true});say(pick(L.lines.Qok),q.x+1.4,q.y-2.6);info('BALLOONS RETURNED','She is delighted. The family has questions. Keep walking.')}
   else{P.x=q.x+(P.x<q.x?-.95:.95);P.vx=0;if(!(S.cryT>0)){S.cryT=2;say(pick(L.lines.Q),q.x,q.y-1.9);info('A LOST BUNCH OF BALLOONS','Nobody gets past until she has them back. Try the bouncy castle.')}}});if(S.cryT>0&&S.given)S.cryT-=dt;
- items.forEach(function(it){if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='g'){S.list=(S.list||0)+1;sfx('power');var gi=L.laneY.indexOf(Math.round(it.y+.5));info(L.list[gi]+': GOT IT',S.list>=L.list.length?'That is everything. The checkouts are at the back, on the right.':(L.list.length-S.list)+' more on the list.');return}
+ items.forEach(function(it){var fly=street&&it.k==='e'&&!P.ground&&P.y<MH-5.4;if(it.got||Math.abs(it.x-P.x)>(it.k==='a'?1.15:fly?1.5:.7)||Math.abs(it.y-(P.y-HH/2))>(it.k==='a'?1.4:fly?1.6:1))return;if(it.k==='a'&&P.balloons)return;it.got=true;if(it.k==='g'){S.list=(S.list||0)+1;sfx('power');var gi=L.laneY.indexOf(Math.round(it.y+.5));info(L.list[gi]+': GOT IT',S.list>=L.list.length?'That is everything. The checkouts are at the back, on the right.':(L.list.length-S.list)+' more on the list.');return}
   if(it.k==='e'){S.keys++;S.batt=Math.min(1,S.batt+.004);S.keyPop=.22;sfx('key');fx.push({x:it.x,y:it.y,vx:0,vy:-2.2,life:.3,r:.16});if(S.keys===need()&&need()>0){sfx('power');info('THE WAY OUT IS UNLOCKED','You have '+need()+' keys. There are '+S.keyT+' if you want them all.')}return}sfx(it.k==='o'?'tea':'power');pops.push({x:it.x,y:it.y,life:.6,big:it.k!=='o'});
   if(it.k==='o'){S.tea++;S.batt=Math.min(1,S.batt+.08);S.glow=.5}
   else if(it.k==='N'){S.notes++;S.batt=1;S.glow=.6;info('DO NOT DISTURB','Social battery fully recharged.')}
@@ -535,7 +544,7 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  if(P.baby>0&&L.pram&&Math.abs(P.x-L.pram.x)<.9&&P.y>MH-2.3){P.baby=0;S.pramBaby=true;P.inv=Math.max(P.inv,2);pops.push({x:L.pram.x,y:MH-3,life:.6,big:true});say('Shh. Never happened.',P.x,P.y-2.6);info('BABY RETURNED','Back in the pram. Nobody saw a thing.')}
  if(P.baby>0){P.baby-=dt;if(P.baby<=0)info('THE BABY IS CRYING','You hand it to the nearest adult. You are on your own again.')}
  P.hid=P.ground&&Math.abs(P.vx)<1.2&&tile(Math.floor(P.x),Math.floor(P.y-.5))==='h';if(P.hid&&!S.seenH){S.seenH=true;info('BEHIND THE CURTAIN','Stand still here and nobody can see you. It does not use up your hood.')}
- var unseen=P.hid||P.laneT>0||P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
+ var unseen=P.hid||P.ride||P.laneT>0||P.hood||P.phones>0||P.baby>0||!!P.slide||P.spinT>0||P.fling>0||isDark(zoneAt(P.x,P.y-.5));   // nobody can get at you on a spinning roundabout, or while it flings you
  people.forEach(function(p){p.t+=dt;
   var near=Math.abs(P.y-p.y)<2.2&&Math.abs(P.x-p.x)<7,brol=S.wet>.5&&(p.k==='P'||p.k==='W');if(brol&&p.k==='P')p.f=1;
   var un=(p.k==='C'&&L.torch)?(P.hood||P.phones>0):unseen;
@@ -569,8 +578,17 @@ function update(dt){if(S.mode!=='play'&&S.mode!=='ready')return;if(look)return;i
  if(L.roll&&S.mode==='play'){var mm=null;people.forEach(function(p){if(p.k==='M'&&Math.abs(p.x-P.x)<24&&(!mm||Math.abs(p.x-P.x)<Math.abs(mm.x-P.x)))mm=p});if(S.rollF>0)S.rollF-=dt;
   if(!mm){S.rollT=0;S.rollW=false}else{S.rollT=(S.rollT||0)+dt;mm.f=P.x<mm.x?-1:1;if(S.rollT>L.roll-1.8&&!S.rollW){S.rollW=true;if(!S.seenM){S.seenM=true;info('ROLL CALL','When the megaphone goes off, have your hood up or be off the ground.')}}
    if(S.rollT>=L.roll){S.rollT=0;S.rollW=false;S.rollF=.7;say('HAS ANYONE SEEN '+NAME.toUpperCase()+'?',mm.x,mm.y-2.7);if(!unseen&&P.ground&&tile(kx,ky)!=='K'){say(pick(L.lines.M),P.x,P.y-2.7);hurt('M',mm.x)}}}}
- bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=Math.min(Math.max(b.x1+7,cam+vw+2),b.x1+32);b.t=0}}else{b.x-=11*dt;if(b.x<Math.max(Math.min(b.x0-7,cam-2),b.x0-32))b.x=null;   /* they ride in from off the screen and out the other side, not out of thin air */
-   else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-1.3&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
+ if(L.stops&&S.mode==='play'){var BU=S.bus||(S.bus={st:'off',x:-99,v:0}),stp=L.stops[0],atStop=Math.abs(P.x-stp.x)<1.1&&P.y>MH-4.6&&!P.ride;
+  if(BU.st==='off'){if(atStop&&P.x<stp.to-3){BU.st='in';BU.x=stp.x-24;if(!S.seenBus){S.seenBus=true;info('BUS STOP','Wait here and the bus will stop. The queue will want a chat: hood up, or wait for the rain.')}}}
+  else if(BU.st==='in'){var bd2=stp.x-BU.x;BU.x=Math.min(stp.x,BU.x+13*Math.min(1,.18+bd2/5)*dt);if(!atStop&&bd2<9){BU.st='out';BU.v=9;say('The bus did not stop.',stp.x,MH-5.4)}else if(BU.x>=stp.x-.02){BU.x=stp.x;BU.st='board';BU.t=.45;sfx('hood')}}
+  else if(BU.st==='board'){BU.t-=dt;if(BU.t<=0){if(atStop&&P.ground){BU.st='ride';BU.v=0;P.ride=true;P.hood=false;P.fadeA=0}else{BU.st='out';BU.v=0}}}
+  else if(BU.st==='ride'){var left=stp.to-BU.x;BU.v=Math.min(13,BU.v+14*dt,2+left*2.4);BU.x=Math.min(stp.to,BU.x+BU.v*dt);P.x=BU.x;P.y=MH-2;P.vx=P.vy=0;P.ground=true;jumpQ=0;if(BU.x>=stp.to-.02){BU.st='drop';BU.t=.5}}
+  else if(BU.st==='drop'){BU.t-=dt;P.x=BU.x;P.y=MH-2;P.vx=P.vy=0;jumpQ=0;if(BU.t<=0){P.ride=false;P.fadeA=null;P.inv=Math.max(P.inv,.8);P.safe=[P.x,P.y];BU.st='out';BU.v=0;say('Thank you, driver.',P.x,P.y-2.6)}}
+  else if(BU.st==='out'){BU.v=Math.min(13,BU.v+10*dt);BU.x+=BU.v*dt;if(BU.x>cam+vw+12)BU.st='off'}
+  var qp=null;if(!unseen&&!(S.wet>.5)&&P.ground&&P.y>MH-2.2)people.forEach(function(p){if(p.k==='P'&&p.x>stp.x-4.6&&p.x<stp.x&&Math.abs(P.x-p.x)<3.1&&(!qp||p.x>qp.x))qp=p});
+  if(qp){S.qT=(S.qT||0)+dt;if(S.qT>1.1){S.qT=0;if(P.inv<=0)say(pick(L.lines.queue),qp.x,qp.y-2.5);hurt('P',qp.x)}}else S.qT=0}
+ bikes.forEach(function(b){b.t+=dt;if(b.x===null){if(b.t>=b.every){b.x=Math.min(Math.max(b.x1+7,cam+vw+2),b.x1+32);b.t=0;b.rung=false}}else{b.x-=11*dt;if(!b.rung&&b.x<cam+vw+13){b.rung=true;tone(1568,1568,.09,'sine',.09);tone(1568,1568,.12,'sine',.09,.16)}if(b.x<Math.max(Math.min(b.x0-7,cam-2),b.x0-32))b.x=null;   /* they ride in from off the screen and out the other side, not out of thin air */
+   else if(!unseen&&b.x>b.x0-.5&&b.x<b.x1+.5&&Math.abs(b.x-P.x)<.75&&P.y>MH-2-.6&&P.y<=MH-2+.1){if(P.inv<=0)say(pick(L.lines.bike),P.x,P.y-2.6);hurt('bike',b.x)}}});
  bubbles=bubbles.filter(function(b){b.x+=b.f*4.4*dt;b.life-=dt;if(solid(Math.floor(b.x),Math.floor(b.y)))b.life=0;
   if(!unseen&&b.life>0&&Math.abs(b.x-P.x)<.62&&b.y>P.y-HH&&b.y<P.y){if(P.inv<=0)say(b.line,P.x,P.y-2.6);hurt('bubble',b.x);b.life=0}return b.life>0});
  fx=fx.filter(function(q){q.life-=dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=1.5*dt;return q.life>0});
@@ -679,9 +697,17 @@ function familyZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,base=MH-2,i;if(z.x1<x0||z.x0>
  for(i=Math.floor(Math.max(z.x0,x0-5)/5);i*5<Math.min(z.x1,x1);i++){var bx=i*5+1;if(bx<z.x0+.3||bx+3.6>z.x1||!solid(Math.floor(bx+1),base)||!solid(Math.floor(bx+2.5),base)||solid(Math.floor(bx+1.7),base-1))continue;backdrop(bx,base,z.kinds[((i*7)%z.kinds.length+z.kinds.length)%z.kinds.length],null,'park-decor')}}
 function streetZone(z,x0,x1){var c=cx,zw=z.x1-z.x0,base=MH-2,i;if(z.x1<x0||z.x0>x1)return;c.fillStyle=z.wall;c.fillRect(z.x0,0,zw,MH);
  for(i=Math.floor(Math.max(z.x0,x0)/11)*11;i<Math.min(z.x1,x1);i+=11){if(i<z.x0)continue;c.fillStyle='rgba(255,255,255,.85)';c.beginPath();c.ellipse(i+3,3+(i%3)*.9,1.5,.42,0,0,6.2832);c.ellipse(i+4.1,3.3+(i%3)*.9,1.1,.36,0,0,6.2832);c.fill()}
- var sh=ART['street-shops'],im=IMG['street-shops'];if(!im||!im.naturalWidth)return;var k=1/sh.ppt;c.globalAlpha=.62;
- for(i=Math.floor(Math.max(z.x0,x0-6)/5.4);i*5.4<Math.min(z.x1,x1);i++){var sx=i*5.4+.4,it=sh.items[((i*7)%10+10)%10];if(sx<z.x0||sx+it.w*k>z.x1)continue;if(solid(Math.floor(sx+1),base-1)||solid(Math.floor(sx+3),base-1)||!solid(Math.floor(sx+2),base))continue;c.drawImage(im,it.x,sh.H-it.h,it.w,it.h,sx,base-it.h*k,it.w*k,it.h*k)}c.globalAlpha=1}
+ if(z.park){c.fillStyle='#8fd0a0';c.fillRect(z.x0,base-4.4,zw,4.4);for(i=Math.floor(Math.max(z.x0,x0-4)/7)*7;i<Math.min(z.x1,x1+4);i+=7){if(i<z.x0+1)continue;var tx7=i+2.5+(i%3)*.6,th7=4.6+(i%5)*.35;c.fillStyle='#7a5230';rr(tx7-.22,base-th7+1.2,.44,th7-1.2,.08);c.fill();ink(.07);c.fillStyle=(i/7)%2?'#3f9a4d':'#4fae5c';[[-1.1,.7,1.05],[1.1,.7,1.05],[0,0,1.5]].forEach(function(q7){c.beginPath();c.arc(tx7+q7[0],base-th7+q7[1],q7[2],0,6.2832);c.fill();ink(.07)});c.beginPath();c.arc(tx7,base-th7+.55,1.2,0,6.2832);c.fill()}
+  c.fillStyle='#5fa552';c.fillRect(z.x0,base-1.5,zw,1.5);for(i=Math.floor(Math.max(z.x0,x0));i<Math.min(z.x1,x1);i++){c.beginPath();c.arc(i+.5,base-1.5,.62,3.1416,6.2832);c.fill()}
+  c.fillStyle='#1f4d2c';c.fillRect(z.x0,base-2.05,zw,.1);c.fillRect(z.x0,base-.35,zw,.1);for(i=Math.floor(Math.max(z.x0,x0));i<Math.min(z.x1,x1);i++){c.fillRect(i+.2,base-2.3,.08,2.3);c.fillRect(i+.7,base-2.3,.08,2.3);if(i%4===0){c.fillRect(i-.1,base-2.6,.2,2.6);c.beginPath();c.arc(i,base-2.7,.16,0,6.2832);c.fill()}}return}
+ var hl=L.hall;if(hl&&hl.x0>=z.x0&&hl.x0<z.x1&&hl.x1>x0&&hl.x0<x1){var hw5=hl.x1-hl.x0;c.globalAlpha=.7;c.fillStyle='#e7d8c2';rr(hl.x0,base-5.3,hw5,5.3,.1);c.fill();ink(.08);c.fillStyle='#c9b79c';c.fillRect(hl.x0,base-5.3,hw5,.45);c.fillRect(hl.x0,base-.5,hw5,.5);for(i=0;i<5;i++){var wx5=hl.x0+1.1+i*(hw5-2.2)/4-.65;c.fillStyle='#bfe3f7';rr(wx5,base-3.3,1.3,2.2,.12);c.fill();ink(.07)}c.globalAlpha=1;
+  c.fillStyle='#e0303a';rr(hl.x0+1.2,base-4.75,hw5-2.4,1.05,.08);c.fill();ink(.08);c.fillStyle='#fff';c.font='900 .62px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(hl.t,hl.x0+hw5/2,base-4.2);c.fillStyle=YEL;c.font='900 .3px Montserrat,system-ui,sans-serif';['50% OFF','EVERYTHING MUST GO','LAST DAY','70% OFF','SALE'].forEach(function(t5,n5){var wx6=hl.x0+1.1+n5*(hw5-2.2)/4;c.fillStyle=YEL;rr(wx6-.6,base-2.6,1.2,.5,.05);c.fill();ink(.05);c.fillStyle=INK;c.font='900 '+(t5.length>8?.13:.2)+'px Montserrat,system-ui,sans-serif';c.fillText(t5,wx6,base-2.34)})}
+ var sh=ART['street-shops'],im=IMG['street-shops'];if(!im||!im.naturalWidth)return;var SHH=5.16,k=SHH/sh.H;
+ (L.shops||[]).forEach(function(si){var mid=si*6+3.5;if(mid<z.x0||mid>=z.x1||mid<x0-4||mid>x1+4)return;var it=sh.items[((si*7)%10+10)%10],sw7=it.w*k,sx=mid-sw7/2;c.globalAlpha=.62;c.drawImage(im,it.x,sh.H-it.h,it.w,it.h,sx,base-SHH,sw7,SHH);c.globalAlpha=1;c.drawImage(im,it.x,sh.H*.13,it.w,sh.H*.3,sx,base-SHH*.87,sw7,SHH*.3)})}
 function streetTile(t,x,y){var c=cx;
+ if(t==='F'&&tile(x,y+1)==='F')return;
+ if(t==='F'&&tile(x,y-1)==='F'){c.fillStyle='#d62b2b';rr(x+.08,y-.72,.84,1.74,.1);c.fill();ink(.07);c.fillStyle='#b01f1f';rr(x-.02,y-.98,1.04,.36,.16);c.fill();ink(.07);c.fillStyle=INK;rr(x+.24,y-.36,.52,.12,.04);c.fill();c.fillStyle='#fff';rr(x+.3,y+.02,.4,.42,.04);c.fill();ink(.04);c.fillStyle='#1b1b2a';c.fillRect(x+.04,y+.9,.92,.12);return}
+ if(t==='F'&&x%2===0){c.fillStyle='#2f8f55';c.beginPath();c.moveTo(x+.1,y+.14);c.lineTo(x+.9,y+.14);c.lineTo(x+.82,y+.94);c.lineTo(x+.18,y+.94);c.closePath();c.fill();ink(.07);c.fillStyle='#226b40';rr(x+.02,y,.96,.2,.06);c.fill();ink(.07);c.fillStyle=INK;c.beginPath();c.arc(x+.26,y+.94,.09,0,6.2832);c.arc(x+.74,y+.94,.09,0,6.2832);c.fill();c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=.05;c.beginPath();c.moveTo(x+.36,y+.36);c.lineTo(x+.4,y+.8);c.moveTo(x+.64,y+.36);c.lineTo(x+.6,y+.8);c.stroke();return}
  if(t==='F')thing('crate',x+.5,y+1.02,1.04,false,'street-things');
  else if(t==='^')thing('awning',x+.5,y+1.02,1.7,false,'street-things');
  else if(t==='K'){thing('box',x+.5,y+1.02,null,false,'street-things');if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-1.6,.16,0,6.2832);c.fill();ink(.06)}}
@@ -732,6 +758,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
   if(t==='B'){}
   else if(t==='h'&&shop){thing('tins',x+.5,y+1.02,null,false,'shop-things')}
   else if(t==='h'){c.fillStyle='#8a5a2b';rr(x-.45,y-1.55,1.9,.14,.06);c.fill();ink(.05);c.fillStyle='#b23a48';rr(x-.3,y-1.45,1.6,2.45,.12);c.fill();ink(.07);c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.05;for(var fo=0;fo<4;fo++){c.beginPath();c.moveTo(x+fo*.4,y-1.35);c.lineTo(x+fo*.4-.05,y+.9);c.stroke()}}
+  else if(t==='='&&street){var bl=tile(x-1,y)!=='=',br=tile(x+1,y)!=='=';c.fillStyle='#8d939c';if(bl)c.fillRect(x+.14,y+.2,.1,.82);if(br)c.fillRect(x+.76,y+.2,.1,.82);c.fillStyle='#b9793a';rr(x-(bl?.04:.02),y,1.04+(bl?.02:0)+(br?.02:0),.2,.05);c.fill();ink(.06);c.fillStyle='#a56a30';rr(x-(bl?.04:.02),y-.62,1.04+(bl?.02:0)+(br?.02:0),.16,.05);c.fill();ink(.06);rr(x-(bl?.04:.02),y-.36,1.04+(bl?.02:0)+(br?.02:0),.16,.05);c.fill();ink(.06);c.fillStyle='#8d939c';if(bl)c.fillRect(x+.14,y-.7,.08,.72);if(br)c.fillRect(x+.78,y-.7,.08,.72)}
+  else if(t==='#'&&street&&y<MH-2&&x>0&&x<MW-1){var sl2=tile(x-1,y)!=='#',sr2=tile(x+1,y)!=='#';c.strokeStyle='#8d939c';c.lineWidth=.1;c.beginPath();if(sl2||sr2||x%4===0){var px6=sl2?x+.1:sr2?x+.9:x+.5;c.moveTo(px6,y-1.1);c.lineTo(px6,MH-2)}c.moveTo(x,y-1);c.lineTo(x+1.01,y-1);c.stroke();c.strokeStyle='rgba(141,147,156,.6)';c.lineWidth=.05;c.beginPath();c.moveTo(x,y+1);c.lineTo(x+1,MH-2-.1+(x%2?0:-1.9));c.stroke();c.fillStyle='rgba(255,138,31,.55)';c.fillRect(x,y+.3,1.01,.5);c.fillStyle='#d9a55a';rr(x-.02,y,1.04,.3,.03);c.fill();ink(.06);c.fillStyle='#6f7680';c.fillRect(x-.02,y+.8,1.04,.2);c.fillStyle=INK;c.fillRect(x-.02,y+.96,1.04,.06)}
   else if(t==='='&&family&&ghosted(x,y)){if(ghosted(x,y)===1){c.fillStyle='#b9bcc4';rr(x-.02,y,1.04,.2,.08);c.fill();ink(.06)}}
   else if(family&&'F^KD'.indexOf(t)>=0){if(t==='F')thing('crate',x+.5,y+1.02,1.04,false,'street-things');else if(t==='^')thing('trampoline',x+.5,y+1.02,null,false,'party-things');else if(t==='D')thing('gate',x+.5,y+1.02,null,false,'park-things');else{thing('loo',x+.5,y+1.02,null,false,'park-things');if(S.cp&&S.cp[0]===x+.5){c.fillStyle='#3fd16a';c.beginPath();c.arc(x+.5,y-1.75,.16,0,6.2832);c.fill();ink(.06)}}}
   else if(street&&'F^KD'.indexOf(t)>=0){streetTile(t,x,y)}
@@ -776,13 +804,15 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(L.pram&&L.pram.x>x0-3&&L.pram.x<x1+3){var pd=ART['park-decor'],pi=pd.items[8],pim=IMG['park-decor'];if(pim.naturalWidth){var ph2=1.75,pw2=ph2*pi.w/pi.h;c.drawImage(pim,pi.x+1,pd.H-pi.h,pi.w-2,pi.h,L.pram.x-pw2/2,MH-2+.04-ph2,pw2,ph2);if(S.pramBaby)babyPic(L.pram.x-.12,MH-2-.95,.62)}}
  people.forEach(function(p){if(p.x>x0-1&&p.x<x1+1)person(p)});
  if(L.roll&&S.rollW&&S.mode==='play'){var rl=Math.max(0,(L.roll-S.rollT)/1.8),bx2=cam+vw/2,by3=camY+1.9;c.fillStyle='#e0303a';rr(bx2-3.1,by3-.38,6.2,.76,.16);c.fill();ink(.08);c.fillStyle='#fff';c.font='800 .36px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('ROLL CALL: HOOD UP!',bx2,by3-.02);c.fillStyle=YEL;c.fillRect(bx2-2.9,by3+.24,5.8*rl,.08)}
+ if(street){var ry=MH-2+.5,rg=c.createLinearGradient(0,ry,0,MH);rg.addColorStop(0,'#4a4f58');rg.addColorStop(1,'#2b2f36');c.fillStyle=rg;c.fillRect(x0,ry,x1-x0+1,MH-ry+.1);c.fillStyle=INK;c.fillRect(x0,ry-.04,x1-x0+1,.08);c.fillStyle='rgba(255,255,255,.85)';for(var rd=Math.floor(x0/3)*3;rd<x1+1;rd+=3)c.fillRect(rd+.3,ry+.62,1.5,.12);
+  (L.stops||[]).forEach(function(q){[q.x,q.to].forEach(function(sx5){var px5=sx5+1.25,py5=MH-2;c.fillStyle='#8d939c';rr(px5-.06,py5-3.1,.12,3.1,.04);c.fill();ink(.05);c.fillStyle='#e0303a';c.beginPath();c.arc(px5,py5-3.25,.48,0,6.2832);c.fill();ink(.07);c.fillStyle='#fff';c.fillRect(px5-.34,py5-3.36,.68,.22);c.fillStyle=INK;c.font='900 .2px Montserrat,system-ui,sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('BUS',px5,py5-3.24)})})}
  movers.forEach(function(m){if(m.sw)return;if(!m.trolley){thing('bus',m.x,MH-2+.02,m.w+.25,false,'street-things');return}
   thing('trolley',m.x-.12,MH-2+.03,2.35,false,'shop-things')});
  (L.props||[]).forEach(function(q){if(q.x>x0-3&&q.x<x1+3)thing(q.n,q.x,q.y!=null?q.y:MH-2+.03,null,!!q.flip,'shop-things')});
- bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;var gx3=b.x1+.4,gy3=MH-2-2.75,lit=due||b.x!==null,fl2=lit&&!calm&&Math.floor(T*5)%2;c.fillStyle=INK;c.fillRect(gx3-.05,gy3,.1,2.75);c.globalAlpha=lit?1:.45;c.fillStyle=fl2?'#fff':YEL;c.beginPath();c.moveTo(gx3,gy3-.72);c.lineTo(gx3+.72,gy3+.5);c.lineTo(gx3-.72,gy3+.5);c.closePath();c.fill();c.strokeStyle='#e0303a';c.lineWidth=.13;c.lineJoin='round';c.stroke();
+ bikes.forEach(function(b){c.fillStyle='rgba(255,255,255,.35)';c.fillRect(b.x0,MH-2-.02,b.x1-b.x0,.1);c.fillStyle='#3fa76a';c.fillRect(b.x0,MH-2+.08,b.x1-b.x0,.3);var due=b.x===null&&b.every-b.t<1.1;var farS=b.x1-b.x0>60||b.x1+.4>cam+vw-1,gx3=farS?cam+vw-1.15:b.x1+.4,gy3=MH-2-2.75,lit=farS?(b.x!==null&&b.x>P.x-1&&b.x<cam+vw+13):(due||b.x!==null),fl2=lit&&!calm&&Math.floor(T*5)%2;c.fillStyle=INK;if(!farS)c.fillRect(gx3-.05,gy3,.1,2.75);c.globalAlpha=lit?1:farS?0:.45;c.fillStyle=fl2?'#fff':YEL;c.beginPath();c.moveTo(gx3,gy3-.72);c.lineTo(gx3+.72,gy3+.5);c.lineTo(gx3-.72,gy3+.5);c.closePath();c.fill();c.strokeStyle='#e0303a';c.lineWidth=.13;c.lineJoin='round';c.stroke();
   c.strokeStyle=INK;c.lineWidth=.055;c.beginPath();c.arc(gx3-.22,gy3+.22,.14,0,6.2832);c.moveTo(gx3+.36,gy3+.22);c.arc(gx3+.22,gy3+.22,.14,0,6.2832);c.moveTo(gx3-.22,gy3+.22);c.lineTo(gx3-.06,gy3-.04);c.lineTo(gx3+.16,gy3-.04);c.lineTo(gx3+.22,gy3+.22);c.moveTo(gx3-.06,gy3-.04);c.lineTo(gx3+.02,gy3+.22);c.lineTo(gx3+.16,gy3-.04);c.moveTo(gx3-.12,gy3-.1);c.lineTo(gx3,gy3-.1);c.moveTo(gx3+.16,gy3-.04);c.lineTo(gx3+.14,gy3-.16);c.lineTo(gx3+.24,gy3-.16);c.stroke();c.globalAlpha=1;
-  if(lit&&!S.seenB&&Math.abs(P.x-b.x1)<16&&S.mode==='play'){S.seenB=true;info('CYCLE LANE','The green strip is a cycle lane. When the sign flashes, a cyclist is coming: jump, or step off the green.')}
-  if(b.x!==null)sprite('street-bike',Math.floor(T/.12)%2,b.x,MH-2+.03,true,1/PPT)});
+  if(lit&&!S.seenB&&(farS||Math.abs(P.x-b.x1)<16)&&S.mode==='play'){S.seenB=true;info('CYCLE LANE','The green strip along the kerb is a cycle lane. When the warning flashes, a cyclist is coming: jump, or get up on something.')}
+  if(b.x!==null)sprite('street-bike',Math.floor(T/.12)%2,b.x,MH-2+.3,true,1/PPT)});
  bubbles.forEach(function(b){if(!street){thing('bubble',b.x,b.y+.42,null,b.f>0);return}
   var wob=calm?0:Math.sin(T*9+b.x)*.07,nx=b.x,ny=b.y+wob;c.fillStyle='#7a2fd6';c.strokeStyle=INK;c.lineWidth=.06;
   c.beginPath();c.ellipse(nx-.2,ny+.2,.15,.11,-.4,0,6.2832);c.fill();c.stroke();c.beginPath();c.ellipse(nx+.22,ny+.12,.15,.11,-.4,0,6.2832);c.fill();c.stroke();
@@ -821,6 +851,8 @@ function draw(){var c=cx;c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#20222b';c
  if(P.tissues&&family)thing('flask',P.x+P.f*(cp?.66:.45),P.y-(cp?.96:.55),.6,P.f<0,'park-things');else if(P.tissues&&!party)thing('tea',P.x+P.f*.42,P.y-.6,.5);else if(P.tissues)tissueBox(P.x+P.f*(cp?.68:-.4),P.y-(cp?.82:.45),.9);
  if(P.baby>0)babyPic(P.x+P.f*(cp?.66:.35),P.y-(cp?1.2:.85),.8);
  if(P.fast>0&&!calm){c.strokeStyle='rgba(27,27,42,.35)';c.lineWidth=.06;for(var q2=0;q2<3;q2++){c.beginPath();c.moveTo(P.x-P.f*(.5+q2*.12),P.y-.4-q2*.4);c.lineTo(P.x-P.f*(1+q2*.12),P.y-.4-q2*.4);c.stroke()}}
+ if(S.bus&&S.bus.st!=='off'){var bux=S.bus.x-1.7,buw=8.4,bbt=ART['street-things'].items.bus,buh=buw*bbt.h/bbt.w,buy=MH-.22;c.fillStyle='rgba(27,27,42,.25)';c.beginPath();c.ellipse(bux,buy,buw*.47,.14,0,0,6.2832);c.fill();thing('bus',bux,buy-(calm?0:Math.abs(Math.sin(T*9))*.02),buw,false,'street-things');
+  if(P.ride){var hf3=IMG['hero-faces'];if(hf3&&hf3.naturalWidth){var hw3=1.05,hh3=hw3*330/340,wx3=bux+.55,wy3=buy-buh*.47;c.save();c.beginPath();c.rect(wx3-.62,wy3-hh3-.1,1.24,hh3+.1);c.clip();c.translate(wx3,wy3);c.scale(-1,1);c.drawImage(hf3,0,0,340,330,-hw3/2,-hh3,hw3,hh3);c.restore()}}}
  if(P.hood){c.fillStyle='rgba(27,27,42,.5)';rr(P.x-.5,P.y-1.75,1,.14,.07);c.fill();c.fillStyle=YEL;rr(P.x-.5,P.y-1.75,Math.max(0,P.hoodT/HOODMAX),.14,.07);c.fill()}
  var placed=[];says.forEach(function(s){bubbleSay(s.t,s.x,s.y,Math.min(1,s.life*2),placed)});
  c.restore();if(titleOn)return;
