@@ -184,7 +184,7 @@ function houseParty() {
   put(56, G, "K"); put(57, 20, "Y"); put(58, 21, "Y");
   put(66, G, "f"); put(71, G, "F"); put(72, G, "F"); row(78, 82, G, "P"); put(85, 24, "N"); put(88, G, "t");
   put(44, F1, "P"); put(43, F1, "P"); put(38, F1, "K"); put(36, 15, "N"); put(35, F1, "P"); put(32, F1, "T");
-  put(27, F1, "L"); put(24, F1, "^"); put(21, F1, "L"); put(18, F1, "u");
+  put(26, F1, "L"); put(23, F1, "^"); put(20, F1, "L"); put(18, F1, "u");
   put(78, F2, "F"); put(79, F2, "F"); put(79, F2 - 1, "F"); put(85, F2, "F"); put(84, 5, "N");
   put(105, G, "P"); put(106, G, "P"); put(114, G, "D");
   // Keys along the real route: over the furniture, up both flights of stairs, a zig-zag down past the house on the umbrella, and the rest along the floors
@@ -211,7 +211,7 @@ const PARTY_ZONES = [
 ];
 const PARTY = { name: "The House Party", out: "the house party", theme: "party", toll: { item: "BOX OF TISSUES", got: "Somebody on the stairs needs these.", name: "THE CRYING CORNER", block: "They will not let you past without a box of tissues. Try the kitchen.", done: "TISSUES DELIVERED", doneB: "They are hugging it out. On you go." }, lost: "The party has broken him.", talkEvery: 1.6, chaseSpeed: 3.4, chaseWind: 1, chaseRun: 3.2, chaseRest: 3.2, chaseCall: "THERE he is!", reach: true, walkSpeed: 2.6, fallMax: 12, need: 40, map: houseParty(), zones: PARTY_ZONES, upstairs: null,
   stairs: [{ x0: 63, y0: 27, x1: 54, y1: 18 }, { x0: 46, y0: 18, x1: 55, y1: 9 }],
-  host: { x: 20.5, y: 27 }, argue: { x0: 68.5, x1: 74.5, a: 69.7, b: 73.3, y: 27 }, couple: { x: 23.4, y: 18, x0: 16, x1: 29.2, zone: "The Coat Bedroom" }, loft: { hi: 57, go: 73, hatch: 55.6, win: 92.5, time: 8, y: 9, sit: [60, 65.5, 70.5] },
+  host: { x: 20.5, y: 27 }, argue: { x0: 68.5, x1: 74.5, a: 69.7, b: 73.3, y: 27 }, couple: { x: 16.9, y: 18, x0: 16, x1: 29.2, zone: "The Coat Bedroom" }, loft: { hi: 57, go: 73, hatch: 55.6, win: 92.5, time: 8, y: 9, sit: [60, 65.5, 70.5] },
   furn: [{ k: "armchair", x0: 28, x1: 29, y: 25 }, { k: "sofa", x0: 32, x1: 35, y: 25 }, { k: "sideboard", x0: 39, x1: 41, y: 25 }, { k: "bookcase", x0: 45, x1: 46, y: 25 }, { k: "island", x0: 71, x1: 72, y: 26 }],
   intro: "Hoodini cut through the park and found himself at a party he had said he was definitely coming to. The only way home is through the house.",
   signs: [{ x: 37, y: 21.3, t: "THE FLOOR IS CONGA" }],
