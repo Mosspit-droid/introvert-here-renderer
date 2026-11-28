@@ -147,7 +147,15 @@ R2 `site/` (copies in `shop/assets/site/`).
   (shift grows along each word), back gate (6 digits: HOME + minutes till the bus), front door (DO NOT DISTURB GO AWAY,
   with GO AWAY picked up in the middle of the kit). The booklet PDF needs remaking before the Etsy listing. Shop checkout accepts promotion codes (the one-off reward codes).
 
-### Launch day checklist (planned Mon 30 Nov)
+### Launched 28 Nov 2026
+- introverthere.com and www attached to `introvert-here-shop` (Workers custom domains); the shop reads `shop:catalog-next`;
+  Christmas mode from 27 Nov. Live Stripe: restricted key (rk_live, full access except sensitive operations) saved in
+  KV SECRETS via the app's Orders page; webhook secret rotated in Cloudflare. Stripe customer emails (successful
+  payments, refunds) switched on. Tests 28 Nov: live tee order (webhook -> Printify order on hold, cancelled; refunded)
+  and live Aunt Doris unlock (code issued). AUTO_SEND back to yes afterwards.
+- Stripe's key verification only worked after clearing Chrome cookies and opening Gmail in the same browser.
+
+### Launch day checklist (planned Mon 30 Nov, done 28 Nov)
 1. Barry: Cloudflare, attach introverthere.com (and www) to the `introvert-here-shop` worker.
 2. Barry: put the Stripe webhook's signing secret into the shop worker's `STRIPE_WEBHOOK_SECRET`; save the live
    secret key in the app's Orders page.
