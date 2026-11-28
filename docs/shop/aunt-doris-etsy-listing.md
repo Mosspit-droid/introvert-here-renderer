@@ -22,14 +22,14 @@ ESCAPE FROM AUNT DORIS is a printable escape room for one person and a pen. Nine
 
 HOW IT WORKS
 No website. No app. No phone. Just the booklet and a pen.
-1. Print the booklet (44 A4 pages).
+1. Print the booklet (37 A4 pages).
 2. Start at entry 1. The booklet is shuffled, gamebook-style: every answer tells you where to turn next.
 3. Look your answer up in the Answer index at the back. Right answers carry on the story. Wrong ones bring Aunt Doris a step closer.
 4. Tick a box on your Doris meter for every wrong answer. Four on one puzzle and she hugs you.
 5. Stuck? The hints are at the back, printed upside down, so you can't read one by accident.
 
 WHAT YOU GET
-• A 44-page A4 PDF: cover, how to play, your Doris meter and kit page, 19 puzzles, the Answer index and hints
+• A 37-page A4 PDF: cover, how to play, your Doris meter and kit page, 19 puzzles, the Answer index and hints
 • Completely screen-free: no website or phone needed, ever
 • About 45 to 60 minutes of not talking to anyone
 
