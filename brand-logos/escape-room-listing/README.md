@@ -12,3 +12,7 @@ Prompt 2, for each new room (upload scene-blank.png and the room's cover PNG, pa
 > else in the photo.
 
 Check the small print afterwards; rerun if any wording changed.
+
+- `aunt-doris-pages.png`: picture 2 (three inside pages fanned on the same table). Prompt used: replace the blank
+  booklet with the uploaded page PNGs, loosely overlapping and fanned, one chosen page on top and most visible, content
+  unchanged, same light and paper, props unchanged. Check the top page's puzzle still works (here: coats, tags, buttons).
