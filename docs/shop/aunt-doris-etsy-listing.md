@@ -8,7 +8,8 @@ Escape From Aunt Doris Printable Escape Room Game for Introverts Funny Puzzle Bo
 
 ## Price
 
-£5.99. Digital download (instant).
+£9.99 including VAT for UK buyers (Barry, 28 Nov): set the Etsy price to £8.32 or £8.33 (Etsy adds 20% VAT on top,
+showing £9.98 or £10.00). Digital download (instant). The site's online edition stays at £4.99.
 
 ## Description
 

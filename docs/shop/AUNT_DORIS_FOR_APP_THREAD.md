@@ -42,7 +42,8 @@ There are two editions:
 3. **Title, description, tags.** A draft is in `docs/shop/aunt-doris-etsy-listing.md` (updated for the screen-free
    edition). Suggested title: "Escape From Aunt Doris Printable Escape Room Game Screen Free Puzzle Book for
    Introverts Funny Solo Adult Gift PDF Download". Barry wants to workshop the wording with you.
-4. **Price.** Barry thinks £5.99 may be too low. Etsy printable escape rooms mostly sell for about $5 to $15
+4. **Price (Barry, 28 Nov): £9.99 including VAT on Etsy** (set the Etsy price to £8.32, which UK buyers see as £9.98,
+   or £8.33, shown as £10.00; Etsy adds the 20% itself). The site stays at £4.99. Earlier note: Barry thought £5.99 was too low. Etsy printable escape rooms mostly sell for about $5 to $15
    (roughly £4 to £12), with big kits up to $20 to $40. Remember UK buyers see the price plus 20% VAT.
 5. **Social.** One Spot the Introvert painting goes out weekly; the listing could get a post too (social thread).
 
