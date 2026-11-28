@@ -99,3 +99,13 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
   `docs/shop/us-printify-products.json`. Artwork placement re-fitted to each printer's print area (fit.py logic:
   same physical width as the UK print, capped to the new area, same distance from the top).
 - In Person in the US too (Barry, 28 Nov): no new products needed; the app orders In Person through Printify Choice, which prints US orders in the US. US price = garment price + $3.
+
+## Canada decisions (Barry, 28 Nov 2026)
+
+- Printers: tees **Print Geek (27)**, Exclusive (Natural) tees **Duplium (41)**; sweatshirts **Duplium** (no Dark
+  Chocolate); hoodies **Duplium** (front + back); long sleeves **Printify Choice** (ships from the US). Australia stays on
+  Etsy for now (too many colour gaps).
+- Costs (USD, S–XL, + postage to CA): Print Geek tee 13.57 + 7.09; Duplium tee 14.28 + 8.59; sweatshirt 24.12 + 9.69;
+  hoodie (front + back) 35.03 + 9.69; Choice long sleeve 12.83 + 9.69.
+- Prices (CAD, free delivery): tee 42.99, Exclusive tee 44.99, long sleeve 46.99, sweatshirt 64.99, hoodie 84.99;
+  2XL/3XL +4/+7 (tees, long sleeve), +6/+10 (sweatshirt, hoodie).
