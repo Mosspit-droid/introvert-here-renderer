@@ -1,5 +1,6 @@
 import { US_PRODUCTS, US_VARIANTS, US_PRICES } from "./us.js";
 import { CA_PRODUCTS, CA_VARIANTS, CA_PRICES } from "./ca.js";
+import { AU_PRODUCTS, AU_VARIANTS, AU_PRICES } from "./au.js";
 // Introvert Here shop (Cloudflare Worker "introvert-here-shop").
 //
 // Pages: country picker (/), UK shop (/uk), product pages (/uk/p/<slug>, one per garment), basket (/uk/basket),
@@ -103,13 +104,14 @@ async function route(request, env, ctx) {
       if (path === "/api/checkout" && request.method === "POST") return await checkout(request, env, url);
       if (path === "/country") {
         const c = url.searchParams.get("c");
-        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : "/elsewhere?c=" + encodeURIComponent(c || "");
+        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : c === "AU" ? "/au" : "/elsewhere?c=" + encodeURIComponent(c || "");
         return new Response(null, { status: 302, headers: { Location: dest, "Set-Cookie": `ih_country=${encodeURIComponent(c || "")}; Path=/; Max-Age=31536000; SameSite=Lax; Secure` } });
       }
       if (path === "/") {
         const chosen = cookie(request, "ih_country");
         if (chosen === "GB" && !url.searchParams.has("change")) return Response.redirect(url.origin + "/uk", 302);
-        if ((chosen === "US" || chosen === "CA") && !url.searchParams.has("change")) return Response.redirect(url.origin + (chosen === "US" ? "/us" : "/ca"), 302);
+        const reg0 = { US: "/us", CA: "/ca", AU: "/au" }[chosen];
+        if (reg0 && !url.searchParams.has("change")) return Response.redirect(url.origin + reg0, 302);
         return html(countryPage((request.cf && request.cf.country) || "GB"));
       }
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
@@ -188,7 +190,7 @@ async function route(request, env, ctx) {
 async function shopRoute(request, env, url, path, R) {
   const shopPaths = path === "/uk" || path === "/uk/gifts" || path === "/uk/shop" || path.startsWith("/uk/p/") || path === "/uk/basket" || path === "/uk/thanks";
   if (!shopPaths) return null;
-  const chose = { US: REGIONS.us, CA: REGIONS.ca }[cookie(request, "ih_country")];
+  const chose = { US: REGIONS.us, CA: REGIONS.ca, AU: REGIONS.au }[cookie(request, "ih_country")];
   if (!R && chose && !url.searchParams.has("uk")) return Response.redirect(url.origin + chose.pre + path.slice(3) + url.search, 302);
   const cat = async () => (R ? regionCatalog(await catalog(env), R) : await catalog(env));
   const out = (body, status) => html(R ? regionify(body, R) : body, status);
@@ -225,6 +227,11 @@ const REGIONS = {
   ca: { key: "ca", pre: "/ca", c: "CA", cur: "cad", sym: "CA$", ship: "Free delivery in Canada", days: "6–14", min: "6", max: "14", xmas: "2026-12-08", shop: "IH-CA", locale: "en", minSpend: "CA$45",
     product: (d, t) => (CA_PRODUCTS[d.id] || {})[t], variants: (d, t) => CA_VARIANTS[t + "@" + caProvider(d, t)],
     price: (d, t) => (d.coll === "EX" && t === "T-SHIRT" ? CA_PRICES["EX-T-SHIRT"] : CA_PRICES[t]) },
+  // Australia: The Print Bar for everything it makes; any colour and size it doesn't make goes through the existing
+  // Choice product (fallback). Dark Heather tees are printed in Charcoal there (Barry, 28 Nov: "near enough").
+  au: { key: "au", pre: "/au", c: "AU", cur: "aud", sym: "A$", ship: "Free delivery in Australia", days: "7–15", min: "7", max: "15", xmas: "2026-12-07", shop: "IH-AU", locale: "en", minSpend: "A$50",
+    product: (d, t) => (AU_PRODUCTS[d.id] || {})[t], variants: (d, t) => AU_VARIANTS[t], price: (d, t) => AU_PRICES[t], fallback: true,
+    swap: { "T-SHIRT": { "Dark Heather": ["Charcoal", "#36454f"] } } },
 };
 const regionCache = {};
 function regionCatalog(cat, R) {
@@ -235,16 +242,26 @@ function regionCatalog(cat, R) {
     const garments = {};
     for (const [t, g] of Object.entries(d.garments)) {
       const pr = R.price(d, t); if (!pr) continue;
-      const own = !g.personal && t !== "LONG-SLEEVE", extra = g.personal ? 300 : 0;
-      const pid = own ? R.product(d, t) : g.printifyId;
-      if (own && !pid) continue;
-      const vmap = own ? R.variants(d, t) || {} : null;
+      const own = !g.personal && (t !== "LONG-SLEEVE" || R.fallback), extra = g.personal ? 300 : 0;
+      let pid = own ? R.product(d, t) : g.printifyId;
+      if (own && !pid && !R.fallback) continue;
+      const vmap = own ? R.variants(d, t) || {} : null, sw = (R.swap || {})[t] || {}, seen = new Set();
+      let images = g.images, mockups = g.mockups;
       const variants = g.variants.filter((v) => R_SIZES.includes(v.size)).map((v) => {
-        const id = own ? vmap[v.colour + "/" + v.size] : v.id;
-        return id ? { ...v, id, price: (v.size === "2XL" ? pr[1] : v.size === "3XL" ? pr[2] : pr[0]) + extra, net: undefined } : null;
+        const [colour, hex] = sw[v.colour] || [v.colour, v.hex];
+        if (seen.has(colour + "/" + v.size)) return null; seen.add(colour + "/" + v.size);
+        const price = (v.size === "2XL" ? pr[1] : v.size === "3XL" ? pr[2] : pr[0]) + extra;
+        const id = own && pid ? vmap[colour + "/" + v.size] : null;
+        if (id) return { ...v, colour, hex, id, price, net: undefined };
+        if (own && !R.fallback) return null;
+        return { ...v, id: v.id, pid: g.printifyId, price, net: undefined };   // the existing Choice product
       }).filter(Boolean);
+      for (const [from, [to]] of Object.entries(sw)) if (g.variants.some((v) => v.colour === from) && !g.variants.some((v) => v.colour === to)) {
+        images = images.map((i) => (i.colour === from ? { ...i, colour: to } : i)); mockups = (mockups || []).map((m) => (m.colour === from ? { ...m, colour: to } : m));
+      }
       if (!variants.length) continue;
-      garments[t] = { ...g, printifyId: pid, variants, priceFrom: Math.min(...variants.map((v) => v.price)) };
+      if (!pid) pid = g.printifyId;
+      garments[t] = { ...g, printifyId: pid, variants, images, mockups, mainColour: (sw[g.mainColour] || [g.mainColour])[0], priceFrom: Math.min(...variants.map((v) => v.price)) };
     }
     if (Object.keys(garments).length) designs.push({ ...d, garments });
   }
@@ -316,7 +333,7 @@ async function checkout(request, env, url) {
       Object.assign(form, { [`${p}[price_data][product_data][metadata][personal]`]: "yes", [`${p}[price_data][product_data][metadata][name]`]: pname,
         [`${p}[price_data][product_data][metadata][colour]`]: v.colour || "", [`${p}[price_data][product_data][metadata][size]`]: v.size || "" });
     } else {
-      form[`${p}[price_data][product_data][metadata][printify_product_id]`] = g.printifyId;
+      form[`${p}[price_data][product_data][metadata][printify_product_id]`] = v.pid || g.printifyId;   // v.pid: a colour that country's printer lacks, sent to the Choice product
       form[`${p}[price_data][product_data][metadata][printify_variant_id]`] = String(v.id);
     }
     n++;
@@ -859,7 +876,7 @@ set:function(b){try{localStorage.setItem('ih_basket',JSON.stringify(b))}catch(e)
 count:function(){var n=B.get().reduce(function(a,i){return a+i.qty},0);var el=document.getElementById('bc');if(el)el.textContent=n}};B.count();`;
 
 function countryPage(guess) {
-  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
+  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["AU", "Australia"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
   const order = opts.slice().sort((a, b) => (b[0] === guess) - (a[0] === guess));
   return page("Choose your country", `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
@@ -1804,7 +1821,7 @@ async function rewardCode(request, env, kind) {
   if (count.n >= REWARD_CAP) return { full: true };
   try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
   const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
-    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "restrictions[currency_options][usd][minimum_amount]": "3200", "restrictions[currency_options][cad][minimum_amount]": "4500", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "restrictions[currency_options][usd][minimum_amount]": "3200", "restrictions[currency_options][cad][minimum_amount]": "4500", "restrictions[currency_options][aud][minimum_amount]": "5000", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
   try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
   catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
   count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
@@ -2217,7 +2234,7 @@ function legalPage(which) {
   const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
-<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. No US sales tax is added. On our Canadian shop (introverthere.com/ca), prices are in Canadian dollars and include delivery to Canadian addresses; most items are printed in Canada and usually arrive in 6–14 working days (long sleeves and In Person items are printed in the US, and may take longer). We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
+<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. No US sales tax is added. On our Canadian shop (introverthere.com/ca), prices are in Canadian dollars and include delivery to Canadian addresses; most items are printed in Canada and usually arrive in 6–14 working days (long sleeves and In Person items are printed in the US, and may take longer). On our Australian shop (introverthere.com/au), prices are in Australian dollars and include delivery to Australian addresses; most items are printed in Australia and usually arrive in 7–15 working days (some colours, and In Person items, are printed in the US and may take longer). We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
 <p>A contract is formed when your payment is accepted and we email your receipt. If we can't fulfil an order we'll refund you in full.</p>
 <p>You can return items within 30 days if you change your mind, except personalised (In Person) items, which are made to your order. Faulty, damaged or wrongly printed items are always put right. See <a href="/returns">Returns</a> for details.</p>
 <p>Nothing in these terms affects your statutory rights.</p>`],
