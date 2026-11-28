@@ -98,3 +98,4 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
 - 105 Printify products, unpublished, titled "<design> <garment> (US)". Map of design code → garment → Printify id:
   `docs/shop/us-printify-products.json`. Artwork placement re-fitted to each printer's print area (fit.py logic:
   same physical width as the UK print, capped to the new area, same distance from the top).
+- In Person in the US too (Barry, 28 Nov): no new products needed; the app orders In Person through Printify Choice, which prints US orders in the US. US price = garment price + $3.

@@ -209,8 +209,10 @@ async function shopRoute(request, env, url, path, us) {
 }
 
 // ---------------- the US shop (Barry, 28 Nov 2026) ----------------
-// Same designs and photos as the UK; In Person is UK only. Tees, sweatshirts and hoodies are ordered from their own US
-// Printify products (us.js); long sleeves from the existing Choice products. Sizes S to 3XL, prices in cents.
+// Same designs and photos as the UK. Tees, sweatshirts and hoodies are ordered from their own US Printify products
+// (us.js); long sleeves from the existing Choice products. In Person (Barry, 28 Nov: US too) has no ready-made product:
+// the app makes each print and orders it through Printify Choice, which prints US orders in the US; $3 extra, like the
+// UK's £3. Sizes S to 3XL, prices in cents.
 const US_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
 const US_XMAS = "2026-12-10";   // order-by date for Christmas delivery in the US
 let usCache = null, usFrom = null;
@@ -218,15 +220,15 @@ function usCatalog(cat) {
   if (usFrom === cat && usCache) return usCache;
   const designs = [];
   for (const d of cat.designs || []) {
-    if (d.coll === "IP") continue;
     const garments = {};
     for (const [t, g] of Object.entries(d.garments)) {
-      const pr = US_PRICES[t]; if (!pr || g.personal) continue;
-      const pid = t === "LONG-SLEEVE" ? g.printifyId : (US_PRODUCTS[d.id] || {})[t];
-      if (!pid) continue;
+      const pr = US_PRICES[t]; if (!pr) continue;
+      const own = !g.personal && t !== "LONG-SLEEVE", extra = g.personal ? 300 : 0;
+      const pid = own ? (US_PRODUCTS[d.id] || {})[t] : g.printifyId;
+      if (own && !pid) continue;
       const variants = g.variants.filter((v) => US_SIZES.includes(v.size)).map((v) => {
-        const id = t === "LONG-SLEEVE" ? v.id : (US_VARIANTS[t] || {})[v.colour + "/" + v.size];
-        return id ? { ...v, id, price: v.size === "2XL" ? pr[1] : v.size === "3XL" ? pr[2] : pr[0], net: undefined } : null;
+        const id = own ? (US_VARIANTS[t] || {})[v.colour + "/" + v.size] : v.id;
+        return id ? { ...v, id, price: (v.size === "2XL" ? pr[1] : v.size === "3XL" ? pr[2] : pr[0]) + extra, net: undefined } : null;
       }).filter(Boolean);
       if (!variants.length) continue;
       garments[t] = { ...g, printifyId: pid, variants, priceFrom: Math.min(...variants.map((v) => v.price)) };
