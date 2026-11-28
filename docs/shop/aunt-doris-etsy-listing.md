@@ -21,7 +21,7 @@ Because somewhere in this house is Gareth's mum. Aunt Doris.
 ESCAPE FROM AUNT DORIS is a printable escape room for one person and a pen. Nineteen puzzles stand between you and your sofa: a coat pile, a conversation you must survive, a dead phone, a family photo album, a tea round, charades, a coded text, a guarded house, the washing-up, the loo queue, a speech, a toy box, the smokers, a taxi app, a playlist, a hallway and two locked doors.
 
 HOW IT WORKS
-1. Print the booklet (about 25 A4 pages).
+1. Print the booklet (25 A4 pages).
 2. Solve each puzzle on paper.
 3. Check your answers on your phone at introverthere.com/doris.
 4. Every wrong answer brings Aunt Doris a step closer. Four wrong answers on the same puzzle and she hugs you.
@@ -65,8 +65,6 @@ From Introvert Here: everything you need to be left the hell alone.
 
 ## Before posting
 
-- 25 Nov: the game grew to 19 puzzles (new Part Three). Remake the PDF and the Etsy pictures from /aunt-doris/print before listing.
+- 28 Nov: PDF (25 pages, 19 puzzles) and Etsy pictures remade for the 19-puzzle game (kept out of this public repository, like the PDF).
 
-- The online game at introverthere.com/aunt-doris is still free to play in full until pay-to-unlock is built
-  (after Stripe goes live). Buyers would notice. Post the listing after that, or at the same time.
-- introverthere.com/doris must be live (launch day), since the booklet depends on it.
+- Done: pay-to-unlock is live (28 Nov) and introverthere.com/doris is live, so the listing can go up.
