@@ -106,6 +106,7 @@ kf = key("hero-faces.png"); fq = kf.shape[1] / 1774; hfs = []
 for x0, x1 in [(30, 445), (470, 875), (880, 1310), (1345, 1745)]:
     f = trim_(kf[:, round(x0 * fq):round(x1 * fq)]); im = scaled(f, .504 / fq); a_ = np.asarray(im)[..., 3] > 128; xs = np.where(a_[int(a_.shape[0] * .93):].any(axis=0))[0]
     c = Image.new("RGBA", (340, 330), (0, 0, 0, 0)); c.alpha_composite(im, (round(170 - (xs[0] + xs[-1]) / 2), 330 - im.height)); hfs.append(c)
+kd = key("hero-face-done.png"); im = scaled(trim_(kd), .39 * 1774 / kd.shape[1]); c = Image.new("RGBA", (340, 330), (0, 0, 0, 0)); c.alpha_composite(im, (170 - im.width // 2, 330 - im.height)); hfs[3] = c   # the "done" face came separately (28 Nov)
 save("hero-faces", strip(hfs), w=340, h=330, n=4)
 # The title page (Barry's own picture, 23 Nov)
 save("title", Image.open(os.path.join(SRC, "title.png")).convert("RGB"))
