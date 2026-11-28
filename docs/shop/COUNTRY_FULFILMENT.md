@@ -75,3 +75,15 @@ scale = Choice print-area width / Print Clever width per size (S 0.8714, M 0.873
 Measured against the Etsy mockup: centred (y 0.5) sat ~1 cm lower, so y = 0.482 matches Etsy exactly (Barry: "nudge it up").
 Each garment type needs its own y check. Barry: no generic Printify mockups (models, folded, lifestyle) anywhere; his own photos only.
 Sample orders only with Barry's say-so (he may order it himself in Printify: "Order sample").
+
+## US decisions (Barry, 28 Nov 2026)
+
+- US first; Canada and Australia later.
+- Printers: **Stakes Manufacturing (52)** for tee, sweatshirt and hoodie (every shop colour); **Printify Choice (99)**
+  for long sleeves (the only US option with Dark Chocolate and Maroon).
+- Prices (USD, free US delivery): tee $29.99, long sleeve $34.99, sweatshirt $44.99, hoodie $54.99. 2XL/3XL add
+  $4/$7 (tee, long sleeve) and $6/$10 (sweatshirt, hoodie). Costs from test products 28 Nov (front print): tee $9.55,
+  sweatshirt $17.15, hoodie $22.19 (S–XL), long sleeve (Choice) $12.83; postage $4.49 / $7.99, +$2.09 each extra item.
+- Only hoodies print front and back; sweatshirts are front only now. Check the hoodie back-print cost on the first
+  real product.
+- Payment provider still open (Stripe live key blocked by its verification; PayPal is the fallback).
