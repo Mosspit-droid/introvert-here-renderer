@@ -1,3 +1,4 @@
+import { US_PRODUCTS, US_VARIANTS, US_PRICES } from "./us.js";
 // Introvert Here shop (Cloudflare Worker "introvert-here-shop").
 //
 // Pages: country picker (/), UK shop (/uk), product pages (/uk/p/<slug>, one per garment), basket (/uk/basket),
@@ -86,6 +87,10 @@ async function route(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     try {
+      if (path === "/us" || path.startsWith("/us/")) {   // the US shop (28 Nov): same pages, US catalogue and prices
+        const sr = await shopRoute(request, env, url, "/uk" + path.slice(3), true); if (sr) return sr;
+        return Response.redirect(url.origin + "/uk" + path.slice(3) + url.search, 302);   // the Escape Room etc. are shared
+      }
       if (path === "/api/vote" && request.method === "POST") return await castVote(request, env);
       if (path === "/api/reward" && request.method === "POST") return await rewardApi(request, env);   // the Hoodini hunt
       if (path === "/api/doris-code" && request.method === "POST") return await dorisCodeApi(request, env);   // works on the preview too
@@ -96,21 +101,17 @@ async function route(request, env, ctx) {
       if (path === "/api/checkout" && request.method === "POST") return await checkout(request, env, url);
       if (path === "/country") {
         const c = url.searchParams.get("c");
-        const dest = c === "GB" ? "/uk" : "/elsewhere?c=" + encodeURIComponent(c || "");
+        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : "/elsewhere?c=" + encodeURIComponent(c || "");
         return new Response(null, { status: 302, headers: { Location: dest, "Set-Cookie": `ih_country=${encodeURIComponent(c || "")}; Path=/; Max-Age=31536000; SameSite=Lax; Secure` } });
       }
       if (path === "/") {
         const chosen = cookie(request, "ih_country");
         if (chosen === "GB" && !url.searchParams.has("change")) return Response.redirect(url.origin + "/uk", 302);
+        if (chosen === "US" && !url.searchParams.has("change")) return Response.redirect(url.origin + "/us", 302);
         return html(countryPage((request.cf && request.cf.country) || "GB"));
       }
       if (path === "/elsewhere") return html(elsewherePage(url.searchParams.get("c")));
-      if (path === "/uk") {   // old shop links (/uk?c=PC) still work
-        if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + "/uk/shop" + url.search, 302);
-        return html(frontPage(await catalog(env)));
-      }
-      if (path === "/uk/gifts") return html(giftsPage(await catalog(env)));
-      if (path === "/uk/shop") return html(shopPage(await catalog(env), url.searchParams.get("c"), url.searchParams.get("t"), url.searchParams.get("n")));
+      { const sr = await shopRoute(request, env, url, path, false); if (sr) return sr; }
       if (path === HUB.path) return html(hubPage());
       if (path === HUB.path + "/gate") return html(gatePage());
       if (path === HUB.path + "/look-busy") return html(lookBusyPage());
@@ -133,16 +134,6 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/aunt-doris/check" || path === "/doris") return html(dorisCheckPage());
       if (path === HUB.path + "/vote") return html(votePage(await upcoming(env)));
       if (path === "/uk/comfort-zone") return Response.redirect(url.origin + HUB.path, 302);   // its first name
-      if (path.startsWith("/uk/p/")) {
-        const cat = await catalog(env), want = path.slice(6);
-        for (const d of cat.designs) for (const t of Object.keys(d.garments)) if (productSlug(d, t) === want) return html(productPage(d, t, cat));
-        // Old addresses were one page per gag: send them to that gag's first garment.
-        const old = cat.designs.find((x) => x.slug === want);
-        if (old) return Response.redirect(url.origin + "/uk/p/" + productSlug(old, cat.garmentOrder.find((t) => old.garments[t])), 302);
-        return html(page("Not found", mascotMsg("peek", "That isn’t here.", "It might have sold out, or it’s hiding. Either way, it’s not coming out.", "/uk/shop", "Back to the shop"), { noindex: true }), 404);
-      }
-      if (path === "/uk/basket") return html(basketPage());
-      if (path === "/uk/thanks") return html(thanksPage());
       if (path === "/terms" || path === "/returns" || path === "/privacy" || path === "/contact") return html(legalPage(path.slice(1)));
       if (path === "/catalog.json") return json(await catalog(env));
       if (path === "/google-products.xml") return new Response(googleFeed(await catalog(env), url.origin), { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
@@ -189,6 +180,75 @@ async function route(request, env, ctx) {
   }
 }
 
+// The shop's own pages, for the UK (/uk/...) and the US (/us/..., us = true). The US version is the same page made from
+// the US catalogue, then re-pointed at /us with dollar prices and US delivery wording (usify). A visitor who chose the
+// US is sent from the UK pages to the US ones.
+async function shopRoute(request, env, url, path, us) {
+  const shopPaths = path === "/uk" || path === "/uk/gifts" || path === "/uk/shop" || path.startsWith("/uk/p/") || path === "/uk/basket" || path === "/uk/thanks";
+  if (!shopPaths) return null;
+  if (!us && cookie(request, "ih_country") === "US" && !url.searchParams.has("uk")) return Response.redirect(url.origin + "/us" + path.slice(3) + url.search, 302);
+  const cat = async () => (us ? usCatalog(await catalog(env)) : await catalog(env));
+  const out = (body, status) => html(us ? usify(body) : body, status);
+      if (path === "/uk") {   // old shop links (/uk?c=PC) still work
+        if (url.searchParams.has("c") || url.searchParams.has("t")) return Response.redirect(url.origin + (us ? "/us" : "/uk") + "/shop" + url.search, 302);
+        return out(frontPage(await cat()));
+      }
+      if (path === "/uk/gifts") return out(giftsPage(await cat()));
+      if (path === "/uk/shop") return out(shopPage(await cat(), url.searchParams.get("c"), url.searchParams.get("t"), url.searchParams.get("n")));
+      if (path.startsWith("/uk/p/")) {
+        const c = await cat(), want = path.slice(6);
+        for (const d of c.designs) for (const t of Object.keys(d.garments)) if (productSlug(d, t) === want) return out(productPage(d, t, c));
+        // Old addresses were one page per gag: send them to that gag's first garment.
+        const old = c.designs.find((x) => x.slug === want);
+        if (old) return Response.redirect(url.origin + (us ? "/us" : "/uk") + "/p/" + productSlug(old, c.garmentOrder.find((t) => old.garments[t])), 302);
+        return out(page("Not found", mascotMsg("peek", "That isn’t here.", "It might have sold out, or it’s hiding. Either way, it’s not coming out.", "/uk/shop", "Back to the shop"), { noindex: true }), 404);
+      }
+      if (path === "/uk/basket") return out(basketPage());
+      if (path === "/uk/thanks") return out(thanksPage());
+  return null;
+}
+
+// ---------------- the US shop (Barry, 28 Nov 2026) ----------------
+// Same designs and photos as the UK; In Person is UK only. Tees, sweatshirts and hoodies are ordered from their own US
+// Printify products (us.js); long sleeves from the existing Choice products. Sizes S to 3XL, prices in cents.
+const US_SIZES = ["S", "M", "L", "XL", "2XL", "3XL"];
+const US_XMAS = "2026-12-10";   // order-by date for Christmas delivery in the US
+let usCache = null, usFrom = null;
+function usCatalog(cat) {
+  if (usFrom === cat && usCache) return usCache;
+  const designs = [];
+  for (const d of cat.designs || []) {
+    if (d.coll === "IP") continue;
+    const garments = {};
+    for (const [t, g] of Object.entries(d.garments)) {
+      const pr = US_PRICES[t]; if (!pr || g.personal) continue;
+      const pid = t === "LONG-SLEEVE" ? g.printifyId : (US_PRODUCTS[d.id] || {})[t];
+      if (!pid) continue;
+      const variants = g.variants.filter((v) => US_SIZES.includes(v.size)).map((v) => {
+        const id = t === "LONG-SLEEVE" ? v.id : (US_VARIANTS[t] || {})[v.colour + "/" + v.size];
+        return id ? { ...v, id, price: v.size === "2XL" ? pr[1] : v.size === "3XL" ? pr[2] : pr[0], net: undefined } : null;
+      }).filter(Boolean);
+      if (!variants.length) continue;
+      garments[t] = { ...g, printifyId: pid, variants, priceFrom: Math.min(...variants.map((v) => v.price)) };
+    }
+    if (Object.keys(garments).length) designs.push({ ...d, garments });
+  }
+  usCache = { ...cat, designs }; usFrom = cat;
+  return usCache;
+}
+function usify(h) {
+  const today = new Date().toISOString().slice(0, 10);
+  const xn = today > US_XMAS ? `<div class="xn"><b>Too late for Christmas.</b> Perfect for avoiding New Year.</div>` : null;
+  return h
+    .replace(/(["'(=])\/uk(?=["'?#)/])(?!\/escape-room)/g, "$1/us")
+    .replace(/£/g, "$")
+    .replace(/ih_basket/g, "ih_basket_us")
+    .replace(/'\/api\/checkout'/g, "'/api/checkout?r=us'")
+    .replace(/([Ff])ree UK delivery/g, "$1ree US delivery")
+    .replace(/4–10 working days/g, "5–12 working days")
+    .replace(/<div class="xn">[^]*?<\/div>/g, (m) => xn || m.replace(/Order by <b>[^<]*<\/b>/, `Order by <b>${xmasDay(US_XMAS)}</b>`).replace(/ Long sleeves[^.]*\.(?: They’re printed abroad\.)?/, "").replace(/ Long sleeves by <b>[^<]*<\/b> \(they’re printed abroad\)\./, "").replace(/ Long sleeves are now too late\./, ""));
+}
+
 // ---------------- checkout ----------------
 
 async function getSecret(env, name) {
@@ -210,7 +270,8 @@ async function stripe(env, method, path, form) {
 async function checkout(request, env, url) {
   const body = await request.json().catch(() => ({}));
   const items = Array.isArray(body.items) ? body.items.slice(0, 20) : [];
-  const cat = await catalog(env);
+  const us = url.searchParams.get("r") === "us";
+  const cat = us ? usCatalog(await catalog(env)) : await catalog(env);
   const form = {};
   let n = 0;
   for (const it of items) {
@@ -227,7 +288,7 @@ async function checkout(request, env, url) {
     if (g.personal && !pname) return json({ error: `"${d.title}" needs a name: letters only, up to ${g.personal.max}. Please add it again from its page.` }, 400);
     const p = `line_items[${n}]`;
     form[`${p}[quantity]`] = String(qty);
-    form[`${p}[price_data][currency]`] = "gbp";
+    form[`${p}[price_data][currency]`] = us ? "usd" : "gbp";
     form[`${p}[price_data][unit_amount]`] = String(v.price);
     form[`${p}[price_data][product_data][name]`] = `${d.title} – ${g.label}`;
     form[`${p}[price_data][product_data][description]`] = [v.colour, v.size].filter(Boolean).join(", ") + (pname ? ` · Name: ${pname}` : "");
@@ -244,23 +305,24 @@ async function checkout(request, env, url) {
     n++;
   }
   if (!n) return json({ error: "Your basket is empty, or those items are no longer available." }, 400);
+  const R = us ? { pre: "/us", c: "US", cur: "usd", ship: "Free US delivery", min: "5", max: "12", shop: "IH-US", locale: "en" } : { pre: "/uk", c: "GB", cur: "gbp", ship: "Free UK delivery", min: "4", max: "10", shop: "IH-UK", locale: "en-GB" };
   Object.assign(form, {
     mode: "payment",
-    success_url: `${url.origin}/uk/thanks?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${url.origin}/uk/basket`,
-    locale: "en-GB",
-    "shipping_address_collection[allowed_countries][0]": "GB",
+    success_url: `${url.origin}${R.pre}/thanks?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${url.origin}${R.pre}/basket`,
+    locale: R.locale,
+    "shipping_address_collection[allowed_countries][0]": R.c,
     "phone_number_collection[enabled]": "true",
     "shipping_options[0][shipping_rate_data][type]": "fixed_amount",
     "shipping_options[0][shipping_rate_data][fixed_amount][amount]": "0",
-    "shipping_options[0][shipping_rate_data][fixed_amount][currency]": "gbp",
-    "shipping_options[0][shipping_rate_data][display_name]": "Free UK delivery",
+    "shipping_options[0][shipping_rate_data][fixed_amount][currency]": R.cur,
+    "shipping_options[0][shipping_rate_data][display_name]": R.ship,
     "shipping_options[0][shipping_rate_data][delivery_estimate][minimum][unit]": "business_day",
-    "shipping_options[0][shipping_rate_data][delivery_estimate][minimum][value]": "4",
+    "shipping_options[0][shipping_rate_data][delivery_estimate][minimum][value]": R.min,
     "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][unit]": "business_day",
-    "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]": "10",
-    "metadata[shop]": "IH-UK",
-    "payment_intent_data[metadata][shop]": "IH-UK",
+    "shipping_options[0][shipping_rate_data][delivery_estimate][maximum][value]": R.max,
+    "metadata[shop]": R.shop,
+    "payment_intent_data[metadata][shop]": R.shop,
     allow_promotion_codes: "true",   // the one-off reward codes (rewardCode: Hoodini hunt, vote page)
   });
   if (Object.keys(form).some((k) => k.endsWith("[metadata][personal]"))) form["custom_text[submit][message]"] = "Personalised items can’t be returned for a change of mind. Faulty, damaged or misnamed items are always put right, and the rest of your order can be returned as normal.";
@@ -1725,7 +1787,7 @@ async function rewardCode(request, env, kind) {
   if (count.n >= REWARD_CAP) return { full: true };
   try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
   const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
-    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "restrictions[currency_options][usd][minimum_amount]": "3200", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
   try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
   catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
   count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
@@ -2138,7 +2200,7 @@ function legalPage(which) {
   const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
-<p>Prices are in pounds sterling and include delivery to UK addresses. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
+<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. Any US sales tax, where it applies, is shown at checkout. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
 <p>A contract is formed when your payment is accepted and we email your receipt. If we can't fulfil an order we'll refund you in full.</p>
 <p>You can return items within 30 days if you change your mind, except personalised (In Person) items, which are made to your order. Faulty, damaged or wrongly printed items are always put right. See <a href="/returns">Returns</a> for details.</p>
 <p>Nothing in these terms affects your statutory rights.</p>`],
