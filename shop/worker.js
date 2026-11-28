@@ -16,6 +16,8 @@ import { AU_PRODUCTS, AU_VARIANTS, AU_PRICES } from "./au.js";
 //        Keys come from KV namespace SECRETS (stripe_secret_key, printify_token), saved by Barry through the
 //        approvals app. STRIPE_WEBHOOK_SECRET is a worker secret.
 
+import { stealthPage } from "./stealth.js";   // the Escape Room's stealth game lives in its own file
+
 const PRINTIFY_SHOP = "27154106";
 const SHOP_NAME = "Introvert Here";
 const COLLECTIONS = {
@@ -122,6 +124,7 @@ async function route(request, env, ctx) {
       if (path === HUB.path + "/excuses") return html(excusesPage());
       if (path === HUB.path + "/newsletter") return html(newsletterPage());
       if (path === HUB.path + "/spot") return html(spotPage());
+      if (path === HUB.path + "/stealth") { const r = stealthPage(page, HUB, url, { html: PRESENTS_HTML(), js: PRESENTS_JS }, isPreview(env)); return r instanceof Response ? r : html(r); }   // a page, or one of its pictures
       if (path === HUB.path + "/escape-the-party") return html(partyPage());
       if (path === HUB.path + "/aunt-doris") {
         // preview only: a link with ?unlock=PREVIEW-DORIS opens the whole game straight away, for testers
@@ -2211,7 +2214,7 @@ setInterval(function(){$('st').textContent=fmt(total())},100);deal();show(0)})()
 // sits, f = where its label goes (l/r = starts at the dot and runs left/right-anchored, b = below the dot).
 // A thing with "soon" isn't built yet and answers with that line instead of going anywhere.
 const ROOM = [
-  { name: "Platform game", soon: "The console isn’t plugged in yet. The platform game is on its way. Come back later.",
+  { name: "Hoodini: The OK Escape", href: HUB.path + "/stealth",
     wide: { r: [[2.5, 67, 13.5, 14], [0.8, 16, 13, 35.5]], d: [9.6, 73.6], f: "l" }, tall: { r: [[2, 49.5, 25.5, 36.5]], d: [22.5, 76.6], f: "l" } },
   { name: "Paper escape rooms", href: HUB.path + "/aunt-doris",
     wide: { r: [[19, 44.3, 16, 31.5]], d: [27, 58] }, tall: { r: [[36.5, 36.3, 22, 13]], d: [55, 42.5], f: "r" } },
