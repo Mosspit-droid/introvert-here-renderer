@@ -104,13 +104,13 @@ async function route(request, env, ctx) {
       if (path === "/api/checkout" && request.method === "POST") return await checkout(request, env, url);
       if (path === "/country") {
         const c = url.searchParams.get("c");
-        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : c === "AU" ? "/au" : "/elsewhere?c=" + encodeURIComponent(c || "");
+        const dest = c === "GB" ? "/uk" : c === "US" ? "/us" : c === "CA" ? "/ca" : c === "AU" ? "/au" : c === "NZ" ? "/nz" : "/elsewhere?c=" + encodeURIComponent(c || "");
         return new Response(null, { status: 302, headers: { Location: dest, "Set-Cookie": `ih_country=${encodeURIComponent(c || "")}; Path=/; Max-Age=31536000; SameSite=Lax; Secure` } });
       }
       if (path === "/") {
         const chosen = cookie(request, "ih_country");
         if (chosen === "GB" && !url.searchParams.has("change")) return Response.redirect(url.origin + "/uk", 302);
-        const reg0 = { US: "/us", CA: "/ca", AU: "/au" }[chosen];
+        const reg0 = { US: "/us", CA: "/ca", AU: "/au", NZ: "/nz" }[chosen];
         if (reg0 && !url.searchParams.has("change")) return Response.redirect(url.origin + reg0, 302);
         return html(countryPage((request.cf && request.cf.country) || "GB"));
       }
@@ -190,7 +190,7 @@ async function route(request, env, ctx) {
 async function shopRoute(request, env, url, path, R) {
   const shopPaths = path === "/uk" || path === "/uk/gifts" || path === "/uk/shop" || path.startsWith("/uk/p/") || path === "/uk/basket" || path === "/uk/thanks";
   if (!shopPaths) return null;
-  const chose = { US: REGIONS.us, CA: REGIONS.ca, AU: REGIONS.au }[cookie(request, "ih_country")];
+  const chose = { US: REGIONS.us, CA: REGIONS.ca, AU: REGIONS.au, NZ: REGIONS.nz }[cookie(request, "ih_country")];
   if (!R && chose && !url.searchParams.has("uk")) return Response.redirect(url.origin + chose.pre + path.slice(3) + url.search, 302);
   const cat = async () => (R ? regionCatalog(await catalog(env), R) : await catalog(env));
   const out = (body, status) => html(R ? regionify(body, R) : body, status);
@@ -232,6 +232,11 @@ const REGIONS = {
   au: { key: "au", pre: "/au", c: "AU", cur: "aud", sym: "A$", ship: "Free delivery in Australia", days: "7–15", min: "7", max: "15", xmas: "2026-12-07", shop: "IH-AU", locale: "en", minSpend: "A$50",
     product: (d, t) => (AU_PRODUCTS[d.id] || {})[t], variants: (d, t) => AU_VARIANTS[t], price: (d, t) => AU_PRICES[t], fallback: true,
     swap: { "T-SHIRT": { "Dark Heather": ["Charcoal", "#36454f"] } } },
+  // New Zealand (Barry, 28 Nov): everything through the existing Choice products (cheaper to post to NZ than from
+  // Australia, and every colour); no NZ products of its own.
+  nz: { key: "nz", pre: "/nz", c: "NZ", cur: "nzd", sym: "NZ$", ship: "Free delivery in New Zealand", days: "10–20", min: "10", max: "20", xmas: "2026-12-04", shop: "IH-NZ", locale: "en", minSpend: "NZ$55",
+    product: () => null, variants: () => null, fallback: true,
+    price: (d, t) => ({ "T-SHIRT": [5499, 5999, 6399], "LONG-SLEEVE": [5999, 6499, 6899], SWEATSHIRT: [7999, 8799, 9199], HOODIE: [10999, 11799, 12199] })[t] },
 };
 const regionCache = {};
 function regionCatalog(cat, R) {
@@ -876,7 +881,7 @@ set:function(b){try{localStorage.setItem('ih_basket',JSON.stringify(b))}catch(e)
 count:function(){var n=B.get().reduce(function(a,i){return a+i.qty},0);var el=document.getElementById('bc');if(el)el.textContent=n}};B.count();`;
 
 function countryPage(guess) {
-  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["AU", "Australia"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
+  const opts = [["GB", "United Kingdom"], ["US", "United States"], ["CA", "Canada"], ["AU", "Australia"], ["NZ", "New Zealand"], ["IE", "Ireland"], ["EU", "Elsewhere in Europe"], ["XX", "Somewhere else"]];
   const order = opts.slice().sort((a, b) => (b[0] === guess) - (a[0] === guess));
   return page("Choose your country", `<img class="hero" src="/hero.jpg?v=${ASSET_V}" alt="Introvert Here: quiet humour for socially exhausted people"><div class="centre"><h1>Where are we sending it?</h1>
 <p class="muted">Pick your country so we can show you the right prices and delivery.</p></div>
@@ -1821,7 +1826,7 @@ async function rewardCode(request, env, kind) {
   if (count.n >= REWARD_CAP) return { full: true };
   try { await stripe(env, "POST", "/coupons", { id: "IH5OFF", percent_off: "5", duration: "once", name: "Introvert Here 5% off" }); } catch (e) { if (!/already exists/i.test(String(e.message))) throw e; }
   const base = { code, max_redemptions: "1", expires_at: String(Math.floor(Date.now() / 1000) + REWARD_DAYS * 86400),
-    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "restrictions[currency_options][usd][minimum_amount]": "3200", "restrictions[currency_options][cad][minimum_amount]": "4500", "restrictions[currency_options][aud][minimum_amount]": "5000", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
+    "restrictions[minimum_amount]": String(REWARD_MIN), "restrictions[minimum_amount_currency]": "gbp", "restrictions[currency_options][usd][minimum_amount]": "3200", "restrictions[currency_options][cad][minimum_amount]": "4500", "restrictions[currency_options][aud][minimum_amount]": "5000", "restrictions[currency_options][nzd][minimum_amount]": "5500", "metadata[kind]": kind, ...(kind === "hello" ? { "restrictions[first_time_transaction]": "true" } : {}) };
   try { await stripe(env, "POST", "/promotion_codes", { ...base, "promotion[type]": "coupon", "promotion[coupon]": "IH5OFF" }); }
   catch (e) { await stripe(env, "POST", "/promotion_codes", { ...base, coupon: "IH5OFF" }); }   // older Stripe API versions
   count.n++; if (ipk) count.ips[ipk] = code; await env.PENDING.put(ck, JSON.stringify(count));
@@ -2234,7 +2239,7 @@ function legalPage(which) {
   const EMAIL = "admin@mosspit.org";
   const pages = {
     terms: ["Terms of sale", `<p>These terms apply to orders placed on introverthere.com. The seller is Mosspit Studios (sole trader), trading as Introvert Here, ${ADDRESS}. Contact: ${EMAIL}.</p>
-<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. No US sales tax is added. On our Canadian shop (introverthere.com/ca), prices are in Canadian dollars and include delivery to Canadian addresses; most items are printed in Canada and usually arrive in 6–14 working days (long sleeves and In Person items are printed in the US, and may take longer). On our Australian shop (introverthere.com/au), prices are in Australian dollars and include delivery to Australian addresses; most items are printed in Australia and usually arrive in 7–15 working days (some colours, and In Person items, are printed in the US and may take longer). We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
+<p>Prices are in pounds sterling and include delivery to UK addresses. On our US shop (introverthere.com/us), prices are in US dollars and include delivery to US addresses; US orders are printed in the US and usually arrive in 5–12 working days. No US sales tax is added. On our Canadian shop (introverthere.com/ca), prices are in Canadian dollars and include delivery to Canadian addresses; most items are printed in Canada and usually arrive in 6–14 working days (long sleeves and In Person items are printed in the US, and may take longer). On our Australian shop (introverthere.com/au), prices are in Australian dollars and include delivery to Australian addresses; most items are printed in Australia and usually arrive in 7–15 working days (some colours, and In Person items, are printed in the US and may take longer). On our New Zealand shop (introverthere.com/nz), prices are in New Zealand dollars and include delivery to New Zealand addresses; items are printed in the US and usually arrive in 10–20 working days. We are not VAT-registered, so no VAT is charged. Every item is printed to order by our production partner and posted directly to you, usually within 4–10 working days.</p>
 <p>A contract is formed when your payment is accepted and we email your receipt. If we can't fulfil an order we'll refund you in full.</p>
 <p>You can return items within 30 days if you change your mind, except personalised (In Person) items, which are made to your order. Faulty, damaged or wrongly printed items are always put right. See <a href="/returns">Returns</a> for details.</p>
 <p>Nothing in these terms affects your statutory rights.</p>`],

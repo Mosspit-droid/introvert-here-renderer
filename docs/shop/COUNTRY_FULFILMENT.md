@@ -123,3 +123,10 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
 - Prices (AUD, free delivery): tee 49.99, long sleeve 54.99, sweatshirt 74.99, hoodie 99.99; 2XL/3XL +5/+9 (tee,
   long sleeve), +8/+12 (sweatshirt, hoodie). Reward codes: A$50 minimum spend.
 - 140 Australian Printify products made 28 Nov ("<design> <garment> (AU)"); map: docs/shop/au-printify-products.json. Colours/sizes The Print Bar lacks fall back to the existing Choice products per colour and size.
+
+## New Zealand (Barry, 28 Nov 2026)
+
+- Everything through the existing **Choice** products (posting to NZ is cheaper from Choice than from The Print Bar,
+  and Choice has every colour). Prices (NZD): tee 54.99, long sleeve 59.99, sweatshirt 79.99, hoodie 109.99; 2XL/3XL
+  +5/+9 (tee, long sleeve), +8/+12 (sweatshirt, hoodie); In Person +3; reward codes NZ$55 minimum.
+- Ireland and South Africa stay on Etsy (EU VAT; SA import duty), per Barry's OK.
