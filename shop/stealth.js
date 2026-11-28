@@ -278,7 +278,7 @@ window.__sg={S:function(){return S},P:function(){return P},A:function(){return A
 })();`;
 
 // page = worker.js's page builder, hub = its HUB ({ path, name }). ?sheet=1 shows the character sheet being workshopped.
-export function stealthPage(page, hub, url, presents, tally, preview) {
+export function stealthPage(page, hub, url, presents, preview) {
   // The game is the corridor in Barry's drawings (stealth-level.js). Its pictures are served from here too: ?a=<name>.
   // Earlier stages, kept to compare: ?walk=1 the bare walk test, ?old=1 the first side-on corridor, ?sheet=1 the pixel sheet.
   const q = url ? url.searchParams : new URLSearchParams();
@@ -289,7 +289,7 @@ export function stealthPage(page, hub, url, presents, tally, preview) {
   }
   if (q.has("walk")) return walkTestPage(page, hub);
   if (q.has("corridor")) return levelPage(page, hub, ART_V);   // the pen-and-ink corridor with the Pacer and the Boss
-  if (!q.has("sheet") && !q.has("old")) return platformPage(page, hub, ART_V, presents, preview && q.has("aisles"), tally, preview);   // the game as it stands: the platformer
+  if (!q.has("sheet") && !q.has("old")) return platformPage(page, hub, ART_V, presents, preview);   // the game as it stands: the platformer
   if (url && url.searchParams.has("sheet")) return page("Character sheet", `<h1 style="font-size:20px;margin:18px 0 6px">Character sheet: the introvert</h1><p class="note" style="margin:0 0 12px">Options to pick from. Not in the game yet. <a href="${hub.path}/stealth">Back to the corridor test</a></p><img src="${SHEET}" alt="Four pixel-art versions of a hooded figure in a navy hoodie, each shown side on, front on and as a silhouette." style="display:block;width:100%;max-width:600px;height:auto;image-rendering:pixelated;border-radius:8px">`, { nav: "hub", noindex: true });
   const j = (v) => JSON.stringify(v).replace(/</g, "\\u003c");
   const script = CLIENT.replace("__PEOPLE__", () => j(PEOPLE)).replace("__FILLER__", () => j(FILLER)).replace("__FAILS__", () => j(FAILS));
@@ -307,30 +307,4 @@ export function stealthPage(page, hub, url, presents, tally, preview) {
 <div id="sgend" hidden><p class="pre">Introvert Here…</p><h2 id="sgch"></h2><p id="sgcp"></p><p class="sm" id="sgcs"></p>
 <p class="go"><button class="btn" id="sgcb" type="button">Go again</button><a href="${hub.path}">Back to the room</a></p></div>
 </div></div></div>`, { nav: "hub", body: "stealth", desc: "A stealth game for introverts: get down the corridor without being drawn into a conversation.", script });
-}
-
-// Anonymous test scores (Barry, 25 Nov), so friends-of-friends can try the game without anyone having to send anything in.
-// POST: one finished or abandoned go (numbers only, plus a random tag per device). GET: a plain page of everything collected.
-// It only works where a STEALTH_TALLY store is attached, which is the stealth preview; the real shop has none, so it stores nothing.
-export async function stealthTally(request, env, url) {
-  const KV = env.STEALTH_TALLY, esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  if (!KV) return new Response("Not here.", { status: 404 });
-  if (request.method === "POST") {
-    const raw = await request.text(); if (raw.length > 3000) return new Response("Too big", { status: 413 });
-    let d; try { d = JSON.parse(raw); } catch { return new Response("Bad", { status: 400 }); }
-    const num = (v, hi) => Math.max(0, Math.min(hi, Math.round(Number(v) || 0))), str = (v, n) => String(v || "").replace(/[^\w .:&'-]/g, "").slice(0, n);
-    const row = { id: str(d.id, 12), l: num(d.l, 20), r: str(d.r, 6), h: num(d.h, 999), f: num(d.f, 99), k: num(d.k, 999), kt: num(d.kt, 999), b: num(d.b, 100), t: num(d.t, 36000), n: num(d.n, 9), z: str(d.z, 40), w: (Array.isArray(d.w) ? d.w : []).slice(0, 40).map((z) => str(z, 40)), sw: num(d.sw, 9999), sh: num(d.sh, 9999), touch: d.touch ? 1 : 0, d: Date.now() };
-    await KV.put("run:" + row.d + ":" + Math.random().toString(36).slice(2, 8), JSON.stringify(row), { expirationTtl: 60 * 60 * 24 * 120 });
-    return new Response("ok");
-  }
-  const rows = []; let cursor;
-  do { const page = await KV.list({ prefix: "run:", cursor, limit: 1000 }); for (const k of page.keys) { const v = await KV.get(k.name); if (v) try { rows.push(JSON.parse(v)); } catch {} if (rows.length >= 600) break; } cursor = page.list_complete || rows.length >= 600 ? null : page.cursor; } while (cursor);
-  const names = ["The Office", "The High Street", "The House Party", "The Family Picnic", "The Supermarket"], top = (o, n) => Object.keys(o).sort((a, b) => o[b] - o[a]).slice(0, n).map((z) => esc(z) + " (" + o[z] + ")").join(", ") || "nobody yet";
-  const players = [...new Set(rows.map((r) => r.id))];
-  let h = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Hoodini test scores</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;background:#1a1a18;color:#f6efe0}h1{font-size:24px}h2{font-size:18px;margin:26px 0 6px;color:#fad00c}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid #3b3a35;padding:6px 8px;text-align:left}th{color:#b9ae9c;font-weight:600}p{margin:6px 0}.sm{color:#b9ae9c;font-size:14px}</style><h1>Hoodini: test scores</h1><p>${rows.length} goes from ${players.length} device${players.length === 1 ? "" : "s"}. Anonymous: no names, just a random tag per device.</p>`;
-  names.forEach((nm, i) => { const g = rows.filter((r) => r.l === i); if (!g.length) return; const w = g.filter((r) => r.r === "won"), lf = g.filter((r) => r.r !== "won"), av = (k) => (w.length ? Math.round(w.reduce((n, r) => n + r[k], 0) / w.length) : "-"), zs = {}, qs = {};
-    g.forEach((r) => r.w.forEach((z) => { zs[z] = (zs[z] || 0) + 1; })); lf.forEach((r) => { qs[r.z] = (qs[r.z] || 0) + 1; });
-    h += `<h2>Level ${i + 1}: ${nm}</h2><p>${g.length} goes by ${new Set(g.map((r) => r.id)).size} players. Finished ${w.length}, left unfinished ${lf.length}. Battery ran flat ${g.reduce((n, r) => n + r.f, 0)} times.</p><p>When finished, on average: ${av("t")} seconds, ${av("h")} conversations, ${av("k")} keys, ${av("b")}% battery left.</p><p>Caught most in: ${top(zs, 5)}.</p><p>Gave up in: ${top(qs, 4)}.</p>`; });
-  h += `<h2>Each player</h2><table><tr><th>Player</th><th>Screen</th><th>Goes</th><th>Finished</th><th>Furthest level</th><th>Minutes played</th></tr>` + players.map((id) => { const g = rows.filter((r) => r.id === id); return `<tr><td>${esc(id)}</td><td>${g[0].sw}×${g[0].sh}${g[0].touch ? " touch" : ""}</td><td>${g.length}</td><td>${g.filter((r) => r.r === "won").length}</td><td>${Math.max(...g.map((r) => r.l)) + 1}</td><td>${Math.round(g.reduce((n, r) => n + r.t, 0) / 60)}</td></tr>`; }).join("") + `</table><p class="sm">Newest goes are included as soon as they happen. Scores are deleted automatically after 120 days.</p>`;
-  return new Response(h, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
 }

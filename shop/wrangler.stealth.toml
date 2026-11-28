@@ -17,11 +17,6 @@ PREVIEW = "yes"
 binding = "PENDING"
 id = "1c5342ad32504af1abd1da52c342f3ce"
 
-# Anonymous test scores from the stealth game (Barry, 25 Nov): only this preview has it, so the real shop never stores any.
-[[kv_namespaces]]
-binding = "STEALTH_TALLY"
-id = "42589198dc504881ac96b70cc62b82c3"
-
 # The shop's product photos: every page of each garment's Canva mockup design (see "Photos" in approvals-app/worker.js).
 [[r2_buckets]]
 binding = "PHOTOS"
