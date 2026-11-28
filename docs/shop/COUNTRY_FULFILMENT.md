@@ -110,3 +110,15 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
 - Prices (CAD, free delivery): tee 42.99, Exclusive tee 44.99, long sleeve 46.99, sweatshirt 64.99, hoodie 84.99;
   2XL/3XL +4/+7 (tees, long sleeve), +6/+10 (sweatshirt, hoodie).
 - 106 Canadian Printify products made 28 Nov ("<design> <garment> (CA)"); map: docs/shop/ca-printify-products.json. Only gap: Dark Chocolate sweatshirts (5 OS designs) aren't offered in Canada.
+
+## Australia decisions (Barry, 28 Nov 2026)
+
+- Printer: **The Print Bar (34)** for all four garments. Dark Heather tees are printed in **Charcoal** and labelled
+  Charcoal in Australia. Colours The Print Bar lacks (tee Dark Chocolate; long sleeve Forest Green, Maroon; sweatshirt
+  Dark Chocolate, Purple; hoodie Dark Chocolate, Navy, Purple) go through the existing **Choice** products (from the
+  US, slower).
+- Costs (USD, S–XL + postage to AU): Print Bar tee 15.71 + 6.69, long sleeve 19.08 + 6.69, sweatshirt up to 26.14 +
+  10.39, hoodie (front + back) 41.50 + 10.39. Choice to AU: tee 9.68 + 12.99, long sleeve 12.83 + 12.99, sweatshirt
+  17.87 + 22.79, hoodie 28.03 + 22.79.
+- Prices (AUD, free delivery): tee 49.99, long sleeve 54.99, sweatshirt 74.99, hoodie 99.99; 2XL/3XL +5/+9 (tee,
+  long sleeve), +8/+12 (sweatshirt, hoodie). Reward codes: A$50 minimum spend.
