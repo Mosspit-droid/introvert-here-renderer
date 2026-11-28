@@ -109,3 +109,4 @@ Sample orders only with Barry's say-so (he may order it himself in Printify: "Or
   hoodie (front + back) 35.03 + 9.69; Choice long sleeve 12.83 + 9.69.
 - Prices (CAD, free delivery): tee 42.99, Exclusive tee 44.99, long sleeve 46.99, sweatshirt 64.99, hoodie 84.99;
   2XL/3XL +4/+7 (tees, long sleeve), +6/+10 (sweatshirt, hoodie).
+- 106 Canadian Printify products made 28 Nov ("<design> <garment> (CA)"); map: docs/shop/ca-printify-products.json. Only gap: Dark Chocolate sweatshirts (5 OS designs) aren't offered in Canada.
