@@ -147,8 +147,8 @@ R2 `site/` (copies in `shop/assets/site/`).
   (shift grows along each word), back gate (6 digits: HOME + minutes till the bus), front door (DO NOT DISTURB GO AWAY,
   with GO AWAY picked up in the middle of the kit). The booklet PDF needs remaking before the Etsy listing. Shop checkout accepts promotion codes (the one-off reward codes).
 
-### US shop live (28 Nov 2026)
-- introverthere.com/us: same pages from a US catalogue (`usCatalog` + `usify` in worker.js, data in `shop/us.js`), dollar
+### US and Canadian shops live (28 Nov 2026)
+- introverthere.com/us and /ca: same pages from each country catalogue (`REGIONS`, `regionCatalog` + `regionify` in worker.js; data in `shop/us.js`, `shop/ca.js`), dollar
   prices, US-only Stripe checkout (`/api/checkout?r=us`), separate basket. Choosing United States (or a US cookie) sends
   visitors there. Printers and prices: docs/shop/COUNTRY_FULFILMENT.md.
 
