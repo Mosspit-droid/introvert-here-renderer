@@ -227,7 +227,7 @@ function supermarket() {
   put(4, E, "K"); put(12, E, "P"); put(18, E, "R"); put(24, E, "R"); put(31, E, "P"); put(38, E, "R"); put(44, E, "P"); put(48, E, "g");
   put(30, B - 2, "N"); put(42, D - 2, "N"); put(20, E - 2, "N");   // the three Do Not Disturb signs, at jump height
   // Straight on from the milk: headphones, two chatty tills, then the self-service checkout
-  put(58, E, "H"); put(65, E, "T"); put(69, E, "T"); put(74, E, "D");
+  put(58, E, "H"); put(62, E, "T"); put(66, E, "T"); put(74, E, "D");   // nothing to the right of his machine: that is his way to the door
   return g.map((r) => r.join(""));
 }
 const SZ = { wall: "#eef2f5", dado: "#eef2f5", rail: "#eef2f5", tones: ["#e3e9ee", "#d3dde4", "#c2cfd8"], kinds: [], win: false };
@@ -243,9 +243,9 @@ const SHOP = { name: "The Supermarket", out: "the supermarket", theme: "shop", v
   seeds: [[3, 31], [3, 24], [3, 17], [3, 10], [59, 10]],
   lost: "Unexpected item in the bagging area.", talkEvery: 2.6, chaseSpeed: 3.4, chaseWind: 1, chaseRest: 3, walkSpeed: 2.2, reach: true, need: 40, zones: SHOP_ZONES, upstairs: null,
   intro: "Hoodini only needs five things: bread, beans, eggs, coffee and milk. One in each aisle, and the milk is at the back. Push the stick UP to go round into the next aisle, and look down it first.",
-  signs: [{ x: 52, y: 34.3, t: "STICK UP: NEXT AISLE" }, { x: 25.75, y: 34.3, t: "GAP" }, { x: 38.95, y: 27.3, t: "GAP" }, { x: 33, y: 20.3, t: "REDUCED TO CLEAR" }, { x: 15.85, y: 20.3, t: "GAP" }, { x: 35.65, y: 13.3, t: "GAP" }, { x: 60, y: 6.4, t: "CHECKOUTS" }, { x: 74.5, y: 6.4, t: "SELF-SERVICE" }],
+  signs: [{ x: 52, y: 34.3, t: "STICK UP: NEXT AISLE" }, { x: 25.75, y: 34.3, t: "GAP" }, { x: 38.95, y: 27.3, t: "GAP" }, { x: 33, y: 20.3, t: "REDUCED TO CLEAR" }, { x: 15.85, y: 20.3, t: "GAP" }, { x: 35.65, y: 13.3, t: "GAP" }, { x: 64.5, y: 6.4, t: "CHECKOUTS" }, { x: 74.5, y: 6.4, t: "SELF-SERVICE" }],
   boss: { x: 74.5, caught: ["Having trouble, love?", "Ooh, big night in?", "Is this ALL yours?", "You want to press the green one.", "Do you know there’s an offer on those?", "Let me just scan my card. So! Any plans?"], miss: ["Hello? …Must have sorted itself.", "Where’s he gone?", "Honestly, these machines.", "I’ll just clear that, then."], left: "Sir? You’ve left your shopping!" },
-  props: [{ n: "selfcheck", x: 72.4, y: 11.03 }, { n: "selfcheck", x: 76.4, y: 11.03 }],
+  props: [{ n: "selfcheck", x: 70.3, y: 11.03 }, { n: "selfcheck", x: 72.4, y: 11.03 }],
   chat: { P: ["They’ve moved the eggs AGAIN.", "I only came in for milk.", "Is that ALL you’re getting?", "Get the own-brand. Same factory.", "Meal deal? Living the dream.", "Don’t get the hummus. Trust me.", "I knew your mother. Lovely feet.", "Are you a big-shop or a little-shop person?", "Ooh, somebody’s having a quiet night in.", "That’s a LOT of cheese for one.", "They’ve got the yellow stickers out!", "Fancy seeing you in the bread aisle."],
     R: ["Beep beep, coming through.", "This trolley has a mind of its own.", "Have you SEEN the price of butter?", "Mind your ankles.", "I’ve been round three times for the stock cubes.", "Ooh, I’ll just nip round the end."], T: ["Next, please!", "Has anyone got a pound for the trolley?", "It’s not scanning. It never scans."], C: ["I’d know that hoodie anywhere.", "He was SO quiet at school."] },
   tannoy: ["Cleaner to aisle six. There is no aisle six.", "Would the owner of a navy hoodie please come to customer services.", "Shoppers are reminded that eye contact is optional.", "The reduced section is now open. Form an orderly scrum.", "Could the gentleman hiding behind the tins please stop."],
@@ -407,17 +407,17 @@ function flat(){sfx('lose');nemPic(null);S.flats=(S.flats||0)+1;S.mode='lost';ca
 function info(a,b){S.info={a:a,b:b,t:4}}
 function bossHome(){people.forEach(function(p){if(p.hx!=null){p.x=p.hx;p.f=p.hf;p.go=0}})}
 function bossStep(dt){var B=S.boss,Q=L.boss,mx=Q.x,ly=L.laneY[L.laneY.length-1],near=Math.abs(P.x-mx)<1.7&&P.ground&&Math.abs(P.y-ly)<.2,ops=people.filter(function(p){return p.k==='T'}).sort(function(a,b){return b.x-a.x});B.t+=dt;
- if(B.st==='exit'){jumpQ=0;P.vx=0;P.hood=false;var ex=mx+1;if(B.t<0)return;if(Math.abs(P.x-ex)>.05&&!B.up){P.x+=Math.max(-3*dt,Math.min(3*dt,ex-P.x));P.lo=-.001;B.t=0}else{B.up=true;P.x=ex;B.open=Math.min(1,B.t/.45);var u=Math.max(0,Math.min(1,(B.t-.25)/.9));P.lo=-.001-1.5*u;P.fadeA=1-Math.max(0,Math.min(1,(B.t-.95)/.3));if(B.t>1.5){S.bossDone=true;win()}}return}
+ if(B.st==='exit'){jumpQ=0;P.vx=0;P.hood=false;var ex=mx+1.15;if(B.t<0)return;if(Math.abs(P.x-ex)>.05&&!B.up){P.x+=Math.max(-3*dt,Math.min(3*dt,ex-P.x));P.lo=-.001;B.t=0}else{B.up=true;P.x=ex;B.open=Math.min(1,B.t/.45);var u=Math.max(0,Math.min(1,(B.t-.25)/.9));P.lo=-.001-1.5*u;P.fadeA=1-Math.max(0,Math.min(1,(B.t-.95)/.3));if(B.t>1.5){S.bossDone=true;win()}}return}
  if(B.st==='ready'){if(jumpQ>0&&near&&!P.hood){jumpQ=0;B.st='alarm';B.t=0;B.bad=false;S.shake=.25;tone(880,880,.12,'square',.1);tone(880,880,.12,'square',.1,.2);tone(660,440,.3,'sawtooth',.1,.4);
-   ops.forEach(function(p,i){if(p.hx==null){p.hx=p.x;p.hf=p.f}p.go=(i===0||B.n>=3)?1:0;p.caught=false;p.slot=i});if(B.n===0)info('UNEXPECTED ITEM IN THE BAGGING AREA','Help is coming. Hood up (B) just before she gets to you.')}return}
- var sp=[2.6,3.2,3.8,4.4,5][Math.min(4,B.n)],busy=false;
+   ops.forEach(function(p,i){if(p.hx==null){p.hx=p.x;p.hf=p.f}p.go=(i===0||B.n>=3)?1:0;p.caught=false;p.slot=i;p.sp=((i?mx+1.25:mx-1.2)-p.hx)/([1.4,1.3,1.13,.98,.86][Math.min(4,B.n)]+(i?.55:0))});if(B.n===0)info('UNEXPECTED ITEM IN THE BAGGING AREA','Help is coming. Hood up (B) just before she gets to you.')}return}
+ var busy=false;
  ops.forEach(function(p){if(!p.go)return;busy=true;
-  if(p.go===1){var tx=p.slot?mx+1.25:mx-1.2;p.f=1;p.x=Math.min(tx,p.x+sp*(p.slot?1.6:1)*dt);if(p.x>=tx){p.go=2;p.wait=B.n>=3?1.1:.9}}
+  if(p.go===1){var tx=p.slot?mx+1.25:mx-1.2;p.f=1;p.x=Math.min(tx,p.x+p.sp*dt);if(p.x>=tx){p.go=2;p.wait=B.n>=3?1.1:.9}}
   else if(p.go===2){p.wait-=dt;var seen=!(P.hood||P.phones>0);
    if(Math.abs(P.x-mx)>3.2){if(!B.bad){B.bad=true;say(Q.left,p.x,p.y-2.25)}}
    else if(seen&&!p.caught&&!(P.inv>0)&&Math.abs(P.x-p.x)<3.4){p.caught=true;say(pick(Q.caught),p.x,p.y-2.25);hurt('T',p.x)}
    if(p.wait<=0){if(!p.caught&&!B.bad&&p.slot===0)say(pick(Q.miss),p.x,p.y-2.25);p.go=3}}
-  else{p.f=-1;p.x=Math.max(p.hx,p.x-3.4*dt);if(p.x<=p.hx){p.go=0;p.f=p.hf}}});
+  else{p.f=-1;p.x=Math.max(p.hx,p.x-6*dt);if(p.x<=p.hx){p.go=0;p.f=p.hf}}});
  if(!busy&&S.mode==='play'){if(!B.bad)B.n++;if(B.n>=5){say('Please take your receipt.',mx,ly-2.9);sfx('power');B.st='exit';B.t=-.9;B.up=false}else{B.st='ready';B.t=0}}}
 function say(t,x,y){if(!t)return;for(var i=0;i<says.length;i++)if(says[i].t===t){says[i].life=2.2;says[i].x=x;says[i].y=y;return}says.push({t:t,x:x,y:y,life:2.2});if(says.length>4)says.shift()}
 var AC=null,muted=false,fx=[];try{muted=localStorage.getItem('ih_hoodini_mute')==='1'}catch(e){}
